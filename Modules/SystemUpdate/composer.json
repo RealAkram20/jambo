@@ -1,0 +1,31 @@
+{
+    "name": "nwidart/systemupdate",
+    "description": "",
+    "authors": [
+        {
+            "name": "Nicolas Widart",
+            "email": "n.widart@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {
+
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\SystemUpdate\\": "",
+            "Modules\\SystemUpdate\\App\\": "app/",
+            "Modules\\SystemUpdate\\Database\\Factories\\": "database/factories/",
+            "Modules\\SystemUpdate\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\SystemUpdate\\Tests\\": "tests/"
+        }
+    }
+}

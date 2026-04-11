@@ -1,0 +1,11 @@
+{
+    "name": "SystemUpdate",
+    "alias": "systemupdate",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\SystemUpdate\\app\\Providers\\SystemUpdateServiceProvider"
+    ],
+    "files": []
+}

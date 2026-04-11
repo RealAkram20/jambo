@@ -1,0 +1,11 @@
+{
+    "name": "Streaming",
+    "alias": "streaming",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Streaming\\app\\Providers\\StreamingServiceProvider"
+    ],
+    "files": []
+}
