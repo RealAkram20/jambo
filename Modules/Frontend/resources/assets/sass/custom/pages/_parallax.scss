@@ -1,0 +1,56 @@
+.parallax-window {
+  height: 100%;
+  padding: 3.8em 0;
+  position: relative;
+  background-size: cover;
+  background-attachment: fixed;
+
+  &::after {
+    position: absolute;
+    content: "";
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(var(--bs-black-rgb), 0.8);
+  }
+
+  .parallaxt-details {
+    z-index: 9;
+    position: relative;
+    .parallaxt-details-heading {
+      line-height: 1.3;
+    }
+  }
+
+  .parallax-window-detail {
+    text-align: start;
+    .parallaxt-details-descripttion {
+      text-align: justify;
+    }
+  }
+}
+
+@include media-breakpoint-down(lg) {
+  .parallax-window {
+    padding: 2em;
+    .parallax-window-detail {
+      text-align: center;
+      .parallaxt-details-descripttion {
+        text-align: center;
+      }
+    }
+  }
+}
+
+@include media-breakpoint-down(md) {
+  .parallax-window {
+    padding: 1em;
+  }
+}
+
+@media screen and (min-width: 769px) and (max-width: 1124px) {
+  .parallax-window {
+    padding: 3.8em 1.8em;
+  }
+}

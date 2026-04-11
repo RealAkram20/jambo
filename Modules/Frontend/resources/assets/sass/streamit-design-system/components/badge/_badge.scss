@@ -1,0 +1,24 @@
+.iq-custom-badge {
+    position: relative;
+    padding: 0 1em;
+    font-size: 1em;
+    display: inline-flex;
+    align-items: center;
+    margin-right: 1em;
+
+    &:last-child {
+        margin-right: 0;
+    }
+
+    .iq-cancel-btn {
+        position: absolute;
+        top: auto;
+        right: -0.5em;
+        padding: 0;
+        line-height: 0;
+    }
+}
+
+.badge {
+    line-height: normal;
+}

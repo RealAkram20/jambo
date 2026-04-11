@@ -1,0 +1,60 @@
+.iq-breadcrumb {
+  display: block;
+  padding: 1.5em 0;
+  z-index: 9;
+  position: relative;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: cover !important;
+  background-color: var(--bs-gray-700) !important;
+
+  ol {
+    padding: 0;
+    margin-bottom: 0;
+    margin-top: 0.938em;
+
+    li {
+      display: inline-block;
+      word-break: break-all;
+      color: var(--bs-heading-color);
+      font-weight: 500;
+      font-size: 0.875em;
+      text-transform: capitalize;
+
+      a {
+        color: var(--bs-body-color);
+        text-decoration: none;
+        font-weight: 400;
+      }
+
+      a {
+        &:hover {
+          &:not(.active) {
+            color: var(--bs-primary);
+          }
+        }
+      }
+      
+
+      &.active {
+        color: var(--bs-white);
+      }
+    }
+  }
+}
+
+@media (max-width: 991px) {
+  .title {
+    font-size: 2.7em;
+  }
+}
+
+@media (max-width: 767px) {
+  .iq-breadcrumb {
+    padding: 1.5em 0;
+
+    .title {
+      font-size: 1.9em;
+    }
+  }
+}

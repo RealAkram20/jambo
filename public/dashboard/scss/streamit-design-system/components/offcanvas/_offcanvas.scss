@@ -1,0 +1,14 @@
+.offcanvas {
+  z-index: 1081;
+  &.offcanvas-width-80 {
+    width: 80% !important;
+  }
+}
+
+@include media-breakpoint-down(md) {
+  .offcanvas {
+    .offcanvas-width-80 {
+      width: 90%;
+    }
+  }
+}

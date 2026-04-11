@@ -1,0 +1,318 @@
+table {
+  &.custom-table {
+    border-spacing: 0 0.1875em;
+    border-collapse: separate;
+
+    thead {
+      vertical-align: middle;
+
+      th {
+        border: none;
+        padding: 1.5em 1.25em;
+        text-transform: capitalize;
+        color: var(--bs-headings-color);
+        background: var(--bs-gray-900);
+
+        &:first-child {
+          padding: 0.625em 1.25em;
+        }
+      }
+    }
+
+    tbody {
+      td {
+        border: none;
+        padding: 0.8125em;
+        text-transform: capitalize;
+        color: var(--bs-heading-color);
+        background: var(--bs-gray-900);
+
+        &:first-child {
+          padding: 0.625em 1.25em;
+          height: 3.5em;
+          width: 4em;
+        }
+      }
+    }
+  }
+
+  &.table-border {
+    thead {
+      tr {
+        background: var(--bs-gray-900);
+
+        th {
+          background: transparent;
+          padding: 1em;
+        }
+      }
+    }
+
+    tbody {
+      tr {
+        td {
+          padding: 1em;
+        }
+      }
+    }
+
+    tfoot {
+      tr {
+        td {
+          padding: 1em;
+          border-top: 0.0625em solid rgba(var(--bs-black-rgb), 0.1);
+        }
+      }
+    }
+  }
+  &.dataTable {
+    border-collapse: separate;
+    th,
+    td {
+      &.dt-type-numeric,
+      &.dt-type-date {
+        text-align: inherit;
+      }
+    }
+  }
+
+}
+
+.card {
+  table {
+    &.custom-table {
+      thead {
+        th {
+          color: var(--bs-heading-color);
+          background: var(--bs-gray-300);
+        }
+      }
+
+      tbody {
+        td {
+          color: var(--bs-body-color);
+          background: var(--bs-gray-900);
+          border-bottom: 0.3em solid var(--bs-body-bg);
+        }
+      }
+    }
+
+    &.table-border {
+      thead {
+        tr {
+          background: var(--bs-body-bg);
+
+          th {
+            background: transparent;
+          }
+        }
+      }
+
+      tfoot {
+        tr {
+          td {
+            border-top: 0.0625em solid rgba(var(--bs-black-rgb), 0.1);
+          }
+        }
+      }
+    }
+  }
+}
+
+.streamit-wraper-table {
+  padding-bottom: 1.25em;
+
+  table.custom-table {
+    tbody {
+      td {
+        font-size: 0.8125em;
+        background-color: var(--bs-gray-900);
+        &:first-child {
+          font-size: 1em;
+        }
+
+        input.form-check-input {
+          &:not(.form-switch-input) {
+            border: 0.0625em solid var(--bs-gray-500);
+            background-color: var(--bs-body-bg);
+            font-size: 1em;
+            margin: 0 0 0 0.5em;
+
+            &:checked {
+              border-color: var(--bs-primary);
+              background-color: var(--bs-primary);
+            }
+          }
+        }
+
+        input.form-switch-input {
+          font-size: 1em;
+          margin: 0 0 0 0.5em;
+        }
+
+        .form-switch {
+          padding-left: 0;
+
+          .form-check-input {
+            margin: 0;
+          }
+        }
+      }
+    }
+
+    thead {
+      th {
+        font-weight: 500;
+        color: var(--bs-heading-color);
+
+        input.form-check-input {
+          border: 0.0625em solid var(--bs-gray-500);
+          background-color: var(--bs-body-bg);
+          font-size: 1em;
+          margin: 0 0 0 0.5em;
+          &:checked {
+            background-color: var(--bs-primary);
+            border-color: var(--bs-primary);
+          }
+        }
+      }
+    }
+  }
+
+  thead {
+    tr {
+      th {
+        padding: 1.6em 0.625em;
+      }
+    }
+  }
+
+  table.dataTable {
+    border-spacing: 0em 0.1875em;
+    border-collapse: separate;
+  }
+
+  .custom-action-section {
+    font-size: 0.875em;
+  }
+
+  .pagination .page-link {
+    color: var(--bs-primary);
+    background-color: var(--bs-body-bg);
+    border: unset;
+    box-shadow: unset;
+  }
+}
+.dataTables_paginate{
+  .pagination {
+    display: flex !important;
+    opacity: 1 !important;
+  }
+}
+.streamit-wraper-table2 {
+  .pagination .page-link {
+    color: var(--bs-primary);
+    background-color: var(--bs-gray-900);
+    border: unset;
+    box-shadow: unset;
+  }
+
+  table {
+    &.custom-table {
+      thead {
+        th {
+          font-weight: 500;
+          color: var(--bs-heading-color);
+
+          input.form-check-input {
+            border: 0.0625em solid var(--bs-gray-500);
+            background-color: var(--bs-body-bg);
+            font-size: 1em;
+            margin: 0 0 0 0.5em;
+            &:checked {
+              border-color: var(--bs-primary);
+              background-color: var(--bs-primary);
+            }
+          }
+        }
+      }
+      tbody {
+        td {
+          background: var(--bs-body-bg);
+          font-size: 0.8125em;
+          color: var(--bs-heading-color);
+          &:first-child {
+            font-size: 1em;
+          }
+
+          input.form-check-input {
+            border: 0.0625em solid var(--bs-gray-500);
+            background-color: var(--bs-body-bg);
+            font-size: 1em;
+            margin: 0 0 0 0.5em;
+
+            &:checked {
+              border-color: var(--bs-primary);
+              background-color: var(--bs-primary);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  thead tr th {
+    padding: 1.5625em 0.625em;
+  }
+
+  tbody tr td {
+    padding: 0.625em 0.625em;
+  }
+
+  .custom-action-section {
+    font-size: 0.875em;
+  }
+
+  .form-control,
+  table#seasonTable thead th,
+  table.custom-table tbody td,
+  .select2.select2-container--default .select2-selection--single,
+  .streamit_upload_video_button {
+    background: var(--bs-body-bg);
+  }
+}
+
+.data-table-one {
+  table {
+    tbody {
+      td {
+        font-size: 0.8125em;
+      }
+    }
+  }
+}
+
+// data table
+.table-responsive {
+  &.table-space {
+    .dataTables_wrapper {
+      .row {
+        .dataTables_length,
+        .dataTables_info {
+          padding-left: 0;
+        }
+        .dataTables_filter,
+        .dataTables_paginate {
+          padding-right: 0;
+        }
+      }
+    }
+  }
+}
+
+div.dataTables_wrapper div.dataTables_filter {
+  input,
+  select {
+    height: 2.8125em;
+  }
+}

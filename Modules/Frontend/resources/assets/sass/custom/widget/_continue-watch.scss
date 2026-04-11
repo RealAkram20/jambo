@@ -1,0 +1,137 @@
+.iq-watching-block {
+  position: relative;
+
+  .block-images {
+    .iq-image-box {
+      position: relative;
+      transition: all 0.5s ease-in-out;
+      border-radius: $border-radius;
+      background: linear-gradient(
+        360deg,
+        var(--bs-dark) 0%,
+        rgba(var(--bs-dark-rgb), 0) 51.04%,
+        rgba(var(--bs-dark-rgb), 0.5) 99%
+      );
+
+      img {
+        height: fit-content;
+        mix-blend-mode: overlay;
+        object-position: top;
+        aspect-ratio: 5 / 3;
+        object-fit: cover;
+      }
+    }
+
+    .iq-preogress {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: auto;
+      bottom: 0;
+
+      .data-left-timing {
+        margin-bottom: 0.5em;
+        padding-left: 20px;
+        display: block;
+      }
+
+      ul {
+        li {
+          &.iq-preogress-movie-title {
+            &::after {
+              content: "";
+              position: absolute;
+              top: 50%;
+              transform: translateY(-50%);
+              right: -0.7em;
+              width: 0.25em;
+              height: 0.25em;
+              background-color: var(--bs-body-color);
+              border-radius: 50%;
+            }
+          }
+        }
+        li {
+          line-height: 1.625em;
+        }
+      }
+    }
+
+    .iq-progress-left-data,
+    .iq-preogress-play-btn,
+    .close-icon-section {
+      display: none;
+    }
+    .iq-preogress-play-btn {
+      color: var(--bs-white);
+      transition: all 0.3s ease;
+    }
+
+    &:hover {
+      .iq-progress-left-data,
+      .iq-preogress-play-btn,
+      .close-icon-section {
+        display: block;
+        transition: 1 ease-in;
+        cursor: pointer;
+      }
+    }
+  }
+
+  .iq-watching-close-icon {
+    background-color: rgba(var(--bs-black-rgb), 0.5);
+    color: var(--bs-white);
+    top: 0.1875em;
+    right: 0.375em;
+    left: auto;
+    border: 0;
+    width: 1.5em;
+    height: 1.5em;
+    line-height: 1.5em;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+}
+
+@media (max-width: 767px) {
+  .iq-watching-block {
+    .block-images {
+      .iq-preogress {
+        bottom: 0;
+        .data-left-timing {
+          display: none;
+        }
+      }
+    }
+  }
+
+  .movie-list-item {
+    li {
+      display: none;
+    }
+  }
+
+  .iq-watching-block {
+    .block-images {
+      .iq-preogress {
+        ul {
+          li {
+            &.iq-preogress-movie-title {
+              &::after {
+                content: none;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .movie-list-item {
+    li {
+      &:first-child {
+        display: block; /* Only the first child will be displayed */
+      }
+    }
+  }
+}

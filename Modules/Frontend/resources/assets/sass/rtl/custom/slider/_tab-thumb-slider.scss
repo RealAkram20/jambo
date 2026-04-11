@@ -1,0 +1,14 @@
+.tab-slider-banner{
+    .tab-slider-banner-images{
+        &::before {
+            background: linear-gradient(-270deg,rgba(var(--bs-black-rgb),.5) .6%,rgba(var(--bs-black-rgb),0) 29.9%),linear-gradient(90deg,var(--bs-black),rgba(var(--bs-black-rgb),0) 38.52%),linear-gradient(0deg,rgba(var(--bs-black-rgb),.7),rgba(var(--bs-black-rgb),0));
+        }
+    }
+}
+
+.tab-slider {
+    .tab-left-details {
+        left: 0em;
+        right: 2em;
+      }
+}

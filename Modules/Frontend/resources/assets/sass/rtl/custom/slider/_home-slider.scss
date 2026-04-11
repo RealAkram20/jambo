@@ -1,0 +1,29 @@
+.banner-home-swiper {
+  .time {
+    direction: ltr;
+  }
+
+  .banner-home-swiper-image {
+    &::before {
+      background: linear-gradient(-90deg,
+        rgba(var(--bs-black-rgb), 0.9),
+        rgba(var(--bs-black-rgb), 0.9) 15%,
+        rgba(var(--bs-black-rgb), 0)
+      );
+    }
+  }
+}
+
+.slider-ratting {
+  ul {
+    direction: ltr;
+
+    li {
+      margin-right: 0;
+      margin-left: 0.313em;
+    }
+  }
+  .ratting-start {
+    direction: rtl;
+  }
+}

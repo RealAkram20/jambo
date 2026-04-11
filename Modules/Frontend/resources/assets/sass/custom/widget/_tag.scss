@@ -1,0 +1,39 @@
+.iq-tag-box {
+    background: var(--bs-gray-900);
+    border: 0.063em solid var(--bs-border-color);
+    text-align: center;
+    aspect-ratio: 8/2;
+    padding: 0.9375em;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    width: 100%;
+    border-radius: var(--bs-border-radius-lg);
+    transition: all .6s ease 0s;
+
+    &:hover {
+        transform: none;
+        transform-origin: unset;
+        transition: all .6s ease 0s;
+
+        .iq-tag {
+            color: var(--bs-primary);
+        }
+    }
+
+    .iq-tag {
+        color: var(--bs-heading-color);
+        font-size: 1em;
+        line-height: 1.75em;
+        letter-spacing: 1px;
+        font-weight: 400;
+        word-break: break-word;
+        text-transform: capitalize;
+    }
+
+    &::before {
+        border: 0;
+    }
+}

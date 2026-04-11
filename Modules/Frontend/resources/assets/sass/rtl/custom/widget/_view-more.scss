@@ -1,0 +1,17 @@
+.css_prefix-card {
+  .block-images {
+    .card-description {
+      .genres-list {
+        li {
+          &:not(:last-child) {
+            &::after {
+              content: "";
+              right: unset;
+              left: -1.2em;
+            }
+          }
+        }
+      }
+    }
+  }
+}

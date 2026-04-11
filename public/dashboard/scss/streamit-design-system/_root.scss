@@ -1,0 +1,23 @@
+@each $color, $value in $theme-colors {
+    :root{
+        --#{$variable-prefix}#{$color}-shade-90: #{tint-color($value, 90%)};
+        --#{$variable-prefix}#{$color}-shade-80: #{tint-color($value, 80%)};
+        --#{$variable-prefix}#{$color}-shade-60: #{tint-color($value, 60%)};
+        --#{$variable-prefix}#{$color}-shade-40: #{tint-color($value, 40%)};
+        --#{$variable-prefix}#{$color}-shade-20: #{tint-color($value, 20%)};
+        --#{$variable-prefix}#{$color}-shade-10: #{tint-color($value, 10%)};
+        --#{$variable-prefix}#{$color}-tint-90: #{shade-color($value, 90%)};
+        --#{$variable-prefix}#{$color}-tint-80: #{shade-color($value, 80%)};
+        --#{$variable-prefix}#{$color}-tint-60: #{shade-color($value, 60%)};
+        --#{$variable-prefix}#{$color}-tint-40: #{shade-color($value, 40%)};
+        --#{$variable-prefix}#{$color}-tint-20: #{shade-color($value, 20%)};
+        --#{$variable-prefix}#{$color}-tint-10: #{shade-color($value, 10%)};
+    }
+}
+
+[data-bs-theme="dark"] {
+    --#{$prefix}gray-900: #141314;
+    --#{$prefix}gray-900-rgb: 20, 19, 20;
+    --#{$prefix}gray-800: #181818; 
+    --#{$prefix}gray-300: #232323; 
+}

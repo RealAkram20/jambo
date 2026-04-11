@@ -1,0 +1,16 @@
+.ql-snow {
+  .ql-picker {
+    color: var(--bs-heading-color);;
+  }
+}
+
+.ql-toolbar.ql-snow,
+.ql-container.ql-snow {
+  border: 1px solid var(--bs-gray-700);
+}
+
+.ql-toolbar.ql-snow {
+  .ql-picker-options {
+    background-color: var(--bs-body-bg);
+  }
+}

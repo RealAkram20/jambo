@@ -1,0 +1,42 @@
+.countdown {
+  li {
+    &:first-child {
+      margin-left: 2.8125em;
+      margin-right: 0;
+    }
+    &:last-child {
+      margin-right: 2.8125em;
+      margin-left: 0;
+    }
+    &::after {
+      left: -0.6125em;
+      right: auto;
+    }
+  }
+}
+
+@media (max-width: 767px) {
+  .countdown {
+    li {
+      &:first-child {
+        margin-left: 0;
+      }
+      &:last-child {
+        margin-right: 0;
+      }
+      margin: 0 0 0.625em;
+    }
+  }
+}
+
+@media (max-width: 479px) {
+  .coming-soon-background {
+    .countdown {
+      li {
+        &::after {
+          left: 45%;
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,130 @@
+.tab-slider-banner {
+  position: relative;
+
+  .tab-slider-banner-images {
+    position: relative;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center center;
+    height: 46.75em;
+    padding: 5.625em 0;
+    display: flex;
+    align-items: center;
+
+    &::before {
+      position: absolute;
+      content: "";
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      border-radius: 0.1875em;
+      background: linear-gradient(270deg,rgba(var(--bs-black-rgb),.5) .6%,rgba(var(--bs-black-rgb),0) 29.9%),linear-gradient(90deg,var(--bs-black),rgba(var(--bs-black-rgb),0) 38.52%),linear-gradient(0deg,rgba(var(--bs-black-rgb),.7),rgba(var(--bs-black-rgb),0));
+    }
+  }
+}
+
+.trending-label-img {
+  height: 3.75em ;
+}
+.texture-text.big-font {
+  font-weight: 800;
+}
+
+.tab-block {
+  border-radius: var(--bs-border-radius-lg);
+  background: var(--bs-gray-900);
+  padding: 2.19em 0;
+
+  .tab-title {
+    padding: 0 2.19em;
+    margin-bottom: 0.94em;
+  }
+
+  .nav-tabs {
+    padding: 0 2.19em;
+    gap: 2.81em;
+
+    .nav-link {
+      padding: 1em 0;
+    }
+  }
+
+  .tab-content {
+    padding: 0 2.19em;
+
+    .tab-pane {
+      li {
+        margin-bottom: 1.25em;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+
+      .image-box {
+        img {
+          width: 7.5em;
+          height: 5.3125em;
+          object-fit: cover;
+        }
+      }
+    }
+  }
+}
+
+.tab-slider {
+  .tab-block {
+    .tab-pane {
+      max-height: 25em;
+      overflow-y: auto;
+    }
+  }
+  .block-images {
+    .texture-text {
+      font-weight: 800;
+    }
+  }
+  .tab-left-details {
+    position: relative;
+    left: 2.3em;
+  }
+}
+
+
+@media screen and (max-width: 1141px) {
+  .tab-slider {
+    .tab-left-details {
+      left: 0;
+      padding: 5em 0;
+    }
+  }
+}
+
+@media screen and (min-width: 820px) and (max-width: 1141px) {
+  .tab-slider {
+    .tab-left-details {
+      left: 0;
+    }
+  }
+}
+
+@media (max-width: 767px) {
+  .tab-block {
+    .tab-content {
+      .tab-pane {
+        .image-box {
+          img {
+            width: 5em;
+          }
+        }
+      }
+    }
+  }
+  .tab-slider-banner {
+    .tab-slider-banner-images {
+      padding: 5em 0;
+      height: 30em;
+    }
+  }
+}

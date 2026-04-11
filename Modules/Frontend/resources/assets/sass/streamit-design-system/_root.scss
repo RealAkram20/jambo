@@ -1,0 +1,93 @@
+@each $color, $value in $theme-colors {
+  :root {
+    --#{$variable-prefix}#{$color}: #{$value};
+    --#{$variable-prefix}#{$color}-rgb: #{to-rgb($value)};
+    --#{$variable-prefix}#{$color}-bg-subtle: #{tint-color($value, 80%)};
+    --#{$variable-prefix}#{$color}-border-subtle: #{tint-color($value, 60%)};
+    --#{$variable-prefix}link-color-rgb: var(--#{$variable-prefix}#{$value}-rgb);
+    --#{$variable-prefix}#{$color}-hover-bg: #{shade-color($value, 20%)};
+    --#{$variable-prefix}#{$color}-hover-border: #{shade-color($value, 30%)};
+    --#{$variable-prefix}#{$color}-active-bg: #{shade-color($value, 20%)};
+    --#{$variable-prefix}#{$color}-active-border: #{shade-color($value, 30%)};  
+  }
+}
+
+[data-bs-theme="dark"] {
+  --#{$prefix}-gray-100: #999797;
+  --#{$prefix}-gray-200: #1e1e1e;
+  --#{$prefix}-gray-300: #222738;
+  --#{$prefix}-gray-400: #1c1e2f;
+  --#{$prefix}-gray-500: #2f2f2f;
+  --#{$prefix}-gray-600: #d7dbdf;
+  --#{$prefix}gray-700: #090809;
+  --#{$prefix}gray-800: #121212;
+  --#{$prefix}gray-900: #141314;
+  --#{$prefix}gray-900-rgb: 20, 19, 20; 
+  
+}
+
+[data-bs-theme="hotstar"] {
+  --#{$prefix}primary: #0959e4;
+  --#{$prefix}primary-rgb: 22, 121, 231;
+  --#{$prefix}primary-bg-subtle: #cedefa;
+  --#{$prefix}primary-border-subtle: #9dbdf4;
+  --#{$prefix}primary-hover-bg: #0747b6;
+  --#{$prefix}primary-hover-border: #063ea0;
+  --#{$prefix}primary-active-bg: #0747b6;
+  --#{$prefix}primary-active-border: #063ea0;
+  --#{$prefix}secondary-color: #fff;
+  --#{$prefix}secondary-color-rgb: 255, 255, 255;
+  --#{$prefix}body-color: #fff;
+  --#{$prefix}body-color-rgb: 255, 255, 255;
+  --#{$prefix}heading-color: #fff;
+  --#{$prefix}body-bg: #0f1014;
+  --#{$prefix}body-bg-rgb: 15, 16, 20;
+  --#{$prefix}gray-900: #191923;
+  --#{$prefix}gray-900-rgb: 25, 25, 35;
+  --#{$prefix}gray-800: #252833;
+  --#{$prefix}gray-800-rgb: 37, 40, 51;
+}
+
+[data-bs-theme="amazonprime"] {
+  --#{$prefix}primary: #1a98ff;
+  --#{$prefix}primary-rgb: 26, 152, 255;
+  --#{$prefix}primary-bg-subtle: #d1eaff;
+  --#{$prefix}primary-border-subtle: #a3d6ff;
+  --#{$prefix}primary-hover-bg: #157acc;
+  --#{$prefix}primary-hover-border: #126ab3;
+  --#{$prefix}primary-active-bg: #157acc;
+  --#{$prefix}primary-active-border: #126ab3;
+  --#{$prefix}secondary-color: #fff;
+  --#{$prefix}secondary-color-rgb: 255, 255, 255;
+  --#{$prefix}body-color: #fff;
+  --#{$prefix}body-color-rgb: 255, 255, 255;
+  --#{$prefix}heading-color: #fff;
+  --#{$prefix}body-bg: #00050d;
+  --#{$prefix}body-bg-rgb: 0, 5, 13;
+  --#{$prefix}gray-900: #1d2127;
+  --#{$prefix}gray-900-rgb: 29, 33, 39;
+  --#{$prefix}gray-800: #191e25;
+  --#{$prefix}gray-800-rgb: 25, 30, 37;
+}
+
+[data-bs-theme="hulu"] {
+  --#{$prefix}primary: #3ee783;
+  --#{$prefix}primary-rgb: 62, 231, 131;
+  --#{$prefix}primary-bg-subtle: #d8fae6;
+  --#{$prefix}primary-border-subtle: #b2f5cd;
+  --#{$prefix}primary-hover-bg: #32b969;
+  --#{$prefix}primary-hover-border: #2ba25c;
+  --#{$prefix}primary-active-bg: #32b969;
+  --#{$prefix}primary-active-border: #2ba25c;
+  --#{$prefix}secondary-color: #fff;
+  --#{$prefix}secondary-color-rgb: 255, 255, 255;
+  --#{$prefix}body-color: #fff;
+  --#{$prefix}body-color-rgb: 255, 255, 255;
+  --#{$prefix}heading-color: #fff;
+  --#{$prefix}body-bg: #0b0c0f;
+  --#{$prefix}body-bg-rgb: 11, 12, 15;
+  --#{$prefix}gray-900: #272c35;
+  --#{$prefix}gray-900-rgb: 39, 44, 53;
+  --#{$prefix}gray-800: #242830;
+  --#{$prefix}gray-800-rgb: 36, 40, 48;
+}

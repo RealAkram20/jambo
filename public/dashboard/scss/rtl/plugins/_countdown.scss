@@ -1,0 +1,30 @@
+.countdown {
+  li {
+    &::after {
+      left: -0.6em;
+      right: inherit;
+    }
+  }
+}
+
+@media (max-width: 767px) {
+  .countdown {
+    li {
+      &::after {
+        left: -0.35em;
+      }
+    }
+  }
+}
+
+@media (max-width: 479px) {
+  .countdown {
+
+    li {
+
+      &::after {
+        left: 45%;
+      }
+    }
+  }
+}

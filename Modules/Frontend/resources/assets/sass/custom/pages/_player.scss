@@ -1,0 +1,38 @@
+ // new video js
+    .video-container {
+      max-width: 100%;
+      margin: 0 auto;
+      height: 100vh;
+      video {
+        width: 100%;
+        height: 100%;
+      }
+    }
+
+.back-btn {
+    position: absolute;
+    top: 2em;
+    left: 1em;
+    right: auto;
+    z-index: 1;
+    opacity: 0;
+    transition: all .45s ease 0s
+}
+
+ .back-btn .btn {
+    font-size: 1.5em
+}
+
+.back-btn .btn:after, .back-btn .btn:before {
+    display: none
+}
+
+body:has(.video-container):hover .back-btn {
+    opacity: 1;
+    transition: all .45s ease 0s;
+}
+
+[dir="rtl"] .back-btn {
+    left: auto;
+    right: 1em;
+}

@@ -1,0 +1,25 @@
+.iq-watching-block {
+  .block-images {
+    .iq-preogress {
+      .data-left-timing {
+        padding-left: 0;
+        padding-right: 20px;
+        text-align: right;
+      }
+      ul {
+        li {
+          &.iq-preogress-movie-title {
+            &::after {
+              right: unset;
+              left: -0.75em;
+            }
+          }
+        }
+      }
+    }
+  }
+  .iq-watching-close-icon {
+    right: unset;
+    left: 0.375em;
+  }
+}

@@ -1,0 +1,17 @@
+@include media-breakpoint-down(sm) {
+  .iq-navbar {
+    .dropdown {
+      .dropdown-menu {
+        &.dropdown-menu-end[data-bs-popper] {
+          right: auto;
+          left: 0;
+        }
+      }
+
+      .dropdown-menu[data-bs-popper] {
+        left: inherit;
+        right: 30%;
+      }
+    }
+  }
+}

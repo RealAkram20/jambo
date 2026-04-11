@@ -1,0 +1,19 @@
+.ql-snow {
+  .ql-picker {
+    &:not(.ql-color-picker):not(.ql-icon-picker) {
+      svg {
+        margin-right: 4em;
+      }
+    }
+  }
+
+}
+.ql-container {
+  &.ql-snow {
+      .ql-editor{
+          p{
+              position: absolute;
+          }
+      }
+  }
+}

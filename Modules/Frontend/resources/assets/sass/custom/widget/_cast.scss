@@ -1,0 +1,71 @@
+.iq-cast {
+    position: relative;
+    margin-bottom: 2em;
+
+    .iq-cast-body {
+        display: flex;
+        flex-direction: column;
+        justify-content: end;
+        padding: 1.25em;
+        background: linear-gradient(24.12deg, var(--bs-black) 0.77%, transparent 96.59%);
+    }
+
+    .cast-images {
+        img {
+            width: 100%;
+            height: 100%;
+            aspect-ratio: 1/1.3;
+            object-fit: cover;
+            border-radius: var(--bs-border-radius-lg);
+            object-position: top;
+        }
+    }
+
+    .person-detail {
+        padding: 1em 0 0;
+        border-radius: var(--bs-border-radius-lg);
+        text-align: center;
+
+        .cast-title {
+            a {
+                &:hover {
+                    color: var(--bs-primary);
+                }
+            }
+        }
+
+        .person-cats {
+            font-size: .875em;
+            color: var(--bs-white);
+        }
+    }
+}
+
+.cast-images {
+
+    .img-box {
+        height: 8em;
+        position: relative;
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    }
+
+    .block-description {
+        position: relative;
+
+        .iq-title {
+            font-size: 1.125em;
+            color: var(--bs-white);
+            text-transform: capitalize;
+
+            a {
+                font-size: inherit;
+                color: inherit;
+            }
+        }
+    }
+}

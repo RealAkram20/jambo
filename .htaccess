@@ -1,0 +1,50 @@
+# Portable Laravel front controller for projects where /public/ must be
+# hidden from URLs without hardcoding the project folder name. Works in
+# any Apache setup that allows .htaccess rewrites.
+#
+# Important: do NOT pass real files/dirs at the project-root level
+# through to Apache. Laravel's project root contains directories like
+# app/, bootstrap/, config/, storage/, vendor/ — any of which would
+# otherwise be exposed as URLs and could collide with Laravel routes
+# (e.g. the /app dashboard route clashing with the app/ folder).
+
+# Disable directory listings so folders like app/, config/, vendor/
+# are never exposed as browseable listings. DirectorySlash is left at
+# its default (On) so Apache issues the 301 from /project to /project/
+# that Laravel's logout redirect (and any other bare base-URL
+# reference) relies on to enter this .htaccess.
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # 1. If the requested path points at a real file or directory under
+    #    public/, rewrite there so Apache serves it directly.
+    #
+    #    The %{REQUEST_URI}::$1 back-reference trick splits the URI into
+    #    %1 (the project folder prefix, e.g. "/project/") and %2 (the
+    #    rest of the path), so we can test %{DOCUMENT_ROOT}%1public/%2
+    #    for existence without hardcoding the project folder name.
+    #
+    #    %2 must match at least one character (.+) so this rule does
+    #    NOT fire for the project root itself — the root URL must fall
+    #    through to the Laravel front controller so Laravel's home route
+    #    and URL generator see SCRIPT_NAME = /project/index.php, not
+    #    /project/public/index.php.
+    RewriteCond %{REQUEST_URI}::$1 ^(/.+?/)(.+)::\2$
+    RewriteCond %{DOCUMENT_ROOT}%1public/%2 -f [OR]
+    RewriteCond %{DOCUMENT_ROOT}%1public/%2 -d
+    RewriteRule ^(.*)$ public/$1 [L]
+
+    # 2. Everything else — including paths that happen to match real
+    #    directories at project root (app/, config/, etc.) — is routed
+    #    to the root index.php wrapper, which requires public/index.php.
+    #
+    #    [END] (not [L]) is critical here: it prevents Apache from
+    #    re-entering this .htaccess after the rewrite. With [L], the
+    #    rewritten URI /project/index.php would loop back through rule
+    #    1, which would then see /project/public/index.php as a real
+    #    file and rewrite there — re-introducing the /public segment in
+    #    SCRIPT_NAME and breaking Laravel's base URL detection.
+    RewriteRule ^ index.php [END]
+</IfModule>

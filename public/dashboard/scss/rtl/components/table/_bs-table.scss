@@ -1,0 +1,73 @@
+.custom-table-effect{
+    .table{
+        tbody{
+            tr{
+                &:after{
+                    right: 0;
+                    border-top-left-radius: $border-radius;
+                    border-bottom-left-radius: $border-radius;
+                    border-top-right-radius: unset;
+                    border-bottom-right-radius: unset;
+                }   
+            }
+        }
+    }
+}
+#DataTables_Table_0_filter,
+#commentTable_filter,
+#user-list-table_filter,
+#seasonTable_filter {
+  float: left !important;
+  transform: translate(-20px, 0px) !important;
+}
+
+.streamit-wraper-table {
+  #seasonTable_filter {
+    float: unset !important;
+    transform: none !important;
+  }
+}
+
+
+.streamit-wraper-table2 {
+  #seasonTable_filter {
+    float: unset !important;
+    transform: none !important;
+  }
+}
+
+table {
+  &#seasonTable thead {
+    th {
+      text-align: right;
+      &::after{
+        right: unset;
+        left: 10px;
+      }
+      &::before{
+        right: unset;
+        left: 10px;
+      } 
+    }
+  }
+}
+
+
+.page-item {
+  &:first-child {
+    .page-link {
+      border-top-right-radius: 0.5rem;
+      border-bottom-right-radius: 0.5rem;
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+    }
+  }
+  &:last-child {
+    .page-link {
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
+      border-top-left-radius: 0.5rem;
+      border-bottom-left-radius: 0.5rem;
+    }
+  }
+}

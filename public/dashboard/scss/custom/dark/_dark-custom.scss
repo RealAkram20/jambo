@@ -1,0 +1,9 @@
+[data-bs-theme=dark] {
+    .text-dark {
+        color: var(--bs-white) !important;
+    }
+    .section-form fieldset {
+        border: 3px solid rgba(var(--bs-white-rgb), .1);
+    }
+
+}

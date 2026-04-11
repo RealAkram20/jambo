@@ -1,0 +1,36 @@
+.widget {
+    .search-form {
+        .form-control{
+            padding-left: 3.5em;
+            padding-right: 1.5em;
+        }        
+        .block-search_button {
+            left: 0;
+            right: auto;
+            border-radius: 3px 0 0 3px !important;
+        }
+    }
+}  
+
+.widget.widget_categories {
+    li {
+        &::before {
+            left: auto;
+            right: 0;
+        }
+        &:hover {
+            padding-left: 0;
+            padding-right: 8px;
+        }
+    }
+}
+
+.widget_social_media {
+    li {
+        margin-left: .75em;
+        margin-right: 0;
+        &:last-child {
+            margin-left:0;
+        }
+    }
+}

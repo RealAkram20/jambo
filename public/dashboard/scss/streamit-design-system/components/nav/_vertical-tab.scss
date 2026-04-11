@@ -1,0 +1,115 @@
+.streamit-verticle-tab {
+  .streamit-tabs {
+    display: flex;
+    gap: 10px;
+    margin: 0;
+    flex-direction: column;
+    & > li {
+      padding: 10px 20px;
+      background: var(--bs-body-bg);
+      margin-bottom: 0;
+      border-radius: var(--bs-border-radius);
+      cursor: pointer;
+      transition: all 0.5s ease-in-out;
+    }
+    & > button {
+      color: var(--bs-heading-color);
+      background-color: var(--bs-body-bg);
+      text-align: start;
+      border-radius: 4px;
+      .nav-link {
+        color: inherit;
+      }
+    }
+  }
+}
+.btn {
+  &.add-tvshow-cast {
+    font-size: 14px;
+    line-height: 20px;
+    padding: 11px 20px;
+  }
+}
+.card {
+  .tvshow_genre_thumbnail_id_field {
+    .streamit_upload_video_button {
+      background-color: var(--bs-body-bg);
+    }
+  }
+  .tab-content {
+    .tvshow_genre_thumbnail_id_field .streamit_upload_video_button {
+      background: var(--bs-gray-900);
+    }
+  }
+}
+.tvshow_genre_thumbnail_id_field {
+  margin-bottom: 20px;
+  .streamit_upload_video_button {
+    color: var(--bs-heading-color);
+    background-color: var(--bs-gray-900);
+    padding: 10px 20px;
+    text-decoration: none;
+    font-size: 14px;
+    width: 100%;
+    min-height: 200px;
+    border: 2px dashed var(--bs-border-color);
+    border-radius: 4px;
+    svg {
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+  }
+
+  .streamit_media_preview-wrap {
+    margin-top: 10px;
+    .streamit_media_preview {
+      margin-top: 10px;
+    }
+
+    .streamit_remove_video_button {
+      top: 50px;
+      right: 12px;
+      background-color: var(--bs-primary);
+      color: var(--bs-white);
+      border: 0;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      .remove-media-icon {
+        font-weight: bold;
+      }
+    }
+  }
+}
+
+.source-container {
+  .streamit_source {
+    background: var(--bs-gray-900);
+    margin-top: 20px;
+    padding: 15px 20px;
+
+    h3 {
+      font-size: 16px;
+    }
+
+    .custom-source-font {
+      font-size: 13px;
+    }
+  }
+
+  .streamit-metabox-content {
+    background-color: var(--bs-gray-900);
+    border-top: 1px solid var(--bs-border-color);
+  }
+}
+
+.streamit-tabs-card {
+  .card-body {
+    border-radius: 4px;
+  }
+}
+
+.edit-tab-content {
+  background-color: var(--bs-body-bg);
+  border-radius: 4px;
+}

@@ -1,0 +1,166 @@
+.sign-bg {
+  position: absolute;
+  left: 0;
+  top: 0;
+
+  &.sign-bg-right {
+    left: auto;
+    right: 0;
+  }
+}
+.gradient-main {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+.login-bottom {
+  margin-top: -12.5rem;
+}
+
+.input-group.custom-input-group
+  .input-group-text:not(.custom-input-group-text) {
+  background-color: var(--bs-body-bg);
+}
+
+.input-group.custom-input-group .custom-input-group-text {
+  background-color: var(--bs-gray-900);
+}
+
+.input-group.custom-input-group .form-control {
+  border-right: 0;
+}
+
+.input-group.custom-input-group .form-control:focus + .input-group-text {
+  border-color: var(--bs-primary);
+}
+
+.form-control.custom-type-color {
+  height: 40px;
+}
+
+//custom card css
+
+.sign-user_card {
+  position: relative;
+  background: rgba(var(--bs-black-rgb), 0.7);
+  padding: 3.125em;
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+  -webkit-box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2),
+    0 6px 20px 0 rgba(0, 0, 0, 0.19);
+  -moz-box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2),
+    0 6px 20px 0 rgba(0, 0, 0, 0.19);
+  display: block;
+  margin: 0 auto;
+  border-radius: var(--bs-border-radius-lg);
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    color: var(--bs-white);
+  }
+
+  .forgot-password {
+    visibility: hidden;
+  }
+
+  .css_prefix-separator {
+    position: relative;
+    text-align: center;
+    margin: 1.5em 0;
+
+    &::before {
+      position: absolute;
+      content: "";
+      top: 50%;
+      bottom: 0;
+      left: 0;
+      right: auto;
+      background: var(--bs-border-color);
+      height: 1px;
+      transform: translateY(-50%);
+      width: 45%;
+    }
+
+    &::after {
+      position: absolute;
+      content: "";
+      top: 50%;
+      bottom: 0;
+      left: auto;
+      right: 0;
+      background: var(--bs-border-color);
+      height: 1px;
+      transform: translateY(-50%);
+      width: 45%;
+    }
+  }
+}
+
+.sign-in-page {
+  padding: 1em 0;
+  position: relative;
+  background-size: cover;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  img.logo {
+    display: block;
+    margin: 0 auto 3em;
+    width: 11.25em;
+  }
+
+  .custom-sign-btn {
+    background-color: var(--bs-btn-hover-bg);
+    border-color: var(--bs-btn-hover-border-color);
+    border-radius: var(--bs-border-radius-lg);
+    padding: 1em 2em;
+    font-size: 0.875em;
+    font-weight: 600;
+  }
+
+  .form-control {
+    background-color: var(--bs-body-bg);
+  }
+}
+
+.coming-soon-background {
+  background-repeat: no-repeat;
+  height: 100%;
+  min-height: 100vh;
+}
+
+.sign-in-page {
+  .height-self-center {
+    border-radius: 15px;
+  }
+}
+@include media-breakpoint-up(xxl) {
+  .auth-card {
+    padding: 0 6.25rem;
+  }
+}
+
+@include media-breakpoint-down(md) {
+  .sign-user_card {
+    padding: 1.875rem;
+  }
+  .logo-normal,
+  .logo-full {
+    height: 30px;
+  }
+  .sign-in-page {
+    height: inherit;
+  }
+}
+
+@include media-breakpoint-down(sm) {
+  .login-header {
+    height: 12.5rem !important;
+  }
+  .login-bottom {
+    margin-top: -6.25rem;
+  }
+}

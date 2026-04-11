@@ -1,0 +1,24 @@
+@include media-breakpoint-down(xl) {
+    .row {
+        --bs-gutter-x: 1.5em;
+    }
+    .content-inner {
+        padding: 1.5em;
+    }
+    .card{
+        margin-bottom: 1.5em ;
+    }
+    .nav{
+        .sidebar-toggle {
+            left: .775em;
+        }
+    } 
+}
+@include media-breakpoint-down(md) {
+    .card-body{
+        padding: 1em 1em;
+    }
+    .content-inner {
+        padding: 1em;
+    }
+}

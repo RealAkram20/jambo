@@ -1,0 +1,9 @@
+@import "./streamit.scss";
+@import "./custom.scss";
+@import "./rtl.scss";
+
+/*
+  This file is the Vite entry for the Frontend module.
+  It aggregates the module's primary stylesheets so the build
+  can produce a single CSS asset in `public/build-frontend`.
+*/

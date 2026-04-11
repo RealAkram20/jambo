@@ -1,0 +1,74 @@
+.input-group {
+  &.custom-input-group {
+    .form-control {
+      padding-right: 1.5rem;
+      padding-left: 0;
+      border-right: var(--bs-border-width) solid var(--bs-border-color);
+      border-left: 0;
+      border-top-right-radius: var(--bs-border-radius) !important;
+      border-bottom-right-radius: var(--bs-border-radius) !important;
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+
+      &:focus {
+        border-right: var(--bs-border-width) solid var(--bs-primary);
+      }
+
+      &+.input-group-text {
+        border-top-right-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
+        border-top-left-radius: var(--bs-border-radius) !important;
+        border-bottom-left-radius: var(--bs-border-radius) !important;
+      }
+    }
+
+    .input-group-text {
+      border-right: 0;
+      border-left: var(--bs-border-width) solid var(--bs-border-color);
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
+      border-top-left-radius: var(--bs-border-radius) !important;
+      border-bottom-left-radius: var(--bs-border-radius) !important;
+    }
+  }
+}
+
+.input-group {
+  &.custom-input-group {
+    .form-control {
+      padding-right: 1.5rem;
+      padding-left: 0;
+      border-right: var(--bs-border-width) solid var(--bs-border-color);
+      border-left: 0;
+      border-top-right-radius: var(--bs-border-radius) !important;
+      border-bottom-right-radius: var(--bs-border-radius) !important;
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+
+      &:focus {
+        border-right: var(--bs-border-width) solid var(--bs-primary);
+      }
+
+      &+.input-group-text {
+        border-top-right-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
+        border-top-left-radius: var(--bs-border-radius) !important;
+        border-bottom-left-radius: var(--bs-border-radius) !important;
+      }
+    }
+
+    .input-group-text {
+      border-right: 0;
+      border-left: var(--bs-border-width) solid var(--bs-border-color);
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
+      border-top-left-radius: var(--bs-border-radius) !important;
+      border-bottom-left-radius: var(--bs-border-radius) !important;
+    }
+  }
+}
+
+.offcanvas-header .btn-close {
+    margin-left: calc(-0.5*var(--bs-offcanvas-padding-x));
+    margin-right: auto;
+}

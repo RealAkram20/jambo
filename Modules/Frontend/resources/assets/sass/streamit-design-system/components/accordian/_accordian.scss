@@ -1,0 +1,75 @@
+.iq-accordian {
+  .iq-accordian-block {
+    margin-bottom: 1.875em;
+    padding: 0;
+    overflow: hidden;
+    background: var(--bs-gray-900);
+    border-radius: 0.3125em;
+    border: 0.063em solid var(--bs-border-color);
+
+    .iq-accordian-title {
+      border-radius: 0.25em;
+      position: relative;
+      padding: 1.875em 4.688em 1.875em 1.875em;
+      line-height: normal;
+      cursor: pointer;
+      text-align: left;
+      color: var(--bs-white);
+      text-decoration: $font-weight-semibold;
+
+      .accordian-title {
+        font-size: 1.125em;
+      }
+
+      .iq-icon-right {
+        position: absolute;
+        right: 1.875em;
+        top: 1.563em;
+        text-align: center;
+        background: var(--bs-body-bg);
+        height: 2.188em;
+        width: 2.188em;
+
+        i {
+          color: var(--bs-white);
+          vertical-align: middle;
+          line-height: 2.188em;
+
+          &.active {
+            display: none;
+          }
+        }
+      }
+    }
+
+    .iq-accordian-details {
+      padding: 1.875em;
+      border: 0.0625em solid;
+      border-top: .063em solid var(--bs-border-color);
+      background: var(--bs-body-bg);
+      border-width: 0.0625em 0 0 0;
+    }
+
+    &.iq-active {
+      .iq-accordian-title {
+        .iq-icon-right {
+          i {
+            &.active {
+              display: block;
+            }
+
+            &.inactive {
+              display: none;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+.iq-accordian-block {
+  &:last-child {
+    margin-bottom: 0;
+  }
+}

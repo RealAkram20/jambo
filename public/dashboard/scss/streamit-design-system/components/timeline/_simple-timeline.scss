@@ -1,0 +1,97 @@
+.iq-timeline0 {
+    ul {
+        li {
+            width: 50%;
+            padding: 0.3125em 1.875em 2.5em 1.875em;
+            cursor: pointer;
+            margin: 0;
+            &:nth-child(odd) {
+                float: left;
+                text-align: left;
+                width: 100%;
+                padding: 0 0 0 3.75em;
+                margin-bottom: 1.25em;
+                .timeline-dots {
+                    left: 0.75em;
+                    right: auto;
+                }
+                .timeline-dots.timeline-dot1 {
+                    left: 0.75em;
+                    right: auto;
+                }
+            }
+            &:nth-child(even) {
+                float: left;
+                text-align: left;
+                width: 100%;
+                padding: 0 0 0 3.75em;
+                margin-bottom: 1.25em;
+                .timeline-dots {
+                    left: 0.75em;
+                    right: auto;
+                }
+                .timeline-dots.timeline-dot1 {
+                    left: 0.75em;
+                    right: auto;
+                }
+            }
+        }
+    }
+    li {
+        .timeline-dots {
+            height: 0.9375em;
+            width: 0.9375em;
+            background: $white;
+        }
+        .timeline-dots1 {
+            position: absolute;
+            top: 0;
+            left: 0;
+            border: 0.1875em solid #05bbc9;
+            border-radius: 5.625em;
+            padding: 0.3125em;
+            background: $white;
+            height: 2.5rem;
+            width: 2.5rem;
+            // line-height: 1.5625em;
+            // text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .timeline-dots.timeline-dot1 {
+            height: 0.9375em;
+            width: 0.9375em;
+        }
+    }
+}
+.iq-timeline0 {
+	li {
+		margin-left: 2.188rem;
+		position: relative;
+		padding: 0.9375em 0.9375em 0 0.3125em;
+		list-style-type: none;
+		.timeline-dots {
+			position: absolute;
+			top: 1.25em;
+			left: -3.375em;
+			border: 0.1875em solid #05bbc9;
+			border-radius: 5.625em;
+			padding: 0.3125em;
+			background: $white;
+			height: 2.5rem;
+			width: 2.5rem;
+			line-height: 1.5625em;
+			text-align: center;
+		}
+	}
+	&:before {
+		content: '';
+		position: absolute;
+		left: 1.25em;
+		transform: translateX(-50%);
+		width: 0.125em;
+		height: 100%;
+		background-color: #ccc;
+	}
+}

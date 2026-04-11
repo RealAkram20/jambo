@@ -1,0 +1,37 @@
+<?php
+
+return [
+
+    "description_service" => "Description du service et acceptation des conditions d'utilisation",
+    "desc1" => "Le site Jambo propose des services de streaming pour divers contenus de divertissement, notamment des films, des séries télévisées et des documentaires.",
+    "desc2" => "En accédant ou en utilisant le site Jambo, vous acceptez de respecter les conditions d'utilisation décrites ici.",
+    "desc3" => "Jambo exige que les utilisateurs disposent de la dernière version de navigateurs compatibles tels que Google Chrome, Firefox ou Safari, avec JavaScript et les cookies activés pour des performances optimales.",
+    "works_best_with" => "Le site Jambo fonctionne mieux avec :",
+    "chrome" => "Dernière version de Google Chrome",
+    "firefox" => "Dernière version de Firefox",
+    "safari" => "Dernière version de Safari",
+    "js_cookies" => "JavaScript et cookies activés",
+    "subscription_services" => "Services d'abonnement",
+    "subscription_desc1" => "Jambo propose des services d'abonnement pour accéder à du contenu et des fonctionnalités exclusives.",
+    "subscription_desc2" => "Les abonnés ont accès à une vaste bibliothèque de vidéos de haute qualité, au streaming sans publicité et à des recommandations personnalisées.",
+    "subscription_desc3" => "Les formules d'abonnement sont disponibles sur une base mensuelle ou annuelle, avec des options tarifaires flexibles pour répondre aux préférences des utilisateurs.",
+    "payment_gateway" => "Passerelle de paiement tierce – Informations financières",
+    "payment_desc1" => "Pour faciliter les paiements des services d'abonnement, Jambo utilise une passerelle de paiement tierce.",
+    "payment_desc2" => "Les utilisateurs doivent fournir des informations financières telles que les détails de carte bancaire ou les comptes PayPal pour traiter les paiements d'abonnement en toute sécurité.",
+    "payment_desc3" => "Jambo garantit que toutes les transactions financières sont cryptées et conformes aux protocoles de sécurité standards de l'industrie pour protéger les données des utilisateurs.",
+    "children_privacy" => "Protection de la vie privée des enfants",
+    "children_desc1" => "Jambo s'engage à protéger la vie privée des enfants qui utilisent ses services.",
+    "children_desc2" => "Les utilisateurs de moins de 13 ans doivent obtenir le consentement parental avant d'accéder à certaines fonctionnalités ou de fournir des informations personnelles.",
+    "children_desc3" => "Jambo ne collecte pas intentionnellement d'informations personnelles auprès des enfants de moins de 13 ans.",
+    "data_transfer" => "Transfert, stockage et traitement des données à l'échelle mondiale",
+    "data_desc1" => "En utilisant les services de Jambo, les utilisateurs reconnaissent et acceptent que leurs données personnelles puissent être transférées, stockées et traitées à l'échelle mondiale.",
+    "data_desc2" => "Des transferts de données peuvent avoir lieu entre des serveurs situés dans différents pays pour fournir des expériences de streaming fluides et améliorer la qualité du service.",
+    "data_desc3" => "Jambo respecte les réglementations sur la protection des données et met en œuvre des mesures de protection appropriées pour garantir la sécurité et la confidentialité des données des utilisateurs lors des transferts et du traitement à l'échelle mondiale.",
+    "we_will_be" => "Nous reviendrons avec de nouvelles idées professionnelles",
+    "waht_personal" => "Quelles informations personnelles les utilisateurs Jambo collecte-t-il ?",
+    "cookies_web" => "Cookies et balises web",
+    "third_party" => "Passerelle de paiement tierce – Informations financières",
+    "desc4" => "Jambo collecte certaines informations personnelles telles que le nom, l'adresse e-mail, les informations de paiement et les préférences d'utilisation pour améliorer l'expérience utilisateur et fournir des services personnalisés.",
+    "desc5" => "Jambo utilise des cookies et des balises web pour analyser le trafic, personnaliser le contenu et améliorer la sécurité du site.",
+    "desc6" => "Les informations financières sont traitées via une passerelle de paiement tierce sécurisée afin de garantir la confidentialité et la sécurité des données des utilisateurs."
+];
