@@ -37,7 +37,9 @@ class InstallerServiceProvider extends ServiceProvider
      */
     protected function registerCommands(): void
     {
-        // $this->commands([]);
+        $this->commands([
+            \Modules\Installer\app\Console\Commands\ResetInstallCommand::class,
+        ]);
     }
 
     /**

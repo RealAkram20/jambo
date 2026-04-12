@@ -5,6 +5,8 @@ node_modules
 /public/build
 /public/build-frontend
 /storage/*.key
+/storage/installed
+/storage/app/install-data.json
 /vendor
 /Modules/*/vendor
 /Modules/*/node_modules
