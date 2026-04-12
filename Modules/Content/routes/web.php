@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Modules\Content\app\Http\Controllers\Admin\EpisodeController;
 use Modules\Content\app\Http\Controllers\Admin\MovieController;
+use Modules\Content\app\Http\Controllers\Admin\PersonController;
 use Modules\Content\app\Http\Controllers\Admin\SeasonController;
 use Modules\Content\app\Http\Controllers\Admin\ShowController;
 
@@ -28,4 +29,5 @@ Route::middleware(['auth', 'role:admin'])
         Route::resource('shows', ShowController::class)->except(['show']);
         Route::resource('seasons', SeasonController::class)->except(['show']);
         Route::resource('episodes', EpisodeController::class)->except(['show']);
+        Route::resource('persons', PersonController::class)->except(['show']);
     });

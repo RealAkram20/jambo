@@ -939,6 +939,18 @@
             </a>
         </li>
     @endif
+    @if (Route::has('admin.persons.index'))
+        <li class="nav-item mb-4">
+            <a class="nav-link {{ request()->routeIs('admin.persons.*') ? 'active' : '' }}"
+                href="{{ route('admin.persons.index') }}">
+                <i class="icon" title="Persons" data-bs-toggle="tooltip" data-bs-placement="right"
+                    aria-label="Persons" data-bs-original-title="Persons">
+                    <i class="ph ph-users-three fs-4"></i>
+                </i>
+                <span class="item-name">Persons</span>
+            </a>
+        </li>
+    @endif
     @if (Route::has('admin.updates.index'))
         <li class="nav-item mb-4">
             <a class="nav-link {{ request()->routeIs('admin.updates.*') ? 'active' : '' }}"
