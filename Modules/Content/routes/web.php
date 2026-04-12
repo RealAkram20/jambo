@@ -1,19 +1,25 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Modules\Content\app\Http\Controllers\ContentController;
+use Modules\Content\app\Http\Controllers\Admin\MovieController;
 
 /*
 |--------------------------------------------------------------------------
-| Web Routes
+| Content Module — Web Routes
 |--------------------------------------------------------------------------
 |
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| contains the "web" middleware group. Now create something great!
+| All admin CRUD for movies, shows, episodes, persons, genres,
+| categories, tags, and content interactions lives under /admin/* with
+| the web + auth + role:admin stack.
+|
+| Future: a companion routes/public.php will expose the read-only
+| frontend queries.
 |
 */
 
-Route::group([], function () {
-    Route::resource('content', ContentController::class)->names('content');
-});
+Route::middleware(['auth', 'role:admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::resource('movies', MovieController::class);
+    });

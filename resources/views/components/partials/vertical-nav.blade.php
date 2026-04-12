@@ -915,6 +915,18 @@
             <span class="item-name">{{ __('sidebar.access_control') }}</span>
         </a>
     </li>
+    @if (Route::has('admin.movies.index'))
+        <li class="nav-item mb-4">
+            <a class="nav-link {{ request()->routeIs('admin.movies.*') ? 'active' : '' }}"
+                href="{{ route('admin.movies.index') }}">
+                <i class="icon" title="Movies" data-bs-toggle="tooltip" data-bs-placement="right"
+                    aria-label="Movies" data-bs-original-title="Movies">
+                    <i class="ph ph-film-strip fs-4"></i>
+                </i>
+                <span class="item-name">Movies</span>
+            </a>
+        </li>
+    @endif
     @if (Route::has('admin.updates.index'))
         <li class="nav-item mb-4">
             <a class="nav-link {{ request()->routeIs('admin.updates.*') ? 'active' : '' }}"
