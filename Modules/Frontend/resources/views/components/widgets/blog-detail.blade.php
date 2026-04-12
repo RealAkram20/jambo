@@ -183,7 +183,7 @@
                             <h3 class="mb-4">{{__('streamTag.leave_reply')}} </h3>
                             <form>
                                 <p class="mb-5">{{__('streamAccount.logged_jenny')}} <a
-                                        href="{{ route('frontend.my_account') }}">{{__('streamTag.edit_profile')}}</a><a
+                                        href="#">{{__('streamTag.edit_profile')}}</a><a
                                        href="javascript:void(0)"> {{__('streamTag.log_out')}}?</a> *</p>
                                 <div class="pt-3">
                                     <div class="row">

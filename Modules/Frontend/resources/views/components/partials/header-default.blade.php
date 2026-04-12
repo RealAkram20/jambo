@@ -93,17 +93,6 @@
                                             <span class="d-inline-block">{{ __('frontendheader.video') }}</span>
                                         </a>
                                     </li>
-                                    <li class="nav-item">
-                                        <a class="nav-link {{ isset($IS_MEGA) && '' }} {{ activeRoute(route('frontend.merchandise')) }}"
-                                            href="{{ route('frontend.merchandise') }}">
-                                            @if (isset($IS_MEGA))
-                                                <img src="{{ asset('frontend/images/mega-menu/shop-home.webp') }}"
-                                                    alt="img" class="img-fluid d-xl-block d-none" loading="lazy" />
-                                            @endif
-                                            <span
-                                                class="d-inline-block">{{ __('frontendheader.merchandise_store') }}</span>
-                                        </a>
-                                    </li>
                                 </ul>
                             </li>
                             <li class="nav-item">
@@ -126,12 +115,6 @@
                                         <a class="nav-link {{ activeRoute(route('frontend.resticted')) }}"
                                             href="{{ route('frontend.resticted') }}">
                                             <span>{{ __('frontendheader.restricted_content') }} </span></a>
-                                    </li>
-                                    <li class="nav-item">
-                                        <a class="nav-link {{ activeRoute(route('frontend.releted_merchandies')) }}"
-                                            href="{{ route('frontend.releted_merchandies') }}">
-                                            <span> {{ __('frontendheader.related_merchandise') }}</span>
-                                        </a>
                                     </li>
                                     <li class="nav-item">
                                         <a class="nav-link {{ activeRoute(route('frontend.genres')) }}"
@@ -369,50 +352,6 @@
                                     </li>
                                 </ul>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link" data-bs-toggle="collapse" href="#shop" role="button"
-                                    aria-expanded="false" aria-controls="shop">
-                                    <div class="d-flex justify-content-between">
-                                        <span class="item-name">{{ __('frontendheader.shop') }}</span>
-                                        <span class="menu-icon">
-                                            <i class="ph ph-caret-down align-middle"></i>
-                                        </span>
-                                    </div>
-                                </a>
-                                <ul class="sub-nav collapse list-unstyled" id="shop">
-                                    <li class="nav-item">
-                                        <a class="nav-link" href="{{ route('frontend.shop') }}">
-                                            <span> {{ __('frontendheader.shop') }} </span> </a>
-                                    </li>
-                                    <li class="nav-item">
-                                        <a class="nav-link {{ activeRoute(route('frontend.my_account')) }}"
-                                            href="{{ route('frontend.my_account') }}">
-                                            <span> {{ __('frontendheader.my_account_page') }} </span> </a>
-                                    </li>
-                                    <li class="nav-item">
-                                        <a class="nav-link {{ activeRoute(route('frontend.cart')) }}"
-                                            href="{{ route('frontend.cart') }}">
-                                            <span> {{ __('frontendheader.cart_page') }} </span> </a>
-                                    </li>
-                                    <li class="nav-item">
-                                        <a class="nav-link {{ activeRoute(route('frontend.wishlist')) }}"
-                                            href="{{ route('frontend.wishlist') }}">
-                                            <span> {{ __('frontendheader.wishlist_page') }}</span>
-                                        </a>
-                                    </li>
-                                    <li class="nav-item">
-                                        <a class="nav-link {{ activeRoute(route('frontend.chekout')) }}"
-                                            href="{{ route('frontend.chekout') }}">
-                                            <span> {{ __('frontendheader.checkout_page') }}</span>
-                                        </a>
-                                    </li>
-                                    <li class="nav-item">
-                                        <a class="nav-link {{ activeRoute(route('frontend.order_tracking')) }}"
-                                            href="{{ route('frontend.order_tracking') }}">
-                                            <span>{{ __('frontendheader.order_tracking') }} </span></a>
-                                    </li>
-                                </ul>
-                            </li>
                         </ul>
                     </div>
                     <!-- container-fluid.// -->
@@ -460,14 +399,6 @@
                                     </li>
                                 @endforeach
                             </ul>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link shoping-cart-button text-white" href=""
-                                data-bs-toggle="offcanvas" data-bs-target="#shoping-cart-toggle"
-                                aria-controls="shoping-cart-toggle" aria-label="Open shopping cart">
-                                <i class="ph ph-bag p-0"></i>
-                                <span class="bg-primary text-white shopping-badge">1</span>
-                            </a>
                         </li>
                         @if (auth()->user())
                             <li class="nav-item dropdown" id="itemdropdown1">
@@ -562,74 +493,3 @@
         </div>
     </nav>
 </header>
-
-<div class="offcanvas overflow-y-auto widget-shopping-cart-content offcanvas-end offcanvas-sidebar sidebar-container on-rtl end border-0"
-    tabindex="-1" id="shoping-cart-toggle">
-    <div class="offcanvas-header position-relative">
-        <h5 class="offcanvas-title fw-500" id="offcanvasExampleLabel">
-            {{ __('streamShop.shopping_cart') }} ( <span class="streamit-cart-count" aria-live="polite">1</span> )
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-    </div>
-    <div class="offcanvas-body">
-        <div class="product-list-content">
-            <ul class="list-unstyled mb-0">
-                <li class="mini-cart-item d-flex align-items-start gap-3">
-                    <div class="cart-img">
-                        <a href="{{ route('frontend.cart') }}" aria-label="Bag Pack">
-                            <img src="{{ asset('/frontend/images/shop/product/01.webp') }}" class="img-fluid"
-                                width="300" height="400" alt="Bag Pack">
-                        </a>
-                    </div>
-                    <div class="cart-content flex-grow-1">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <a class="d-block" href="product-detail" aria-label="Bag Pack">
-                                <h6 class="fw-500">{{ __('streamShop.product1') }}</h6>
-                            </a>
-                            <a href="javascript:void(0)" class="delete-btn">
-                                <i class="ph ph-trash text-primary"></i>
-                            </a>
-                        </div>
-                        <div class="product-price text-muted">
-                            <span class="woocommerce-Price-amount amount"><span
-                                    class="woocommerce-Price-amount amount"><span
-                                        class="woocommerce-Price-currencySymbol">₹</span>11.05</span></span>
-                        </div>
-                        <div class="btn-group iq-qty-btn custom-qty-btn rounded-3" data-qty="btn" role="group">
-                            <button type="button"
-                                class="btn btn-sm btn-outline-light iq-quantity-minus text-white border-0">
-                                <i class="ph ph-minus"></i>
-                            </button>
-                            <input type="text" class="btn btn-sm btn-outline-light input-display border-0"
-                                data-qty="input" pattern="^(0|[1-9][0-9]*)$" minlength="1" maxlength="2"
-                                value="2" title="Qty">
-                            <button type="button"
-                                class="btn btn-sm btn-outline-light iq-quantity-plus text-white border-0">
-                                <i class="ph ph-plus"></i>
-                            </button>
-                        </div>
-                    </div>
-                </li>
-            </ul>
-        </div>
-    </div>
-    <div class="offcanvas-footer border-top py-3 px-3">
-        <div class="d-flex align-items-center justify-content-between gap-3">
-            <strong>{{ __('streamShop.subtotal') }}:</strong>
-            <span class="st-woocommerce-Price-amount amount"><span class="woocommerce-Price-amount amount"><span
-                        class="woocommerce-Price-currencySymbol">₹</span>11.05</span></span>
-        </div>
-        <div class="mini-cart-buttons d-flex flex-column align-items-center gap-3 mt-4">
-            <div class="iq-button w-100">
-                <a href="{{ route('frontend.chekout') }}" class="btn btn-primary text-capitalize w-100 rounded-3">
-                    <span class="button-text">{{ __('frontendheader.checkout_page') }}</span>
-                </a>
-            </div>
-            <div class="w-100">
-                <a href="{{ route('frontend.cart') }}" class="btn btn-secondary text-capitalize w-100 rounded-3">
-                    <span class="button-text">{{ __('streamButtons.view_cart') }}</span>
-                </a>
-            </div>
-        </div>
-    </div>
-</div>

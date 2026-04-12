@@ -58,10 +58,6 @@
                                 class="text-capitalize">{{ __('frontendheader.about_us') }}</a>
                         </li>
                         <li>
-                            <a href="{{ route('frontend.shop') }}"
-                                class="text-capitalize">{{ __('frontendheader.shop') }}</a>
-                        </li>
-                        <li>
                             <a href="{{ route('frontend.terms-and-policy') }}"
                                 class="">{{ __('frontendfooter.terms_and_use') }}</a>
                         </li>

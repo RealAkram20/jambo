@@ -21,7 +21,6 @@ Route::group([], function () {
     Route::get('/movie', [FrontendController::class, 'movie'])->name('frontend.movie');
     Route::get('/tv-show', [FrontendController::class, 'tv_show'])->name('frontend.tv-show');
     Route::get('/video', [FrontendController::class, 'video'])->name('frontend.video');
-    Route::get('/merchandise', [FrontendController::class, 'merchandise'])->name('frontend.merchandise');
 
     //detail pages
     Route::get('/movie-detail', [FrontendController::class, 'movie_detail'])->name('frontend.movie_detail');
@@ -29,12 +28,10 @@ Route::group([], function () {
     Route::get('/download', [FrontendController::class, 'download'])->name('frontend.download');
     Route::get('/view-more', [FrontendController::class, 'view_more'])->name('frontend.view-more');
     Route::get('/resticted', [FrontendController::class, 'resticted'])->name('frontend.resticted');
-    Route::get('/releted-merchandies', [FrontendController::class, 'releted_merchandies'])->name('frontend.releted_merchandies');
     Route::get('/tv-show-detail', [FrontendController::class, 'tvshow_detail'])->name('frontend.tvshow_detail');
     Route::get('/episode', [FrontendController::class, 'episode'])->name('frontend.episode');
     Route::get('/video-detail', [FrontendController::class, 'video_detail'])->name('frontend.video_detail');
     Route::get('/video-player', [FrontendController::class, 'video_player'])->name('frontend.video_player');
-    Route::get('/product-detail', [FrontendController::class, 'product_detail'])->name('frontend.product_detail');
     Route::get('/person-detail', [FrontendController::class, 'person_detail'])->name('frontend.person_detail');
     Route::get('/watchlist-detail', [FrontendController::class, 'watchlist_detail'])->name('frontend.watchlist_detail');
     Route::get('/playlist-detail', [FrontendController::class, 'playlist_detail'])->name('frontend.playlist_detail');
@@ -101,15 +98,6 @@ Route::group([], function () {
     Route::get('/blog-pagination', [FrontendController::class, 'blog_pagination'])->name('frontend.blog_pagination');
     Route::get('/blog-loadmore', [FrontendController::class, 'blog_loadmore'])->name('frontend.blog_loadmore');
     Route::get('/blog-infinite-scroll', [FrontendController::class, 'blog_infinite_scroll'])->name('frontend.blog_infinite_scroll');
-
-
-    Route::get('/shop', [FrontendController::class, 'shop'])->name('frontend.shop');
-    Route::get('/all-products', [FrontendController::class, 'all_products'])->name('frontend.all-products');
-    Route::get('/my-account', [FrontendController::class, 'my_account'])->name('frontend.my_account');
-    Route::get('/cart', [FrontendController::class, 'cart'])->name('frontend.cart');
-    Route::get('/wishlist', [FrontendController::class, 'wishlist'])->name('frontend.wishlist');
-    Route::get('/chekout', [FrontendController::class, 'chekout'])->name('frontend.chekout');
-    Route::get('/order-tracking', [FrontendController::class, 'order_tracking'])->name('frontend.order_tracking');
 
     //Profile
     Route::get('/profile-marvin', [FrontendController::class, 'profile_marvin'])->name('frontend.profile-marvin');

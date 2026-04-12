@@ -35,11 +35,6 @@ class FrontendController extends Controller
         return view('frontend::Pages.MainPages.videos-Page');
     }
 
-    public function merchandise()
-    {
-        return view('frontend::Pages.MainPages.merchandise-page');
-    }
-
     //movies pages
     public function download()
     {
@@ -54,11 +49,6 @@ class FrontendController extends Controller
     public function resticted()
     {
         return view('frontend::Pages.Movies.resticted-page');
-    }
-
-    public function releted_merchandies()
-    {
-        return view('frontend::Pages.Movies.releted-merchandies-page');
     }
 
     //deatil pages
@@ -90,11 +80,6 @@ class FrontendController extends Controller
     public function video_player()
     {
         return view('frontend::Pages.video-player');
-    }
-
-    public function product_detail()
-    {
-        return view('frontend::Pages.product-detail');
     }
 
     public function watchlist_detail()
@@ -331,51 +316,10 @@ class FrontendController extends Controller
         return view('frontend::Pages.Blog.blog-infinite-scroll');
     }
 
-    //shop pages
-    public function all_products()
-    {
-        return view('frontend::Pages.MerchandiseShopPages.all-product-page');
-    }
-
-    public function shop()
-    {
-        return view('frontend::Pages.MerchandiseShopPages.shop-page');
-    }
-
-    public function my_account()
-    {
-        return view('frontend::Pages.MerchandiseShopPages.my-account-page');
-    }
-
-    public function cart()
-    {
-        return view('frontend::Pages.MerchandiseShopPages.cart-page');
-    }
-
-    public function wishlist()
-    {
-        return view('frontend::Pages.MerchandiseShopPages.wishlist-page');
-    }
-
-    public function chekout()
-    {
-        return view('frontend::Pages.MerchandiseShopPages.chekout-page');
-    }
-
-    public function order_tracking()
-    {
-        return view('frontend::Pages.MerchandiseShopPages.order-tracking');
-    }
-
     // new development
     public function profile_marvin()
     {
         return view('frontend::Pages.profile-marvin');
-    }
-
-    public function watchlist()
-    {
-        return view('frontend::Pages.MerchandiseShopPages.order-tracking');
     }
 
     public function archive_playlist()
