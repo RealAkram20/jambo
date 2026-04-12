@@ -927,6 +927,18 @@
             </a>
         </li>
     @endif
+    @if (Route::has('admin.payments.index'))
+        <li class="nav-item mb-4">
+            <a class="nav-link {{ request()->routeIs('admin.payments.*') ? 'active' : '' }}"
+                href="{{ route('admin.payments.index') }}">
+                <i class="icon" title="Payments" data-bs-toggle="tooltip" data-bs-placement="right"
+                    aria-label="Payments" data-bs-original-title="Payments">
+                    <i class="ph ph-credit-card fs-4"></i>
+                </i>
+                <span class="item-name">Payments</span>
+            </a>
+        </li>
+    @endif
 </ul>
 
 <!-- Sidebar Menu End -->

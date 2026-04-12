@@ -1,19 +1,46 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Modules\Payments\app\Http\Controllers\PaymentsController;
+use Modules\Payments\app\Http\Controllers\Admin\PaymentSettingsController;
+use Modules\Payments\app\Http\Controllers\PaymentController;
 
 /*
 |--------------------------------------------------------------------------
-| Web Routes
+| User-facing payment flow
 |--------------------------------------------------------------------------
 |
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| contains the "web" middleware group. Now create something great!
+| createOrder needs an authenticated user (we attach user_id to the
+| PaymentOrder). callback and complete are NOT auth-gated because the
+| user's session cookie is not guaranteed to survive a round trip
+| through the gateway's hosted payment page, and `/payment/ipn` is a
+| server-to-server webhook — the gateway's IP is the only identity.
 |
 */
 
-Route::group([], function () {
-    Route::resource('payments', PaymentsController::class)->names('payments');
-});
+Route::post('payment/create-order', [PaymentController::class, 'createOrder'])
+    ->middleware(['auth'])
+    ->name('payment.create-order');
+
+Route::get('payment/callback', [PaymentController::class, 'callback'])
+    ->name('payment.callback');
+
+Route::match(['get', 'post'], 'payment/ipn', [PaymentController::class, 'ipn'])
+    ->name('payment.ipn');
+
+Route::get('payment/complete', [PaymentController::class, 'complete'])
+    ->name('payment.complete');
+
+/*
+|--------------------------------------------------------------------------
+| Admin: payment settings + reconciliation
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth', 'role:admin'])
+    ->prefix('admin/payments')
+    ->name('admin.payments.')
+    ->group(function () {
+        Route::get('/', [PaymentSettingsController::class, 'index'])->name('index');
+        Route::post('/', [PaymentSettingsController::class, 'update'])->name('update');
+        Route::post('register-ipn', [PaymentSettingsController::class, 'registerIpn'])->name('register-ipn');
+    });

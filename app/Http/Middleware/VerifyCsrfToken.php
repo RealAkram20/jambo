@@ -12,6 +12,9 @@ class VerifyCsrfToken extends Middleware
      * @var array<int, string>
      */
     protected $except = [
-        //
+        // PesaPal IPN is a server-to-server webhook. It has no user
+        // session and no CSRF token; the gateway identifies itself
+        // by source IP and by the merchant reference in the payload.
+        'payment/ipn',
     ];
 }

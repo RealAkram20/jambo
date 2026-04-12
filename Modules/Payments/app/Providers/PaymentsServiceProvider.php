@@ -30,6 +30,30 @@ class PaymentsServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->register(RouteServiceProvider::class);
+
+        // Bind the default PaymentGateway contract to whichever gateway
+        // is configured as `payments.default_gateway`, and expose each
+        // registered gateway under a named key so code that needs a
+        // specific one can resolve it directly.
+        $this->app->singleton(
+            \Modules\Payments\app\Contracts\PaymentGateway::class,
+            function ($app) {
+                $slug = config('payments.default_gateway', 'pesapal');
+                $gateways = config('payments.gateways', []);
+
+                if (!isset($gateways[$slug])) {
+                    throw new \RuntimeException(
+                        "Default payment gateway '$slug' is not registered in config/payments.php"
+                    );
+                }
+
+                return $app->make($gateways[$slug]);
+            }
+        );
+
+        foreach ((array) config('payments.gateways', []) as $slug => $class) {
+            $this->app->singleton("payments.gateway.$slug", fn ($app) => $app->make($class));
+        }
     }
 
     /**
