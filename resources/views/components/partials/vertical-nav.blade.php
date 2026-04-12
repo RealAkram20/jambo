@@ -939,6 +939,18 @@
             </a>
         </li>
     @endif
+    @if (Route::has('notifications.index'))
+        <li class="nav-item mb-4">
+            <a class="nav-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}"
+                href="{{ route('notifications.index') }}">
+                <i class="icon" title="Notifications" data-bs-toggle="tooltip" data-bs-placement="right"
+                    aria-label="Notifications" data-bs-original-title="Notifications">
+                    <i class="ph ph-bell fs-4"></i>
+                </i>
+                <span class="item-name">Notifications</span>
+            </a>
+        </li>
+    @endif
     @if (Route::has('admin.payments.index'))
         <li class="nav-item mb-4">
             <a class="nav-link {{ request()->routeIs('admin.payments.*') ? 'active' : '' }}"

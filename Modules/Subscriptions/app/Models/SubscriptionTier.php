@@ -49,6 +49,18 @@ class SubscriptionTier extends Model
     public const ACCESS_PREMIUM = 2;
     public const ACCESS_ULTRA = 3;
 
+    public const PERIOD_DAILY = 'daily';
+    public const PERIOD_WEEKLY = 'weekly';
+    public const PERIOD_MONTHLY = 'monthly';
+    public const PERIOD_YEARLY = 'yearly';
+
+    public const PERIODS = [
+        self::PERIOD_DAILY,
+        self::PERIOD_WEEKLY,
+        self::PERIOD_MONTHLY,
+        self::PERIOD_YEARLY,
+    ];
+
     public function userSubscriptions(): HasMany
     {
         return $this->hasMany(UserSubscription::class);
@@ -62,5 +74,36 @@ class SubscriptionTier extends Model
     public function scopeOrdered($q)
     {
         return $q->orderBy('sort_order')->orderBy('access_level');
+    }
+
+    /**
+     * How many calendar days this tier's billing period covers. Used by
+     * the "activate a subscription on payment" listener to compute
+     * starts_at/ends_at without caring which period was chosen.
+     *
+     * `yearly` maps to 365 days and `monthly` to 30 days — close enough
+     * for a streaming SVOD; we do not need calendar-accurate month
+     * boundaries.
+     */
+    public function durationInDays(): int
+    {
+        return match ($this->billing_period) {
+            self::PERIOD_DAILY => 1,
+            self::PERIOD_WEEKLY => 7,
+            self::PERIOD_MONTHLY => 30,
+            self::PERIOD_YEARLY => 365,
+            default => 30,
+        };
+    }
+
+    public function periodLabel(): string
+    {
+        return match ($this->billing_period) {
+            self::PERIOD_DAILY => 'per day',
+            self::PERIOD_WEEKLY => 'per week',
+            self::PERIOD_MONTHLY => 'per month',
+            self::PERIOD_YEARLY => 'per year',
+            default => $this->billing_period,
+        };
     }
 }
