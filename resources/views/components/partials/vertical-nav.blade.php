@@ -915,6 +915,18 @@
             <span class="item-name">{{ __('sidebar.access_control') }}</span>
         </a>
     </li>
+    @if (Route::has('admin.updates.index'))
+        <li class="nav-item mb-4">
+            <a class="nav-link {{ request()->routeIs('admin.updates.*') ? 'active' : '' }}"
+                href="{{ route('admin.updates.index') }}">
+                <i class="icon" title="System Updates" data-bs-toggle="tooltip" data-bs-placement="right"
+                    aria-label="System Updates" data-bs-original-title="System Updates">
+                    <i class="ph ph-download-simple fs-4"></i>
+                </i>
+                <span class="item-name">System Updates</span>
+            </a>
+        </li>
+    @endif
 </ul>
 
 <!-- Sidebar Menu End -->

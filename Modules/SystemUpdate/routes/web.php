@@ -1,19 +1,25 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Modules\SystemUpdate\app\Http\Controllers\SystemUpdateController;
+use Modules\SystemUpdate\app\Http\Controllers\UpdateController;
 
 /*
 |--------------------------------------------------------------------------
-| Web Routes
+| SystemUpdate Routes
 |--------------------------------------------------------------------------
 |
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| contains the "web" middleware group. Now create something great!
+| All update routes are locked behind the stack defined in
+| config('systemupdate.middleware') — by default web + auth + role:admin.
 |
 */
 
-Route::group([], function () {
-    Route::resource('systemupdate', SystemUpdateController::class)->names('systemupdate');
-});
+$middleware = config('systemupdate.middleware', ['web', 'auth', 'role:admin']);
+
+Route::middleware($middleware)
+    ->prefix('admin/updates')
+    ->name('admin.updates.')
+    ->group(function () {
+        Route::get('/', [UpdateController::class, 'index'])->name('index');
+        Route::post('check', [UpdateController::class, 'check'])->name('check');
+        Route::post('run', [UpdateController::class, 'run'])->name('run');
+    });

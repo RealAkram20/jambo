@@ -30,6 +30,16 @@ class SystemUpdateServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->register(RouteServiceProvider::class);
+
+        // ZipExtractor needs the absolute project-root path, which the
+        // container can't auto-resolve (it's just a string). Bind it
+        // explicitly so UpdateManager can be auto-injected.
+        $this->app->singleton(\Modules\SystemUpdate\app\Services\ZipExtractor::class, function ($app) {
+            return new \Modules\SystemUpdate\app\Services\ZipExtractor(
+                projectRoot: base_path(),
+                backupPrefix: config('systemupdate.backup_prefix', 'backup_')
+            );
+        });
     }
 
     /**
