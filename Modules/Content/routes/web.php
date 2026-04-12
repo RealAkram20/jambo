@@ -1,7 +1,10 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Content\app\Http\Controllers\Admin\EpisodeController;
 use Modules\Content\app\Http\Controllers\Admin\MovieController;
+use Modules\Content\app\Http\Controllers\Admin\SeasonController;
+use Modules\Content\app\Http\Controllers\Admin\ShowController;
 
 /*
 |--------------------------------------------------------------------------
@@ -22,4 +25,7 @@ Route::middleware(['auth', 'role:admin'])
     ->name('admin.')
     ->group(function () {
         Route::resource('movies', MovieController::class);
+        Route::resource('shows', ShowController::class)->except(['show']);
+        Route::resource('seasons', SeasonController::class)->except(['show']);
+        Route::resource('episodes', EpisodeController::class)->except(['show']);
     });
