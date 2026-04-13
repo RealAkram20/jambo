@@ -18,30 +18,26 @@
             <span class="item-name">{{ __('sidebar.dashboard1') }}</span>
         </a>
     </li>
-    @can('view_rating')
-        <li class="nav-item">
-            <a class="nav-link {{ activeRoute(route('dashboard.rating')) }}" aria-current="page"
-                href="{{ route('dashboard.rating') }} ">
-                <i class="icon" data-bs-toggle="tooltip" data-bs-placement="right" aria-label="Rating"
-                    data-bs-original-title="Rating">
-                    <i class="ph ph-star-half fs-4"></i>
-                </i>
-                <span class="item-name">{{ __('sidebar.rating') }}</span>
-            </a>
-        </li>
-    @endcan
-    @can('view_comments')
-        <li class="nav-item">
-            <a class="nav-link {{ activeRoute(route('dashboard.comment')) }}" aria-current="page"
-                href="{{ route('dashboard.comment') }}">
-                <i class="icon" data-bs-toggle="tooltip" title="Comment" data-bs-placement="right" aria-label="Comment"
-                    data-bs-original-title="Comment">
-                    <i class="ph ph-chat-circle-dots fs-4"></i>
-                </i>
-                <span class="item-name">{{ __('sidebar.comments') }}</span>
-            </a>
-        </li>
-    @endcan
+    <li class="nav-item">
+        <a class="nav-link {{ activeRoute(route('dashboard.rating')) }}" aria-current="page"
+            href="{{ route('dashboard.rating') }}">
+            <i class="icon" data-bs-toggle="tooltip" data-bs-placement="right" aria-label="Rating"
+                data-bs-original-title="Rating">
+                <i class="ph ph-star-half fs-4"></i>
+            </i>
+            <span class="item-name">{{ __('sidebar.rating') }}</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ activeRoute(route('dashboard.comment')) }}" aria-current="page"
+            href="{{ route('dashboard.comment') }}">
+            <i class="icon" data-bs-toggle="tooltip" data-bs-placement="right" aria-label="Comment"
+                data-bs-original-title="Comment">
+                <i class="ph ph-chat-circle-dots fs-4"></i>
+            </i>
+            <span class="item-name">{{ __('sidebar.comments') }}</span>
+        </a>
+    </li>
     @can('view_users')
         <li class="nav-item">
             <a class="nav-link {{ activeRoute(route('dashboard.user-list')) }}" href="{{ route('dashboard.user-list') }}">
@@ -194,65 +190,6 @@
     </li>
 
     <li class="nav-item">
-        <a class="nav-link" data-bs-toggle="collapse" href="#sidebar-video" role="button" aria-expanded="false"
-            aria-controls="sidebar-video">
-            <i class="icon" data-bs-toggle="tooltip" title="Table" data-bs-placement="right" aria-label="Table"
-                data-bs-original-title="Table">
-                <i class="ph ph-video-camera fs-4"></i>
-            </i>
-            <span class="item-name">{{ __('sidebar.videos') }}</span>
-            <i class="right-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" class="icon-18" fill="none"
-                    viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-            </i>
-        </a>
-        <ul class="sub-nav collapse" id="sidebar-video" data-bs-parent="#sidebar-menu">
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.videopage')) }}"
-                    href="{{ route('dashboard.videopage') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Videos" data-bs-placement="right"
-                        aria-label="Videos" data-bs-original-title="Videos">
-                        <i class="ph ph-video fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.video') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.video-category')) }}"
-                    href="{{ route('dashboard.video-category') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Video Category" data-bs-placement="right"
-                        aria-label="Video Category" data-bs-original-title="Video Category">
-                        <i class="ph ph-queue fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.video-category') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.video-tags')) }}"
-                    href="{{ route('dashboard.video-tags') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Video Tags" data-bs-placement="right"
-                        aria-label="Video Tags" data-bs-original-title="Video Tags">
-                        <i class="ph ph-video-camera fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.video-tags') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.video-playlist')) }}"
-                    href="{{ route('dashboard.video-playlist') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Video Playlist" data-bs-placement="right"
-                        aria-label="Video Playlist" data-bs-original-title="Video Playlist">
-                        <i class="ph ph-playlist fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.video-playlist') }}</span>
-                </a>
-            </li>
-        </ul>
-    </li>
-
-    <li class="nav-item">
         <a class="nav-link" data-bs-toggle="collapse" href="#sidebar-person" role="button" aria-expanded="false"
             aria-controls="sidebar-person">
             <i class="icon" data-bs-toggle="tooltip" title="Table" data-bs-placement="right" aria-label="Table"
@@ -305,7 +242,7 @@
         <a class="nav-link {{ activeRoute(route('dashboard.review')) }}" href="{{ route('dashboard.review') }}">
             <i class="icon" data-bs-toggle="tooltip" title="Review" data-bs-placement="right" aria-label="Review"
                 data-bs-original-title="Review">
-                <i class="ph ph-chat-centered fs-5"></i>
+                <i class="ph ph-chat-centered fs-4"></i>
             </i>
             <span class="item-name">{{ __('sidebar.review') }}</span>
         </a>
@@ -685,16 +622,6 @@
                         <i class="ph ph-magnet fs-5"></i>
                     </i>
                     <span class="item-name">{{ __('sidebar.tooltips') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.VideoView')) }}"
-                    href="{{ route('dashboard.VideoView') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Video" data-bs-placement="right"
-                        aria-label="Video" data-bs-original-title="Video">
-                        <i class="ph ph-video-camera fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.video') }}</span>
                 </a>
             </li>
         </ul>

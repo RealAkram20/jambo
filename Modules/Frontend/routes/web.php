@@ -20,7 +20,6 @@ Route::group([], function () {
     Route::get('/home', [FrontendController::class, 'index'])->name('frontend.index');
     Route::get('/movie', [FrontendController::class, 'movie'])->name('frontend.movie');
     Route::get('/tv-show', [FrontendController::class, 'tv_show'])->name('frontend.tv-show');
-    Route::get('/video', [FrontendController::class, 'video'])->name('frontend.video');
 
     //detail pages
     Route::get('/movie-detail', [FrontendController::class, 'movie_detail'])->name('frontend.movie_detail');
@@ -30,8 +29,6 @@ Route::group([], function () {
     Route::get('/resticted', [FrontendController::class, 'resticted'])->name('frontend.resticted');
     Route::get('/tv-show-detail', [FrontendController::class, 'tvshow_detail'])->name('frontend.tvshow_detail');
     Route::get('/episode', [FrontendController::class, 'episode'])->name('frontend.episode');
-    Route::get('/video-detail', [FrontendController::class, 'video_detail'])->name('frontend.video_detail');
-    Route::get('/video-player', [FrontendController::class, 'video_player'])->name('frontend.video_player');
     Route::get('/person-detail', [FrontendController::class, 'person_detail'])->name('frontend.person_detail');
     Route::get('/watchlist-detail', [FrontendController::class, 'watchlist_detail'])->name('frontend.watchlist_detail');
     Route::get('/playlist-detail', [FrontendController::class, 'playlist_detail'])->name('frontend.playlist_detail');

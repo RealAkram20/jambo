@@ -6,7 +6,6 @@ return [
     'ott_home' => 'OTT Startseite',
     'movie' => 'Film',
     'tv_show' => 'TV-Show',
-    'video' => 'Video',
     'merchandise_store' => 'Merchandise-Shop',
     'features' => 'Funktionen',
     'download_movie' => 'Film herunterladen',

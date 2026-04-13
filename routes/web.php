@@ -50,11 +50,6 @@ Route::group(['as' => 'dashboard.'], function () {
     Route::get('tvshow-tags', [DashboardController::class, 'showTags'])->name('tvshow-tags');
     Route::get('tvshow-playlist', [DashboardController::class, 'showPlaylist'])->name('tvshow-playlist');
 
-    Route::get('videopage', [DashboardController::class, 'videos'])->name('videopage');
-    Route::get('video-category', [DashboardController::class, 'videoCategory'])->name('video-category');
-    Route::get('video-tags', [DashboardController::class, 'videoTags'])->name('video-tags');
-    Route::get('video-playlist', [DashboardController::class, 'videoPlaylist'])->name('video-playlist');
-
     Route::get('person', [DashboardController::class, 'person'])->name('person');
     Route::get('person-categories', [DashboardController::class, 'personCategories'])->name('person-categories');
     Route::get('person-tags', [DashboardController::class, 'personTags'])->name('person-tags');
@@ -101,8 +96,6 @@ Route::group(['as' => 'dashboard.'], function () {
     Route::get('typography', [DashboardController::class, 'typography'])->name('typography');
     Route::get('tooltips', [DashboardController::class, 'tooltips'])->name('tooltips');
     Route::get('tabs', [DashboardController::class, 'tabs'])->name('tabs');
-    Route::get('VideoView', [DashboardController::class, 'VideoView'])->name('VideoView');
-
     Route::get('widget-basic', [DashboardController::class, 'widgetBasic'])->name('widget-basic');
     Route::get('widget-chart', [DashboardController::class, 'widgetChart'])->name('widget-chart');
     Route::get('widget-card', [DashboardController::class, 'widgetCard'])->name('widget-card');

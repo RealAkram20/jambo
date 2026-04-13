@@ -51,7 +51,6 @@ return [
     'playlist_demo' => 'Playlist Demo',
     'play_all' => 'Play All',
     'public' => 'public',
-    'videos' => 'videos',
     'views' => 'Views',
     'month_age' => 'month ago',
     'mortal_nories' => 'mortal nories',

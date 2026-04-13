@@ -30,11 +30,6 @@ class FrontendController extends Controller
         return view('frontend::Pages.MainPages.tv-shows-page');
     }
 
-    public function video()
-    {
-        return view('frontend::Pages.MainPages.videos-Page');
-    }
-
     //movies pages
     public function download()
     {
@@ -70,16 +65,6 @@ class FrontendController extends Controller
     public function episode()
     {
         return view('frontend::Pages.TvShows.episode-page');
-    }
-
-    public function video_detail()
-    {
-        return view('frontend::Pages.videos-detail');
-    }
-
-    public function video_player()
-    {
-        return view('frontend::Pages.video-player');
     }
 
     public function watchlist_detail()

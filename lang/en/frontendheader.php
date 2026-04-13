@@ -8,7 +8,6 @@ return [
     'movie' => 'Movie',
     'tv_show' => 'TV Show',
     'episode' => 'Episode',
-    'video' => 'Video',
     'search' => 'Search',
     'merchandise_store' => 'Merchandise Store',
     'features' => 'Features',

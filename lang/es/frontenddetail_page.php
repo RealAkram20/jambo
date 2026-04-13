@@ -50,7 +50,6 @@ return [
     'playlist_demo' => 'Demo de lista de reproducción',
     'play_all' => 'Reproducir todo',
     'public' => 'Público',
-    'videos' => 'Videos',
     'views' => 'Vistas',
     'month_age' => 'hace un mes',
     'mortal_nories' => 'Mortal Nories',

@@ -9,6 +9,9 @@ use Modules\Content\app\Models\Person;
 use Modules\Content\app\Models\Genre;
 use Modules\Content\app\Models\Category;
 use Modules\Content\app\Models\Tag;
+use Modules\Content\app\Models\Rating;
+use Modules\Content\app\Models\Review;
+use Modules\Content\app\Models\Comment;
 
 class DashboardController extends Controller
 {
@@ -27,13 +30,52 @@ class DashboardController extends Controller
     public function rating(Request $request)
     {
         $title = __('sidebar.rating');
-        return view('DashboardPages.rating.RatingPage', compact('title'));
+
+        $query = Rating::with(['user', 'ratable'])->latest();
+
+        if ($type = $request->query('type')) {
+            $map = [
+                'movie' => \Modules\Content\app\Models\Movie::class,
+                'show'  => \Modules\Content\app\Models\Show::class,
+                'episode' => \Modules\Content\app\Models\Episode::class,
+            ];
+            if (isset($map[$type])) {
+                $query->where('ratable_type', $map[$type]);
+            }
+        }
+
+        $ratings = $query->paginate(20)->withQueryString();
+
+        return view('DashboardPages.rating.RatingPage', compact('title', 'ratings'));
     }
 
     public function comment(Request $request)
     {
         $title = __('dashboard.Comment_List');
-        return view('DashboardPages.CommentPage', compact('title'));
+
+        $query = Comment::with(['user', 'commentable'])->latest();
+
+        if ($request->query('status') === 'approved') {
+            $query->where('is_approved', true);
+        } elseif ($request->query('status') === 'unapproved') {
+            $query->where('is_approved', false);
+        }
+
+        if ($type = $request->query('type')) {
+            $map = [
+                'movie' => \Modules\Content\app\Models\Movie::class,
+                'show'  => \Modules\Content\app\Models\Show::class,
+                'episode' => \Modules\Content\app\Models\Episode::class,
+            ];
+            if (isset($map[$type])) {
+                $query->where('commentable_type', $map[$type]);
+            }
+        }
+
+        $comments = $query->paginate(20)->withQueryString();
+        $filter = $request->query('status', '');
+
+        return view('DashboardPages.CommentPage', compact('title', 'comments', 'filter'));
     }
 
     public function user(Request $request)
@@ -121,30 +163,6 @@ class DashboardController extends Controller
         return view('DashboardPages.tv-show.ShowPlaylist', compact('title'));
     }
 
-    public function videos(Request $request)
-    {
-        $title = __('sidebar.videos');
-        return view('DashboardPages.videos.VideoPage', compact('title'));
-    }
-
-    public function videoCategory(Request $request)
-    {
-        $title = __('sidebar.video-category');
-        return view('DashboardPages.videos.VideoCategory', compact('title'));
-    }
-
-    public function videoTags(Request $request)
-    {
-        $title = __('sidebar.video-tags');
-        return view('DashboardPages.videos.VideoTag', compact('title'));
-    }
-
-    public function videoPlaylist(Request $request)
-    {
-        $title = __('sidebar.video-playlist');
-        return view('DashboardPages.videos.VideoPlaylist', compact('title'));
-    }
-
     public function person(Request $request)
     {
         $title = __('form.persons-list');
@@ -171,7 +189,30 @@ class DashboardController extends Controller
     public function review(Request $request)
     {
         $title = __('sidebar.review');
-        return view('DashboardPages.review.ReviewPage', compact('title'));
+
+        $query = Review::with(['user', 'reviewable'])->latest();
+
+        if ($type = $request->query('type')) {
+            $map = [
+                'movie' => \Modules\Content\app\Models\Movie::class,
+                'show'  => \Modules\Content\app\Models\Show::class,
+                'episode' => \Modules\Content\app\Models\Episode::class,
+            ];
+            if (isset($map[$type])) {
+                $query->where('reviewable_type', $map[$type]);
+            }
+        }
+
+        if ($request->query('status') === 'published') {
+            $query->where('is_published', true);
+        } elseif ($request->query('status') === 'unpublished') {
+            $query->where('is_published', false);
+        }
+
+        $reviews = $query->paginate(20)->withQueryString();
+        $filter = $request->query('status', '');
+
+        return view('DashboardPages.review.ReviewPage', compact('title', 'reviews', 'filter'));
     }
 
     public function pricing(Request $request)
@@ -398,12 +439,6 @@ class DashboardController extends Controller
     {
         $title = __('sidebar.ui-typography');
         return view('DashboardPages.ui-elements.TypographyView', compact('title'));
-    }
-
-    public function VideoView(Request $request)
-    {
-        $title = __('sidebar.ui-Embedvideo');
-        return view('DashboardPages.ui-elements.VideoView', compact('title'));
     }
 
     // Widgets

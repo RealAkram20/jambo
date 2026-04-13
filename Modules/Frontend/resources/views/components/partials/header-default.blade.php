@@ -83,16 +83,6 @@
                                             <span class="d-inline-block">{{ __('frontendheader.tv_show') }}</span>
                                         </a>
                                     </li>
-                                    <li class="nav-item">
-                                        <a class="nav-link {{ isset($IS_MEGA) && '' }} {{ activeRoute(route('frontend.video')) }}"
-                                            href="{{ route('frontend.video') }}">
-                                            @if (isset($IS_MEGA))
-                                                <img src="{{ asset('frontend/images/mega-menu/video.webp') }}"
-                                                    alt="img" class="img-fluid d-xl-block d-none" loading="lazy" />
-                                            @endif
-                                            <span class="d-inline-block">{{ __('frontendheader.video') }}</span>
-                                        </a>
-                                    </li>
                                 </ul>
                             </li>
                             <li class="nav-item">

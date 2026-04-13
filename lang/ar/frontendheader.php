@@ -6,7 +6,6 @@ return [
     'ott_home' => 'الرئيسية OTT',
     'movie' => 'فيلم',
     'tv_show' => 'برنامج تلفزيوني',
-    'video' => 'فيديو',
     'merchandise_store' => 'متجر البضائع',
     'features' => 'الميزات',
     'download_movie' => 'تحميل الفيلم',

@@ -112,7 +112,7 @@ $videoUpcoming = $videoUpcoming ?? false;
                     'cardTitle' => __('streamMovies.kung_fu_panda'),
                     'movieTime' => '2h : 12m',
                     'cardLang' => 'English',
-                    'cardPath' => route('frontend.video_detail'),
+                    'cardPath' => route('frontend.movie_detail'),
                     ])
 
                 </li>
@@ -121,7 +121,7 @@ $videoUpcoming = $videoUpcoming ?? false;
                     'cardImage' => 'media/red-portrait.webp',
                     'cardTitle' => __('streamMovies.red'),
                     'cardLang' => 'English',
-                    'cardPath' => route('frontend.video_detail'),
+                    'cardPath' => route('frontend.movie_detail'),
                     ])
 
                 </li>
@@ -130,7 +130,7 @@ $videoUpcoming = $videoUpcoming ?? false;
                     'cardImage' => 'media/lost-in-space-portrait.webp',
                     'cardTitle' => __('streamMovies.lost_in_space'),
                     'cardLang' => 'English',
-                    'cardPath' => route('frontend.video_detail'),
+                    'cardPath' => route('frontend.movie_detail'),
                     'productPremium' => true,
                     ])
 
@@ -140,7 +140,7 @@ $videoUpcoming = $videoUpcoming ?? false;
                     'cardImage' => 'media/the-dragon-king-portrait.webp',
                     'cardTitle' => __('streamMovies.dragon_king'),
                     'cardLang' => 'English',
-                    'cardPath' => route('frontend.video_detail'),
+                    'cardPath' => route('frontend.movie_detail'),
                     'productPremium' => true,
                     ])
 
@@ -150,7 +150,7 @@ $videoUpcoming = $videoUpcoming ?? false;
                     'cardImage' => 'media/sonil-portrait.webp',
                     'cardTitle' => __('streamMovies.sonil'),
                     'cardLang' => 'English',
-                    'cardPath' => route('frontend.video_detail'),
+                    'cardPath' => route('frontend.movie_detail'),
                     'productPremium' => true,
                     ])
 
@@ -160,7 +160,7 @@ $videoUpcoming = $videoUpcoming ?? false;
                     'cardImage' => 'media/charlie-chaplin-portrait.webp',
                     'cardTitle' => __('streamMovies.charliechaplin'),
                     'cardLang' => 'English',
-                    'cardPath' => route('frontend.video_detail'),
+                    'cardPath' => route('frontend.movie_detail'),
                     ])
 
                 </li>
@@ -169,7 +169,7 @@ $videoUpcoming = $videoUpcoming ?? false;
                     'cardImage' => 'media/we-gare.webp',
                     'cardTitle' => __('streamMovies.we_gare'),
                     'cardLang' => 'English',
-                    'cardPath' => route('frontend.video_detail'),
+                    'cardPath' => route('frontend.movie_detail'),
                     'productPremium' => true,
                     ])
 

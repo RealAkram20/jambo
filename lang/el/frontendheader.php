@@ -6,7 +6,6 @@ return [
     'ott_home' => 'OTT Αρχική',
     'movie' => 'Ταινία',
     'tv_show' => 'Τηλεοπτική Εκπομπή',
-    'video' => 'Βίντεο',
     'merchandise_store' => 'Κατάστημα Εμπορευμάτων',
     'features' => 'Χαρακτηριστικά',
     'download_movie' => 'Κατέβασμα Ταινίας',

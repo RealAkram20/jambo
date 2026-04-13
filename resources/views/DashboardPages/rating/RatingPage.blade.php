@@ -4,121 +4,86 @@
 <div class="row">
     <div class="col-sm-12">
         <div class="streamit-wraper-table">
+            @if (session('success'))
+                <div class="alert alert-success mx-0 mt-0 mb-3">{{ session('success') }}</div>
+            @endif
+
             <div class="card-header d-flex justify-content-between gap-3 flex-wrap align-items-center mb-4">
                 <h2 class="episode-playlist-title wp-heading-inline">
-                    <span class="position-relative ">
-                        {{__('dashboard.Rating_List')}} </span>
+                    <span class="position-relative">
+                        {{__('dashboard.Rating_List')}}
+                        <span class="badge bg-info-subtle text-info-emphasis ms-2" style="font-size:13px;">{{ $ratings->total() }}</span>
+                    </span>
                 </h2>
             </div>
-            <div class="table-view table-space">
-                <table id="seasonTable" class="data-tables table custom-table movie_table data-table-one custom-table-height"
-                    data-toggle="data-table1">
-                        <thead>
-                            <tr>
-                                <th>No</th>
-                                <th>Category</th>
-                                <th>Name</th>
-                                <th>{{__('form.description')}}</th>
-                                <th>Release Date</th>
-                                <th>Rating</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-    
-                            @include('components.widget.rating-lists',[
-                            'ratingNo' => '1',
-                            'ratingTitle' => 'Movie',
-                            'ratingName' => 'Unexpected Gem',
-                            'ratingText' => 'I started watching with low expectations, but this turned out to be amazing. Great storytelling and character depth.',
-                            'ratingYear' => '2017',
-                            'ratingStar' => '9.2',
-                            ])  
 
-                        @include('components.widget.rating-lists',[
-                            'ratingNo' => '2',
-                            'ratingTitle' => 'Show',
-                            'ratingName' => 'Cursed',
-                            'ratingText' => "It's not bad, but not great either. A decent watch for a slow weekend",
-                            'ratingYear' => '2012',
-                            'ratingStar' => '8.5',
-                            ])
-
-                        @include('components.widget.rating-lists',[
-                            'ratingNo' => '3',
-                            'ratingTitle' => 'Movie',
-                            'ratingName' => 'Veronica', 
-                            'ratingText' => "This show had me on the edge of my seat. Every episode ended with a cliffhanger!",
-                            'ratingYear' => '2018',
-                            'ratingStar' => '7.0',
-                        ])
-
-                        @include('components.widget.rating-lists',[
-                            'ratingNo' => '4',
-                            'ratingTitle' => 'Movie',
-                            'ratingName' => 'Troll Hunters',
-                            'ratingText' => " Everyone was talking about it, but I didn’t find it very engaging.",
-                            'ratingYear' => '2020',
-                            'ratingStar' => '9.5',
-                        ])
-
-                        @include('components.widget.rating-lists',[
-                            'ratingNo' => '5',
-                            'ratingTitle' => 'Show',
-                            'ratingName' => 'Gran Torino',
-                            'ratingText' => "The colors, locations, and cinematography are top-notch. A treat for the eyes!",
-                            'ratingYear' => '2019',
-                            'ratingStar' => '7.5',
-                        ])
-
-                        @include('components.widget.rating-lists',[
-                            'ratingNo' => '6',
-                            'ratingTitle' => 'Movie',   
-                            'ratingName' => 'Man of Street',
-                            'ratingText' => " Loved the suspense and pacing. Couldn't stop watching after episode 2.",
-                            'ratingYear' => '2017',
-                            'ratingStar' => '9.2',
-                        ])
-
-                        @include('components.widget.rating-lists',[
-                            'ratingNo' => '7',
-                            'ratingTitle' => 'Show',
-                            'ratingName' => 'Cursed',
-                            'ratingText' => "Strong start for a new series. Some uneven acting, but promising overall.",
-                            'ratingYear' => '2012',
-                            'ratingStar' => '8.5',
-                        ])
-
-                        @include('components.widget.rating-lists',[
-                            'ratingNo' => '8',
-                            'ratingTitle' => 'Movie',
-                            'ratingName' => 'Veronica',
-                            'ratingText' => "The idea was good, but episodes felt too long and repetitive.",
-                            'ratingYear' => '2018',
-                            'ratingStar' => '7.0',
-                        ])
-
-                        @include('components.widget.rating-lists',[
-                            'ratingNo' => '9',
-                            'ratingTitle' => 'Movie',
-                            'ratingName' => 'Troll Hunters',
-                            'ratingText' => "The cast delivered excellent performances. Very natural and believable.",
-                            'ratingYear' => '2020',
-                            'ratingStar' => '9.5',
-                        ])
-
-                        @include('components.widget.rating-lists',[
-                            'ratingNo' => '10',
-                            'ratingTitle' => 'Show',
-                            'ratingName' => 'Gran Torino',
-                            'ratingText' => "Everything was great until the last episode. That ending was a letdown.",
-                            'ratingYear' => '2019',
-                            'ratingStar' => '7.5',
-                        ])
-
-                        </tbody>
-                    </table>
+            {{-- Filters --}}
+            <form method="GET" action="{{ route('dashboard.rating') }}" class="d-flex align-items-center mt-3 gap-2 mb-4">
+                <div class="form-group mb-0">
+                    <select name="type" class="form-select">
+                        <option value="">All Types</option>
+                        <option value="movie" @selected(request('type') === 'movie')>Movie</option>
+                        <option value="show" @selected(request('type') === 'show')>TV Show</option>
+                        <option value="episode" @selected(request('type') === 'episode')>Episode</option>
+                    </select>
                 </div>
+                <button type="submit" class="btn btn-primary">{{__('form.filter')}}</button>
+                @if(request('type'))
+                    <a href="{{ route('dashboard.rating') }}" class="btn btn-ghost">Clear</a>
+                @endif
+            </form>
+
+            <div class="table-view table-space">
+                <table class="table custom-table align-middle mb-0">
+                    <thead>
+                        <tr class="text-uppercase" style="font-size:11px;letter-spacing:.5px;">
+                            <th>No</th>
+                            <th>Category</th>
+                            <th>Name</th>
+                            <th>User</th>
+                            <th>Rating</th>
+                            <th>Date</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($ratings as $rating)
+                            <tr>
+                                <td>{{ $loop->iteration + ($ratings->currentPage() - 1) * $ratings->perPage() }}</td>
+                                <td>{{ class_basename($rating->ratable_type) }}</td>
+                                <td>
+                                    <p class="mb-0">{{ $rating->ratable?->title ?? $rating->ratable?->name ?? '—' }}</p>
+                                </td>
+                                <td>{{ $rating->user?->name ?? '—' }}</td>
+                                <td><i class="ph-fill ph-star text-primary"></i> {{ $rating->stars }}</td>
+                                <td>{{ $rating->created_at->format('Y-m-d') }}</td>
+                                <td class="text-end">
+                                    <div class="d-inline-flex gap-1">
+                                        <form method="POST" action="{{ route('admin.ratings.destroy', $rating) }}"
+                                            class="d-inline"
+                                            onsubmit="return confirm('Delete this rating?');">
+                                            @csrf @method('DELETE')
+                                            <button class="btn btn-sm btn-danger-subtle" title="Delete">
+                                                <i class="ph ph-trash-simple"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted" style="font-size:14px;">
+                                    No ratings yet.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            @if ($ratings->hasPages())
+                <div class="mt-3">{{ $ratings->links() }}</div>
+            @endif
         </div>
     </div>
 </div>

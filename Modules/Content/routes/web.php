@@ -9,6 +9,9 @@ use Modules\Content\app\Http\Controllers\Admin\ShowController;
 use Modules\Content\app\Http\Controllers\Admin\GenreController;
 use Modules\Content\app\Http\Controllers\Admin\TagController;
 use Modules\Content\app\Http\Controllers\Admin\CategoryController;
+use Modules\Content\app\Http\Controllers\Admin\RatingController;
+use Modules\Content\app\Http\Controllers\Admin\ReviewController;
+use Modules\Content\app\Http\Controllers\Admin\CommentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -46,4 +49,13 @@ Route::middleware(['auth', 'role:admin'])
         Route::post('categories', [CategoryController::class, 'store'])->name('categories.store');
         Route::put('categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
         Route::delete('categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+
+        // Moderation: ratings, reviews, comments (listing via DashboardController template pages)
+        Route::delete('ratings/{rating}', [RatingController::class, 'destroy'])->name('ratings.destroy');
+
+        Route::patch('reviews/{review}/toggle-published', [ReviewController::class, 'togglePublished'])->name('reviews.toggle-published');
+        Route::delete('reviews/{review}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
+
+        Route::patch('comments/{comment}/toggle-approved', [CommentController::class, 'toggleApproved'])->name('comments.toggle-approved');
+        Route::delete('comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
     });

@@ -52,7 +52,6 @@ return [
     'playlist_demo' => 'عرض قائمة التشغيل',
     'play_all' => 'تشغيل الكل',
     'public' => 'عام',
-    'videos' => 'مقاطع الفيديو',
     'views' => 'المشاهدات',
     'month_age' => 'قبل شهر',
     'mortal_nories' => 'مورتال نوريس',

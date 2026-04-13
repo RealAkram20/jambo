@@ -2,7 +2,7 @@
     <div class="watchlist-warpper card-style-two">
         <div class="block-images d-flex align-items-center flex-wrap gap-2 gap-md-3">
             <div class="img-box">
-                <a href="{{ route('frontend.video_detail') }}" class="position-absolute top-0 bottom-0 start-0 end-0"></a>
+                <a href="{{ route('frontend.movie_detail') }}" class="position-absolute top-0 bottom-0 start-0 end-0"></a>
                 <img src="{{ $cardImage }}" alt="movie-card" class="img-fluid object-cover d-block border-0"
                     loading="lazy" />
             </div>

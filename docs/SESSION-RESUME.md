@@ -1,15 +1,17 @@
 # Jambo — Session Resume Context
 
-**Last session:** 2026-04-12
-**Last commit:** `2eacf45` — Phase 2c: Persons admin CRUD
+**Last session:** 2026-04-13
+**Last commit:** (pending) — Phase 2e: Reviews, Ratings, Comments moderation UI
 **Branch:** `main` — pushed to https://github.com/RealAkram20/jambo
-**Working tree:** clean (nothing uncommitted)
+**Working tree:** modified (Phase 2e changes ready to commit)
 
 ---
 
 ## What's been built (commit history, newest first)
 
 ```
+(pending)  Phase 2e: Reviews, Ratings, Comments moderation UI
+e33e96c  Phase 2d: Wire template pages to real data, add taxonomy CRUD, remove blog
 2eacf45  Phase 2c: Persons admin CRUD
 eacd5ea  Phase 2b: Shows + Seasons + Episodes admin CRUD
 53f445a  Phase 6a + planning: Notifications module (system channel live)
@@ -31,7 +33,7 @@ c95b80d  Build Installer module: 8-step web setup wizard
 | Module | State | Key files |
 |---|---|---|
 | **Frontend** | Template shell — 50+ public routes, all static Blade, zero DB queries | `Modules/Frontend/` |
-| **Content** | Phase 1 schema + Phase 2 admin CRUD for **Movies**, **Shows/Seasons/Episodes**, **Persons** done. Genres/Categories/Tags CRUD NOT yet done. | `Modules/Content/` |
+| **Content** | Phase 1 schema + Phase 2 admin CRUD for **Movies**, **Shows/Seasons/Episodes**, **Persons**, **Genres/Categories/Tags** done. **Reviews/Ratings/Comments** moderation UI live (Phase 2e). | `Modules/Content/` |
 | **Subscriptions** | Schema done. 7 tiers seeded (daily/weekly/monthly/yearly). No admin CRUD, no activation listener yet. | `Modules/Subscriptions/` |
 | **Payments** | Fully built. PesapalGateway, PaymentOrder model, PaymentController (create/callback/ipn/complete), admin settings page. `payment.completed` event fires. | `Modules/Payments/` |
 | **Streaming** | Schema only (watchlist_items, watch_history). No controllers/views. | `Modules/Streaming/` |
@@ -63,6 +65,7 @@ Notifications: `notifications` (Laravel UUID-keyed), plus 3 boolean columns on `
 - 20 movies with genre/category/tag/cast attachments
 - 5 shows × 2 seasons × 6 episodes = 60 episodes
 - 7 subscription tiers: free, day-pass, weekly-basic, basic, premium, basic-yearly, premium-yearly
+- 20 ratings (10 movie + 5 show + 5 episode), 11 reviews, 12 comments
 - 0 payment orders, 0 user subscriptions, 0 watchlist/history (user-generated)
 
 ---
@@ -80,6 +83,9 @@ Notifications: `notifications` (Laravel UUID-keyed), plus 3 boolean columns on `
 - Movies → `/admin/movies` (live CRUD)
 - Shows → `/admin/shows` (live CRUD, nested seasons/episodes)
 - Persons → `/admin/persons` (live CRUD)
+- Ratings → `/rating` (live moderation, filter by type)
+- Comments → `/comment` (live moderation, approve/unapprove, filter by type/status)
+- Reviews → `/review` (live moderation, publish/unpublish, filter by type/status)
 - Notifications → `/notifications` (system channel, bell in header)
 - System Updates → `/admin/updates` (version check + updater)
 - Payments → `/admin/payments` (PesaPal settings + order ledger)
@@ -89,16 +95,14 @@ Notifications: `notifications` (Laravel UUID-keyed), plus 3 boolean columns on `
 
 ## What's next (in suggested order)
 
-### Immediate next slice: Phase 2d — Genres + Categories + Tags CRUD
+### Immediate next slice: Phase 2f — Dashboard home with real counts
 
-Three flat lookup-table CRUDs in one commit. Each is simpler than Persons — just `name` + `slug` (+ `colour` for genres, + `cover_url` and `sort_order` for categories). Follow the PersonController pattern. Add one sidebar entry per entity (or group them under a "Taxonomies" collapsible in the sidebar).
+Wire the admin dashboard home (`/app` or `/static-app`) to show real counts: total movies, shows, users, subscribers, active subs, recent payments. Replace the hardcoded template numbers with Eloquent queries.
 
 ### Then:
 
 | Slice | Description |
 |---|---|
-| **Phase 2e** | Reviews, Ratings, Comments moderation UI (bulk approve/delete, filter by movie/episode) |
-| **Phase 2f** | Dashboard home (`/app`) with real counts: movies, users, subscribers, active subs, recent payments |
 | **Phase 3** | Public Frontend wiring — replace FrontendController static views with Eloquent queries. Start with `/home`, `/movie`, `/movie-detail/{slug}`, `/tv-show`, `/tv-show-detail/{slug}` |
 | **Phase 4b** | Tier admin CRUD at `/admin/subscription-tiers` + public pricing page at `/pricing` wired to real tiers |
 | **Phase 4c** | Subscription activation listener — `Modules\Subscriptions\Listeners\ActivateSubscriptionFromPayment` listens on `payment.completed`, creates a `UserSubscription` row |
@@ -161,4 +165,4 @@ npm run build
 
 Then open `http://localhost/Jambo/` in the browser. If you get a 403 on the bare URL, Apache needs DirectorySlash On (it's the default — only breaks if httpd.conf was reset). If you get redirected to `/install`, either the `storage/installed` file was lost (recreate it with any JSON content) or the Installer module's middleware is catching a fresh environment.
 
-Tell the next Claude session: **"Read `docs/SESSION-RESUME.md` and continue from Phase 2d."**
+Tell the next Claude session: **"Read `docs/SESSION-RESUME.md` and continue from Phase 2f."**
