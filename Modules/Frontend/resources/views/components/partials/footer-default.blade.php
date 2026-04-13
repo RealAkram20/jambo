@@ -41,10 +41,6 @@
                                 class="text-capitalize">{{ __('frontendheader.pricing_plan') }}</a>
                         </li>
                         <li>
-                            <a href="{{ route('frontend.list_page') }}"
-                                class="text-capitalize">{{ __('frontendheader.blog') }}</a>
-                        </li>
-                        <li>
                             <a href="{{ route('frontend.faq_page') }}"
                                 class="text-capitalize">{{ __('frontendheader.faq') }}</a>
                         </li>

@@ -11,39 +11,33 @@
                     </h2>
                 </div>
                 <div class="card-body">
-                    <form>
+                    @if (session('success'))
+                        <div class="alert alert-success mb-3">{{ session('success') }}</div>
+                    @endif
+                    <form method="POST" action="{{ route('admin.tags.store') }}">
+                        @csrf
                         <div class="row">
                             <div class="col-sm-12">
                                 <div class="form-group">
                                     <label class="form-label flex-grow-1" for="Name">
                                         {{__('form.tag-name')}} <span> *</span>
                                     </label>
-                                    <input id="Name" type="text" class="form-control "
+                                    <input id="Name" type="text" name="name" class="form-control"
                                         placeholder="{{__('form.enter-name-tag')}}" required>
                                 </div>
                             </div>
                             <div class="col-sm-12">
                                 <div class="form-group">
                                     <label class="form-label flex-grow-1" for="Slug">
-                                        {{__('form.tag-slug')}} <span> *</span>
+                                        {{__('form.tag-slug')}}
                                     </label>
-                                    <input id="Slug" type="text" class="form-control "
-                                        placeholder="{{__('form.enter-slug-tag')}}" required>
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="form-group">
-                                    <label class="form-label flex-grow-1" for="Description">
-                                        {{__('form.tag-description')}}
-                                    </label>
-                                    <textarea id="Description" class="form-control" rows="7" placeholder="{{__('form.enter-tag-description')}}"></textarea>
+                                    <input id="Slug" type="text" name="slug" class="form-control"
+                                        placeholder="{{__('form.enter-slug-tag')}}">
                                 </div>
                             </div>
                         </div>
                         <div class="d-flex justify-content-end">
-                            <button type="button" class="btn btn-primary" data-bs-toggle="modal"
-                                data-bs-target="#video-modal"> {{__('form.add-tag')}}
-                            </button>
+                            <button type="submit" class="btn btn-primary">{{__('form.add-tag')}}</button>
                         </div>
                     </form>
                 </div>
@@ -74,67 +68,28 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @include('components.datatable.DataTable', [
-                                    'term_name' => 'Vikings',
-                                    'term_slug' => 'vikings',
-                                    'count' => '0',
-                                    'isTags' => true,
-                                ])
-
-                                @include('components.datatable.DataTable', [
-                                    'term_name' => 'Treasure',
-                                    'term_slug' => 'treasure',
-                                    'count' => '0',
-                                    'isTags' => true,
-                                ])
-                                @include('components.datatable.DataTable', [
-                                    'term_name' => 'Thriller',
-                                    'term_slug' => 'thriller',
-                                    'count' => '0',
-                                    'isTags' => true,
-                                ])
-                                @include('components.datatable.DataTable', [
-                                    'term_name' => 'Ships',
-                                    'term_slug' => 'ships',
-                                    'count' => '0',
-                                    'isTags' => true,
-                                ])
-                                @include('components.datatable.DataTable', [
-                                    'term_name' => 'Romance',
-                                    'term_slug' => 'romance',
-                                    'count' => '0',
-                                    'isTags' => true,
-                                ])
-                                @include('components.datatable.DataTable', [
-                                    'term_name' => 'Pirates',
-                                    'term_slug' => 'pirates',
-                                    'count' => '0',
-                                    'isTags' => true,
-                                ])
-                                @include('components.datatable.DataTable', [
-                                    'term_name' => 'Mythology',
-                                    'term_slug' => 'mythology',
-                                    'count' => '0',
-                                    'isTags' => true,
-                                ])
-                                @include('components.datatable.DataTable', [
-                                    'term_name' => 'Kings',
-                                    'term_slug' => 'kings',
-                                    'count' => '0',
-                                    'isTags' => true,
-                                ])
-                                @include('components.datatable.DataTable', [
-                                    'term_name' => 'Guns',
-                                    'term_slug' => 'guns',
-                                    'count' => '0',
-                                    'isTags' => true,
-                                ])
-                                @include('components.datatable.DataTable', [
-                                    'term_name' => 'Family',
-                                    'term_slug' => 'family',
-                                    'count' => '0',
-                                    'isTags' => true,
-                                ])
+                                @forelse ($tags ?? [] as $tag)
+                                    <tr>
+                                        <td><input type="checkbox" class="form-check-input" /></td>
+                                        <td>{{ $tag->name }}</td>
+                                        <td>{{ $tag->slug }}</td>
+                                        <td>{{ $tag->shows_count ?? 0 }}</td>
+                                        <td>
+                                            <div class="d-flex align-items-center list-user-action gap-2">
+                                                <form method="POST" action="{{ route('admin.tags.destroy', $tag) }}" class="d-inline" onsubmit="return confirm('Delete tag {{ addslashes($tag->name) }}?');">
+                                                    @csrf @method('DELETE')
+                                                    <button type="submit" class="btn btn-sm btn-icon btn-danger-subtle rounded" data-bs-toggle="tooltip" data-bs-placement="top" title="Delete">
+                                                        <i class="ph ph-trash-simple fs-6"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="text-center py-5 text-muted" style="font-size:14px;">No tags yet. Add one using the form.</td>
+                                    </tr>
+                                @endforelse
                             </tbody>
                         </table>
                     </div>

@@ -3,14 +3,23 @@
     <div class="row">
         <div class="col-sm-12">
             <div class="streamit-wraper-table">
+                @if (session('success'))
+                    <div class="alert alert-success mb-3">{{ session('success') }}</div>
+                @endif
                 <div class="card-header d-flex justify-content-between gap-3 flex-wrap align-items-center mb-4">
                     <h2 class="episode-playlist-title wp-heading-inline">
                         <span class="position-relative ">
                             {{ __('sidebar.movies') }} </span>
                     </h2>
-                    <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#season-offcanvas"
-                        aria-controls="season-offcanvas"><i
-                            class="fa-solid fa-plus me-2"></i>{{ __('movielist.add_movie_icon') }}</button>
+                    @if (Route::has('admin.movies.create'))
+                        <a href="{{ route('admin.movies.create') }}" class="btn btn-primary">
+                            <i class="fa-solid fa-plus me-2"></i>{{ __('movielist.add_movie_icon') }}
+                        </a>
+                    @else
+                        <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#season-offcanvas"
+                            aria-controls="season-offcanvas"><i
+                                class="fa-solid fa-plus me-2"></i>{{ __('movielist.add_movie_icon') }}</button>
+                    @endif
                 </div>
                 <div class="table-view table-space">
                     <table id="seasonTable" class="data-tables data-table-one table custom-table movie_table"
@@ -30,125 +39,57 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @include('components.datatable.DataTable', [
-                                'title' =>  'Game of Heros',
-                                'thumbnail' => 'movie-thumb/gameofheros.webp',
-                                'author' => 'Jenny',
-                                'date' => '2025-06-23 12:18:49',
-                                'views' => '8099 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'Venom',
-                                'thumbnail' => 'movie-thumb/venom.webp',
-                                'author' => 'Jenny',
-                                'date' => '2024-12-28 11:10:29',
-                                'views' => '2387 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'Rabbit',
-                                'thumbnail' => 'movie-thumb/rabbit.webp',
-                                'author' => 'Jenny',
-                                'date' => '2025-05-30 03:59:11',
-                                'views' => '6779 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'Migration',
-                                'thumbnail' => 'movie-thumb/migration.webp',
-                                'author' => 'Jenny',
-                                'date' => '2025-05-23 08:31:29',
-                                'views' => '977 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'Krishna',
-                                'thumbnail' => 'movie-thumb/krishna.webp',
-                                'author' => 'Jenny',
-                                'date' => '2025-05-23 08:15:01',
-                                'views' => '3013 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'Kali',
-                                'thumbnail' => 'movie-thumb/kali.webp',
-                                'author' => 'Jenny',
-                                'date' => '2025-05-23 08:18:19',
-                                'views' => '1742 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'Joker',
-                                'thumbnail' => 'movie-thumb/joker.webp',
-                                'author' => 'Jenny',
-                                'date' => '2024-12-23 11:39:21',
-                                'views' => '960 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'Deadpool',
-                                'thumbnail' => 'movie-thumb/deadpool.webp',
-                                'author' => 'Jenny',
-                                'date' => '2025-01-22 09:35:00',
-                                'views' => '760 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'Any Name',
-                                'thumbnail' => 'movie-thumb/any-name.webp',
-                                'author' => 'Jenny',
-                                'date' => '2025-01-22 09:37:53',
-                                'views' => '853 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'YoShi',
-                                'thumbnail' => 'movie-thumb/yoShi.webp',
-                                'author' => 'Jenny',
-                                'date' => '2024-12-23 11:41:16',
-                                'views' => '775 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'Giikre',
-                                'thumbnail' => 'movie-thumb/giirek.webp',
-                                'author' => 'Jenny',
-                                'date' => '2024-12-23 11:40:57',
-                                'views' => '1463 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'Kung Fu Panda',
-                                'thumbnail' => 'movie-thumb/kung-fu-panda.webp',
-                                'author' => 'Jenny',
-                                'date' => '2024-12-23 11:40:25',
-                                'views' => '758 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'War For The Planet',
-                                'thumbnail' => 'movie-thumb/war-for-the-planet.webp',
-                                'author' => 'Jenny',
-                                'date' => '2024-12-23 11:37:27',
-                                'views' => '533 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'Chosfies',
-                                'thumbnail' => 'movie-thumb/chosfies.webp',
-                                'author' => 'Jenny',
-                                'date' => '2025-05-23 08:25:36',
-                                'views' => '5028 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'The Hunter',
-                                'thumbnail' => 'movie-thumb/the-hunter.webp',
-                                'author' => 'Jenny',
-                                'date' => '2025-07-09 10:38:07',
-                                'views' => '2345 views',
-                            ])
+                            @forelse ($movies ?? [] as $movie)
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" class="form-check-input" />
+                                    </td>
+                                    <td>
+                                        <div class="d-flex">
+                                            @if ($movie->poster_url)
+                                                <img src="{{ $movie->poster_url }}" alt="{{ $movie->title }}" class="rounded-2 avatar avatar-55 img-fluid" />
+                                            @else
+                                                <div class="rounded-2 avatar avatar-55 d-flex align-items-center justify-content-center" style="background:#1f2738;color:#8791a3;font-size:18px;">
+                                                    <i class="ph ph-film-strip"></i>
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </td>
+                                    <td>{{ $movie->title }}</td>
+                                    <td>{{ $movie->rating ?? '—' }}</td>
+                                    <td>{{ $movie->updated_at?->format('Y-m-d H:i:s') }}</td>
+                                    <td>{{ $movie->year ?? '—' }}</td>
+                                    <td>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input form-switch-input" type="checkbox" {{ $movie->status === 'published' ? 'checked' : '' }} disabled />
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center list-user-action gap-2">
+                                            @if (Route::has('admin.movies.edit'))
+                                                <a href="{{ route('admin.movies.edit', $movie) }}" class="btn btn-sm btn-icon btn-success-subtle rounded" data-bs-toggle="tooltip" data-bs-placement="top" title="Edit">
+                                                    <i class="ph ph-pencil-simple fs-6"></i>
+                                                </a>
+                                            @endif
+                                            @if (Route::has('admin.movies.destroy'))
+                                                <form method="POST" action="{{ route('admin.movies.destroy', $movie) }}" class="d-inline" onsubmit="return confirm('Delete {{ addslashes($movie->title) }}? This cannot be undone.');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-sm btn-icon btn-danger-subtle rounded" data-bs-toggle="tooltip" data-bs-placement="top" title="Delete">
+                                                        <i class="ph ph-trash-simple fs-6"></i>
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="8" class="text-center py-5 text-muted" style="font-size:14px;">
+                                        No movies yet. Click "Add Movie" to create your first one.
+                                    </td>
+                                </tr>
+                            @endforelse
                         </tbody>
 
                     </table>

@@ -62,43 +62,6 @@ Route::group([], function () {
     Route::get('/error-page1', [FrontendController::class, 'error_page1'])->name('frontend.error_page1');
     Route::get('/error-page2', [FrontendController::class, 'error_page2'])->name('frontend.error_page2');
 
-    // Blog Pages
-    Route::get('/blog-list-page', [FrontendController::class, 'blog_list_page'])->name('frontend.list_page');
-    Route::get('/blog-blog-filter', [FrontendController::class, 'blog_filter'])->name('frontend.blog_filter');
-    Route::get('/blog-detail-page', [FrontendController::class, 'blog_detail_page'])->name('frontend.detail_page');
-    Route::get('/blog-grid-list', [FrontendController::class, 'blog_grid_list'])->name('frontend.grid_list');
-    Route::get('/blog-right-sidebar', [FrontendController::class, 'blog_right_sidebar'])->name('frontend.right_sidebar');
-    Route::get('/blog_sidebar-list', [FrontendController::class, 'blog_sidebar_list_page'])->name('frontend.sidebar_list_page');
-    Route::get('/blog-category', [FrontendController::class, 'blog_category'])->name('frontend.blog_category');
-    Route::get('/blog-tag', [FrontendController::class, 'blog_tag'])->name('frontend.blog_tag');
-    Route::get('/blog-date', [FrontendController::class, 'blog_date'])->name('frontend.blog_date');
-    Route::get('/blog-author', [FrontendController::class, 'blog_author'])->name('frontend.blog_author');
-
-    //Blog columns
-    Route::get('/one-column-grid', [FrontendController::class, 'one_column_grid'])->name('frontend.one_column_grid');
-    Route::get('/two-column-grid', [FrontendController::class, 'two_column_grid'])->name('frontend.two_column_grid');
-    Route::get('/three-column-grid', [FrontendController::class, 'three_column_grid'])->name('frontend.three_column_grid');
-    Route::get('/four-column-grid', [FrontendController::class, 'four_column_grid'])->name('frontend.four_column_grid');
-
-
-    //Blog sidebar
-    Route::get('/blog_left_sidebar', [FrontendController::class, 'blog_left_sidebar'])->name('frontend.left_sidebar');
-    Route::get('/blog_right-sidebar', [FrontendController::class, 'blog_right_sidebar'])->name('frontend.right_sidebar');
-
-    //Blog single
-    Route::get('/blog-template', [FrontendController::class, 'blog_template'])->name('frontend.blog_template');
-    Route::get('/detail-page', [FrontendController::class, 'detail_page'])->name('frontend.detail_page');
-    Route::get('/blog-audio', [FrontendController::class, 'blog_audio'])->name('frontend.blog_audio');
-    Route::get('/blog-video', [FrontendController::class, 'blog_video'])->name('frontend.blog_video');
-    Route::get('/blog-link', [FrontendController::class, 'blog_link'])->name('frontend.blog_link');
-    Route::get('/blog-quote', [FrontendController::class, 'blog_quote'])->name('frontend.blog_quote');
-    Route::get('/blog-gallery', [FrontendController::class, 'blog_gallery'])->name('frontend.blog_gallery');
-
-    //Blog Pagination style
-    Route::get('/blog-pagination', [FrontendController::class, 'blog_pagination'])->name('frontend.blog_pagination');
-    Route::get('/blog-loadmore', [FrontendController::class, 'blog_loadmore'])->name('frontend.blog_loadmore');
-    Route::get('/blog-infinite-scroll', [FrontendController::class, 'blog_infinite_scroll'])->name('frontend.blog_infinite_scroll');
-
     //Profile
     Route::get('/profile-marvin', [FrontendController::class, 'profile_marvin'])->name('frontend.profile-marvin');
     Route::get('/archive-playlist', [FrontendController::class, 'archive_playlist'])->name('frontend.archive-playlist');

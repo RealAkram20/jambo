@@ -128,18 +128,16 @@
             </i>
         </a>
         <ul class="sub-nav collapse" id="sidebar-Shows" data-bs-parent="#sidebar-menu">
-            @can('view_shows')
-                <li class="nav-item">
-                    <a class="nav-link {{ activeRoute(route('dashboard.show-list')) }}"
-                        href="{{ route('dashboard.show-list') }}">
-                        <i class="icon" data-bs-toggle="tooltip" title="Show Lists" data-bs-placement="right"
-                            aria-label="Show Lists" data-bs-original-title="Show Lists">
-                            <i class="ph ph-monitor-play fs-5"></i>
-                        </i>
-                        <span class="item-name">{{ __('sidebar.show_list') }}</span>
-                    </a>
-                </li>
-            @endcan
+            <li class="nav-item">
+                <a class="nav-link {{ activeRoute(route('dashboard.show-list')) }}"
+                    href="{{ route('dashboard.show-list') }}">
+                    <i class="icon" data-bs-toggle="tooltip" title="Show Lists" data-bs-placement="right"
+                        aria-label="Show Lists" data-bs-original-title="Show Lists">
+                        <i class="ph ph-monitor-play fs-5"></i>
+                    </i>
+                    <span class="item-name">{{ __('sidebar.show_list') }}</span>
+                </a>
+            </li>
             <!-- @can('view_seasons')
                 <li class="nav-item">
                     <a class="nav-link {{ activeRoute(route('dashboard.seasons')) }}"
@@ -152,18 +150,16 @@
                     </a>
                 </li>
             @endcan -->
-            @can('view_episodes')
-                <li class="nav-item">
-                    <a class="nav-link {{ activeRoute(route('dashboard.episodes')) }}"
-                        href="{{ route('dashboard.episodes') }}">
-                        <i class="icon" data-bs-toggle="tooltip" title="Episodes" data-bs-placement="right"
-                            aria-label="Episodes" data-bs-original-title="Episodes">
-                            <i class="ph ph-monitor-play fs-5"></i>
-                        </i>
-                        <span class="item-name">{{ __('sidebar.episodes') }}</span>
-                    </a>
-                </li>
-            @endcan
+            <li class="nav-item">
+                <a class="nav-link {{ activeRoute(route('dashboard.episodes')) }}"
+                    href="{{ route('dashboard.episodes') }}">
+                    <i class="icon" data-bs-toggle="tooltip" title="Episodes" data-bs-placement="right"
+                        aria-label="Episodes" data-bs-original-title="Episodes">
+                        <i class="ph ph-monitor-play fs-5"></i>
+                    </i>
+                    <span class="item-name">{{ __('sidebar.episodes') }}</span>
+                </a>
+            </li>
             <li class="nav-item">
                 <a class="nav-link {{ activeRoute(route('dashboard.tvshow-genres')) }}"
                     href="{{ route('dashboard.tvshow-genres') }}">
@@ -905,7 +901,7 @@
             </li>
         </ul>
     </li>
-    <li class="nav-item mb-4">
+    <li class="nav-item">
         <a class="nav-link {{ activeRoute(route('backend.permission-role')) }}"
             href="{{ route('backend.permission-role') }}">
             <i class="icon" title="Access Control" data-bs-toggle="tooltip" data-bs-placement="right"
@@ -915,44 +911,8 @@
             <span class="item-name">{{ __('sidebar.access_control') }}</span>
         </a>
     </li>
-    @if (Route::has('admin.movies.index'))
-        <li class="nav-item mb-4">
-            <a class="nav-link {{ request()->routeIs('admin.movies.*') ? 'active' : '' }}"
-                href="{{ route('admin.movies.index') }}">
-                <i class="icon" title="Movies" data-bs-toggle="tooltip" data-bs-placement="right"
-                    aria-label="Movies" data-bs-original-title="Movies">
-                    <i class="ph ph-film-strip fs-4"></i>
-                </i>
-                <span class="item-name">Movies</span>
-            </a>
-        </li>
-    @endif
-    @if (Route::has('admin.shows.index'))
-        <li class="nav-item mb-4">
-            <a class="nav-link {{ request()->routeIs('admin.shows.*') ? 'active' : '' }}"
-                href="{{ route('admin.shows.index') }}">
-                <i class="icon" title="Shows" data-bs-toggle="tooltip" data-bs-placement="right"
-                    aria-label="Shows" data-bs-original-title="Shows">
-                    <i class="ph ph-television-simple fs-4"></i>
-                </i>
-                <span class="item-name">Shows</span>
-            </a>
-        </li>
-    @endif
-    @if (Route::has('admin.persons.index'))
-        <li class="nav-item mb-4">
-            <a class="nav-link {{ request()->routeIs('admin.persons.*') ? 'active' : '' }}"
-                href="{{ route('admin.persons.index') }}">
-                <i class="icon" title="Persons" data-bs-toggle="tooltip" data-bs-placement="right"
-                    aria-label="Persons" data-bs-original-title="Persons">
-                    <i class="ph ph-users-three fs-4"></i>
-                </i>
-                <span class="item-name">Persons</span>
-            </a>
-        </li>
-    @endif
     @if (Route::has('admin.updates.index'))
-        <li class="nav-item mb-4">
+        <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('admin.updates.*') ? 'active' : '' }}"
                 href="{{ route('admin.updates.index') }}">
                 <i class="icon" title="System Updates" data-bs-toggle="tooltip" data-bs-placement="right"
@@ -964,7 +924,7 @@
         </li>
     @endif
     @if (Route::has('notifications.index'))
-        <li class="nav-item mb-4">
+        <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}"
                 href="{{ route('notifications.index') }}">
                 <i class="icon" title="Notifications" data-bs-toggle="tooltip" data-bs-placement="right"
@@ -976,7 +936,7 @@
         </li>
     @endif
     @if (Route::has('admin.payments.index'))
-        <li class="nav-item mb-4">
+        <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('admin.payments.*') ? 'active' : '' }}"
                 href="{{ route('admin.payments.index') }}">
                 <i class="icon" title="Payments" data-bs-toggle="tooltip" data-bs-placement="right"

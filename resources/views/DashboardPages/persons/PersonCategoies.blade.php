@@ -11,34 +11,27 @@
                     </h2>
                 </div>
                 <div class="card-body">
-                    <form>
+                    @if (session('success'))
+                        <div class="alert alert-success mb-3">{{ session('success') }}</div>
+                    @endif
+                    <form method="POST" action="{{ route('admin.categories.store') }}">
+                        @csrf
                         <div class="form-group">
                             <label class="form-label" for="category-name">{{__('form.category-name')}} <span> *</span></label>
-                            <input type="text" class="form-control" id="category-name"
-                                placeholder="{{__('form.enter-title-genre')}}">
+                            <input type="text" class="form-control" id="category-name" name="name"
+                                placeholder="{{__('form.enter-title-genre')}}" required>
                         </div>
                         <div class="form-group">
-                            <label class="form-label" for="category-slug1">{{__('form.category-slug')}} <span> *</span></label>
-                            <input type="text" class="form-control" id="category-slug1"
+                            <label class="form-label" for="category-slug1">{{__('form.category-slug')}}</label>
+                            <input type="text" class="form-control" id="category-slug1" name="slug"
                                 placeholder="{{__('form.enter-slug-genre')}}">
                         </div>
                         <div class="form-group">
-                            <label class="form-label" for="parent-category">{{__('form.parent-category')}}</label>
-                            <select id="parent-category" class="form-control select2-basic-multiple">
-                                <option>Add Parent Category</option>
-                                <option>Actor</option>
-                                <option>Actress</option>
-                                <option>Director</option>
-                                <option>Producer</option>
-                                <option>Singer</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
                             <label class="form-label">{{__('form.category-description')}}</label>
-                            <textarea class="form-control large-text" aria-label="With textarea"></textarea>
+                            <textarea class="form-control large-text" name="description" aria-label="With textarea"></textarea>
                         </div>
                         <div class="d-flex align-items-center justify-content-end mt-4">
-                            <button class="btn btn-primary">{{__('form.add-category')}}</button>
+                            <button type="submit" class="btn btn-primary">{{__('form.add-category')}}</button>
                         </div>
                     </form>
                 </div>
@@ -73,45 +66,29 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @include('components.datatable.DataTable', [
-                                        'title' => 'Producer',
-                                        'author' => 'producer',
-                                        'genres' => ['action', 'fight', 'thriller', 'etc'],
-                                        'date' => 'none',
-                                        'views' => '9',
-                                        'viewsValue' => true,
-                                        'isThumbnail' => true,
-                                    ])
-
-                                    @include('components.datatable.DataTable', [
-                                        'title' => 'Director',
-                                        'author' => 'director',
-                                        'genres' => ['action', 'fight', 'thriller', 'etc'],
-                                        'date' => 'none',
-                                        'views' => '7',
-                                        'viewsValue' => true,
-                                        'isThumbnail' => true,
-                                    ])
-
-                                    @include('components.datatable.DataTable', [
-                                        'title' => 'Actress',
-                                        'author' => 'actress',
-                                        'genres' => ['action', 'fight', 'thriller', 'etc'],
-                                        'date' => 'none',
-                                        'views' => '8',
-                                        'viewsValue' => true,
-                                        'isThumbnail' => true,
-                                    ])
-
-                                    @include('components.datatable.DataTable', [
-                                        'title' => 'Actor',
-                                        'author' => 'actor',
-                                        'genres' => ['action', 'fight', 'thriller', 'etc'],
-                                        'date' => 'none',
-                                        'views' => '8',
-                                        'viewsValue' => true,
-                                        'isThumbnail' => true,
-                                    ])
+                                    @forelse ($categories ?? [] as $category)
+                                        <tr>
+                                            <td><input type="checkbox" class="form-check-input" /></td>
+                                            <td>{{ $category->name }}</td>
+                                            <td>{{ $category->slug }}</td>
+                                            <td>—</td>
+                                            <td>{{ ($category->movies_count ?? 0) + ($category->shows_count ?? 0) }}</td>
+                                            <td>
+                                                <div class="d-flex align-items-center list-user-action gap-2">
+                                                    <form method="POST" action="{{ route('admin.categories.destroy', $category) }}" class="d-inline" onsubmit="return confirm('Delete category {{ addslashes($category->name) }}?');">
+                                                        @csrf @method('DELETE')
+                                                        <button type="submit" class="btn btn-sm btn-icon btn-danger-subtle rounded" data-bs-toggle="tooltip" data-bs-placement="top" title="Delete">
+                                                            <i class="ph ph-trash-simple fs-6"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="6" class="text-center py-5 text-muted" style="font-size:14px;">No categories yet. Add one using the form.</td>
+                                        </tr>
+                                    @endforelse
                                 </tbody>
                             </table>
                         </div>

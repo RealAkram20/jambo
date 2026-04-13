@@ -11,45 +11,41 @@
                 </h2>
             </div>
             <div class="card-body">
-                <form>
+                @if (session('success'))
+                    <div class="alert alert-success mb-3">{{ session('success') }}</div>
+                @endif
+                @if (isset($errors) && $errors->any())
+                    <div class="alert alert-danger mb-3">
+                        <ul class="mb-0 mt-1">
+                            @foreach ($errors->all() as $error) <li>{{ $error }}</li> @endforeach
+                        </ul>
+                    </div>
+                @endif
+                <form method="POST" action="{{ route('admin.genres.store') }}">
+                    @csrf
                     <div class="form-group">
                         <label class="form-label" for="genre-name">{{__('form.genre-name')}}<span> *</span></label>
-                        <input type="text" class="form-control" id="genre-name"
-                            placeholder="{{__('form.enter-title-genre')}}">
+                        <input type="text" class="form-control" id="genre-name" name="name"
+                            placeholder="{{__('form.enter-title-genre')}}" required>
                     </div>
                     <div class="form-group">
-                        <label class="form-label" for="genre-slug">{{__('form.genre-slug')}}<span> *</span></label>
-                        <input type="text" class="form-control" id="genre-slug"
+                        <label class="form-label" for="genre-slug">{{__('form.genre-slug')}}</label>
+                        <input type="text" class="form-control" id="genre-slug" name="slug"
                             placeholder="{{__('form.enter-slug-genre')}}">
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="parent-genre">{{__('form.parent-genre')}}</label>
-                        <select id="parent-genre" class="form-control select2-basic-multiple">
-                            <option>Add Parent Genre</option>
-                            <option>Action</option>
-                            <option>Adventure</option>
-                            <option>Animation</option>
-                            <option>Crime</option>
-                            <option>Horror</option>
-                            <option>Mystery</option>
-                            <option>Romance</option>
-                            <option>TEST GENRES</option>
-                            <option>TEST GENRES</option>
-                        </select>
+                        <label class="form-label" for="genre-colour">Colour</label>
+                        <input type="color" class="form-control form-control-color" id="genre-colour" name="colour" value="#1A98FF">
                     </div>
-                    @include('components.widget.UploadImageVideo', [
-                    'upload_image_name' => __('form.thumbnail'),
-                    ])
 
                     <div class="form-group">
                         <label class="form-label">{{__('form.genre-description')}}</label>
-                        <textarea class="form-control large-text" aria-label="With textarea"></textarea>
-
+                        <textarea class="form-control large-text" name="description" aria-label="With textarea"></textarea>
                     </div>
 
                     <div class="d-flex align-items-center justify-content-end mt-4">
-                        <button class="btn btn-primary">{{__('form.add-genre')}}</button>
+                        <button type="submit" class="btn btn-primary">{{__('form.add-genre')}}</button>
                     </div>
                 </form>
             </div>
@@ -83,68 +79,34 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @include('components.datatable.DataTable', [
-                                'title' => "Romance",
-                                'thumbnail' => "genres/romance.webp",
-                                'author' => "romance",
-                                'date' => "None",
-                                'views' => "2",
-                                'viewsValue' => "true"
-                                ])
-
-                                @include('components.datatable.DataTable', [
-                                'title' => "Mystery",
-                                'thumbnail' => "genres/mystery.webp",
-                                'author' => "mystery",
-                                'date' => "None",
-                                'views' => "14",
-                                'viewsValue' => "true"
-                                ])
-
-                                @include('components.datatable.DataTable', [
-                                'title' => "Horror",
-                                'thumbnail' => "genres/horror.webp",
-                                'author' => "horror",
-                                'date' => "None",
-                                'views' => "13",
-                                'viewsValue' => "true"
-                                ])
-
-                                @include('components.datatable.DataTable', [
-                                'title' => "Crime",
-                                'thumbnail' => "genres/Crime.webp",
-                                'author' => "crime",
-                                'date' => "None",
-                                'views' => "10",
-                                'viewsValue' => "true"
-                                ])
-
-                                @include('components.datatable.DataTable', [
-                                'title' => "Animation",
-                                'thumbnail' => "genres/animation.webp",
-                                'author' => "animation",
-                                'date' => "None",
-                                'views' => "10",
-                                'viewsValue' => "true"
-                                ])
-
-                                @include('components.datatable.DataTable', [
-                                'title' => "Adventure",
-                                'thumbnail' => "genres/adventure.webp",
-                                'author' => "adventure",
-                                'date' => "None",
-                                'views' => "18",
-                                'viewsValue' => "true"
-                                ])
-
-                                @include('components.datatable.DataTable', [
-                                'title' => "Action",
-                                'thumbnail' => "genres/action.webp",
-                                'author' => "action",
-                                'date' => "None",
-                                'views' => "22",
-                                'viewsValue' => "true"
-                                ])
+                                @forelse ($genres ?? [] as $genre)
+                                    <tr>
+                                        <td><input type="checkbox" class="form-check-input" /></td>
+                                        <td>
+                                            <div class="d-flex align-items-center justify-content-center rounded" style="width:40px;height:40px;background:{{ $genre->colour ?? '#1f2738' }};">
+                                                <i class="ph ph-faders-horizontal text-white"></i>
+                                            </div>
+                                        </td>
+                                        <td>{{ $genre->name }}</td>
+                                        <td>{{ $genre->slug }}</td>
+                                        <td>—</td>
+                                        <td>{{ $genre->shows_count ?? 0 }}</td>
+                                        <td>
+                                            <div class="d-flex align-items-center list-user-action gap-2">
+                                                <form method="POST" action="{{ route('admin.genres.destroy', $genre) }}" class="d-inline" onsubmit="return confirm('Delete genre {{ addslashes($genre->name) }}?');">
+                                                    @csrf @method('DELETE')
+                                                    <button type="submit" class="btn btn-sm btn-icon btn-danger-subtle rounded" data-bs-toggle="tooltip" data-bs-placement="top" title="Delete">
+                                                        <i class="ph ph-trash-simple fs-6"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="7" class="text-center py-5 text-muted" style="font-size:14px;">No genres yet. Add one using the form.</td>
+                                    </tr>
+                                @endforelse
                             </tbody>
                         </table>
                     </div>

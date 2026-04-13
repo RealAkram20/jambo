@@ -3,6 +3,12 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Modules\Content\app\Models\Movie;
+use Modules\Content\app\Models\Show;
+use Modules\Content\app\Models\Person;
+use Modules\Content\app\Models\Genre;
+use Modules\Content\app\Models\Category;
+use Modules\Content\app\Models\Tag;
 
 class DashboardController extends Controller
 {
@@ -39,19 +45,28 @@ class DashboardController extends Controller
     public function movieList(Request $request)
     {
         $title = __('sidebar.movie_list');
-        return view('DashboardPages.movies.MovieListPage', compact('title'));
+        $movies = Movie::with(['genres', 'categories'])
+            ->orderByDesc('updated_at')
+            ->get();
+        $genres = Genre::orderBy('name')->get();
+        $categories = Category::orderBy('name')->get();
+        $tags = Tag::orderBy('name')->get();
+        $persons = Person::orderBy('last_name')->orderBy('first_name')->get();
+        return view('DashboardPages.movies.MovieListPage', compact('title', 'movies', 'genres', 'categories', 'tags', 'persons'));
     }
 
     public function movieGenres(Request $request)
     {
         $title = __('streamTag.genre');
-        return view('DashboardPages.movies.MovieGenres', compact('title'));
+        $genres = Genre::withCount('movies')->orderBy('name')->get();
+        return view('DashboardPages.movies.MovieGenres', compact('title', 'genres'));
     }
 
     public function movieTags(Request $request)
     {
         $title = __('streamTag.tags');
-        return view('DashboardPages.movies.MovieTag', compact('title'));
+        $tags = Tag::withCount('movies')->orderBy('name')->get();
+        return view('DashboardPages.movies.MovieTag', compact('title', 'tags'));
     }
 
     public function moviePlaylist(Request $request)
@@ -63,7 +78,15 @@ class DashboardController extends Controller
     public function showList(Request $request)
     {
         $title = __('sidebar.show_list');
-        return view('DashboardPages.tv-show.ShowListPage', compact('title'));
+        $shows = Show::with(['genres', 'categories'])
+            ->withCount('seasons')
+            ->orderByDesc('updated_at')
+            ->get();
+        $genres = Genre::orderBy('name')->get();
+        $categories = Category::orderBy('name')->get();
+        $tags = Tag::orderBy('name')->get();
+        $persons = Person::orderBy('last_name')->orderBy('first_name')->get();
+        return view('DashboardPages.tv-show.ShowListPage', compact('title', 'shows', 'genres', 'categories', 'tags', 'persons'));
     }
 
     public function seasons(Request $request)
@@ -81,13 +104,15 @@ class DashboardController extends Controller
     public function showGenres(Request $request)
     {
         $title = __('streamTag.genre');
-        return view('DashboardPages.tv-show.ShowGenres', compact('title'));
+        $genres = Genre::withCount('shows')->orderBy('name')->get();
+        return view('DashboardPages.tv-show.ShowGenres', compact('title', 'genres'));
     }
 
     public function showTags(Request $request)
     {
         $title = __('streamTag.tags');
-        return view('DashboardPages.tv-show.ShowTag', compact('title'));
+        $tags = Tag::withCount('shows')->orderBy('name')->get();
+        return view('DashboardPages.tv-show.ShowTag', compact('title', 'tags'));
     }
 
     public function showPlaylist(Request $request)
@@ -123,19 +148,24 @@ class DashboardController extends Controller
     public function person(Request $request)
     {
         $title = __('form.persons-list');
-        return view('DashboardPages.persons.PersonPage', compact('title'));
+        $persons = Person::withCount(['movies', 'shows'])
+            ->orderByDesc('updated_at')
+            ->get();
+        return view('DashboardPages.persons.PersonPage', compact('title', 'persons'));
     }
 
     public function personCategories(Request $request)
     {
         $title = __('sidebar.Person-Category');
-        return view('DashboardPages.persons.PersonCategoies', compact('title'));
+        $categories = Category::withCount(['movies', 'shows'])->orderBy('name')->get();
+        return view('DashboardPages.persons.PersonCategoies', compact('title', 'categories'));
     }
 
     public function personTags(Request $request)
     {
         $title = __('streamTag.tags');
-        return view('DashboardPages.persons.PersonTag', compact('title'));
+        $tags = Tag::withCount(['movies', 'shows'])->orderBy('name')->get();
+        return view('DashboardPages.persons.PersonTag', compact('title', 'tags'));
     }
 
     public function review(Request $request)

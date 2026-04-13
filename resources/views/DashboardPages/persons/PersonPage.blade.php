@@ -4,15 +4,24 @@
 <div class="row">
     <div class="col-sm-12">
         <div class="streamit-wraper-table">
+            @if (session('success'))
+                <div class="alert alert-success mb-3">{{ session('success') }}</div>
+            @endif
             <div class="card-header d-flex justify-content-between gap-3 flex-wrap align-items-center mb-4">
                 <h2 class="episode-playlist-title wp-heading-inline">
                     <span class="position-relative ">
                         {{__('form.persons-list')}} </span>
                 </h2>
-                <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas"
-                    data-bs-target="#season-offcanvas" aria-controls="season-offcanvas">
-                    <i class="fa-solid fa-plus me-2"></i>{{__('dashboard.add-new')}}
-                </button>
+                @if (Route::has('admin.persons.create'))
+                    <a href="{{ route('admin.persons.create') }}" class="btn btn-primary">
+                        <i class="fa-solid fa-plus me-2"></i>{{__('dashboard.add-new')}}
+                    </a>
+                @else
+                    <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas"
+                        data-bs-target="#season-offcanvas" aria-controls="season-offcanvas">
+                        <i class="fa-solid fa-plus me-2"></i>{{__('dashboard.add-new')}}
+                    </button>
+                @endif
             </div>
             <div class="table-view table-space">
                 <table id="seasonTable" class="data-tables table custom-table movie_table data-table-one"
@@ -31,88 +40,52 @@
                         </tr>
                     </thead>
                     <tbody>
-
-                        @include('components.datatable.DataTable', [
-                        'title' => 'Charles Melton',
-                        'thumbnail' => 'author/charles-melton.webp',
-                        'author' => 'jenny',
-                        'date' => '2024-11-27 08:36:04',
-                        'viewsValue' => true,
-                        'views' => '0'
-                        ])
-
-                        @include('components.datatable.DataTable', [
-                        'title' => 'Jack Nicholson',
-                        'thumbnail' => 'author/jack-nicholson.webp',
-                        'author' => 'jenny',
-                        'date' => '2024-11-27 08:35:00',
-                        'viewsValue' => true,
-                        'views' => '0'
-                        ])
-
-                        @include('components.datatable.DataTable', [
-                        'title' => 'James Stewart',
-                        'thumbnail' => 'author/james-stewart.webp',
-                        'author' => 'jenny',
-                        'date' => '2024-11-27 08:33:32',
-                        'viewsValue' => true,
-                        'views' => '0'
-                        ])
-
-                        @include('components.datatable.DataTable', [
-                        'title' => 'Jeff Bridges',
-                        'thumbnail' => 'author/jeff-bridges.webp',
-                        'author' => 'jenny',
-                        'date' => '2024-11-27 08:32:28',
-                        'viewsValue' => true,
-                        'views' => '0'
-                        ])
-
-
-                        @include('components.datatable.DataTable', [
-                        'title' => 'Jordan Grant',
-                        'thumbnail' => 'author/jordan-grant.webp',
-                        'author' => 'jenny',
-                        'date' => '2024-11-27 08:31:27',
-                        'viewsValue' => true,
-                        'views' => '0'
-                        ])
-
-                        @include('components.datatable.DataTable', [
-                        'title' => 'Mark Smith',
-                        'thumbnail' => 'author/mark-smith.webp',
-                        'author' => 'jenny',
-                        'date' => '2024-11-27 08:29:43',
-                        'viewsValue' => true,
-                        'views' => '0'
-                        ])
-
-                        @include('components.datatable.DataTable', [
-                        'title' => 'Maxwell Carter',
-                        'thumbnail' => 'author/maxwell-carter.webp',
-                        'author' => 'jenny',
-                        'date' => '2024-11-27 08:27:53',
-                        'viewsValue' => true,
-                        'views' => '0'
-                        ])
-
-                        @include('components.datatable.DataTable', [
-                        'title' => 'Ruby Scott',
-                        'thumbnail' => 'author/ruby-scott.webp',
-                        'author' => 'jenny',
-                        'date' => '2024-11-27 08:26:50',
-                        'viewsValue' => true,
-                        'views' => '0'
-                        ])
-
-                        @include('components.datatable.DataTable', [
-                        'title' => 'Michael Fox',
-                        'thumbnail' => 'author/michael-fox.webp',
-                        'author' => 'jenny',
-                        'date' => '2024-11-30 06:19:27',
-                        'viewsValue' => true,
-                        'views' => '0'
-                        ])
+                        @forelse ($persons ?? [] as $person)
+                            <tr>
+                                <td>
+                                    <input type="checkbox" class="form-check-input" />
+                                </td>
+                                <td>
+                                    <div class="d-flex">
+                                        @if ($person->photo_url)
+                                            <img src="{{ $person->photo_url }}" alt="{{ $person->first_name }}" class="rounded-2 avatar avatar-55 img-fluid" />
+                                        @else
+                                            <div class="rounded-2 avatar avatar-55 d-flex align-items-center justify-content-center" style="background:#1f2738;color:#8791a3;font-size:18px;">
+                                                <i class="ph ph-user-circle"></i>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </td>
+                                <td>{{ trim($person->first_name . ' ' . $person->last_name) }}</td>
+                                <td>{{ $person->known_for ?? '—' }}</td>
+                                <td>{{ $person->updated_at?->format('Y-m-d H:i:s') }}</td>
+                                <td>{{ $person->movies_count + $person->shows_count }} credits</td>
+                                <td>
+                                    <div class="d-flex align-items-center list-user-action gap-2">
+                                        @if (Route::has('admin.persons.edit'))
+                                            <a href="{{ route('admin.persons.edit', $person) }}" class="btn btn-sm btn-icon btn-success-subtle rounded" data-bs-toggle="tooltip" data-bs-placement="top" title="Edit">
+                                                <i class="ph ph-pencil-simple fs-6"></i>
+                                            </a>
+                                        @endif
+                                        @if (Route::has('admin.persons.destroy'))
+                                            <form method="POST" action="{{ route('admin.persons.destroy', $person) }}" class="d-inline" onsubmit="return confirm('Delete {{ addslashes(trim($person->first_name . ' ' . $person->last_name)) }}?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-icon btn-danger-subtle rounded" data-bs-toggle="tooltip" data-bs-placement="top" title="Delete">
+                                                    <i class="ph ph-trash-simple fs-6"></i>
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted" style="font-size:14px;">
+                                    No persons yet. Click "Add New" to create your first one.
+                                </td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>

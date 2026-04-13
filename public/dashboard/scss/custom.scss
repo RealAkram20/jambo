@@ -30,3 +30,8 @@
 
 @import "./custom/customizer/layouts";
 @import "./custom/dark/dark-custom";
+
+// Jambo: ensure sidebar scrollbar covers full height minus header
+.sidebar .sidebar-body.data-scrollbar {
+  max-height: calc(100vh - 7rem);
+}

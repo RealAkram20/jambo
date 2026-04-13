@@ -3,15 +3,24 @@
     <div class="row">
         <div class="col-sm-12">
             <div class="streamit-wraper-table">
+                @if (session('success'))
+                    <div class="alert alert-success mb-3">{{ session('success') }}</div>
+                @endif
                 <div class="card-header  d-flex justify-content-between gap-3 flex-wrap align-items-center mb-4">
                     <h2 class="episode-playlist-title wp-heading-inline">
                         <span class="position-relative ">
                             {{__('form.tv-show-list')}} </span>
                     </h2>
-                    <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#season-offcanvas"
-                        aria-controls="season-offcanvas">
-                        <i class="fa-solid fa-plus me-2"></i>{{ __('dashboard.Add_Show') }}
-                    </button>
+                    @if (Route::has('admin.shows.create'))
+                        <a href="{{ route('admin.shows.create') }}" class="btn btn-primary">
+                            <i class="fa-solid fa-plus me-2"></i>{{ __('dashboard.Add_Show') }}
+                        </a>
+                    @else
+                        <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#season-offcanvas"
+                            aria-controls="season-offcanvas">
+                            <i class="fa-solid fa-plus me-2"></i>{{ __('dashboard.Add_Show') }}
+                        </button>
+                    @endif
                 </div>
                 <div class="table-view table-space">
                     <table id="seasonTable" class="data-tables table custom-table movie_table data-table-one"
@@ -31,127 +40,57 @@
                             </tr>
                         </thead>
                         <tbody>
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'Awakening: The First Ones',
-                                'thumbnail' => 'movie-thumb/the-first-of-us.webp',
-                                'author' => 'jenny',
-                                'date' => '2025-07-08 09:23:51',
-                                'views' => '870 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'Beyond Borders',
-                                'thumbnail' => 'movie-thumb/migration.webp',
-                                'author' => 'jenny',
-                                'date' => '2025-02-05 08:37:44',
-                                'views' => '749 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'Titanic: Lost & Found',
-                                'thumbnail' => 'movie-thumb/tianic.webp',
-                                'author' => 'jenny',
-                                'date' => '2025-04-16 11:42:13',
-                                'views' => '729 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'The Real Crew',
-                                'thumbnail' => 'movie-thumb/the-crew.webp',
-                                'author' => 'jenny',
-                                'date' => '2025-02-05 08:09:42',
-                                'views' => '697 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'Midnight Hunter',
-                                'thumbnail' => 'movie-thumb/midnightHunter.webp',
-                                'author' => 'jenny',
-                                'date' => '2025-02-04 10:57:08',
-                                'views' => '366 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'Spider Sentinel',
-                                'thumbnail' => 'movie-thumb/spiderman.webp',
-                                'author' => 'jenny',
-                                'date' => '2025-02-05 07:01:39',
-                                'views' => '484 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'Masters of Kung Fu: The Panda Legend',
-                                'thumbnail' => 'movie-thumb/kung-fu-panda.webp',
-                                'author' => 'jenny',
-                                'date' => '2024-12-26 08:14:16',
-                                'views' => '508 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'The Epic Journey of Hanuman',
-                                'thumbnail' => 'movie-thumb/hanuman.webp',
-                                'author' => 'jenny',
-                                'date' => '2024-12-26 11:54:20',
-                                'views' => '318 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'Vasudeva: The Eternal Journey',
-                                'thumbnail' => 'movie-thumb/krishna.webp',
-                                'author' => 'jenny',
-                                'date' => '2024-12-26 10:30:30',
-                                'views' => '213 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'Minions',
-                                'thumbnail' => 'movie-thumb/minions.webp',
-                                'author' => 'jenny',
-                                'date' => '2025-07-08 06:58:43',
-                                'views' => '745 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'Pirates of Day One',
-                                'thumbnail' => 'movie-thumb/pirates-ofdayones-orignal.webp',
-                                'author' => 'jenny',
-                                'date' => '2025-02-04 10:57:30',
-                                'views' => '727 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'The Hunter',
-                                'thumbnail' => 'movie-thumb/the-hunter.webp',
-                                'author' => 'jenny',
-                                'date' => '2025-07-09 10:38:07',
-                                'views' => '2345 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'Lost In Space',
-                                'thumbnail' => 'movie-thumb/lost-inst-space.webp',
-                                'author' => 'jenny',
-                                'date' => '2024-12-25 09:51:54',
-                                'views' => '293 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'Castle rock',
-                                'thumbnail' => 'movie-thumb/castle-rock.webp',
-                                'author' => 'jenny',
-                                'date' => '2024-12-25 09:52:11',
-                                'views' => '199 views',
-                            ])
-
-                            @include('components.datatable.DataTable', [
-                                'title' => 'Breaking Bad',
-                                'thumbnail' => 'movie-thumb/breaking-bad.webp',
-                                'author' => 'jenny',
-                                'date' => '2025-07-08 07:07:52',
-                                'views' => '601 views',
-                            ])
-
+                            @forelse ($shows ?? [] as $show)
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" class="form-check-input" />
+                                    </td>
+                                    <td>
+                                        <div class="d-flex">
+                                            @if ($show->poster_url)
+                                                <img src="{{ $show->poster_url }}" alt="{{ $show->title }}" class="rounded-2 avatar avatar-55 img-fluid" />
+                                            @else
+                                                <div class="rounded-2 avatar avatar-55 d-flex align-items-center justify-content-center" style="background:#1f2738;color:#8791a3;font-size:18px;">
+                                                    <i class="ph ph-television-simple"></i>
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </td>
+                                    <td>{{ $show->title }}</td>
+                                    <td>{{ $show->seasons_count ?? 0 }} {{ Str::plural('season', $show->seasons_count ?? 0) }}</td>
+                                    <td>{{ $show->updated_at?->format('Y-m-d H:i:s') }}</td>
+                                    <td>{{ $show->year ?? '—' }}</td>
+                                    <td>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input form-switch-input" type="checkbox" {{ $show->status === 'published' ? 'checked' : '' }} disabled />
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center list-user-action gap-2">
+                                            @if (Route::has('admin.shows.edit'))
+                                                <a href="{{ route('admin.shows.edit', $show) }}" class="btn btn-sm btn-icon btn-success-subtle rounded" data-bs-toggle="tooltip" data-bs-placement="top" title="Edit">
+                                                    <i class="ph ph-pencil-simple fs-6"></i>
+                                                </a>
+                                            @endif
+                                            @if (Route::has('admin.shows.destroy'))
+                                                <form method="POST" action="{{ route('admin.shows.destroy', $show) }}" class="d-inline" onsubmit="return confirm('Delete {{ addslashes($show->title) }}?');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-sm btn-icon btn-danger-subtle rounded" data-bs-toggle="tooltip" data-bs-placement="top" title="Delete">
+                                                        <i class="ph ph-trash-simple fs-6"></i>
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="8" class="text-center py-5 text-muted" style="font-size:14px;">
+                                        No shows yet. Click "Add Show" to create your first one.
+                                    </td>
+                                </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>

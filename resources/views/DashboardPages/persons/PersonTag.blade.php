@@ -11,23 +11,23 @@
                     </h2>
                 </div>
                 <div class="card-body">
-                    <form>
+                    @if (session('success'))
+                        <div class="alert alert-success mb-3">{{ session('success') }}</div>
+                    @endif
+                    <form method="POST" action="{{ route('admin.tags.store') }}">
+                        @csrf
                         <div class="form-group">
                             <label class="form-label" for="tag-name">{{__('form.tag-name')}} <span> *</span></label>
-                            <input type="text" class="form-control" id="tag-name"
-                                placeholder="{{__('form.enter-title-genre')}}">
+                            <input type="text" class="form-control" id="tag-name" name="name"
+                                placeholder="{{__('form.enter-title-genre')}}" required>
                         </div>
                         <div class="form-group">
-                            <label class="form-label" for="tag-slug">{{__('form.tag-slug')}} <span> *</span></label>
-                            <input type="text" class="form-control" id="tag-slug"
+                            <label class="form-label" for="tag-slug">{{__('form.tag-slug')}}</label>
+                            <input type="text" class="form-control" id="tag-slug" name="slug"
                                 placeholder="{{__('form.enter-slug-genre')}}">
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">{{__('form.tag-description')}}</label>
-                            <textarea class="form-control large-text" aria-label="With textarea"></textarea>
-                        </div>
                         <div class="d-flex align-items-center justify-content-end mt-4">
-                            <button class="btn btn-primary">{{__('form.add-category')}}</button>
+                            <button type="submit" class="btn btn-primary">{{__('form.add-category')}}</button>
                         </div>
                     </form>
                 </div>
@@ -59,29 +59,27 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @include('components.datatable.DataTable', [
-                                        'playlist_name' => 'Comedy',
-                                        'playlist_slug' => 'comedy',
-                                        'isPlaylist' => true,
-                                    ])
-
-                                    @include('components.datatable.DataTable', [
-                                        'playlist_name' => 'Animation',
-                                        'playlist_slug' => 'animation',
-                                        'isPlaylist' => true,
-                                    ])
-
-                                    @include('components.datatable.DataTable', [
-                                        'playlist_name' => 'Drama',
-                                        'playlist_slug' => 'drama',
-                                        'isPlaylist' => true,
-                                    ])
-
-                                    @include('components.datatable.DataTable', [
-                                        'playlist_name' => 'Action',
-                                        'playlist_slug' => 'action',
-                                        'isPlaylist' => true,
-                                    ])
+                                    @forelse ($tags ?? [] as $tag)
+                                        <tr>
+                                            <td><input type="checkbox" class="form-check-input" /></td>
+                                            <td>{{ $tag->name }}</td>
+                                            <td>{{ $tag->slug }}</td>
+                                            <td>
+                                                <div class="d-flex align-items-center list-user-action gap-2">
+                                                    <form method="POST" action="{{ route('admin.tags.destroy', $tag) }}" class="d-inline" onsubmit="return confirm('Delete tag {{ addslashes($tag->name) }}?');">
+                                                        @csrf @method('DELETE')
+                                                        <button type="submit" class="btn btn-sm btn-icon btn-danger-subtle rounded" data-bs-toggle="tooltip" data-bs-placement="top" title="Delete">
+                                                            <i class="ph ph-trash-simple fs-6"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="4" class="text-center py-5 text-muted" style="font-size:14px;">No tags yet. Add one using the form.</td>
+                                        </tr>
+                                    @endforelse
                                 </tbody>
                             </table>
                         </div>
