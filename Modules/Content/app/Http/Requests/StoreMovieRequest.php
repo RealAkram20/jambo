@@ -24,6 +24,7 @@ class StoreMovieRequest extends FormRequest
             'backdrop_url' => 'nullable|url|max:500',
             'trailer_url' => 'nullable|url|max:500',
             'dropbox_path' => 'nullable|string|max:500',
+            'video_url' => 'nullable|url|max:500',
             'tier_required' => 'nullable|string|max:50',
             'status' => 'required|in:draft,published',
 

@@ -87,6 +87,7 @@ class MovieController extends Controller
                 'backdrop_url' => $data['backdrop_url'] ?? null,
                 'trailer_url' => $data['trailer_url'] ?? null,
                 'dropbox_path' => $data['dropbox_path'] ?? null,
+                'video_url' => $data['video_url'] ?? null,
                 'tier_required' => $data['tier_required'] ?? null,
                 'status' => $data['status'] ?? 'draft',
                 'published_at' => ($data['status'] ?? 'draft') === 'published' ? now() : null,
@@ -140,6 +141,7 @@ class MovieController extends Controller
                 'backdrop_url' => $data['backdrop_url'] ?? null,
                 'trailer_url' => $data['trailer_url'] ?? null,
                 'dropbox_path' => $data['dropbox_path'] ?? null,
+                'video_url' => $data['video_url'] ?? null,
                 'tier_required' => $data['tier_required'] ?? null,
             ]);
 

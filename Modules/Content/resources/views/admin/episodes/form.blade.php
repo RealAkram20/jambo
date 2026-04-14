@@ -48,9 +48,16 @@
             <div class="card-header"><h6 class="mb-0">Streaming</h6></div>
             <div class="card-body">
                 <div class="mb-3">
-                    <label for="dropbox_path" class="form-label">Dropbox path</label>
+                    <label for="video_url" class="form-label">Video URL</label>
+                    <input type="url" class="form-control @error('video_url') is-invalid @enderror" id="video_url" name="video_url" value="{{ old('video_url', $episode->video_url) }}" placeholder="https://www.youtube.com/watch?v=... or https://example.com/ep.mp4">
+                    <div class="form-text">YouTube link or direct file URL (.mp4 / .webm / .m3u8). Leave blank if the episode isn't streamable yet.</div>
+                    @error('video_url') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                </div>
+
+                <div class="mb-3">
+                    <label for="dropbox_path" class="form-label">Dropbox path <span class="text-muted" style="font-size:11px;">(legacy)</span></label>
                     <input type="text" class="form-control @error('dropbox_path') is-invalid @enderror" id="dropbox_path" name="dropbox_path" value="{{ old('dropbox_path', $episode->dropbox_path) }}" placeholder="/Jambo/shows/my-show/s01e01.mp4">
-                    <div class="form-text">Relative path inside the Jambo Dropbox folder.</div>
+                    <div class="form-text">Kept for reference only — the player now uses Video URL above.</div>
                     @error('dropbox_path') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
                 <div class="mb-0">

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Modules\Content\app\Models\Concerns\HasStreamSource;
 use Modules\Content\database\factories\MovieFactory;
 
 /**
@@ -21,6 +22,7 @@ use Modules\Content\database\factories\MovieFactory;
  * @property ?string $backdrop_url
  * @property ?string $trailer_url
  * @property ?string $dropbox_path
+ * @property ?string $video_url
  * @property ?string $tier_required
  * @property string $status
  * @property ?\Illuminate\Support\Carbon $published_at
@@ -29,6 +31,7 @@ use Modules\Content\database\factories\MovieFactory;
 class Movie extends Model
 {
     use HasFactory;
+    use HasStreamSource;
 
     protected $table = 'movies';
 
@@ -43,6 +46,7 @@ class Movie extends Model
         'backdrop_url',
         'trailer_url',
         'dropbox_path',
+        'video_url',
         'tier_required',
         'status',
         'published_at',

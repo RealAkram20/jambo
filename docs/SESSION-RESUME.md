@@ -1,7 +1,7 @@
 # Jambo — Session Resume Context
 
 **Last session:** 2026-04-15
-**Last commit:** Phase 4d — subscriptions:expire command scheduled hourly
+**Last commit:** Phase 5 — Streaming player with YouTube + native file support, TierGate, watch history heartbeat
 **Branch:** `main` — pushed to https://github.com/RealAkram20/jambo
 **Working tree:** clean
 
@@ -99,14 +99,18 @@ Notifications: `notifications` (Laravel UUID-keyed), plus 3 boolean columns on `
 
 ## What's next (in suggested order)
 
-### Immediate next slice: Phase 5 — Streaming
+### Immediate next slice: Phase 6b — Email notification channel
 
-Dropbox proxy controller (or equivalent storage driver), a TierGate
-middleware that reads the caller's current UserSubscription and checks
-`tier.access_level` against the movie/episode's required tier, and a
-watch history heartbeat API. Phases 4b-4d are all shipped —
-subscriptions activate on payment, renew correctly, and expire
-automatically via the hourly `subscriptions:expire` schedule.
+Add `'mail'` to `via()` + a `toMail()` method on the existing
+notification classes (PaymentReceivedNotification, etc.) so admins and
+users get emails in addition to in-app bells. Requires a working mail
+driver in `.env` (MAIL_MAILER=smtp or log for dev).
+
+Phase 5 shipped — `/watch/movie/{slug}` and `/watch/episode/{id}` are
+gated by the `tier_gate` middleware, render YouTube iframes or HTML5
+`<video>` depending on the admin-entered Video URL, and POST progress
+to `/api/v1/streaming/heartbeat` every 15s. Movies + episodes now
+have a `video_url` column (kept alongside legacy `dropbox_path`).
 
 Remaining frontend polish that can come later (no rush):
 - `/watchlist-detail`, `/archive-playlist` — need user auth + watchlist schema (Streaming module)

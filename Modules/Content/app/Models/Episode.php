@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Modules\Content\app\Models\Concerns\HasStreamSource;
 use Modules\Content\database\factories\EpisodeFactory;
 
 /**
@@ -19,12 +20,14 @@ use Modules\Content\database\factories\EpisodeFactory;
  * @property ?int $runtime_minutes
  * @property ?string $still_url
  * @property ?string $dropbox_path
+ * @property ?string $video_url
  * @property ?string $tier_required
  * @property ?\Illuminate\Support\Carbon $published_at
  */
 class Episode extends Model
 {
     use HasFactory;
+    use HasStreamSource;
 
     protected $table = 'episodes';
 
@@ -36,6 +39,7 @@ class Episode extends Model
         'runtime_minutes',
         'still_url',
         'dropbox_path',
+        'video_url',
         'tier_required',
         'published_at',
     ];

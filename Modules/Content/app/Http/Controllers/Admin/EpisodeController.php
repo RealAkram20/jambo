@@ -52,6 +52,7 @@ class EpisodeController extends Controller
             'runtime_minutes' => $data['runtime_minutes'] ?? null,
             'still_url' => $data['still_url'] ?? null,
             'dropbox_path' => $data['dropbox_path'] ?? null,
+            'video_url' => $data['video_url'] ?? null,
             'tier_required' => $data['tier_required'] ?? null,
             'published_at' => $data['published_at'] ?? null,
         ]);
@@ -85,6 +86,7 @@ class EpisodeController extends Controller
             'runtime_minutes' => $data['runtime_minutes'] ?? null,
             'still_url' => $data['still_url'] ?? null,
             'dropbox_path' => $data['dropbox_path'] ?? null,
+            'video_url' => $data['video_url'] ?? null,
             'tier_required' => $data['tier_required'] ?? null,
         ]);
 

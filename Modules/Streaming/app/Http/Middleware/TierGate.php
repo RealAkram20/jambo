@@ -1,0 +1,83 @@
+<?php
+
+namespace Modules\Streaming\app\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Modules\Content\app\Models\Episode;
+use Modules\Content\app\Models\Movie;
+use Modules\Subscriptions\app\Models\SubscriptionTier;
+use Modules\Subscriptions\app\Models\UserSubscription;
+use Symfony\Component\HttpFoundation\Response;
+
+/**
+ * Gate watch routes by subscription access_level.
+ *
+ * Reads the content's `tier_required` (a tier slug, or null = free) from
+ * whichever route-bound Movie/Episode is present, resolves it to the
+ * tier's numeric access_level, and checks that against the user's current
+ * active UserSubscription.
+ *
+ * Behaviour:
+ *   - tier_required is null                → allow (free content)
+ *   - user has no active sub                → 403 with "subscription required"
+ *   - user's tier.access_level >= required  → allow
+ *   - otherwise                             → 403 with "upgrade required"
+ */
+class TierGate
+{
+    public function handle(Request $request, Closure $next): Response
+    {
+        $content = $this->resolveContent($request);
+        if (!$content) {
+            abort(404);
+        }
+
+        $requiredSlug = $content->tier_required ?? null;
+
+        if (!$requiredSlug) {
+            return $next($request);
+        }
+
+        $requiredTier = SubscriptionTier::where('slug', $requiredSlug)->first();
+        if (!$requiredTier) {
+            // Misconfigured tier slug on the content — treat as free rather
+            // than locking users out of content we can't gate correctly.
+            return $next($request);
+        }
+
+        $user = $request->user();
+        if (!$user) {
+            abort(401);
+        }
+
+        $activeSub = UserSubscription::with('tier')
+            ->where('user_id', $user->id)
+            ->current()
+            ->orderByDesc('ends_at')
+            ->first();
+
+        $userLevel = $activeSub?->tier?->access_level ?? SubscriptionTier::ACCESS_FREE;
+
+        if ($userLevel >= $requiredTier->access_level) {
+            return $next($request);
+        }
+
+        abort(403, "This requires a {$requiredTier->name} subscription.");
+    }
+
+    private function resolveContent(Request $request): Movie|Episode|null
+    {
+        $movie = $request->route('movie');
+        if ($movie instanceof Movie) {
+            return $movie;
+        }
+
+        $episode = $request->route('episode');
+        if ($episode instanceof Episode) {
+            return $episode;
+        }
+
+        return null;
+    }
+}

@@ -22,6 +22,7 @@ class StoreEpisodeRequest extends FormRequest
             'runtime_minutes' => 'nullable|integer|min:1|max:1000',
             'still_url' => 'nullable|url|max:500',
             'dropbox_path' => 'nullable|string|max:500',
+            'video_url' => 'nullable|url|max:500',
             'tier_required' => 'nullable|string|max:50',
             'published_at' => 'nullable|date',
         ];
