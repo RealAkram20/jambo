@@ -6,7 +6,7 @@ return [
     'main_home' => 'Main Home',
     'ott_home' => 'OTT Home',
     'movie' => 'Movie',
-    'tv_show' => 'TV Show',
+    'tv_show' => 'Series',
     'episode' => 'Episode',
     'search' => 'Search',
     'merchandise_store' => 'Merchandise Store',

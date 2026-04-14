@@ -65,6 +65,14 @@ class SectionDataComposer
                 ->take(5)
                 ->get(),
 
+            // Tab slider — Top 10 Series of the Day (shows + all seasons + episodes)
+            'tabSeries' => Show::published()
+                ->with(['seasons.episodes'])
+                ->orderByDesc('views_count')
+                ->orderByDesc('published_at')
+                ->take(10)
+                ->get(),
+
             'continueWatching' => $this->continueWatchingFallback(),
         ];
     }

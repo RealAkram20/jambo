@@ -32,7 +32,7 @@ return [
     'mexcan' => 'Mexcan',
     'all' => 'All',
     'movies' => 'Movies',
-    'tv_shows' => 'TV Shows',
+    'tv_shows' => 'Series',
     'mortal_norris' => 'Mortal Norris',
     'christina_ricci' => 'as Christina Ricci',
     'advetre' => 'Advetre',

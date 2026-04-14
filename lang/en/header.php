@@ -5,7 +5,7 @@ return [
 
     "home" => "Home",
     "movie_list" => "Movie List",
-    "tv_shows" => "TV Shows",
+    "tv_shows" => "Series",
     "show_list" => "Show List",
     "seasons" => "Seasons",
     "episodes" => "Episodes",
