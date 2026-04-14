@@ -1,7 +1,7 @@
 # Jambo — Session Resume Context
 
 **Last session:** 2026-04-15
-**Last commit:** Phase 4c — Subscription activation listener wired to payment.completed
+**Last commit:** Phase 4d — subscriptions:expire command scheduled hourly
 **Branch:** `main` — pushed to https://github.com/RealAkram20/jambo
 **Working tree:** clean
 
@@ -99,14 +99,14 @@ Notifications: `notifications` (Laravel UUID-keyed), plus 3 boolean columns on `
 
 ## What's next (in suggested order)
 
-### Immediate next slice: Phase 4d — Subscription expiry command
+### Immediate next slice: Phase 5 — Streaming
 
-Write a scheduled command `subscriptions:expire` that flips any
-`user_subscriptions` row past `ends_at` from `active` → `expired` and
-fires a `subscription.expired` event. Then the Streaming module's
-TierGate (Phase 5) has a clean signal to gate on. Phases 4b + 4c are
-both shipped — tiers are CRUDable, public pricing page lists them,
-and a completed PesaPal payment now auto-creates a UserSubscription.
+Dropbox proxy controller (or equivalent storage driver), a TierGate
+middleware that reads the caller's current UserSubscription and checks
+`tier.access_level` against the movie/episode's required tier, and a
+watch history heartbeat API. Phases 4b-4d are all shipped —
+subscriptions activate on payment, renew correctly, and expire
+automatically via the hourly `subscriptions:expire` schedule.
 
 Remaining frontend polish that can come later (no rush):
 - `/watchlist-detail`, `/archive-playlist` — need user auth + watchlist schema (Streaming module)

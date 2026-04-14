@@ -44,18 +44,26 @@ class SubscriptionsServiceProvider extends ServiceProvider
      */
     protected function registerCommands(): void
     {
-        // $this->commands([]);
+        $this->commands([
+            \Modules\Subscriptions\app\Console\Commands\ExpireSubscriptionsCommand::class,
+        ]);
     }
 
     /**
-     * Register command Schedules.
+     * Register command Schedules. The expiry sweep runs hourly — enough
+     * to keep gated content honest without hammering the DB. A user's
+     * access check still reads ends_at directly, so the worst-case lag
+     * between expiry and visible status is one hour.
      */
     protected function registerCommandSchedules(): void
     {
-        // $this->app->booted(function () {
-        //     $schedule = $this->app->make(Schedule::class);
-        //     $schedule->command('inspire')->hourly();
-        // });
+        $this->app->booted(function () {
+            $schedule = $this->app->make(\Illuminate\Console\Scheduling\Schedule::class);
+            $schedule->command('subscriptions:expire')
+                ->hourly()
+                ->withoutOverlapping()
+                ->runInBackground();
+        });
     }
 
     /**
