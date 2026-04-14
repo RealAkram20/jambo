@@ -53,10 +53,49 @@ class SectionDataComposer
             'recommendedShows' => $showBase()->inRandomOrder()->take(10)->get(),
             'internationalShows' => $showBase()->inRandomOrder()->take(10)->get(),
 
-            // Mixed
+            // Hero
             'heroMovies'     => $movieBase()->orderByDesc('published_at')->take(3)->get(),
+            'heroItems'      => $this->buildHero(),
             'continueWatching' => $this->continueWatchingFallback(),
         ];
+    }
+
+    /**
+     * Mixed featured collection for the OTT hero (3 movies + 3 shows).
+     * Each item is tagged with `_isShow` so the blade can branch without
+     * instance checks, and comes with genres/tags/cast already loaded.
+     */
+    private function buildHero()
+    {
+        $relations = [
+            'genres',
+            'tags',
+            'cast' => fn ($q) => $q->wherePivot('role', 'actor')->limit(3),
+        ];
+
+        $movies = Movie::published()->with($relations)
+            ->orderByDesc('views_count')
+            ->orderByDesc('published_at')
+            ->take(3)
+            ->get()
+            ->each(fn ($m) => $m->_isShow = false);
+
+        $shows = Show::published()->with(array_merge($relations, ['seasons']))
+            ->orderByDesc('views_count')
+            ->orderByDesc('published_at')
+            ->take(3)
+            ->get()
+            ->each(fn ($s) => $s->_isShow = true);
+
+        // Interleave so the rail shows movie, show, movie, show, movie, show.
+        $items = collect();
+        $max = max($movies->count(), $shows->count());
+        for ($i = 0; $i < $max; $i++) {
+            if (isset($movies[$i])) $items->push($movies[$i]);
+            if (isset($shows[$i]))  $items->push($shows[$i]);
+        }
+
+        return $items;
     }
 
     /**
