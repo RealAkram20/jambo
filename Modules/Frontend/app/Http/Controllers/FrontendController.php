@@ -5,6 +5,10 @@ namespace Modules\Frontend\app\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Modules\Content\app\Models\Movie;
 use Modules\Content\app\Models\Show;
+use Modules\Content\app\Models\Genre;
+use Modules\Content\app\Models\Tag;
+use Modules\Content\app\Models\Person;
+use Modules\Content\app\Models\Episode;
 
 class FrontendController extends Controller
 {
@@ -40,7 +44,28 @@ class FrontendController extends Controller
 
     public function ott()
     {
-        return view('frontend::Pages.MainPages.ott-page');
+        $featuredMovies = Movie::published()
+            ->orderByDesc('published_at')
+            ->take(3)
+            ->get();
+
+        $latestMovies = Movie::published()
+            ->with('genres')
+            ->orderByDesc('published_at')
+            ->take(12)
+            ->get();
+
+        $popularShows = Show::published()
+            ->with('genres')
+            ->orderByDesc('published_at')
+            ->take(12)
+            ->get();
+
+        return view('frontend::Pages.MainPages.ott-page', compact(
+            'featuredMovies',
+            'latestMovies',
+            'popularShows',
+        ));
     }
 
     public function movie()
@@ -130,9 +155,22 @@ class FrontendController extends Controller
         return view('frontend::Pages.TvShows.detail-page', compact('show', 'recommended'));
     }
 
-    public function episode()
+    public function episode(?string $slug = null)
     {
-        return view('frontend::Pages.TvShows.episode-page');
+        // Slug format: {show-slug}--s{N}e{M} — if missing, fall back to first episode of first show
+        $episode = null;
+        if ($slug) {
+            $episode = Episode::where('id', $slug)->first();
+        }
+        if (! $episode) {
+            $episode = Episode::published()->first() ?? Episode::first();
+        }
+
+        abort_unless($episode, 404);
+        $episode->load(['season.show.genres', 'season.episodes']);
+        $show = $episode->season->show;
+
+        return view('frontend::Pages.TvShows.episode-page', compact('episode', 'show'));
     }
 
     public function watchlist_detail()
@@ -151,20 +189,37 @@ class FrontendController extends Controller
     }
 
     // Genres Pages Routes
-    public function genres()
+    public function genres(?string $slug = null)
     {
-        return view('frontend::Pages.geners-page');
+        if ($slug) {
+            $genre = Genre::where('slug', $slug)->firstOrFail();
+            $movies = $genre->movies()->published()->with('genres')->get();
+            $shows = $genre->shows()->published()->with('genres')->get();
+            return view('frontend::Pages.geners-page', compact('genre', 'movies', 'shows'));
+        }
+
+        $genres = Genre::withCount(['movies', 'shows'])->orderBy('name')->get();
+        return view('frontend::Pages.geners-page', compact('genres'));
     }
 
     public function all_genres()
     {
-        return view('frontend::Pages.all-geners-page');
+        $genres = Genre::withCount(['movies', 'shows'])->orderBy('name')->get();
+        return view('frontend::Pages.all-geners-page', compact('genres'));
     }
 
     // tag Pages Routes
-    public function tag()
+    public function tag(?string $slug = null)
     {
-        return view('frontend::Pages.tags-page');
+        if ($slug) {
+            $tag = Tag::where('slug', $slug)->firstOrFail();
+            $movies = $tag->movies()->published()->with('genres')->get();
+            $shows = $tag->shows()->published()->with('genres')->get();
+            return view('frontend::Pages.tags-page', compact('tag', 'movies', 'shows'));
+        }
+
+        $tags = Tag::withCount(['movies', 'shows'])->orderBy('name')->get();
+        return view('frontend::Pages.tags-page', compact('tags'));
     }
 
     public function view_all_tags()
@@ -173,19 +228,27 @@ class FrontendController extends Controller
     }
 
     // cast Pages Routes
-    public function cast_details()
+    public function cast_details(?string $slug = null)
     {
-        return view('frontend::Pages.Cast.detail-page');
+        $person = $slug
+            ? Person::where('slug', $slug)->firstOrFail()
+            : Person::firstOrFail();
+
+        $person->load(['movies' => fn ($q) => $q->published(), 'shows' => fn ($q) => $q->published()]);
+
+        return view('frontend::Pages.Cast.detail-page', compact('person'));
     }
 
     public function cast_list()
     {
-        return view('frontend::Pages.Cast.list-page');
+        $persons = Person::withCount(['movies', 'shows'])->orderBy('last_name')->get();
+        return view('frontend::Pages.Cast.list-page', compact('persons'));
     }
 
     public function all_personality()
     {
-        return view('frontend::Pages.Cast.all-personality');
+        $persons = Person::withCount(['movies', 'shows'])->orderBy('last_name')->get();
+        return view('frontend::Pages.Cast.all-personality', compact('persons'));
     }
 
     // playlist Pages Routes

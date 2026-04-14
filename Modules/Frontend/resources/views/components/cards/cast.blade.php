@@ -1,7 +1,12 @@
+@php
+    $castSrc = \Illuminate\Support\Str::startsWith($castImg, ['http://', 'https://'])
+        ? $castImg
+        : asset('frontend/images/cast/' . $castImg);
+@endphp
 <div class="iq-cast position-relative">
     <div class="cast-images position-relative">
         <a href="{{ $castLink }}">
-            <img src="{{ asset('frontend/images/cast/' . $castImg) }}" class="img-fluid" alt="castImg" loading="lazy" />
+            <img src="{{ $castSrc }}" class="img-fluid" alt="castImg" loading="lazy" />
         </a>
     </div>
     <div class="person-detail">

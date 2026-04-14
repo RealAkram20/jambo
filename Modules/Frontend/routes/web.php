@@ -28,23 +28,23 @@ Route::group([], function () {
     Route::get('/view-more', [FrontendController::class, 'view_more'])->name('frontend.view-more');
     Route::get('/resticted', [FrontendController::class, 'resticted'])->name('frontend.resticted');
     Route::get('/tv-show-detail/{slug?}', [FrontendController::class, 'tvshow_detail'])->name('frontend.tvshow_detail');
-    Route::get('/episode', [FrontendController::class, 'episode'])->name('frontend.episode');
+    Route::get('/episode/{slug?}', [FrontendController::class, 'episode'])->name('frontend.episode');
     Route::get('/person-detail', [FrontendController::class, 'person_detail'])->name('frontend.person_detail');
     Route::get('/watchlist-detail', [FrontendController::class, 'watchlist_detail'])->name('frontend.watchlist_detail');
     Route::get('/playlist-detail', [FrontendController::class, 'playlist_detail'])->name('frontend.playlist_detail');
     Route::get('/view-all', [FrontendController::class, 'view_all'])->name('frontend.view_all');
 
     //Genres pages
-    Route::get('/geners', [FrontendController::class, 'genres'])->name('frontend.genres');
+    Route::get('/geners/{slug?}', [FrontendController::class, 'genres'])->name('frontend.genres');
     Route::get('/all-genres', [FrontendController::class, 'all_genres'])->name('frontend.all-genres');
 
     //cast pages
     Route::get('/cast-list', [FrontendController::class, 'cast_list'])->name('frontend.cast_list');
-    Route::get('/cast-details', [FrontendController::class, 'cast_details'])->name('frontend.cast_details');
+    Route::get('/cast-details/{slug?}', [FrontendController::class, 'cast_details'])->name('frontend.cast_details');
     Route::get('/all-personality', [FrontendController::class, 'all_personality'])->name('frontend.all_personality');
 
     //tag pages
-    Route::get('/tag', [FrontendController::class, 'tag'])->name('frontend.tag');
+    Route::get('/tag/{slug?}', [FrontendController::class, 'tag'])->name('frontend.tag');
     Route::get('/view-all-tags', [FrontendController::class, 'view_all_tags'])->name('frontend.view-all-tags');
     Route::get('/playlist', [FrontendController::class, 'play_list'])->name('frontend.play_list');
 

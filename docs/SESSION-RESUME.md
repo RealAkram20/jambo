@@ -1,16 +1,17 @@
 # Jambo — Session Resume Context
 
 **Last session:** 2026-04-14
-**Last commit:** (pending) — Phase 3a: Public frontend wired to real data
+**Last commit:** (pending) — Phase 3b: OTT + episode + taxonomy + cast pages wired
 **Branch:** `main` — pushed to https://github.com/RealAkram20/jambo
-**Working tree:** modified (Phase 3a changes ready to commit)
+**Working tree:** modified (Phase 3b changes ready to commit)
 
 ---
 
 ## What's been built (commit history, newest first)
 
 ```
-(pending)  Phase 3a: Public frontend wired — home, movies, tv-show, movie-detail/{slug}, tv-show-detail/{slug}
+(pending)  Phase 3b: OTT + episode + genres/tags + cast detail/list wired to real data
+b465088  Phase 3a: Public frontend wired — home, movies, tv-show, movie-detail/{slug}, tv-show-detail/{slug}
 2e9978e  Phase 2f: Dashboard home wired to real data; removed redundant second dashboard
 63e66fb  Phase 2e: Reviews, Ratings, Comments moderation UI
 e33e96c  Phase 2d: Wire template pages to real data, add taxonomy CRUD, remove blog
@@ -97,15 +98,17 @@ Notifications: `notifications` (Laravel UUID-keyed), plus 3 boolean columns on `
 
 ## What's next (in suggested order)
 
-### Immediate next slice: Phase 3b — Wire remaining frontend pages
+### Immediate next slice: Phase 4b — Subscription tier admin CRUD + public pricing page
 
-Phase 3a shipped core pages. Still to wire:
-- `/` (ott-page home variant) — same treatment as `/home`
-- `/episode` detail page — accept episode slug/id, show real episode + show context
-- `/geners`, `/all-genres`, `/tag`, `/playlist` — taxonomy browsing pages
-- `/cast-details`, `/cast-list`, `/all-personality` — person browse pages
-- `/watchlist-detail`, `/archive-playlist` — require user auth + watchlist schema (may need Streaming module work first)
-- Hardcoded template sections on `/home` to wire or remove: `continue-watching`, `upcomming`, `best-in-tv`, `latest-movies` (currently uses a custom section), `verticle-slider`, `suggested`, `parallax`, `tranding-tab`, `recommended`
+Build admin CRUD for `subscription_tiers` at `/admin/subscription-tiers` (follow
+PersonController pattern). Then wire the public `/pricing-page` to list real
+tiers from the DB. This unlocks the Payments → Subscription activation flow
+in Phase 4c.
+
+Remaining frontend polish that can come later (no rush):
+- `/watchlist-detail`, `/archive-playlist` — need user auth + watchlist schema (Streaming module)
+- `/playlist`, `/view-more`, `/view-all`, `/view-all-tags` — minor browse pages
+- `/profile-marvin`, `/membership-*`, `/your-profile`, `/change-password` — user profile area
 
 ### Then:
 
@@ -173,4 +176,4 @@ npm run build
 
 Then open `http://localhost/Jambo/` in the browser. If you get a 403 on the bare URL, Apache needs DirectorySlash On (it's the default — only breaks if httpd.conf was reset). If you get redirected to `/install`, either the `storage/installed` file was lost (recreate it with any JSON content) or the Installer module's middleware is catching a fresh environment.
 
-Tell the next Claude session: **"Read `docs/SESSION-RESUME.md` and continue from Phase 3b."**
+Tell the next Claude session: **"Read `docs/SESSION-RESUME.md` and continue from Phase 4b."**
