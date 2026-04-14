@@ -22,6 +22,13 @@ class SubscriptionsServiceProvider extends ServiceProvider
         $this->registerConfig();
         $this->registerViews();
         $this->loadMigrationsFrom(module_path($this->moduleName, 'database/migrations'));
+
+        // Activate (or renew) a UserSubscription whenever the Payments
+        // module fires `payment.completed` for a SubscriptionTier order.
+        \Illuminate\Support\Facades\Event::listen(
+            'payment.completed',
+            [\Modules\Subscriptions\app\Listeners\ActivateSubscriptionFromPayment::class, 'handle']
+        );
     }
 
     /**

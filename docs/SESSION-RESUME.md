@@ -1,9 +1,9 @@
 # Jambo — Session Resume Context
 
 **Last session:** 2026-04-15
-**Last commit:** (pending) — Phase 3c: Preserve full template home, wire every section to real data via composer
+**Last commit:** Phase 4c — Subscription activation listener wired to payment.completed
 **Branch:** `main` — pushed to https://github.com/RealAkram20/jambo
-**Working tree:** modified (Phase 3c changes ready to commit)
+**Working tree:** clean
 
 ---
 
@@ -99,12 +99,14 @@ Notifications: `notifications` (Laravel UUID-keyed), plus 3 boolean columns on `
 
 ## What's next (in suggested order)
 
-### Immediate next slice: Phase 4b — Subscription tier admin CRUD + public pricing page
+### Immediate next slice: Phase 4d — Subscription expiry command
 
-Build admin CRUD for `subscription_tiers` at `/admin/subscription-tiers` (follow
-PersonController pattern). Then wire the public `/pricing-page` to list real
-tiers from the DB. This unlocks the Payments → Subscription activation flow
-in Phase 4c.
+Write a scheduled command `subscriptions:expire` that flips any
+`user_subscriptions` row past `ends_at` from `active` → `expired` and
+fires a `subscription.expired` event. Then the Streaming module's
+TierGate (Phase 5) has a clean signal to gate on. Phases 4b + 4c are
+both shipped — tiers are CRUDable, public pricing page lists them,
+and a completed PesaPal payment now auto-creates a UserSubscription.
 
 Remaining frontend polish that can come later (no rush):
 - `/watchlist-detail`, `/archive-playlist` — need user auth + watchlist schema (Streaming module)

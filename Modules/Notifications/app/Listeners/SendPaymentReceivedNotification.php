@@ -4,6 +4,7 @@ namespace Modules\Notifications\app\Listeners;
 
 use Modules\Notifications\app\Contracts\NotificationDispatcher;
 use Modules\Notifications\app\Notifications\PaymentReceivedNotification;
+use Modules\Payments\app\Models\PaymentOrder;
 
 /**
  * Listens on the Payments module's `payment.completed` event and fans
@@ -20,17 +21,8 @@ class SendPaymentReceivedNotification
     {
     }
 
-    /**
-     * @param  array{0: \Modules\Payments\app\Models\PaymentOrder, 1: string}  $payload
-     */
-    public function handle(string $event, array $payload): void
+    public function handle(PaymentOrder $order, string $source = 'unknown'): void
     {
-        [$order, $source] = $payload + [null, 'unknown'];
-
-        if (!$order) {
-            return;
-        }
-
         $notification = new PaymentReceivedNotification($order);
 
         if ($order->user) {
