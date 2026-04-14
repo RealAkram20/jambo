@@ -1,7 +1,7 @@
 # Jambo — Session Resume Context
 
 **Last session:** 2026-04-15
-**Last commit:** Phase 5 — Streaming player with YouTube + native file support, TierGate, watch history heartbeat
+**Last commit:** Phase 6b — Email channel on PaymentReceived + Test notifications
 **Branch:** `main` — pushed to https://github.com/RealAkram20/jambo
 **Working tree:** clean
 
@@ -99,18 +99,15 @@ Notifications: `notifications` (Laravel UUID-keyed), plus 3 boolean columns on `
 
 ## What's next (in suggested order)
 
-### Immediate next slice: Phase 6b — Email notification channel
+### Immediate next slice: Phase 6c — Push notification channel
 
-Add `'mail'` to `via()` + a `toMail()` method on the existing
-notification classes (PaymentReceivedNotification, etc.) so admins and
-users get emails in addition to in-app bells. Requires a working mail
-driver in `.env` (MAIL_MAILER=smtp or log for dev).
-
-Phase 5 shipped — `/watch/movie/{slug}` and `/watch/episode/{id}` are
-gated by the `tier_gate` middleware, render YouTube iframes or HTML5
-`<video>` depending on the admin-entered Video URL, and POST progress
-to `/api/v1/streaming/heartbeat` every 15s. Movies + episodes now
-have a `video_url` column (kept alongside legacy `dropbox_path`).
+`laravel-notification-channels/webpush`, VAPID keys in config, a
+service worker on the frontend, and the third branch in `via()` on
+existing notification classes. Phase 6b shipped — the `mail` channel
+now fires alongside `database` for PaymentReceivedNotification (copy
+varies by buyer vs admin) and for TestNotification when its
+constructor is passed `channels: ['database','mail']`. Set
+MAIL_MAILER=log in `.env` for local testing.
 
 Remaining frontend polish that can come later (no rush):
 - `/watchlist-detail`, `/archive-playlist` — need user auth + watchlist schema (Streaming module)

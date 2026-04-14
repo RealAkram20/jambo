@@ -3,16 +3,21 @@
 namespace Modules\Notifications\app\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Modules\Payments\app\Models\PaymentOrder;
 
 /**
  * Fired when the Payments module's `payment.completed` event lands.
- * Delivered to the paying user and to every admin.
+ * Delivered to the paying user and to every admin via the `database`
+ * (bell dropdown) and `mail` channels.
  *
- * For v1 this notification only delivers via the database channel —
- * the mail channel will be layered on in the next session by adding
- * `'mail'` to via() and implementing toMail().
+ * Per-user opt-outs respected:
+ *   in_app_notifications_enabled  → database
+ *   email_notifications_enabled   → mail
+ *
+ * Admins and other recipients without those columns fall through the
+ * null-coalesce and receive on both channels by default.
  */
 class PaymentReceivedNotification extends Notification
 {
@@ -30,10 +35,9 @@ class PaymentReceivedNotification extends Notification
             $channels[] = 'database';
         }
 
-        // `mail` channel — added when email support lands.
-        // if ($notifiable->email_notifications_enabled ?? true) {
-        //     $channels[] = 'mail';
-        // }
+        if (($notifiable->email_notifications_enabled ?? true) && !empty($notifiable->email)) {
+            $channels[] = 'mail';
+        }
 
         return $channels ?: ['database'];
     }
@@ -56,5 +60,34 @@ class PaymentReceivedNotification extends Notification
             'amount' => (float) $this->order->amount,
             'currency' => $this->order->currency,
         ];
+    }
+
+    public function toMail($notifiable): MailMessage
+    {
+        $amount = sprintf('%s %s', $this->order->currency, number_format((float) $this->order->amount, 2));
+        $isBuyer = $this->order->user_id === ($notifiable->id ?? null);
+
+        $greeting = $isBuyer
+            ? 'Thanks for your payment — it came through.'
+            : 'A new payment was received on Jambo.';
+
+        $mail = (new MailMessage())
+            ->subject($isBuyer ? "Payment received — {$amount}" : "New payment — {$amount}")
+            ->greeting($greeting)
+            ->line("Amount: {$amount}")
+            ->line("Reference: {$this->order->merchant_reference}");
+
+        if ($this->order->payment_method) {
+            $mail->line("Method: {$this->order->payment_method}");
+        }
+
+        if ($isBuyer) {
+            $mail->action('View receipt', route('payment.complete', ['ref' => $this->order->merchant_reference]));
+            $mail->line('If anything looks off, just reply to this email.');
+        } else {
+            $mail->action('Open in admin', url('/admin/payments'));
+        }
+
+        return $mail;
     }
 }
