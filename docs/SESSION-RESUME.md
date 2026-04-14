@@ -1,16 +1,17 @@
 # Jambo — Session Resume Context
 
-**Last session:** 2026-04-14
-**Last commit:** (pending) — Phase 3b: OTT + episode + taxonomy + cast pages wired
+**Last session:** 2026-04-15
+**Last commit:** (pending) — Phase 3c: Preserve full template home, wire every section to real data via composer
 **Branch:** `main` — pushed to https://github.com/RealAkram20/jambo
-**Working tree:** modified (Phase 3b changes ready to commit)
+**Working tree:** modified (Phase 3c changes ready to commit)
 
 ---
 
 ## What's been built (commit history, newest first)
 
 ```
-(pending)  Phase 3b: OTT + episode + genres/tags + cast detail/list wired to real data
+(pending)  Phase 3c: Preserve full template home, wire every section to real data via SectionDataComposer
+a34cb83  Phase 3b: OTT + episode + genres/tags + cast detail/list wired to real data
 b465088  Phase 3a: Public frontend wired — home, movies, tv-show, movie-detail/{slug}, tv-show-detail/{slug}
 2e9978e  Phase 2f: Dashboard home wired to real data; removed redundant second dashboard
 63e66fb  Phase 2e: Reviews, Ratings, Comments moderation UI

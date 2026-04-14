@@ -1,8 +1,14 @@
+@php
+    $cwSrc = \Illuminate\Support\Str::startsWith($imagePath, ['http://', 'https://'])
+        ? $imagePath
+        : asset('frontend/images/media/' . $imagePath);
+    $cwLink = $watchLink ?? '#';
+@endphp
 <div class="iq-watching-block">
     <div class="block-images position-relative">
         <div class="iq-image-box overly-images">
-            <a href="movie-detail" class="d-block">
-                <img src="{{asset('frontend/images/media/' .$imagePath)}}" alt="movie-card" class="w-100 d-block border-0 rounded-3 continue-image"
+            <a href="{{ $cwLink }}" class="d-block">
+                <img src="{{ $cwSrc }}" alt="movie-card" class="w-100 d-block border-0 rounded-3 continue-image"
                     loading="lazy">
             </a>
         </div>

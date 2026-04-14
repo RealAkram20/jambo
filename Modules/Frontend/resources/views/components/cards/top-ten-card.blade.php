@@ -1,12 +1,14 @@
 @php
     $productPremium = $productPremium ?? false;
+    $topTenSrc = \Illuminate\Support\Str::startsWith($imagePath, ['http://', 'https://'])
+        ? $imagePath
+        : asset('frontend/images/media/' . $imagePath);
 @endphp
 <div class="iq-top-ten-block position-relative">
     <div class="block-image position-relative">
         <div class="img-box">
             <a class="overly-images" href="{{ $cardUrlPath }}">
-                <img src="{{ asset('frontend/images/media/' . $imagePath) }}" alt="movie-card" class="object-cover rounded-3"
-                    loading="lazy" />
+                <img src="{{ $topTenSrc }}" alt="movie-card" class="object-cover rounded-3" loading="lazy" />
             </a>
             <span class="top-ten-numbers texture-text">{{ $countValue }}</span>
         </div>

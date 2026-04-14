@@ -3,7 +3,9 @@
 namespace Modules\Frontend\app\Providers;
 
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use Modules\Frontend\app\View\Composers\SectionDataComposer;
 
 class FrontendServiceProvider extends ServiceProvider
 {
@@ -22,6 +24,20 @@ class FrontendServiceProvider extends ServiceProvider
         $this->registerConfig();
         $this->registerViews();
         $this->loadMigrationsFrom(module_path($this->moduleName, 'database/migrations'));
+        $this->registerViewComposers();
+    }
+
+    /**
+     * Share real-data collections with every frontend section template so
+     * pages can continue using `@include('frontend::components.sections.*')`
+     * without each caller wiring its own query.
+     */
+    protected function registerViewComposers(): void
+    {
+        View::composer([
+            'frontend::Pages.*',
+            'frontend::components.sections.*',
+        ], SectionDataComposer::class);
     }
 
     /**
