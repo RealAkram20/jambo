@@ -7,6 +7,7 @@
     $items = $items ?? collect();
     $isShow = $isShow ?? false;
     $fallbackImg = $fallbackImg ?? 'media/rabbit-portrait.webp';
+    $isCardStyle2 = $isCardStyle2 ?? false;
 @endphp
 
 @forelse ($items as $item)
@@ -23,6 +24,7 @@
                 : route('frontend.movie_detail', $item->slug),
             'cardGenres' => $item->relationLoaded('genres') ? $item->genres->take(2)->pluck('name')->all() : null,
             'productPremium' => (bool) $item->tier_required,
+            'isCardStyle2' => $isCardStyle2,
         ])
     </li>
 @empty

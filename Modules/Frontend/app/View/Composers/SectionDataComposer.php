@@ -4,7 +4,9 @@ namespace Modules\Frontend\app\View\Composers;
 
 use Illuminate\View\View;
 use Modules\Content\app\Models\Episode;
+use Modules\Content\app\Models\Genre;
 use Modules\Content\app\Models\Movie;
+use Modules\Content\app\Models\Person;
 use Modules\Content\app\Models\Show;
 
 /**
@@ -71,6 +73,34 @@ class SectionDataComposer
                 ->orderByDesc('views_count')
                 ->orderByDesc('published_at')
                 ->take(10)
+                ->get(),
+
+            // Only on Streamit — premium/exclusive (movies with tier_required set)
+            'exclusiveMovies' => Movie::published()
+                ->with('genres')
+                ->whereNotNull('tier_required')
+                ->orderByDesc('published_at')
+                ->take(8)
+                ->get(),
+
+            // Top Picks — separate from topMovies, curated-feel random draw
+            'topPicks' => Movie::published()
+                ->with('genres')
+                ->inRandomOrder()
+                ->take(8)
+                ->get(),
+
+            // Home Genres rail — genres with poster fallback via picsum seed
+            'homeGenres' => Genre::withCount(['movies', 'shows'])
+                ->orderByDesc('movies_count')
+                ->take(10)
+                ->get(),
+
+            // Your Favourite Personality — top cast by appearance count
+            'favoritePersonalities' => Person::withCount(['movies', 'shows'])
+                ->orderByDesc('movies_count')
+                ->orderByDesc('shows_count')
+                ->take(12)
                 ->get(),
 
             'continueWatching' => $this->continueWatchingFallback(),
