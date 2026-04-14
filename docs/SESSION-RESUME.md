@@ -1,16 +1,17 @@
 # Jambo — Session Resume Context
 
-**Last session:** 2026-04-13
-**Last commit:** (pending) — Phase 2e: Reviews, Ratings, Comments moderation UI
+**Last session:** 2026-04-14
+**Last commit:** (pending) — Phase 2f: Dashboard home wired + second dashboard removed
 **Branch:** `main` — pushed to https://github.com/RealAkram20/jambo
-**Working tree:** modified (Phase 2e changes ready to commit)
+**Working tree:** modified (Phase 2f changes ready to commit)
 
 ---
 
 ## What's been built (commit history, newest first)
 
 ```
-(pending)  Phase 2e: Reviews, Ratings, Comments moderation UI
+(pending)  Phase 2f: Dashboard home wired to real data; removed redundant second dashboard
+63e66fb  Phase 2e: Reviews, Ratings, Comments moderation UI
 e33e96c  Phase 2d: Wire template pages to real data, add taxonomy CRUD, remove blog
 2eacf45  Phase 2c: Persons admin CRUD
 eacd5ea  Phase 2b: Shows + Seasons + Episodes admin CRUD
@@ -95,9 +96,9 @@ Notifications: `notifications` (Laravel UUID-keyed), plus 3 boolean columns on `
 
 ## What's next (in suggested order)
 
-### Immediate next slice: Phase 2f — Dashboard home with real counts
+### Immediate next slice: Phase 3 — Public frontend wiring
 
-Wire the admin dashboard home (`/app` or `/static-app`) to show real counts: total movies, shows, users, subscribers, active subs, recent payments. Replace the hardcoded template numbers with Eloquent queries.
+Start wiring the public-facing frontend. Begin with `/home`, `/movie`, `/movie-detail/{slug}`, `/tv-show`, `/tv-show-detail/{slug}` — replace the `FrontendController` static view returns with Eloquent queries.
 
 ### Then:
 
@@ -165,4 +166,4 @@ npm run build
 
 Then open `http://localhost/Jambo/` in the browser. If you get a 403 on the bare URL, Apache needs DirectorySlash On (it's the default — only breaks if httpd.conf was reset). If you get redirected to `/install`, either the `storage/installed` file was lost (recreate it with any JSON content) or the Installer module's middleware is catching a fresh environment.
 
-Tell the next Claude session: **"Read `docs/SESSION-RESUME.md` and continue from Phase 2f."**
+Tell the next Claude session: **"Read `docs/SESSION-RESUME.md` and continue from Phase 3."**

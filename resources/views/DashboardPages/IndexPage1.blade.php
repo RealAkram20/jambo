@@ -16,10 +16,9 @@
                             <i class="ph ph-user fs-1"></i>
                         </div>
                         <div class="card-details">
-                            <h1 class="fw-semibold card-details-title">15k+</h1>
+                            <h1 class="fw-semibold card-details-title">{{ number_format($stats['total_users']) }}</h1>
                             <p class="mb-0 fs-6">{{ __('dashboard.total-users') }}</p>
                         </div>
-
                     </div>
                 </div>
             </div>
@@ -30,10 +29,9 @@
                             <i class="ph ph-user-gear fs-1"></i>
                         </div>
                         <div class="card-details">
-                            <h1 class="fw-semibold card-details-title">05k+</h1>
+                            <h1 class="fw-semibold card-details-title">{{ number_format($stats['active_users']) }}</h1>
                             <p class="mb-0 fs-6">{{ __('dashboard.active-users') }}</p>
                         </div>
-
                     </div>
                 </div>
             </div>
@@ -44,7 +42,7 @@
                             <i class="ph ph-currency-circle-dollar fs-1"></i>
                         </div>
                         <div class="card-details">
-                            <h1 class="fw-semibold card-details-title">10k+</h1>
+                            <h1 class="fw-semibold card-details-title">{{ number_format($stats['total_subscribers']) }}</h1>
                             <p class="mb-0 fs-6">{{ __('dashboard.total-subscribers') }}</p>
                         </div>
                     </div>
@@ -57,10 +55,9 @@
                             <i class="ph ph-film-strip fs-1"></i>
                         </div>
                         <div class="card-details">
-                            <h1 class="fw-semibold card-details-title">15k+</h1>
+                            <h1 class="fw-semibold card-details-title">{{ number_format($stats['total_movies']) }}</h1>
                             <p class="mb-0 fs-6">{{ __('dashboard.total-movie') }}</p>
                         </div>
-
                     </div>
                 </div>
             </div>
@@ -71,10 +68,9 @@
                             <i class="ph ph-television-simple fs-1"></i>
                         </div>
                         <div class="card-details">
-                            <h1 class="fw-semibold card-details-title">05k+</h1>
+                            <h1 class="fw-semibold card-details-title">{{ number_format($stats['total_shows']) }}</h1>
                             <p class="mb-0 fs-6">{{ __('dashboard.total-tvshow') }}</p>
                         </div>
-
                     </div>
                 </div>
             </div>
@@ -82,11 +78,11 @@
                 <div class="card">
                     <div class="card-body">
                         <div class="icon-space mb-5">
-                            <i class="ph ph-video fs-1"></i>
+                            <i class="ph ph-monitor-play fs-1"></i>
                         </div>
                         <div class="card-details">
-                            <h1 class="fw-semibold card-details-title">10k+</h1>
-                            <p class="mb-0 fs-6">{{ __('dashboard.total-video') }}</p>
+                            <h1 class="fw-semibold card-details-title">{{ number_format($stats['total_episodes']) }}</h1>
+                            <p class="mb-0 fs-6">Total Episodes</p>
                         </div>
                     </div>
                 </div>
@@ -204,240 +200,37 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td>
-                                    <div class="d-flex gap-3 align-items-center">
-                                        <img class="avatar avatar-40 rounded-pill"
-                                            src="{{asset('dashboard/images/author/01.png')}}" alt="profile">
-                                        <div class="text-start">
-                                            <h6 class="m-0">John Doe</h6>
-                                            <small>john@gmail.com</small>
+                            @forelse ($recentReviews as $review)
+                                <tr>
+                                    <td>
+                                        <div class="d-flex gap-3 align-items-center">
+                                            <img class="avatar avatar-40 rounded-pill"
+                                                src="{{ asset('dashboard/images/author/0' . ((($loop->index) % 6) + 1) . '.png') }}" alt="profile">
+                                            <div class="text-start">
+                                                <h6 class="m-0">{{ $review->user?->name ?? '—' }}</h6>
+                                                <small>{{ $review->user?->email ?? '' }}</small>
+                                            </div>
                                         </div>
-                                    </div>
-                                </td>
-                                <td>
-                                    9th March 2025
-                                </td>
-                                <td>
-                                    Movies
-                                </td>
-                                <td>
-                                    <div class="d-flex gap-3 align-items-center">
-                                        <div class="star-rating">
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
+                                    </td>
+                                    <td>{{ $review->created_at->format('jS M Y') }}</td>
+                                    <td>{{ class_basename($review->reviewable_type) }}</td>
+                                    <td>
+                                        <div class="d-flex gap-3 align-items-center">
+                                            <div class="star-rating">
+                                                @for ($i = 1; $i <= 5; $i++)
+                                                    <span class="star {{ $i <= ($review->stars ?? 0) ? 'filled text-warning' : '' }}">
+                                                        <i class="ph ph-fill ph-star"></i>
+                                                    </span>
+                                                @endfor
+                                            </div>
                                         </div>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="d-flex gap-3 align-items-center">
-                                        <img class="avatar avatar-40 rounded-pill"
-                                            src="{{asset('dashboard/images/author/02.png')}}" alt="profile">
-                                        <div class="text-start">
-                                            <h6 class="m-0">Mega Links</h6>
-                                            <small>megalink156@gmail.com</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>
-                                    7th March 2025
-                                </td>
-                                <td>
-                                    Movies
-                                </td>
-                                <td>
-                                    <div class="d-flex gap-3 align-items-center">
-                                        <div class="star-rating">
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="d-flex gap-3 align-items-center">
-                                        <img class="avatar avatar-40 rounded-pill"
-                                            src="{{asset('dashboard/images/author/03.png')}}" alt="profile">
-                                        <div class="text-start">
-                                            <h6 class="m-0">Felix Harris</h6>
-                                            <small>felix@gmail.com</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>
-                                    21st September 2024
-                                </td>
-                                <td>
-                                    Tvshow
-                                </td>
-                                <td>
-                                    <div class="d-flex gap-3 align-items-center">
-                                        <div class="star-rating">
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="d-flex gap-3 align-items-center">
-                                        <img class="avatar avatar-40 rounded-pill"
-                                            src="{{asset('dashboard/images/author/04.png')}}" alt="profile">
-                                        <div class="text-start">
-                                            <h6 class="m-0">Stella Green</h6>
-                                            <small>stella@gmail.com</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>
-                                    9th March 2025
-                                </td>
-                                <td>
-                                    Tvshow
-                                </td>
-                                <td>
-                                    <div class="d-flex gap-3 align-items-center">
-                                        <div class="star-rating">
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="d-flex gap-3 align-items-center">
-                                        <img class="avatar avatar-40 rounded-pill"
-                                            src="{{asset('dashboard/images/author/05.png')}}" alt="profile">
-                                        <div class="text-start">
-                                            <h6 class="m-0">Deborah Thomas</h6>
-                                            <small>deborah@gmail.com</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>
-                                    12th March 2024
-                                </td>
-                                <td>
-                                    Tvshow
-                                </td>
-                                <td>
-                                    <div class="d-flex gap-3 align-items-center">
-                                        <div class="star-rating">
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="d-flex gap-3 align-items-center">
-                                        <img class="avatar avatar-40 rounded-pill"
-                                            src="{{asset('dashboard/images/author/06.png')}}" alt="profile">
-                                        <div class="text-start">
-                                            <h6 class="m-0">Jorge Perez</h6>
-                                            <small>jorge@gmail.com</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>
-                                    9th September 2024
-                                </td>
-                                <td>
-                                    Tvshow
-                                </td>
-                                <td>
-                                    <div class="d-flex gap-3 align-items-center">
-                                        <div class="star-rating">
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                            <span class="star filled text-warning">
-                                                <i class="ph ph-fill ph-star"></i>
-                                            </span>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="4" class="text-center py-4 text-muted">No reviews yet.</td>
+                                </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
@@ -496,174 +289,29 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex gap-3 align-items-center">
-                                                <img class="avatar avatar-40 rounded-pill"
-                                                    src="{{asset('dashboard/images/author/01.png')}}" alt="profile">
-                                                <div class="text-start">
-                                                    <h6 class="m-0">John Doe</h6>
-                                                    <small>john@gmail.com</small>
+                                    @forelse ($recentPayments as $payment)
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex gap-3 align-items-center">
+                                                    <img class="avatar avatar-40 rounded-pill"
+                                                        src="{{ asset('dashboard/images/author/0' . ((($loop->index) % 6) + 1) . '.png') }}" alt="profile">
+                                                    <div class="text-start">
+                                                        <h6 class="m-0">{{ $payment->user?->name ?? '—' }}</h6>
+                                                        <small>{{ $payment->user?->email ?? '' }}</small>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            12th March 2025
-                                        </td>
-                                        <td>
-                                            Basic
-                                        </td>
-
-                                        <td>
-                                            $5.00
-                                        </td>
-                                        <td>
-                                            1 week
-                                        </td>
-                                        <td>
-                                            Stripe
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex gap-3 align-items-center">
-                                                <img class="avatar avatar-40 rounded-pill"
-                                                    src="{{asset('dashboard/images/author/02.png')}}" alt="profile">
-                                                <div class="text-start">
-                                                    <h6 class="m-0">Mega Links</h6>
-                                                    <small>megalink156@gmail.com</small>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            10th March 2025
-                                        </td>
-                                        <td>
-                                            Basic
-                                        </td>
-
-                                        <td>
-                                            $5.00
-                                        </td>
-                                        <td>
-                                            1 week
-                                        </td>
-                                        <td>
-                                            Stripe
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex gap-3 align-items-center">
-                                                <img class="avatar avatar-40 rounded-pill"
-                                                    src="{{asset('dashboard/images/author/03.png')}}" alt="profile">
-                                                <div class="text-start">
-                                                    <h6 class="m-0">Felix Harris</h6>
-                                                    <small>felix@gmail.com</small>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            10th March 2025
-                                        </td>
-                                        <td>
-                                            Basic
-                                        </td>
-
-                                        <td>
-                                            $5.00
-                                        </td>
-                                        <td>
-                                            1 week
-                                        </td>
-                                        <td>
-                                            Stripe
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex gap-3 align-items-center">
-                                                <img class="avatar avatar-40 rounded-pill"
-                                                    src="{{asset('dashboard/images/author/04.png')}}" alt="profile">
-                                                <div class="text-start">
-                                                    <h6 class="m-0">Stella Green</h6>
-                                                    <small>stella@gmail.com</small>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            10th March 2025
-                                        </td>
-                                        <td>
-                                            Basic
-                                        </td>
-
-                                        <td>
-                                            $5.00
-                                        </td>
-                                        <td>
-                                            1 week
-                                        </td>
-                                        <td>
-                                            Stripe
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex gap-3 align-items-center">
-                                                <img class="avatar avatar-40 rounded-pill"
-                                                    src="{{asset('dashboard/images/author/05.png')}}" alt="profile">
-                                                <div class="text-start">
-                                                    <h6 class="m-0">Deborah Thomas</h6>
-                                                    <small>deborah@gmail.com</small>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            10th March 2025
-                                        </td>
-                                        <td>
-                                            Basic
-                                        </td>
-
-                                        <td>
-                                            $5.00
-                                        </td>
-                                        <td>
-                                            1 week
-                                        </td>
-                                        <td>
-                                            Stripe
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex gap-3 align-items-center">
-                                                <img class="avatar avatar-40 rounded-pill"
-                                                    src="{{asset('dashboard/images/author/06.png')}}" alt="profile">
-                                                <div class="text-start">
-                                                    <h6 class="m-0">Jorge Perez</h6>
-                                                    <small>jorge@gmail.com</small>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            10th March 2025
-                                        </td>
-                                        <td>
-                                            Elite Plan
-                                        </td>
-
-                                        <td>
-                                            $80.00
-                                        </td>
-                                        <td>
-                                            1 year
-                                        </td>
-                                        <td>
-                                            Stripe
-                                        </td>
-                                    </tr>
+                                            </td>
+                                            <td>{{ $payment->created_at->format('jS M Y') }}</td>
+                                            <td>{{ $payment->metadata['tier_name'] ?? '—' }}</td>
+                                            <td>{{ $payment->currency }} {{ number_format($payment->amount, 2) }}</td>
+                                            <td>{{ $payment->metadata['billing_period'] ?? '—' }}</td>
+                                            <td>{{ ucfirst($payment->payment_gateway) }}</td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="6" class="text-center py-4 text-muted">No completed payments yet.</td>
+                                        </tr>
+                                    @endforelse
                                 </tbody>
                             </table>
                         </div>

@@ -10,15 +10,6 @@
         </a>
     </li>
     <li class="nav-item">
-        <a class="nav-link {{ activeRoute(route('dashboard1')) }}" aria-current="page" href="{{ route('dashboard1') }}">
-            <i class="icon" data-bs-toggle="tooltip" data-bs-placement="right" aria-label="Dashboard"
-                data-bs-original-title="Dashboard">
-                <i class="ph ph-squares-four fs-4"></i>
-            </i>
-            <span class="item-name">{{ __('sidebar.dashboard1') }}</span>
-        </a>
-    </li>
-    <li class="nav-item">
         <a class="nav-link {{ activeRoute(route('dashboard.rating')) }}" aria-current="page"
             href="{{ route('dashboard.rating') }}">
             <i class="icon" data-bs-toggle="tooltip" data-bs-placement="right" aria-label="Rating"

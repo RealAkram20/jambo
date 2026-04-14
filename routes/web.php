@@ -25,8 +25,6 @@ Route::get('/', function () {
 
 Route::get('/app', [DashboardController::class, 'index'])->middleware(['auth'])->name('dashboard');
 
-Route::get('/app1', [DashboardController::class, 'index1'])->middleware(['auth'])->name('dashboard1');
-
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

@@ -12,19 +12,43 @@ use Modules\Content\app\Models\Tag;
 use Modules\Content\app\Models\Rating;
 use Modules\Content\app\Models\Review;
 use Modules\Content\app\Models\Comment;
+use Modules\Content\app\Models\Episode;
+use Modules\Payments\app\Models\PaymentOrder;
+use Modules\Subscriptions\app\Models\UserSubscription;
+use App\Models\User;
 
 class DashboardController extends Controller
 {
     public function index(Request $request)
     {
         $title = __('header.home');
-        return view('DashboardPages.IndexPage1', compact('title'));
-    }
 
-    public function index1(Request $request)
-    {
-        $title = __('sidebar.home1');
-        return view('DashboardPages.IndexPage', compact('title'));
+        $stats = [
+            'total_users'       => User::count(),
+            'active_users'      => User::where('updated_at', '>=', now()->subDays(30))->count(),
+            'total_subscribers' => UserSubscription::where('status', 'active')->count(),
+            'total_movies'      => Movie::count(),
+            'total_shows'       => Show::count(),
+            'total_episodes'    => Episode::count(),
+        ];
+
+        $recentReviews = Review::with(['user', 'reviewable'])
+            ->latest()
+            ->take(6)
+            ->get();
+
+        $recentPayments = PaymentOrder::with('user')
+            ->where('status', PaymentOrder::STATUS_COMPLETED)
+            ->latest()
+            ->take(6)
+            ->get();
+
+        return view('DashboardPages.IndexPage1', compact(
+            'title',
+            'stats',
+            'recentReviews',
+            'recentPayments',
+        ));
     }
 
     public function rating(Request $request)
