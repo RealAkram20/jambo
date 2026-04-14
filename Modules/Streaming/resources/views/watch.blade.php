@@ -2,6 +2,8 @@
 
 @section('content')
 
+<link href="https://vjs.zencdn.net/8.21.1/video-js.css" rel="stylesheet" />
+
 <div class="back-btn">
     <a class="btn btn-link text-white text-decoration-none p-0" href="{{ $backUrl }}" title="{{ $backLabel }}">
         <i class="ph ph-x"></i>
@@ -15,43 +17,84 @@
             <p class="text-muted mb-4">No Video URL has been set for <strong>{{ $title }}</strong>.</p>
             <a href="{{ $backUrl }}" class="btn btn-outline-light">{{ $backLabel }}</a>
         </div>
-    @elseif ($source['type'] === 'youtube')
-        <div class="ratio ratio-16x9 w-100" style="max-width: 1280px;">
-            <iframe
-                id="yt-player"
-                src="{{ $source['embed_url'] }}&enablejsapi=1&origin={{ urlencode(url('/')) }}"
-                title="{{ $title }}"
-                frameborder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                referrerpolicy="strict-origin-when-cross-origin"
-                allowfullscreen></iframe>
-        </div>
     @else
-        <video
-            id="native-player"
-            class="w-100"
-            style="max-width: 1280px; max-height: 100vh;"
-            controls
-            preload="metadata"
-            @if ($poster) poster="{{ $poster }}" @endif
-            data-resume="{{ $resumePosition }}">
-            <source src="{{ $source['url'] }}" type="{{ $source['mime'] }}">
-            Your browser doesn't support HTML5 video.
-        </video>
+        <div class="w-100" style="max-width: 1280px;">
+            <video
+                id="jambo-player"
+                class="video-js vjs-default-skin vjs-big-play-centered vjs-fluid"
+                controls
+                preload="auto"
+                playsinline
+                @if ($poster) poster="{{ $poster }}" @endif
+                data-resume="{{ $resumePosition }}">
+            </video>
+        </div>
     @endif
 </div>
 
+@if ($source)
+<script src="https://vjs.zencdn.net/8.21.1/video.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/videojs-youtube@3.0.1/dist/Youtube.min.js"></script>
 <script>
 (function () {
+    @php
+        $payableKind = str_ends_with($payableType, 'Episode') ? 'episode' : 'movie';
+    @endphp
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const heartbeatUrl = '{{ url('/api/v1/streaming/heartbeat') }}';
     const payload = {
-        payable_type: @json($payableType === 'Modules\Content\app\Models\Episode' ? 'episode' : 'movie'),
-        payable_id: @json($payableId),
+        payable_type: {{ Js::from($payableKind) }},
+        payable_id: {{ Js::from($payableId) }},
     };
-    const HEARTBEAT_MS = 15000; // 15s — cheap and enough for resume granularity
+    const HEARTBEAT_MS = 15000;
+    const resume = Number({{ Js::from((int) $resumePosition) }});
+    const source = {{ Js::from([
+        'type' => $source['type'],
+        'url' => $source['url'],
+        'mime' => $source['mime'] ?? null,
+    ]) }};
+
+    const options = {
+        controls: true,
+        fluid: true,
+        playsinline: true,
+        // YouTube tech has to come first so YouTube sources route to it.
+        techOrder: source.type === 'youtube' ? ['youtube', 'html5'] : ['html5'],
+        // Light play-rate menu.
+        playbackRates: [0.5, 1, 1.25, 1.5, 2],
+        // YouTube plugin prefers the original watch URL. Feed html5 the
+        // direct file URL + mime the server resolved.
+        sources: [
+            source.type === 'youtube'
+                ? { src: source.url, type: 'video/youtube' }
+                : { src: source.url, type: source.mime || 'video/mp4' },
+        ],
+        youtube: {
+            iv_load_policy: 3,
+            modestbranding: 1,
+            rel: 0,
+        },
+    };
+
+    const player = videojs('jambo-player', options);
+
+    // Resume: seek once metadata is available. Leave a 5s buffer off
+    // the end so a fully-watched title doesn't immediately skip to
+    // the last frame on replay.
+    player.one('loadedmetadata', function () {
+        const total = player.duration();
+        if (resume > 0 && total && resume < total - 5) {
+            player.currentTime(resume);
+        }
+    });
+
     let lastPosition = 0;
     let duration = null;
+
+    player.on('timeupdate', function () {
+        lastPosition = player.currentTime() || 0;
+        duration = player.duration() || null;
+    });
 
     async function sendHeartbeat() {
         if (lastPosition <= 0) return;
@@ -76,60 +119,12 @@
         }
     }
 
-    // Native <video>
-    const native = document.getElementById('native-player');
-    if (native) {
-        const resume = Number(native.dataset.resume || 0);
-        if (resume > 0) {
-            native.addEventListener('loadedmetadata', () => {
-                if (native.duration && resume < native.duration - 5) {
-                    native.currentTime = resume;
-                }
-            }, { once: true });
-        }
-        native.addEventListener('timeupdate', () => {
-            lastPosition = native.currentTime;
-            duration = native.duration || null;
-        });
-        native.addEventListener('pause', sendHeartbeat);
-        native.addEventListener('ended', sendHeartbeat);
-        setInterval(sendHeartbeat, HEARTBEAT_MS);
-    }
-
-    // YouTube iframe — uses the IFrame API to get currentTime/duration.
-    const yt = document.getElementById('yt-player');
-    if (yt) {
-        const tag = document.createElement('script');
-        tag.src = 'https://www.youtube.com/iframe_api';
-        document.head.appendChild(tag);
-
-        window.onYouTubeIframeAPIReady = function () {
-            const player = new YT.Player('yt-player', {
-                events: {
-                    onReady: (ev) => {
-                        const resume = @json((int) $resumePosition);
-                        const total = ev.target.getDuration();
-                        if (resume > 0 && total && resume < total - 5) {
-                            ev.target.seekTo(resume, true);
-                        }
-                        setInterval(() => {
-                            lastPosition = ev.target.getCurrentTime() || 0;
-                            duration = ev.target.getDuration() || null;
-                        }, 1000);
-                        setInterval(sendHeartbeat, HEARTBEAT_MS);
-                    },
-                    onStateChange: (ev) => {
-                        // 0=ended, 2=paused
-                        if (ev.data === 0 || ev.data === 2) sendHeartbeat();
-                    },
-                },
-            });
-        };
-    }
-
-    // Final flush when the user navigates away.
+    player.on('pause', sendHeartbeat);
+    player.on('ended', sendHeartbeat);
+    setInterval(sendHeartbeat, HEARTBEAT_MS);
     window.addEventListener('pagehide', sendHeartbeat);
 })();
 </script>
+@endif
 
 @endsection
