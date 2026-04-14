@@ -3,6 +3,8 @@
 namespace Modules\Frontend\app\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Modules\Content\app\Models\Movie;
+use Modules\Content\app\Models\Show;
 
 class FrontendController extends Controller
 {
@@ -12,7 +14,28 @@ class FrontendController extends Controller
     //main pages
     public function index()
     {
-        return view('frontend::Pages.MainPages.index-page');
+        $featuredMovies = Movie::published()
+            ->orderByDesc('published_at')
+            ->take(3)
+            ->get();
+
+        $latestMovies = Movie::published()
+            ->with('genres')
+            ->orderByDesc('published_at')
+            ->take(12)
+            ->get();
+
+        $popularShows = Show::published()
+            ->with('genres')
+            ->orderByDesc('published_at')
+            ->take(12)
+            ->get();
+
+        return view('frontend::Pages.MainPages.index-page', compact(
+            'featuredMovies',
+            'latestMovies',
+            'popularShows',
+        ));
     }
 
     public function ott()
@@ -22,12 +45,32 @@ class FrontendController extends Controller
 
     public function movie()
     {
-        return view('frontend::Pages.MainPages.movies-page');
+        $featuredMovies = Movie::published()
+            ->orderByDesc('published_at')
+            ->take(3)
+            ->get();
+
+        $movies = Movie::published()
+            ->with('genres')
+            ->orderByDesc('published_at')
+            ->get();
+
+        return view('frontend::Pages.MainPages.movies-page', compact('featuredMovies', 'movies'));
     }
 
     public function tv_show()
     {
-        return view('frontend::Pages.MainPages.tv-shows-page');
+        $featuredShows = Show::published()
+            ->orderByDesc('published_at')
+            ->take(3)
+            ->get();
+
+        $shows = Show::published()
+            ->with('genres')
+            ->orderByDesc('published_at')
+            ->get();
+
+        return view('frontend::Pages.MainPages.tv-shows-page', compact('featuredShows', 'shows'));
     }
 
     //movies pages
@@ -47,9 +90,19 @@ class FrontendController extends Controller
     }
 
     //deatil pages
-    public function movie_detail()
+    public function movie_detail(?string $slug = null)
     {
-        return view('frontend::Pages.Movies.detail-page');
+        $movie = $slug
+            ? Movie::where('slug', $slug)->published()->with(['genres', 'tags', 'categories', 'cast'])->firstOrFail()
+            : Movie::published()->with(['genres', 'tags', 'categories', 'cast'])->orderByDesc('published_at')->firstOrFail();
+
+        $recommended = Movie::published()
+            ->where('id', '!=', $movie->id)
+            ->inRandomOrder()
+            ->take(6)
+            ->get();
+
+        return view('frontend::Pages.Movies.detail-page', compact('movie', 'recommended'));
     }
 
     public function movie_player()
@@ -57,9 +110,24 @@ class FrontendController extends Controller
         return view('frontend::Pages.Movies.movie-player');
     }
 
-    public function tvshow_detail()
+    public function tvshow_detail(?string $slug = null)
     {
-        return view('frontend::Pages.TvShows.detail-page');
+        $show = $slug
+            ? Show::where('slug', $slug)->published()
+                ->with(['genres', 'tags', 'categories', 'cast', 'seasons.episodes'])
+                ->firstOrFail()
+            : Show::published()
+                ->with(['genres', 'tags', 'categories', 'cast', 'seasons.episodes'])
+                ->orderByDesc('published_at')
+                ->firstOrFail();
+
+        $recommended = Show::published()
+            ->where('id', '!=', $show->id)
+            ->inRandomOrder()
+            ->take(6)
+            ->get();
+
+        return view('frontend::Pages.TvShows.detail-page', compact('show', 'recommended'));
     }
 
     public function episode()

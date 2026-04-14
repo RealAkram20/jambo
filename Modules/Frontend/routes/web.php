@@ -22,12 +22,12 @@ Route::group([], function () {
     Route::get('/tv-show', [FrontendController::class, 'tv_show'])->name('frontend.tv-show');
 
     //detail pages
-    Route::get('/movie-detail', [FrontendController::class, 'movie_detail'])->name('frontend.movie_detail');
+    Route::get('/movie-detail/{slug?}', [FrontendController::class, 'movie_detail'])->name('frontend.movie_detail');
     Route::get('/movie-player', [FrontendController::class, 'movie_player'])->name('frontend.movie_player');
     Route::get('/download', [FrontendController::class, 'download'])->name('frontend.download');
     Route::get('/view-more', [FrontendController::class, 'view_more'])->name('frontend.view-more');
     Route::get('/resticted', [FrontendController::class, 'resticted'])->name('frontend.resticted');
-    Route::get('/tv-show-detail', [FrontendController::class, 'tvshow_detail'])->name('frontend.tvshow_detail');
+    Route::get('/tv-show-detail/{slug?}', [FrontendController::class, 'tvshow_detail'])->name('frontend.tvshow_detail');
     Route::get('/episode', [FrontendController::class, 'episode'])->name('frontend.episode');
     Route::get('/person-detail', [FrontendController::class, 'person_detail'])->name('frontend.person_detail');
     Route::get('/watchlist-detail', [FrontendController::class, 'watchlist_detail'])->name('frontend.watchlist_detail');

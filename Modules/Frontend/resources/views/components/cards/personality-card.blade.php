@@ -1,5 +1,10 @@
+@php
+    $castSrc = \Illuminate\Support\Str::startsWith($castImage, ['http://', 'https://'])
+        ? $castImage
+        : asset('frontend/images/cast/' . $castImage);
+@endphp
 <a href="{{ route('frontend.cast_details') }}">
-    <img src="{{ asset('frontend/images/cast/'. $castImage) }}" alt="personality" class="img-fluid object-cover mb-3 rounded-3 personality-img" loading="lazy" />
+    <img src="{{ $castSrc }}" alt="personality" class="img-fluid object-cover mb-3 rounded-3 personality-img" loading="lazy" />
 </a>
 <div class="text-center">
     <h6 class="mb-0">

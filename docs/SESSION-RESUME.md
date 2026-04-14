@@ -1,16 +1,17 @@
 # Jambo — Session Resume Context
 
 **Last session:** 2026-04-14
-**Last commit:** (pending) — Phase 2f: Dashboard home wired + second dashboard removed
+**Last commit:** (pending) — Phase 3a: Public frontend wired to real data
 **Branch:** `main` — pushed to https://github.com/RealAkram20/jambo
-**Working tree:** modified (Phase 2f changes ready to commit)
+**Working tree:** modified (Phase 3a changes ready to commit)
 
 ---
 
 ## What's been built (commit history, newest first)
 
 ```
-(pending)  Phase 2f: Dashboard home wired to real data; removed redundant second dashboard
+(pending)  Phase 3a: Public frontend wired — home, movies, tv-show, movie-detail/{slug}, tv-show-detail/{slug}
+2e9978e  Phase 2f: Dashboard home wired to real data; removed redundant second dashboard
 63e66fb  Phase 2e: Reviews, Ratings, Comments moderation UI
 e33e96c  Phase 2d: Wire template pages to real data, add taxonomy CRUD, remove blog
 2eacf45  Phase 2c: Persons admin CRUD
@@ -96,9 +97,15 @@ Notifications: `notifications` (Laravel UUID-keyed), plus 3 boolean columns on `
 
 ## What's next (in suggested order)
 
-### Immediate next slice: Phase 3 — Public frontend wiring
+### Immediate next slice: Phase 3b — Wire remaining frontend pages
 
-Start wiring the public-facing frontend. Begin with `/home`, `/movie`, `/movie-detail/{slug}`, `/tv-show`, `/tv-show-detail/{slug}` — replace the `FrontendController` static view returns with Eloquent queries.
+Phase 3a shipped core pages. Still to wire:
+- `/` (ott-page home variant) — same treatment as `/home`
+- `/episode` detail page — accept episode slug/id, show real episode + show context
+- `/geners`, `/all-genres`, `/tag`, `/playlist` — taxonomy browsing pages
+- `/cast-details`, `/cast-list`, `/all-personality` — person browse pages
+- `/watchlist-detail`, `/archive-playlist` — require user auth + watchlist schema (may need Streaming module work first)
+- Hardcoded template sections on `/home` to wire or remove: `continue-watching`, `upcomming`, `best-in-tv`, `latest-movies` (currently uses a custom section), `verticle-slider`, `suggested`, `parallax`, `tranding-tab`, `recommended`
 
 ### Then:
 
@@ -166,4 +173,4 @@ npm run build
 
 Then open `http://localhost/Jambo/` in the browser. If you get a 403 on the bare URL, Apache needs DirectorySlash On (it's the default — only breaks if httpd.conf was reset). If you get redirected to `/install`, either the `storage/installed` file was lost (recreate it with any JSON content) or the Installer module's middleware is catching a fresh environment.
 
-Tell the next Claude session: **"Read `docs/SESSION-RESUME.md` and continue from Phase 3."**
+Tell the next Claude session: **"Read `docs/SESSION-RESUME.md` and continue from Phase 3b."**

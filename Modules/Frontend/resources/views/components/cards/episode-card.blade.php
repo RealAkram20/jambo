@@ -1,7 +1,12 @@
+@php
+    $epSrc = \Illuminate\Support\Str::startsWith($showImg, ['http://', 'https://'])
+        ? $showImg
+        : asset('frontend/images/' . $showImg);
+@endphp
 <div class="episode-block rounded-3">
     <div class="block-image position-relative z-1">
         <a href="{{ $episodePath }}">
-            <img src="{{ asset('frontend/images/'. $showImg) }}" class="img-fluid img-zoom" alt="showImg-{{ $id ?? '' }}" loading="lazy">
+            <img src="{{ $epSrc }}" class="img-fluid img-zoom" alt="showImg-{{ $id ?? '' }}" loading="lazy">
         </a>
     </div>
 

@@ -1,8 +1,14 @@
 <!-- Movie Description Start-->
 <ul class="p-0 mb-2 list-inline d-flex flex-wrap movie-tag">
-    <li class="trending-list"><a class="" href="{{ route('frontend.view_all') }}">{{ __('streamTag.action') }}</a></li>
-    <li class="trending-list"><a class="" href="{{ route('frontend.view_all') }}">{{ __('streamTag.adventure') }}</a></li>
-    <li class="trending-list"><a class="" href="{{ route('frontend.view_all') }}">{{ __('streamTag.drama') }}</a></li>
+    @if (isset($movieGenres) && count($movieGenres))
+        @foreach ($movieGenres as $g)
+            <li class="trending-list"><a href="javascript:void(0)">{{ $g }}</a></li>
+        @endforeach
+    @else
+        <li class="trending-list"><a class="" href="{{ route('frontend.view_all') }}">{{ __('streamTag.action') }}</a></li>
+        <li class="trending-list"><a class="" href="{{ route('frontend.view_all') }}">{{ __('streamTag.adventure') }}</a></li>
+        <li class="trending-list"><a class="" href="{{ route('frontend.view_all') }}">{{ __('streamTag.drama') }}</a></li>
+    @endif
 </ul>
 <div class="d-block d-lg-flex align-items-center">
     @if(isset($isnotmovieTitle) && $isnotmovieTitle)

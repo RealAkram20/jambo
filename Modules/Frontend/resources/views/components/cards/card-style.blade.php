@@ -5,10 +5,14 @@
     $cardTitle = $cardTitle ?? '';
     $movietime = $movietime ?? null;
     $cardLang = $cardLang ?? 'English';
-    $productPremium = $productPremium ?? false; // Fixing the typo in variable name
+    $productPremium = $productPremium ?? false;
     $isCardStyle2 = $isCardStyle2 ?? false;
     $addlist = $addlist ?? false;
     $isnotlangCard = $isnotlangCard ?? false;
+    $cardGenres = $cardGenres ?? null;
+    $imgSrc = \Illuminate\Support\Str::startsWith($cardImage, ['http://', 'https://'])
+        ? $cardImage
+        : asset('frontend/images/' . $cardImage);
 @endphp
 
 @if ($isCardStyle2)
@@ -16,19 +20,27 @@
   <div class="block-images position-relative w-100">
     <div class="img-box w-100">
       <a href="{{ $cardPath }}" class="position-relative top-0 bottom-0 start-0 end-0">
-        <img src="{{ asset('frontend/images/'. $cardImage) }}" alt="movie-card"
+        <img src="{{ $imgSrc }}" alt="movie-card"
           class="img-fluid object-cover w-100 d-block border-0 rounded-3">
       </a>
     </div>
     <div class="card-description with-transition">
       <ul class="genres-list p-0 mb-2 d-flex align-items-center flex-wrap list-inline">
-        <li class="fw-semi-bold">
-          <a href="view-all" tabindex="0" class="font-size-14">{{__('streamTag.action')}}</a>
-        </li>
-        @if ($addlist)
-        <li class="fw-semi-bold">
-          <a href="view-all" tabindex="0" class="font-size-14">{{__('streamTag.action')}}</a>
-        </li>
+        @if ($cardGenres)
+          @foreach ($cardGenres as $g)
+            <li class="fw-semi-bold">
+              <a href="javascript:void(0)" tabindex="0" class="font-size-14">{{ $g }}</a>
+            </li>
+          @endforeach
+        @else
+          <li class="fw-semi-bold">
+            <a href="view-all" tabindex="0" class="font-size-14">{{__('streamTag.action')}}</a>
+          </li>
+          @if ($addlist)
+            <li class="fw-semi-bold">
+              <a href="view-all" tabindex="0" class="font-size-14">{{__('streamTag.action')}}</a>
+            </li>
+          @endif
         @endif
       </ul>
       <div class="cart-content">
@@ -63,19 +75,27 @@
   <div class="block-images position-relative w-100">
     <div class="img-box w-100">
       <a href="{{ $cardPath }}" class="position-relative top-0 bottom-0 start-0 end-0">
-        <img src="{{ asset('frontend/images/'. $cardImage) }}" alt="movie-card"
+        <img src="{{ $imgSrc }}" alt="movie-card"
           class="img-fluid object-cover w-100 d-block border-0 rounded-3">
       </a>
     </div>
     <div class="card-description with-transition">
       <ul class="genres-list p-0 mb-2 d-flex align-items-center flex-wrap list-inline">
-        <li class="fw-semi-bold">
-          <a href="view-all" tabindex="0" class="font-size-14">{{__('streamTag.action')}}</a>
-        </li>
-        @if ($addlist)
-        <li class="fw-semi-bold">
-          <a href="view-all" tabindex="0" class="font-size-14">{{__('streamTag.action')}}</a>
-        </li>
+        @if ($cardGenres)
+          @foreach ($cardGenres as $g)
+            <li class="fw-semi-bold">
+              <a href="javascript:void(0)" tabindex="0" class="font-size-14">{{ $g }}</a>
+            </li>
+          @endforeach
+        @else
+          <li class="fw-semi-bold">
+            <a href="view-all" tabindex="0" class="font-size-14">{{__('streamTag.action')}}</a>
+          </li>
+          @if ($addlist)
+            <li class="fw-semi-bold">
+              <a href="view-all" tabindex="0" class="font-size-14">{{__('streamTag.action')}}</a>
+            </li>
+          @endif
         @endif
       </ul>
       <div class="cart-content">
