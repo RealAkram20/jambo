@@ -29,8 +29,10 @@ class MovieFactory extends Factory
             'year' => $this->faker->numberBetween(1970, 2026),
             'runtime_minutes' => $this->faker->numberBetween(80, 190),
             'rating' => $this->faker->randomElement(['G', 'PG', 'PG-13', 'R', 'NC-17']),
-            'poster_url' => 'https://picsum.photos/seed/' . Str::random(8) . '/500/750',
-            'backdrop_url' => 'https://picsum.photos/seed/' . Str::random(8) . '/1920/1080',
+            // Share the same picsum seed so poster + backdrop look like the
+            // same artwork in different crops (thumb thumbnail ↔ hero backdrop).
+            'poster_url' => 'https://picsum.photos/seed/' . ($seed = Str::random(8)) . '/500/750',
+            'backdrop_url' => 'https://picsum.photos/seed/' . $seed . '/1920/1080',
             'trailer_url' => 'https://www.youtube.com/watch?v=' . Str::random(11),
             'dropbox_path' => '/jambo/movies/' . Str::slug($title) . '.mp4',
             'tier_required' => $this->faker->randomElement([null, null, 'basic', 'premium']),
