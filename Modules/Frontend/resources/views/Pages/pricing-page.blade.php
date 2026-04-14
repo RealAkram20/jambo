@@ -1,151 +1,88 @@
 @extends('frontend::layouts.master', ['isBreadCrumb' => true, 'title' => __('frontendheader.pricing_plan')])
 
+@php
+    /**
+     * Highlight rule for the "most popular" pill + active badge:
+     * flag whichever monthly tier has the highest access level. Falls
+     * back to the single highest-access tier so even all-yearly
+     * catalogs still get a visual winner.
+     */
+    $tiers = $tiers ?? collect();
+    $highlightedId = $tiers
+        ->where('billing_period', \Modules\Subscriptions\app\Models\SubscriptionTier::PERIOD_MONTHLY)
+        ->sortByDesc('access_level')
+        ->first()
+        ?->id
+        ?? $tiers->sortByDesc('access_level')->first()?->id;
+@endphp
+
 @section('content')
     <div class="section-padding">
         <div class="container">
             <div class="row">
-                <div class="col-xl-4 col-md-6 mb-3 mb-lg-0">
-                    <div class="pricing-plan-wrapper">
-                        <div class="pricing-plan-header">
-                            <div class="plan-wrapper">
-                                <h4 class="plan-name">{{ __('streamTag.basic_plan') }}</h4>
+                @forelse ($tiers as $tier)
+                    @php
+                        $isHighlighted = $tier->id === $highlightedId;
+                        $features = is_array($tier->features) ? $tier->features : [];
+                    @endphp
+                    <div class="col-xl-4 col-md-6 mb-3 mb-lg-0">
+                        <div class="pricing-plan-wrapper">
+                            @if ($isHighlighted)
+                                <div class="pricing-plan-discount bg-primary p-2 text-center">
+                                    <span class="text-white">{{ __('streamTag.most_popular') ?? 'Most popular' }}</span>
+                                </div>
+                            @endif
+                            <div class="pricing-plan-header">
+                                <div class="plan-wrapper @if ($isHighlighted) d-flex align-items-center justify-content-between @endif">
+                                    <h4 class="plan-name">{{ $tier->name }}</h4>
+                                    @if ($isHighlighted)
+                                        <span class="badge bg-primary rounded-2">
+                                            <small>{{ __('streamTag.active') ?? 'Featured' }}</small>
+                                        </span>
+                                    @endif
+                                </div>
+                                <div class="pricing-plan-details">
+                                    <span class="plan-main-price">{{ $tier->currency }} {{ number_format((float) $tier->price, 0) }}</span>
+                                    <span class="plan-period-time">/ {{ $tier->periodLabel() }}</span>
+                                </div>
                             </div>
-                            <div class="pricing-plan-details">
-
-                                <span class="plan-main-price">$10</span>
-
-                                <span class="plan-period-time">/ {{ __('streamTag.lifetime') }}</span>
-                            </div>
-                        </div>
-                        <div class="pricing-details">
-                            <div class="pricing-plan-description">
-                                <ul class="list-inline p-0">
-                                    <li>
-                                        <i class="ph ph-check fw-bold"></i>
-                                        <span class="font-size-18 fw-500">{{ __('streamTag.free_movies') }}</span>
-                                    </li>
-                                    <li>
-                                        <i class="ph ph-x fw-bold text-primary"></i>
-                                        <span class="font-size-18 fw-500">{{ __('streamTag.watch_on_tv') }}</span>
-                                    </li>
-                                    <li>
-                                        <i class="ph ph-x fw-bold text-primary"></i>
-                                        <span class="font-size-18 fw-500">{{ __('streamTag.streamit_special') }}</span>
-                                    </li>
-                                    <li>
-                                        <i class="ph ph-x fw-bold text-primary"></i>
-                                        <span class="font-size-18 fw-500">{{ __('streamTag.video_quality') }}</span>
-                                    </li>
-                                </ul>
-                            </div>
-                            <div class="pricing-plan-footer">
-                                <div class="iq-button">
-                                    <a href="javascript:void(0)" class="btn btn-primary fw-semibold rounded-3">
-                                        {{ __('streamShop.checkout') }} </a>
+                            <div class="pricing-details">
+                                @if ($tier->description)
+                                    <div class="description">
+                                        <p class="m-0">{{ $tier->description }}</p>
+                                    </div>
+                                @endif
+                                <div class="pricing-plan-description">
+                                    <ul class="list-inline p-0">
+                                        @forelse ($features as $feature)
+                                            <li>
+                                                <i class="ph ph-check fw-bold"></i>
+                                                <span class="font-size-18 fw-500">{{ $feature }}</span>
+                                            </li>
+                                        @empty
+                                            <li>
+                                                <i class="ph ph-check fw-bold"></i>
+                                                <span class="font-size-18 fw-500">{{ $tier->name }} access</span>
+                                            </li>
+                                        @endforelse
+                                    </ul>
+                                </div>
+                                <div class="pricing-plan-footer">
+                                    <div class="iq-button">
+                                        <a href="{{ route('frontend.membership-level') }}?tier={{ $tier->slug }}"
+                                            class="btn btn-primary fw-semibold rounded-3">
+                                            {{ __('streamShop.checkout') ?? 'Get started' }}
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-                <div class="col-xl-4 col-md-6 mb-3 mb-lg-0">
-                    <div class="pricing-plan-wrapper">
-                        <div class="pricing-plan-discount bg-primary p-2 text-center">
-                            <span class="text-white">{{ __('streamTag.save') }} 20%</span>
-                        </div>
-                        <div class="pricing-plan-header">
-                            <div class="plan-wrapper d-flex align-items-center justify-content-between">
-                                <h4 class="plan-name">{{ __('streamTag.premium_plan') }}</h4>
-                                <span class="badge bg-primary rounded-2">
-                                    <small>{{ __('streamTag.active') }}</small>
-                                </span>
-                            </div>
-                            <div class="pricing-plan-details">
-                                <span class="sale-price text-decoration-line-through text-primary">
-                                    <span>$267</span>
-                                </span>
-
-                                <span class="plan-main-price">$180</span>
-
-                                <span class="plan-period-time">/ 3 {{ __('streamTag.month') }}</span>
-                            </div>
-                        </div>
-                        <div class="pricing-details">
-                            <div class="description">
-                                <p class="m-0">{{ __('streamTag.benifits_of_streamit') }}</p>
-                            </div>
-                            <div class="pricing-plan-description">
-                                <ul class="list-inline p-0">
-                                    <li>
-                                        <i class="ph ph-check fw-bold"></i>
-                                        <span class="font-size-18 fw-500">{{ __('streamTag.free_movies') }}</span>
-                                    </li>
-                                    <li>
-                                        <i class="ph ph-check fw-bold"></i>
-                                        <span class="font-size-18 fw-500">{{ __('streamTag.watch_on_tv') }}</span>
-                                    </li>
-                                    <li>
-                                        <i class="ph ph-check fw-bold"></i>
-                                        <span class="font-size-18 fw-500">{{ __('streamTag.streamit_special') }}</span>
-                                    </li>
-                                    <li>
-                                        <i class="ph ph-check fw-bold"></i>
-                                        <span class="font-size-18 fw-500">{{ __('streamTag.video_quality') }}</span>
-                                    </li>
-                                </ul>
-                            </div>
-                            <div class="pricing-plan-footer">
-                                <div class="iq-button">
-                                    <a href="javascript:void(0)" class="btn btn-primary fw-semibold rounded-3">
-                                        {{ __('streamShop.checkout') }} </a>
-                                </div>
-                            </div>
-                        </div>
+                @empty
+                    <div class="col-12 text-center py-5 text-muted">
+                        No subscription plans are active right now. Please check back soon.
                     </div>
-                </div>
-                <div class="col-xl-4 col-md-6">
-                    <div class="pricing-plan-wrapper">
-                        <div class="pricing-plan-header">
-                            <div class="plan-wrapper">
-                                <h4 class="plan-name">{{ __('streamTag.standard_plan') }}</h4>
-                            </div>
-
-                            <div class="pricing-plan-details">
-
-                                <span class="plan-main-price">$79</span>
-
-                                <span class="plan-period-time">/ 1 {{ __('streamTag.month') }}</span>
-                            </div>
-                        </div>
-                        <div class="pricing-details">
-                            <div class="pricing-plan-description">
-                                <ul class="list-inline p-0">
-                                    <li>
-                                        <i class="ph ph-check fw-bold"></i>
-                                        <span class="font-size-18 fw-500">{{ __('streamTag.free_movies') }}</span>
-                                    </li>
-                                    <li>
-                                        <i class="ph ph-check fw-bold"></i>
-                                        <span class="font-size-18 fw-500">{{ __('streamTag.watch_on_tv') }}</span>
-                                    </li>
-                                    <li>
-                                        <i class="ph ph-check fw-bold"></i>
-                                        <span class="font-size-18 fw-500">{{ __('streamTag.streamit_special') }}</span>
-                                    </li>
-                                    <li>
-                                        <i class="ph ph-x fw-bold text-primary"></i>
-                                        <span class="font-size-18 fw-500">{{ __('streamTag.video_quality') }}</span>
-                                    </li>
-                                </ul>
-                            </div>
-                            <div class="pricing-plan-footer">
-                                <div class="iq-button">
-                                    <a href="javascript:void(0)" class="btn btn-primary fw-semibold rounded-3">
-                                        {{ __('streamShop.checkout') }} </a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                @endforelse
             </div>
         </div>
     </div>

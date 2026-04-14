@@ -1,19 +1,22 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Modules\Subscriptions\app\Http\Controllers\SubscriptionsController;
+use Modules\Subscriptions\app\Http\Controllers\Admin\SubscriptionTierController;
 
 /*
 |--------------------------------------------------------------------------
-| Web Routes
+| Subscriptions Module — Web Routes
 |--------------------------------------------------------------------------
 |
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| contains the "web" middleware group. Now create something great!
+| Admin CRUD for subscription tiers. The public pricing page is served
+| by the Frontend module (/pricing-page) which reads the same tiers.
 |
 */
 
-Route::group([], function () {
-    Route::resource('subscriptions', SubscriptionsController::class)->names('subscriptions');
-});
+Route::middleware(['auth', 'role:admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::resource('subscription-tiers', SubscriptionTierController::class)
+            ->except(['show']);
+    });

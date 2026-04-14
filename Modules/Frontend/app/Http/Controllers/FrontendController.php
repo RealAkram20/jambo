@@ -290,7 +290,8 @@ class FrontendController extends Controller
 
     public function pricing_page()
     {
-        return view('frontend::Pages.pricing-page');
+        $tiers = \Modules\Subscriptions\app\Models\SubscriptionTier::active()->ordered()->get();
+        return view('frontend::Pages.pricing-page', compact('tiers'));
     }
 
     public function error_page1()
