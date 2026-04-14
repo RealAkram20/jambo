@@ -56,6 +56,15 @@ class SectionDataComposer
             // Hero
             'heroMovies'     => $movieBase()->orderByDesc('published_at')->take(3)->get(),
             'heroItems'      => $this->buildHero(),
+
+            // Vertical slider (editorial feature, movies only)
+            'verticalFeatured' => Movie::published()
+                ->with('genres')
+                ->orderByDesc('views_count')
+                ->orderByDesc('rating')
+                ->take(5)
+                ->get(),
+
             'continueWatching' => $this->continueWatchingFallback(),
         ];
     }
