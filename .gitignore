@@ -7,6 +7,12 @@ node_modules
 /storage/*.key
 /storage/installed
 /storage/app/install-data.json
+# Files Gallery drop-in + all user-uploaded media (never commit).
+/storage/app/public/media/
+# Large video assets placed directly under public/ (not through storage).
+/public/frontend/images/player/*.mp4
+/public/frontend/images/player/*.webm
+/public/frontend/images/player/*.mkv
 /vendor
 /Modules/*/vendor
 /Modules/*/node_modules
