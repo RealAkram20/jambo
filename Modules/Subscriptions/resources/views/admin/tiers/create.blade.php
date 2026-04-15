@@ -1,4 +1,4 @@
-@extends('layouts.app', ['module_title' => 'Add Subscription Tier'])
+@extends('layouts.app', ['module_title' => 'Add Pricing Plan'])
 
 @section('content')
 <div class="container-fluid">
@@ -6,7 +6,7 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
-                    <h4 class="mb-1">Add tier</h4>
+                    <h4 class="mb-1">Add pricing plan</h4>
                     <p class="text-muted mb-0" style="font-size:13px;">Create a new plan customers can subscribe to.</p>
                 </div>
                 <a href="{{ route('admin.subscription-tiers.index') }}" class="btn btn-ghost">← Back to list</a>

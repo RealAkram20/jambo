@@ -47,7 +47,7 @@ class SubscriptionTierController extends Controller
     {
         return view('subscriptions::admin.tiers.create', [
             'tier' => new SubscriptionTier([
-                'currency' => 'KES',
+                'currency' => 'UGX',
                 'billing_period' => SubscriptionTier::PERIOD_MONTHLY,
                 'access_level' => SubscriptionTier::ACCESS_BASIC,
                 'is_active' => true,

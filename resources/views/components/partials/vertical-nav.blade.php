@@ -238,8 +238,10 @@
             <span class="item-name">{{ __('sidebar.review') }}</span>
         </a>
     </li>
+    @if (Route::has('admin.subscription-tiers.index'))
     <li class="nav-item">
-        <a class="nav-link {{ activeRoute(route('dashboard.pricing')) }}" href="{{ route('dashboard.pricing') }}">
+        <a class="nav-link {{ request()->routeIs('admin.subscription-tiers.*') ? 'active' : '' }}"
+            href="{{ route('admin.subscription-tiers.index') }}">
             <i class="icon" data-bs-toggle="tooltip" title="Pricing" data-bs-placement="right"
                 aria-label="Pricing" data-bs-original-title="Pricing">
                 <i class="ph ph-wallet fs-5"></i>
@@ -247,6 +249,7 @@
             <span class="item-name">{{ __('sidebar.pricing') }}</span>
         </a>
     </li>
+    @endif
 
     <li class="nav-item">
         <a class="nav-link" data-bs-toggle="collapse" href="#sidebar-auth" role="button" aria-expanded="false"
@@ -850,18 +853,6 @@
                     <i class="ph ph-bell fs-4"></i>
                 </i>
                 <span class="item-name">Notifications</span>
-            </a>
-        </li>
-    @endif
-    @if (Route::has('admin.subscription-tiers.index'))
-        <li class="nav-item">
-            <a class="nav-link {{ request()->routeIs('admin.subscription-tiers.*') ? 'active' : '' }}"
-                href="{{ route('admin.subscription-tiers.index') }}">
-                <i class="icon" title="Subscription Tiers" data-bs-toggle="tooltip" data-bs-placement="right"
-                    aria-label="Subscription Tiers" data-bs-original-title="Subscription Tiers">
-                    <i class="ph ph-crown fs-4"></i>
-                </i>
-                <span class="item-name">Subscription Tiers</span>
             </a>
         </li>
     @endif

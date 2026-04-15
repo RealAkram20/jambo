@@ -74,11 +74,29 @@
                     </div>
                     <div class="col-4">
                         <label for="currency" class="form-label">Currency <span class="text-danger">*</span></label>
-                        <input type="text" maxlength="3" minlength="3"
-                            class="form-control @error('currency') is-invalid @enderror"
-                            id="currency" name="currency"
-                            value="{{ old('currency', $tier->currency ?: 'KES') }}"
-                            style="text-transform:uppercase;" required>
+                        @php
+                            $currencies = [
+                                'UGX' => 'UGX — Ugandan Shilling',
+                                'KES' => 'KES — Kenyan Shilling',
+                                'TZS' => 'TZS — Tanzanian Shilling',
+                                'RWF' => 'RWF — Rwandan Franc',
+                                'USD' => 'USD — US Dollar',
+                                'EUR' => 'EUR — Euro',
+                                'GBP' => 'GBP — British Pound',
+                                'NGN' => 'NGN — Nigerian Naira',
+                                'ZAR' => 'ZAR — South African Rand',
+                            ];
+                            $currentCurrency = strtoupper(old('currency', $tier->currency ?: 'UGX'));
+                        @endphp
+                        <select name="currency" id="currency"
+                            class="form-select @error('currency') is-invalid @enderror" required>
+                            @foreach ($currencies as $code => $label)
+                                <option value="{{ $code }}" @selected($currentCurrency === $code)>{{ $code }}</option>
+                            @endforeach
+                            @if (!array_key_exists($currentCurrency, $currencies))
+                                <option value="{{ $currentCurrency }}" selected>{{ $currentCurrency }}</option>
+                            @endif
+                        </select>
                         @error('currency') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                 </div>
@@ -123,6 +141,6 @@
 <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
     <a href="{{ route('admin.subscription-tiers.index') }}" class="btn btn-ghost">← Back to list</a>
     <button type="submit" class="btn btn-primary">
-        <i class="ph ph-floppy-disk me-1"></i> Save tier
+        <i class="ph ph-floppy-disk me-1"></i> Save plan
     </button>
 </div>

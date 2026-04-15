@@ -1,4 +1,4 @@
-@extends('layouts.app', ['module_title' => 'Subscription Tiers'])
+@extends('layouts.app', ['module_title' => 'Pricing'])
 
 @section('content')
 <div class="container-fluid">
@@ -7,13 +7,13 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
                     <div>
-                        <h4 class="card-title mb-1">Subscription Tiers</h4>
+                        <h4 class="card-title mb-1">Pricing Plans</h4>
                         <p class="text-muted mb-0" style="font-size:13px;">
-                            {{ $totalCount }} total · drives the public /pricing-page and payment activation
+                            {{ $totalCount }} total · drives the public pricing page and payment activation
                         </p>
                     </div>
                     <a href="{{ route('admin.subscription-tiers.create') }}" class="btn btn-primary">
-                        <i class="ph ph-plus me-1"></i> Add tier
+                        <i class="ph ph-plus me-1"></i> Add plan
                     </a>
                 </div>
 

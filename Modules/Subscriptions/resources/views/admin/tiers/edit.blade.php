@@ -1,4 +1,4 @@
-@extends('layouts.app', ['module_title' => 'Edit Subscription Tier'])
+@extends('layouts.app', ['module_title' => 'Edit Pricing Plan'])
 
 @section('content')
 <div class="container-fluid">
