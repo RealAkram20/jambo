@@ -1,4 +1,4 @@
-@extends('frontend::layouts.master', ['isSwiperSlider' => true, 'isVideoJs' => true, 'bodyClass' => 'custom-header-relative', 'isSelect2' => true])
+@extends('frontend::layouts.master', ['isSwiperSlider' => true, 'bodyClass' => 'custom-header-relative', 'isSelect2' => true])
 
 @php
     $poster = $episode->still_url ?: ($show->backdrop_url ?: $show->poster_url);
@@ -9,33 +9,35 @@
 
 @section('content')
 
-{{-- Clean player hero, same pattern as /watch/{slug}. --}}
-<div class="jambo-watch-hero" id="jambo-hero">
-    @if ($source)
-        <div id="jambo-player-slot" class="jambo-player-slot">
-            <div class="jambo-inline-wrap" id="jambo-inline-wrap">
-                <button type="button" class="jambo-mini-close" id="jambo-mini-close" aria-label="Close mini-player" title="Close">
-                    <i class="ph ph-x"></i>
-                </button>
-                <video
-                    id="jambo-watch-player"
-                    class="video-js vjs-default-skin vjs-big-play-centered"
-                    controls
-                    preload="auto"
-                    playsinline
-                    @if ($poster) poster="{{ $poster }}" @endif></video>
-            </div>
+@if ($source)
+    <link rel="stylesheet" href="{{ asset('frontend/css/player.css') }}">
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@videojs/html/cdn/video-minimal-ui.js"></script>
+    <script src="{{ asset('frontend/js/jambo-settings-menu.js') }}" defer></script>
+
+    <div class="jambo-watch-hero" id="jambo-player-hero">
+        <div class="jambo-player-sentinel" id="jambo-player-sentinel"></div>
+        <div class="jambo-player-frame" id="jambo-player-frame" style="position:absolute; inset:0;">
+            <button type="button" class="jambo-mini-close" id="jambo-mini-close" aria-label="Close mini-player" title="Close">
+                <i class="ph ph-x"></i>
+            </button>
+            @include('frontend::components.partials.jambo-minimal-player', [
+                'playerSrc' => $source['url'],
+                'playerPoster' => $poster,
+                'playerId' => 'jambo-watch-player',
+            ])
         </div>
-    @else
-        <div class="jambo-player-slot d-flex align-items-center justify-content-center text-light">
+    </div>
+@else
+    <div class="jambo-watch-hero">
+        <div class="jambo-player-frame d-flex align-items-center justify-content-center text-light">
             <div class="text-center p-5">
                 <h3 class="mb-3">This episode isn't streamable yet.</h3>
                 <p class="text-muted mb-4">No Video URL has been set for <strong>{{ $headline }}</strong>.</p>
                 <a href="{{ route('frontend.tvshow_detail', $show->slug) }}" class="btn btn-outline-light">← Back to series</a>
             </div>
         </div>
-    @endif
-</div>
+    </div>
+@endif
 
 <div class="details-part">
     <div class="container-fluid">
@@ -57,10 +59,6 @@
                                 'movieGenres' => $show->genres->pluck('name')->all(),
                             ])
 
-                            {{-- Autoplay next episode toggle. Preference
-                                 persists in localStorage under
-                                 `jambo.autoplayNext` so it survives
-                                 navigation to the next episode. --}}
                             @if ($nextEpisode)
                                 <div class="d-flex align-items-center gap-3 mb-4">
                                     <label class="d-flex align-items-center gap-2 form-check-label" for="autoplay-next" style="cursor:pointer;">
@@ -139,86 +137,25 @@
 @include('frontend::components.widgets.mobile-footer')
 
 @if ($source)
-@include('frontend::components.partials.jambo-player-extras')
-<style>
-    .jambo-watch-hero {
-        width: 100%;
-        max-width: 1600px;
-        margin: 0 auto;
-        padding: 0;
-        background: #000;
-    }
-    .jambo-player-slot {
-        position: relative;
-        width: 100%;
-        aspect-ratio: 16 / 9;
-        background: #000;
-        overflow: hidden;
-    }
-    .jambo-inline-wrap {
-        position: absolute;
-        inset: 0;
-        background: #000;
-    }
-    .jambo-inline-wrap .video-js {
-        position: absolute;
-        inset: 0;
-        width: 100% !important;
-        height: 100% !important;
-    }
-    .jambo-inline-wrap .video-js .vjs-tech { width: 100%; height: 100%; }
-
-    body.jambo-mini-active .jambo-inline-wrap {
-        position: fixed;
-        inset: auto 16px 16px auto;
-        width: min(380px, 80vw);
-        aspect-ratio: 16/9;
-        height: auto;
-        border-radius: 10px;
-        overflow: hidden;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-        z-index: 2147483646;
-    }
-    body.jambo-mini-active .jambo-inline-wrap .video-js { border-radius: 10px; }
-
-    .jambo-mini-close {
-        position: absolute;
-        top: 6px;
-        right: 6px;
-        z-index: 10;
-        width: 28px;
-        height: 28px;
-        border: 0;
-        border-radius: 50%;
-        background: rgba(0,0,0,0.65);
-        color: #fff;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-    }
-    .jambo-mini-close:hover { background: rgba(0,0,0,0.85); }
-    body.jambo-mini-active .jambo-mini-close { display: flex; }
-</style>
-
 <script>
-(function () {
-    const src = {{ Js::from([
-        'type' => $source['type'],
-        'url' => $source['url'],
-        'mime' => $source['mime'] ?? null,
-    ]) }};
-    const payableId = {{ Js::from($episode->id) }};
-    const heartbeatUrl = {{ Js::from(url('/api/v1/streaming/heartbeat')) }};
-    const nextEpisodeUrl = {{ Js::from($nextEpisode ? route('frontend.episode', $nextEpisode->id) : null) }};
-    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+document.addEventListener('DOMContentLoaded', async function () {
+    await customElements.whenDefined('video-player');
 
-    const slot = document.getElementById('jambo-player-slot');
-    const inlineWrap = document.getElementById('jambo-inline-wrap');
+    const video = document.getElementById('jambo-watch-player');
+    const frame = document.getElementById('jambo-player-frame');
     const closeBtn = document.getElementById('jambo-mini-close');
     const autoplayToggle = document.getElementById('autoplay-next');
+    if (!video) return;
 
-    // Restore the autoplay-next preference from the previous episode.
+    video.muted = true;
+    const playAttempt = video.play();
+    if (playAttempt && typeof playAttempt.catch === 'function') playAttempt.catch(() => {});
+
+    if (typeof window.jamboAttachSettingsMenu === 'function') {
+        window.jamboAttachSettingsMenu('jambo-watch-player');
+    }
+
+    // Persist the autoplay-next preference across episodes.
     const AUTOPLAY_KEY = 'jambo.autoplayNext';
     if (autoplayToggle) {
         autoplayToggle.checked = localStorage.getItem(AUTOPLAY_KEY) === '1';
@@ -227,34 +164,17 @@
         });
     }
 
-    const player = videojs('jambo-watch-player', {
-        controls: true,
-        fill: true,
-        autoplay: 'muted',
-        muted: true,
-        playsinline: true,
-        techOrder: src.type === 'youtube' ? ['youtube', 'html5'] : ['html5'],
-        sources: [
-            src.type === 'youtube'
-                ? { src: src.url, type: 'video/youtube' }
-                : { src: src.url, type: src.mime || 'video/mp4' },
-        ],
-        youtube: { iv_load_policy: 3, modestbranding: 1, rel: 0 },
-    });
-
-    jamboAttachSettingsMenu(player);
-
-    player.ready(function () {
-        const p = player.play();
-        if (p && typeof p.catch === 'function') p.catch(() => {});
-    });
+    const payableId = {{ Js::from($episode->id) }};
+    const heartbeatUrl = {{ Js::from(url('/api/v1/streaming/heartbeat')) }};
+    const nextEpisodeUrl = {{ Js::from($nextEpisode ? route('frontend.episode', $nextEpisode->id) : null) }};
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
     let lastPosition = 0;
     let duration = null;
 
-    player.on('timeupdate', () => {
-        lastPosition = player.currentTime() || 0;
-        duration = player.duration() || null;
+    video.addEventListener('timeupdate', () => {
+        lastPosition = video.currentTime || 0;
+        duration = Number.isFinite(video.duration) ? video.duration : null;
     });
 
     async function sendHeartbeat() {
@@ -278,41 +198,57 @@
             });
         } catch (e) { console.debug('[watch] heartbeat failed', e); }
     }
-    player.on('pause', sendHeartbeat);
+    video.addEventListener('pause', sendHeartbeat);
     setInterval(sendHeartbeat, 15000);
     window.addEventListener('pagehide', sendHeartbeat);
 
-    // Autoplay-next: on end, flush progress, then navigate if enabled.
-    player.on('ended', async function () {
+    // Autoplay-next: flush progress, then navigate when enabled.
+    video.addEventListener('ended', async function () {
         await sendHeartbeat();
         if (nextEpisodeUrl && autoplayToggle && autoplayToggle.checked) {
             window.location.href = nextEpisodeUrl;
         }
     });
 
-    if ('IntersectionObserver' in window && slot) {
+    // Mini-mode: observe the stable sentinel, portal the frame to <body>
+    // (see watch-page.blade.php for the full rationale).
+    const sentinel = document.getElementById('jambo-player-sentinel');
+    const hero = document.getElementById('jambo-player-hero');
+
+    function enterMini() {
+        if (frame.classList.contains('jambo-player-frame--mini')) return;
+        document.body.appendChild(frame);
+        frame.style.position = '';
+        frame.style.inset = '';
+        frame.classList.add('jambo-player-frame--mini');
+    }
+    function exitMini() {
+        if (!frame.classList.contains('jambo-player-frame--mini')) return;
+        frame.classList.remove('jambo-player-frame--mini');
+        frame.style.position = 'absolute';
+        frame.style.inset = '0';
+        if (hero) hero.appendChild(frame);
+    }
+
+    if ('IntersectionObserver' in window && sentinel) {
         const io = new IntersectionObserver((entries) => {
             if (document.fullscreenElement) return;
             const r = entries[0].intersectionRatio;
-            if (r < 0.25) {
-                document.body.classList.add('jambo-mini-active');
-            } else if (r > 0.5) {
-                document.body.classList.remove('jambo-mini-active');
-            }
+            if (r < 0.25) enterMini();
+            else if (r > 0.5) exitMini();
         }, { threshold: [0, 0.25, 0.5, 1] });
-        io.observe(slot);
+        io.observe(sentinel);
     }
 
     if (closeBtn) {
         closeBtn.addEventListener('click', () => {
-            document.body.classList.remove('jambo-mini-active');
+            exitMini();
             sendHeartbeat();
-            try { player.pause(); } catch (e) {}
-            try { player.dispose(); } catch (e) {}
-            if (slot) slot.style.display = 'none';
+            try { video.pause(); } catch (e) {}
+            if (hero) hero.style.display = 'none';
         });
     }
-})();
+});
 </script>
 @endif
 @endsection

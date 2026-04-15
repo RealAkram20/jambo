@@ -35,63 +35,82 @@
         height: 20px;
     }
 
-    /* Popup menu */
+    /* Popup menu — YouTube-style single-column with nested panes.
+       Only one pane is visible at a time: the "main" list, or one of
+       the drill-down panes (quality / speed). */
     .jambo-settings-menu {
         position: absolute;
         right: 0;
         bottom: calc(100% + 4px);
-        min-width: 200px;
+        min-width: 240px;
+        max-width: 280px;
         background: rgba(18, 18, 18, 0.96);
         border: 1px solid rgba(255, 255, 255, 0.06);
         border-radius: 8px;
-        padding: 0.5rem 0.25rem;
+        padding: 0.35rem 0;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
         z-index: 10;
         display: none;
         text-align: left;
         font-size: 13px;
         color: #fff;
+        overflow: hidden;
     }
     .jambo-settings-menu.open { display: block; }
-    .jambo-settings-section + .jambo-settings-section {
-        margin-top: 0.5rem;
-        padding-top: 0.5rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    .jambo-settings-label {
-        color: rgba(255, 255, 255, 0.55);
-        text-transform: uppercase;
-        font-size: 10px;
-        letter-spacing: 0.6px;
-        padding: 0 0.5rem 0.25rem;
-    }
-    .jambo-settings-options {
+    .jambo-settings-pane[hidden] { display: none; }
+
+    /* Row used by both the main list and the drill-down options. */
+    .jambo-settings-row {
         display: flex;
-        flex-direction: column;
-    }
-    .jambo-settings-options button {
+        align-items: center;
+        gap: 0.5rem;
+        width: 100%;
         background: none;
         border: 0;
         color: #fff;
         text-align: left;
-        padding: 0.35rem 0.5rem;
-        cursor: pointer;
-        border-radius: 4px;
+        padding: 0.55rem 0.75rem;
         font-size: 13px;
+        cursor: pointer;
     }
-    .jambo-settings-options button:hover {
-        background: rgba(255, 255, 255, 0.08);
+    .jambo-settings-row:hover { background: rgba(255, 255, 255, 0.08); }
+    .jambo-settings-row .label { flex: 1; }
+    .jambo-settings-row .value {
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 12px;
     }
-    .jambo-settings-options button::before {
+    .jambo-settings-row .chev {
+        color: rgba(255, 255, 255, 0.45);
+        font-size: 14px;
+        line-height: 1;
+    }
+
+    /* Drill-down pane header — click to return to main list. */
+    .jambo-settings-back {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        width: 100%;
+        background: none;
+        border: 0;
+        color: #fff;
+        padding: 0.55rem 0.75rem;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .jambo-settings-back:hover { background: rgba(255, 255, 255, 0.06); }
+    .jambo-settings-back .chev { color: rgba(255, 255, 255, 0.7); font-size: 14px; }
+
+    .jambo-settings-options { display: flex; flex-direction: column; }
+    .jambo-settings-options .jambo-settings-row::before {
         content: ' ';
         display: inline-block;
         width: 1em;
-        margin-right: 0.35rem;
-    }
-    .jambo-settings-options button.active::before {
-        content: '✓';
         color: #1A98FF;
     }
+    .jambo-settings-options .jambo-settings-row.active::before { content: '✓'; }
 </style>
 
 <script>
@@ -130,44 +149,77 @@
 
             const menu = document.createElement('div');
             menu.className = 'jambo-settings-menu';
-
-            const speedHtml = SPEEDS.map(function (s) {
-                const cls = s.value === 1 ? 'active' : '';
-                return '<button data-value="' + s.value + '" class="' + cls + '">' + s.label + '</button>';
-            }).join('');
-
             menu.innerHTML =
-                '<div class="jambo-settings-section">' +
-                    '<div class="jambo-settings-label">Quality</div>' +
+                '<div class="jambo-settings-pane" data-pane="main">' +
+                    '<button type="button" class="jambo-settings-row" data-open="quality">' +
+                        '<span class="label">Quality</span>' +
+                        '<span class="value" data-summary="quality">Auto</span>' +
+                        '<span class="chev">›</span>' +
+                    '</button>' +
+                    '<button type="button" class="jambo-settings-row" data-open="speed">' +
+                        '<span class="label">Playback speed</span>' +
+                        '<span class="value" data-summary="speed">Normal</span>' +
+                        '<span class="chev">›</span>' +
+                    '</button>' +
+                '</div>' +
+                '<div class="jambo-settings-pane" data-pane="quality" hidden>' +
+                    '<button type="button" class="jambo-settings-back" data-back>' +
+                        '<span class="chev">‹</span><span>Quality</span>' +
+                    '</button>' +
                     '<div class="jambo-settings-options" data-kind="quality">' +
-                        '<button class="active" data-value="auto">Auto</button>' +
+                        '<button type="button" class="jambo-settings-row active" data-value="auto">Auto</button>' +
                     '</div>' +
                 '</div>' +
-                '<div class="jambo-settings-section">' +
-                    '<div class="jambo-settings-label">Playback speed</div>' +
-                    '<div class="jambo-settings-options" data-kind="speed">' + speedHtml + '</div>' +
+                '<div class="jambo-settings-pane" data-pane="speed" hidden>' +
+                    '<button type="button" class="jambo-settings-back" data-back>' +
+                        '<span class="chev">‹</span><span>Playback speed</span>' +
+                    '</button>' +
+                    '<div class="jambo-settings-options" data-kind="speed">' +
+                        SPEEDS.map(function (s) {
+                            const cls = s.value === 1 ? ' active' : '';
+                            return '<button type="button" class="jambo-settings-row' + cls + '" data-value="' + s.value + '">' + s.label + '</button>';
+                        }).join('') +
+                    '</div>' +
                 '</div>';
 
             btn.appendChild(menu);
 
+            const panes = menu.querySelectorAll('.jambo-settings-pane');
+            function showPane(name) {
+                panes.forEach(function (p) {
+                    p.hidden = (p.dataset.pane !== name);
+                });
+            }
+
             btn.addEventListener('click', function (e) {
                 if (e.target.closest('.jambo-settings-menu')) return;
                 e.stopPropagation();
+                const willOpen = !menu.classList.contains('open');
                 menu.classList.toggle('open');
+                if (willOpen) showPane('main');
             });
             document.addEventListener('click', function () {
                 menu.classList.remove('open');
             });
 
             menu.addEventListener('click', function (e) {
+                e.stopPropagation();
+
+                const back = e.target.closest('[data-back]');
+                if (back) { showPane('main'); return; }
+
+                const drill = e.target.closest('[data-open]');
+                if (drill) { showPane(drill.dataset.open); return; }
+
                 const opt = e.target.closest('button[data-value]');
                 if (!opt) return;
-                e.stopPropagation();
+
                 const kind = opt.closest('[data-kind]').dataset.kind;
                 const value = opt.dataset.value;
 
                 if (kind === 'speed') {
                     player.playbackRate(parseFloat(value));
+                    menu.querySelector('[data-summary="speed"]').textContent = opt.textContent;
                 } else if (kind === 'quality' && typeof player.qualityLevels === 'function') {
                     const levels = player.qualityLevels();
                     if (value === 'auto') {
@@ -176,26 +228,27 @@
                         const idx = parseInt(value, 10);
                         for (let i = 0; i < levels.length; i++) levels[i].enabled = (i === idx);
                     }
+                    menu.querySelector('[data-summary="quality"]').textContent = opt.textContent;
                 }
 
                 opt.parentElement.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); });
                 opt.classList.add('active');
-                menu.classList.remove('open');
+                showPane('main');
             });
 
-            // Quality levels: populate from the HLS plugin when present.
-            // For plain MP4 / YouTube sources the plugin isn't registered,
-            // so "Auto" stays as the only option — which is accurate.
+            // Quality levels: populate from HLS plugin when present.
+            // For plain MP4 / YouTube sources nothing registers and the
+            // Quality pane keeps its single "Auto" row.
             if (typeof player.qualityLevels === 'function') {
                 const levels = player.qualityLevels();
                 const container = menu.querySelector('[data-kind="quality"]');
                 const refresh = function () {
-                    let html = '<button class="active" data-value="auto">Auto</button>';
+                    let html = '<button type="button" class="jambo-settings-row active" data-value="auto">Auto</button>';
                     Array.from(levels).forEach(function (level, i) {
                         const label = level.height
                             ? level.height + 'p'
                             : (level.bitrate ? Math.round(level.bitrate / 1000) + 'k' : ('Level ' + (i + 1)));
-                        html += '<button data-value="' + i + '">' + label + '</button>';
+                        html += '<button type="button" class="jambo-settings-row" data-value="' + i + '">' + label + '</button>';
                     });
                     container.innerHTML = html;
                 };

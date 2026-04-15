@@ -1,4 +1,4 @@
-@extends('frontend::layouts.master', ['isSwiperSlider' => true, 'isVideoJs' => true, 'bodyClass' => 'custom-header-relative', 'isSelect2' => true])
+@extends('frontend::layouts.master', ['isSwiperSlider' => true, 'bodyClass' => 'custom-header-relative', 'isSelect2' => true])
 
 @php
     $poster = $movie->backdrop_url ?: $movie->poster_url;
@@ -6,36 +6,41 @@
 
 @section('content')
 
-{{-- Clean YouTube-style player container. Deliberately NOT using the
-     template's .iq-main-slider wrapper, which baked in min-height:80vh
-     + thick padding + a gradient scrim — all wrong for a playback
-     hero where the video itself should own the visual weight. --}}
-<div class="jambo-watch-hero" id="jambo-hero">
-    @if ($source)
-        <div id="jambo-player-slot" class="jambo-player-slot">
-            <div class="jambo-inline-wrap" id="jambo-inline-wrap">
-                <button type="button" class="jambo-mini-close" id="jambo-mini-close" aria-label="Close mini-player" title="Close">
-                    <i class="ph ph-x"></i>
-                </button>
-                <video
-                    id="jambo-watch-player"
-                    class="video-js vjs-default-skin vjs-big-play-centered"
-                    controls
-                    preload="auto"
-                    playsinline
-                    @if ($poster) poster="{{ $poster }}" @endif></video>
-            </div>
+@if ($source)
+    {{-- Minimal-skin player from @videojs/html. The CSS file is at
+         public/frontend/css/player.css; the module script below registers
+         the custom elements (<video-player>, <media-*>). --}}
+    <link rel="stylesheet" href="{{ asset('frontend/css/player.css') }}">
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@videojs/html/cdn/video-minimal-ui.js"></script>
+    <script src="{{ asset('frontend/js/jambo-settings-menu.js') }}" defer></script>
+
+    <div class="jambo-watch-hero" id="jambo-player-hero">
+        {{-- Sentinel: the IntersectionObserver watches this element, which
+             never moves. The frame can be portalled to <body> on mini-mode
+             without causing the observer to bounce. --}}
+        <div class="jambo-player-sentinel" id="jambo-player-sentinel"></div>
+        <div class="jambo-player-frame" id="jambo-player-frame" style="position:absolute; inset:0;">
+            <button type="button" class="jambo-mini-close" id="jambo-mini-close" aria-label="Close mini-player" title="Close">
+                <i class="ph ph-x"></i>
+            </button>
+            @include('frontend::components.partials.jambo-minimal-player', [
+                'playerSrc' => $source['url'],
+                'playerPoster' => $poster,
+                'playerId' => 'jambo-watch-player',
+            ])
         </div>
-    @else
-        <div class="jambo-player-slot d-flex align-items-center justify-content-center text-light">
+    </div>
+@else
+    <div class="jambo-watch-hero">
+        <div class="jambo-player-frame d-flex align-items-center justify-content-center text-light">
             <div class="text-center p-5">
                 <h3 class="mb-3">This title isn't streamable yet.</h3>
                 <p class="text-muted mb-4">No Video URL has been set for <strong>{{ $movie->title }}</strong>.</p>
                 <a href="{{ route('frontend.movie_detail', $movie->slug) }}" class="btn btn-outline-light">← Back to details</a>
             </div>
         </div>
-    @endif
-</div>
+    </div>
+@endif
 
 <div class="details-part">
     <div class="container-fluid">
@@ -66,8 +71,6 @@
 
 <div class="container-fluid">
     <div class="overflow-hidden">
-        {{-- Recommended Movies — mirrors /episode's season+episode section:
-             the same show-episode container pattern, without the pill nav. --}}
         @if ($recommended->count())
             <div class="show-episode section-padding">
                 <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
@@ -98,9 +101,6 @@
             </div>
         @endif
 
-        {{-- Similar Movies — scored by shared cast (×2) + shared genres.
-             Same visual container as Recommended so the rails read as
-             a pair. --}}
         @if ($similar->count())
             <div class="show-episode section-padding">
                 <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
@@ -136,116 +136,42 @@
 @include('frontend::components.widgets.mobile-footer')
 
 @if ($source)
-@include('frontend::components.partials.jambo-player-extras')
-<style>
-    /* Hero wrapper: centered, max 1600px, a little breathing room from
-       the edges. Replaces the template's .iq-main-slider which had
-       80vh min-height + 3.75em padding baked in. */
-    .jambo-watch-hero {
-        width: 100%;
-        max-width: 1600px;
-        margin: 0 auto;
-        padding: 0;
-        background: #000;
-    }
-    .jambo-player-slot {
-        position: relative;
-        width: 100%;
-        aspect-ratio: 16 / 9;
-        background: #000;
-        overflow: hidden;
-    }
-    .jambo-inline-wrap {
-        position: absolute;
-        inset: 0;
-        background: #000;
-    }
-    /* Video.js in "fill" mode uses absolute positioning itself; force
-       full-bleed so its controls reach the edges of the slot. */
-    .jambo-inline-wrap .video-js {
-        position: absolute;
-        inset: 0;
-        width: 100% !important;
-        height: 100% !important;
-    }
-    .jambo-inline-wrap .video-js .vjs-tech { width: 100%; height: 100%; }
-
-    body.jambo-mini-active .jambo-inline-wrap {
-        position: fixed;
-        inset: auto 16px 16px auto;
-        width: min(380px, 80vw);
-        aspect-ratio: 16/9;
-        height: auto;
-        border-radius: 10px;
-        overflow: hidden;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-        z-index: 2147483646;
-    }
-    body.jambo-mini-active .jambo-inline-wrap .video-js { border-radius: 10px; }
-
-    .jambo-mini-close {
-        position: absolute;
-        top: 6px;
-        right: 6px;
-        z-index: 10;
-        width: 28px;
-        height: 28px;
-        border: 0;
-        border-radius: 50%;
-        background: rgba(0,0,0,0.65);
-        color: #fff;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-    }
-    .jambo-mini-close:hover { background: rgba(0,0,0,0.85); }
-    body.jambo-mini-active .jambo-mini-close { display: flex; }
-</style>
-
 <script>
-(function () {
-    const src = {{ Js::from([
-        'type' => $source['type'],
-        'url' => $source['url'],
-        'mime' => $source['mime'] ?? null,
-    ]) }};
+// Wait for the @videojs/html module to upgrade the <video-player> element
+// before we poke at the inner <video>. Using `customElements.whenDefined`
+// instead of a naive setTimeout so this is deterministic: the custom
+// element upgrade has fired and querySelector-ing `video#id` returns the
+// real HTMLVideoElement with a working media API.
+document.addEventListener('DOMContentLoaded', async function () {
+    await customElements.whenDefined('video-player');
+
+    const video = document.getElementById('jambo-watch-player');
+    const frame = document.getElementById('jambo-player-frame');
+    const closeBtn = document.getElementById('jambo-mini-close');
+    if (!video) return;
+
+    // Best-effort muted autoplay. Browsers that block it leave the big
+    // play icon up, which is the expected UX.
+    video.muted = true;
+    const playAttempt = video.play();
+    if (playAttempt && typeof playAttempt.catch === 'function') playAttempt.catch(() => {});
+
+    // --- Settings gear menu --------------------------------------------
+    if (typeof window.jamboAttachSettingsMenu === 'function') {
+        window.jamboAttachSettingsMenu('jambo-watch-player');
+    }
+
+    // --- Heartbeat ------------------------------------------------------
     const payableId = {{ Js::from($movie->id) }};
     const heartbeatUrl = {{ Js::from(url('/api/v1/streaming/heartbeat')) }};
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
-    const slot = document.getElementById('jambo-player-slot');
-    const inlineWrap = document.getElementById('jambo-inline-wrap');
-    const closeBtn = document.getElementById('jambo-mini-close');
-
-    const player = videojs('jambo-watch-player', {
-        controls: true,
-        fill: true,
-        autoplay: 'muted',
-        muted: true,
-        playsinline: true,
-        techOrder: src.type === 'youtube' ? ['youtube', 'html5'] : ['html5'],
-        sources: [
-            src.type === 'youtube'
-                ? { src: src.url, type: 'video/youtube' }
-                : { src: src.url, type: src.mime || 'video/mp4' },
-        ],
-        youtube: { iv_load_policy: 3, modestbranding: 1, rel: 0 },
-    });
-
-    jamboAttachSettingsMenu(player);
-
-    player.ready(function () {
-        const p = player.play();
-        if (p && typeof p.catch === 'function') p.catch(() => {});
-    });
-
     let lastPosition = 0;
     let duration = null;
 
-    player.on('timeupdate', () => {
-        lastPosition = player.currentTime() || 0;
-        duration = player.duration() || null;
+    video.addEventListener('timeupdate', () => {
+        lastPosition = video.currentTime || 0;
+        duration = Number.isFinite(video.duration) ? video.duration : null;
     });
 
     async function sendHeartbeat() {
@@ -269,34 +195,58 @@
             });
         } catch (e) { console.debug('[watch] heartbeat failed', e); }
     }
-    player.on('pause', sendHeartbeat);
-    player.on('ended', sendHeartbeat);
+    video.addEventListener('pause', sendHeartbeat);
+    video.addEventListener('ended', sendHeartbeat);
     setInterval(sendHeartbeat, 15000);
     window.addEventListener('pagehide', sendHeartbeat);
 
-    if ('IntersectionObserver' in window && slot) {
+    // --- Mini-mode on scroll -------------------------------------------
+    // Observe the in-flow sentinel (never moves), not the frame itself
+    // (which gets portalled). This eliminates the old flicker loop where
+    // the frame going fixed changed its intersection ratio and bounced
+    // back to non-mini immediately.
+    const sentinel = document.getElementById('jambo-player-sentinel');
+    const hero = document.getElementById('jambo-player-hero');
+
+    function enterMini() {
+        if (frame.classList.contains('jambo-player-frame--mini')) return;
+        // Portal out to <body> so no ancestor stacking context (header,
+        // transformed wrapper, etc.) can clip or cap our z-index.
+        document.body.appendChild(frame);
+        frame.style.position = '';
+        frame.style.inset = '';
+        frame.classList.add('jambo-player-frame--mini');
+    }
+    function exitMini() {
+        if (!frame.classList.contains('jambo-player-frame--mini')) return;
+        frame.classList.remove('jambo-player-frame--mini');
+        frame.style.position = 'absolute';
+        frame.style.inset = '0';
+        if (hero) hero.appendChild(frame);
+    }
+
+    if ('IntersectionObserver' in window && sentinel) {
         const io = new IntersectionObserver((entries) => {
             if (document.fullscreenElement) return;
             const r = entries[0].intersectionRatio;
-            if (r < 0.25) {
-                document.body.classList.add('jambo-mini-active');
-            } else if (r > 0.5) {
-                document.body.classList.remove('jambo-mini-active');
-            }
+            // Hysteresis: only enter mini at <25% visible, only exit at
+            // >50% visible. Prevents flicker when the user parks near
+            // the boundary.
+            if (r < 0.25) enterMini();
+            else if (r > 0.5) exitMini();
         }, { threshold: [0, 0.25, 0.5, 1] });
-        io.observe(slot);
+        io.observe(sentinel);
     }
 
     if (closeBtn) {
         closeBtn.addEventListener('click', () => {
-            document.body.classList.remove('jambo-mini-active');
+            exitMini();
             sendHeartbeat();
-            try { player.pause(); } catch (e) {}
-            try { player.dispose(); } catch (e) {}
-            if (slot) slot.style.display = 'none';
+            try { video.pause(); } catch (e) {}
+            if (hero) hero.style.display = 'none';
         });
     }
-})();
+});
 </script>
 @endif
 @endsection
