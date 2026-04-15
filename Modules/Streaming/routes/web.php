@@ -20,13 +20,15 @@ use Modules\Streaming\app\Http\Controllers\StreamingController;
 */
 
 Route::middleware(['auth'])->group(function () {
-    Route::get('/watch/movie/{movie:slug}', [StreamingController::class, 'watchMovie'])
+    // Bare fullscreen player. Moved off /watch/* so the rich /watch/{slug}
+    // route (in the Frontend module) can live at the short canonical URL.
+    Route::get('/player/movie/{movie:slug}', [StreamingController::class, 'watchMovie'])
         ->middleware('tier_gate')
-        ->name('streaming.watch.movie');
+        ->name('streaming.player.movie');
 
-    Route::get('/watch/episode/{episode}', [StreamingController::class, 'watchEpisode'])
+    Route::get('/player/episode/{episode}', [StreamingController::class, 'watchEpisode'])
         ->middleware('tier_gate')
-        ->name('streaming.watch.episode');
+        ->name('streaming.player.episode');
 
     Route::post('/api/v1/streaming/heartbeat', [StreamingController::class, 'heartbeat'])
         ->name('streaming.heartbeat');

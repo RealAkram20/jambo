@@ -2,12 +2,11 @@
 
 @php
     $poster = $movie->backdrop_url ?: $movie->poster_url;
-    $cast = $movie->cast->filter(fn ($p) => ($p->pivot->role ?? null) === 'actor');
 @endphp
 
 @section('content')
 
-<div class="iq-main-slider site-video position-relative" id="jambo-watch-hero">
+<div class="iq-main-slider site-video position-relative" id="jambo-hero">
     @if ($source)
         <div id="jambo-player-slot" class="jambo-player-slot">
             <div class="jambo-inline-wrap" id="jambo-inline-wrap">
@@ -63,16 +62,17 @@
 
 <div class="container-fluid">
     <div class="overflow-hidden">
-        {{-- Recommended --}}
+        {{-- Recommended Movies — mirrors /episode's season+episode section:
+             the same show-episode container pattern, without the pill nav. --}}
         @if ($recommended->count())
-            <section class="related-movie-block section-padding">
+            <div class="show-episode section-padding">
                 <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
-                    <h4 class="main-title text-capitalize mb-0">{{ __('sectionTitle.recommended_movie') }}</h4>
+                    <h5 class="main-title text-capitalize mb-0 fw-medium">{{ __('sectionTitle.recommended_movie') }}</h5>
                 </div>
                 <div class="card-style-slider">
-                    <div class="position-relative swiper swiper-card" data-slide="6" data-laptop="6" data-tab="3"
-                        data-mobile="2" data-mobile-sm="2" data-autoplay="false" data-loop="false" data-navigation="true"
-                        data-pagination="true">
+                    <div class="position-relative swiper swiper-card mt-4 mb-5 overflow-hidden" data-slide="5"
+                        data-laptop="5" data-tab="3" data-mobile="2" data-mobile-sm="2"
+                        data-autoplay="false" data-loop="false" data-navigation="true" data-pagination="true">
                         <ul class="p-0 swiper-wrapper m-0 list-inline">
                             @foreach ($recommended as $rec)
                                 <li class="swiper-slide">
@@ -81,7 +81,7 @@
                                         'cardTitle' => $rec->title,
                                         'movietime' => $rec->runtime_minutes ? floor($rec->runtime_minutes / 60) . 'hr : ' . ($rec->runtime_minutes % 60) . 'mins' : null,
                                         'cardLang' => 'English',
-                                        'cardPath' => route('frontend.movie_watch', $rec->slug),
+                                        'cardPath' => route('frontend.watch', $rec->slug),
                                         'cardGenres' => $rec->genres->take(2)->pluck('name')->all(),
                                     ])
                                 </li>
@@ -91,19 +91,21 @@
                         <div class="swiper-button swiper-button-prev d-none d-lg-block"></div>
                     </div>
                 </div>
-            </section>
+            </div>
         @endif
 
-        {{-- Similar (genre-overlap v1; refine later) --}}
+        {{-- Similar Movies — scored by shared cast (×2) + shared genres.
+             Same visual container as Recommended so the rails read as
+             a pair. --}}
         @if ($similar->count())
-            <section class="related-movie-block section-padding">
+            <div class="show-episode section-padding">
                 <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
-                    <h4 class="main-title text-capitalize mb-0">Similar</h4>
+                    <h5 class="main-title text-capitalize mb-0 fw-medium">Similar Movies</h5>
                 </div>
                 <div class="card-style-slider">
-                    <div class="position-relative swiper swiper-card" data-slide="6" data-laptop="6" data-tab="3"
-                        data-mobile="2" data-mobile-sm="2" data-autoplay="false" data-loop="false" data-navigation="true"
-                        data-pagination="true">
+                    <div class="position-relative swiper swiper-card mt-4 mb-5 overflow-hidden" data-slide="5"
+                        data-laptop="5" data-tab="3" data-mobile="2" data-mobile-sm="2"
+                        data-autoplay="false" data-loop="false" data-navigation="true" data-pagination="true">
                         <ul class="p-0 swiper-wrapper m-0 list-inline">
                             @foreach ($similar as $sim)
                                 <li class="swiper-slide">
@@ -112,7 +114,7 @@
                                         'cardTitle' => $sim->title,
                                         'movietime' => $sim->runtime_minutes ? floor($sim->runtime_minutes / 60) . 'hr : ' . ($sim->runtime_minutes % 60) . 'mins' : null,
                                         'cardLang' => 'English',
-                                        'cardPath' => route('frontend.movie_watch', $sim->slug),
+                                        'cardPath' => route('frontend.watch', $sim->slug),
                                         'cardGenres' => $sim->genres->take(2)->pluck('name')->all(),
                                     ])
                                 </li>
@@ -122,7 +124,7 @@
                         <div class="swiper-button swiper-button-prev d-none d-lg-block"></div>
                     </div>
                 </div>
-            </section>
+            </div>
         @endif
     </div>
 </div>
@@ -131,8 +133,6 @@
 
 @if ($source)
 <style>
-    /* Slot reserves the hero space so mini-mode can float the wrap out
-       without the page reflowing. Aspect 16:9 matches the player. */
     .jambo-player-slot {
         position: relative;
         width: 100%;
@@ -196,7 +196,7 @@
 
     const player = videojs('jambo-watch-player', {
         controls: true,
-        fill: true,              // slot controls dimensions, player fills it
+        fill: true,
         autoplay: 'muted',
         muted: true,
         playsinline: true,
@@ -249,9 +249,6 @@
     setInterval(sendHeartbeat, 15000);
     window.addEventListener('pagehide', sendHeartbeat);
 
-    // Mini-mode: observe the SLOT (stays in flow, stable size) — not
-    // the wrap, which leaves flow when mini kicks in and would cause
-    // the observer to oscillate.
     if ('IntersectionObserver' in window && slot) {
         const io = new IntersectionObserver((entries) => {
             if (document.fullscreenElement) return;

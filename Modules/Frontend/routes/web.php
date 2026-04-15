@@ -23,7 +23,7 @@ Route::group([], function () {
 
     //detail pages
     Route::get('/movie-detail/{slug?}', [FrontendController::class, 'movie_detail'])->name('frontend.movie_detail');
-    Route::get('/movie-watch/{slug?}', [FrontendController::class, 'movie_watch'])->middleware('auth')->name('frontend.movie_watch');
+    Route::get('/watch/{slug?}', [FrontendController::class, 'movie_watch'])->middleware('auth')->name('frontend.watch');
     Route::get('/movie-player', [FrontendController::class, 'movie_player'])->name('frontend.movie_player');
     Route::get('/download', [FrontendController::class, 'download'])->name('frontend.download');
     Route::get('/view-more', [FrontendController::class, 'view_more'])->name('frontend.view-more');

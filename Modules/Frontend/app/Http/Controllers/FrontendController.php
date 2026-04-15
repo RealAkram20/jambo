@@ -165,13 +165,29 @@ class FrontendController extends Controller
             ->get();
 
         $genreIds = $movie->genres->pluck('id')->all();
-        $similar = !empty($genreIds)
+        $castIds = $movie->cast->pluck('id')->all();
+
+        // Similarity score: shared cast counts twice as much as shared
+        // genre — a movie with the same lead actor feels more "similar"
+        // than one that just happens to share a genre bucket.
+        $similar = (!empty($genreIds) || !empty($castIds))
             ? Movie::published()
                 ->where('id', '!=', $movie->id)
-                ->whereHas('genres', fn ($q) => $q->whereIn('genres.id', $genreIds))
+                ->where(function ($q) use ($genreIds, $castIds) {
+                    if (!empty($genreIds)) {
+                        $q->whereHas('genres', fn ($gq) => $gq->whereIn('genres.id', $genreIds));
+                    }
+                    if (!empty($castIds)) {
+                        $q->orWhereHas('cast', fn ($cq) => $cq->whereIn('persons.id', $castIds));
+                    }
+                })
                 ->with('genres')
-                ->inRandomOrder()
-                ->take(6)
+                ->withCount([
+                    'genres as shared_genres' => fn ($q) => !empty($genreIds) ? $q->whereIn('genres.id', $genreIds) : $q->whereRaw('0=1'),
+                    'cast as shared_cast' => fn ($q) => !empty($castIds) ? $q->whereIn('persons.id', $castIds) : $q->whereRaw('0=1'),
+                ])
+                ->orderByRaw('(shared_cast * 2 + shared_genres) DESC, published_at DESC')
+                ->take(8)
                 ->get()
             : collect();
 

@@ -57,7 +57,7 @@
                     'movieViews' => number_format($movie->views_count) . ' ' . __('streamTag.views'),
                     'imdbRating' => $movie->rating ?: '—',
                     'movieLanguage' => 'english',
-                    'videoUrl' => route('streaming.watch.movie', ['movie' => $movie->slug]),
+                    'videoUrl' => route('frontend.watch', ['slug' => $movie->slug]),
                     'movieDescription' => $movie->synopsis,
                     'movieGenres' => $movie->genres->pluck('name')->all(),
                     'subscribeToWatch' => ! $canWatch,
