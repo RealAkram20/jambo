@@ -136,6 +136,49 @@ class FrontendController extends Controller
     }
 
     /**
+     * Full watch page for a movie — player at the top, movie details
+     * below, then Recommended + Similar rails so the user can keep
+     * browsing while the player mini-docks on scroll.
+     *
+     * "Similar" is genre-overlap for v1 (intersect on genre IDs,
+     * exclude the current movie, cap at 6). Refining the similarity
+     * signal is a separate conversation.
+     */
+    public function movie_watch(?string $slug = null)
+    {
+        $movie = $slug
+            ? Movie::where('slug', $slug)->published()->with(['genres', 'tags', 'categories', 'cast'])->firstOrFail()
+            : Movie::published()->with(['genres', 'tags', 'categories', 'cast'])->orderByDesc('published_at')->firstOrFail();
+
+        $source = $movie->streamSource();
+        $canWatch = $this->userCanWatch($movie);
+
+        if (!$canWatch) {
+            return redirect()->route('frontend.pricing-page')
+                ->with('info', "A subscription is required to watch \"{$movie->title}\".");
+        }
+
+        $recommended = Movie::published()
+            ->where('id', '!=', $movie->id)
+            ->inRandomOrder()
+            ->take(6)
+            ->get();
+
+        $genreIds = $movie->genres->pluck('id')->all();
+        $similar = !empty($genreIds)
+            ? Movie::published()
+                ->where('id', '!=', $movie->id)
+                ->whereHas('genres', fn ($q) => $q->whereIn('genres.id', $genreIds))
+                ->with('genres')
+                ->inRandomOrder()
+                ->take(6)
+                ->get()
+            : collect();
+
+        return view('frontend::Pages.Movies.watch-page', compact('movie', 'source', 'recommended', 'similar'));
+    }
+
+    /**
      * Mirrors the server-side TierGate check so the detail page can
      * decide whether to play inline (allowed) or redirect to pricing.
      * The middleware is still the source of truth — this is just a
