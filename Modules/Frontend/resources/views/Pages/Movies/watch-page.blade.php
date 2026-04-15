@@ -6,7 +6,11 @@
 
 @section('content')
 
-<div class="iq-main-slider site-video position-relative" id="jambo-hero">
+{{-- Clean YouTube-style player container. Deliberately NOT using the
+     template's .iq-main-slider wrapper, which baked in min-height:80vh
+     + thick padding + a gradient scrim — all wrong for a playback
+     hero where the video itself should own the visual weight. --}}
+<div class="jambo-watch-hero" id="jambo-hero">
     @if ($source)
         <div id="jambo-player-slot" class="jambo-player-slot">
             <div class="jambo-inline-wrap" id="jambo-inline-wrap">
@@ -23,7 +27,7 @@
             </div>
         </div>
     @else
-        <div class="d-flex align-items-center justify-content-center text-light" style="min-height: 60vh; background:#000;">
+        <div class="jambo-player-slot d-flex align-items-center justify-content-center text-light">
             <div class="text-center p-5">
                 <h3 class="mb-3">This title isn't streamable yet.</h3>
                 <p class="text-muted mb-4">No Video URL has been set for <strong>{{ $movie->title }}</strong>.</p>
@@ -133,18 +137,37 @@
 
 @if ($source)
 <style>
+    /* Hero wrapper: centered, max 1600px, a little breathing room from
+       the edges. Replaces the template's .iq-main-slider which had
+       80vh min-height + 3.75em padding baked in. */
+    .jambo-watch-hero {
+        width: 100%;
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 0;
+        background: #000;
+    }
     .jambo-player-slot {
         position: relative;
         width: 100%;
         aspect-ratio: 16 / 9;
         background: #000;
+        overflow: hidden;
     }
     .jambo-inline-wrap {
         position: absolute;
         inset: 0;
         background: #000;
     }
-    .jambo-inline-wrap .video-js { width: 100%; height: 100%; }
+    /* Video.js in "fill" mode uses absolute positioning itself; force
+       full-bleed so its controls reach the edges of the slot. */
+    .jambo-inline-wrap .video-js {
+        position: absolute;
+        inset: 0;
+        width: 100% !important;
+        height: 100% !important;
+    }
+    .jambo-inline-wrap .video-js .vjs-tech { width: 100%; height: 100%; }
 
     body.jambo-mini-active .jambo-inline-wrap {
         position: fixed;

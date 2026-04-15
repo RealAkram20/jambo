@@ -9,7 +9,8 @@
 
 @section('content')
 
-<div class="iq-main-slider site-video position-relative" id="jambo-hero">
+{{-- Clean player hero, same pattern as /watch/{slug}. --}}
+<div class="jambo-watch-hero" id="jambo-hero">
     @if ($source)
         <div id="jambo-player-slot" class="jambo-player-slot">
             <div class="jambo-inline-wrap" id="jambo-inline-wrap">
@@ -26,7 +27,7 @@
             </div>
         </div>
     @else
-        <div class="d-flex align-items-center justify-content-center text-light" style="min-height: 60vh; background:#000;">
+        <div class="jambo-player-slot d-flex align-items-center justify-content-center text-light">
             <div class="text-center p-5">
                 <h3 class="mb-3">This episode isn't streamable yet.</h3>
                 <p class="text-muted mb-4">No Video URL has been set for <strong>{{ $headline }}</strong>.</p>
@@ -139,18 +140,32 @@
 
 @if ($source)
 <style>
+    .jambo-watch-hero {
+        width: 100%;
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 0;
+        background: #000;
+    }
     .jambo-player-slot {
         position: relative;
         width: 100%;
         aspect-ratio: 16 / 9;
         background: #000;
+        overflow: hidden;
     }
     .jambo-inline-wrap {
         position: absolute;
         inset: 0;
         background: #000;
     }
-    .jambo-inline-wrap .video-js { width: 100%; height: 100%; }
+    .jambo-inline-wrap .video-js {
+        position: absolute;
+        inset: 0;
+        width: 100% !important;
+        height: 100% !important;
+    }
+    .jambo-inline-wrap .video-js .vjs-tech { width: 100%; height: 100%; }
 
     body.jambo-mini-active .jambo-inline-wrap {
         position: fixed;
