@@ -224,9 +224,6 @@
     body.jambo-mini-active .jambo-mini-close { display: flex; }
 </style>
 
-<script src="https://vjs.zencdn.net/8.21.1/video.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/videojs-youtube@3.0.1/dist/Youtube.min.js"></script>
-<link href="https://vjs.zencdn.net/8.21.1/video-js.css" rel="stylesheet" />
 <script>
 (function () {
     const config = {

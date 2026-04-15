@@ -6,7 +6,6 @@
 @endphp
 
 @section('content')
-<link href="https://vjs.zencdn.net/8.21.1/video-js.css" rel="stylesheet" />
 
 <div class="iq-main-slider site-video position-relative" id="jambo-watch-hero">
     @if ($source)
@@ -180,8 +179,6 @@
     body.jambo-mini-active .jambo-mini-close { display: flex; }
 </style>
 
-<script src="https://vjs.zencdn.net/8.21.1/video.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/videojs-youtube@3.0.1/dist/Youtube.min.js"></script>
 <script>
 (function () {
     const src = {{ Js::from([
