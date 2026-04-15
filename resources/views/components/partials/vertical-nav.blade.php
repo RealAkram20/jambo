@@ -877,6 +877,18 @@
             </a>
         </li>
     @endif
+    @if (Route::has('admin.file-manager.index'))
+        <li class="nav-item">
+            <a class="nav-link {{ request()->routeIs('admin.file-manager.*') ? 'active' : '' }}"
+                href="{{ route('admin.file-manager.index') }}">
+                <i class="icon" title="File Manager" data-bs-toggle="tooltip" data-bs-placement="right"
+                    aria-label="File Manager" data-bs-original-title="File Manager">
+                    <i class="ph ph-folder-open fs-4"></i>
+                </i>
+                <span class="item-name">File Manager</span>
+            </a>
+        </li>
+    @endif
 </ul>
 
 <!-- Sidebar Menu End -->

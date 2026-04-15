@@ -6,5 +6,6 @@
     "Streaming": true,
     "Installer": true,
     "SystemUpdate": true,
-    "Notifications": true
+    "Notifications": true,
+    "FileManager": true
 }
