@@ -36,60 +36,26 @@
         <div class="card mt-4">
             <div class="card-header"><h6 class="mb-0">Media</h6></div>
             <div class="card-body">
-                <div class="mb-0">
-                    <label for="still_url" class="form-label">Still URL</label>
-                    <input type="url" class="form-control @error('still_url') is-invalid @enderror" id="still_url" name="still_url" value="{{ old('still_url', $episode->still_url) }}" placeholder="https://...">
-                    @error('still_url') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                </div>
+                @include('content::admin.partials.media-picker-field', [
+                    'key' => 'still_url', 'label' => 'Still',
+                    'value' => old('still_url', $episode->still_url),
+                    'accept' => ['jpg','jpeg','png','webp','svg'], 'aspect' => '16/9',
+                    'placeholder' => 'https://... or /storage/media/stills/...',
+                ])
             </div>
         </div>
 
+        @include('content::admin.partials.streaming-tabs', ['model' => $episode])
+
         <div class="card mt-4">
-            <div class="card-header"><h6 class="mb-0">Streaming</h6></div>
+            <div class="card-header"><h6 class="mb-0">Access</h6></div>
             <div class="card-body">
-                <div class="mb-3">
-                    <label for="video_file" class="form-label">Upload video file</label>
-                    <input type="file" class="form-control @error('video_file') is-invalid @enderror" id="video_file" name="video_file" accept="video/mp4,video/webm,video/quicktime,video/x-matroska">
-                    <div class="form-text">
-                        MP4 / MOV / MKV / WEBM. On save we queue a transcode job that produces an adaptive HLS stream (360p + 720p).
-                        @if ($episode->transcode_status)
-                            <br><strong>Current status:</strong>
-                            <span class="badge
-                                @switch($episode->transcode_status)
-                                    @case('queued') bg-secondary @break
-                                    @case('transcoding') bg-info @break
-                                    @case('ready') bg-success @break
-                                    @case('failed') bg-danger @break
-                                @endswitch">{{ ucfirst($episode->transcode_status) }}</span>
-                            @if ($episode->transcode_status === 'failed' && $episode->transcode_error)
-                                <div class="text-danger mt-1" style="font-size:12px;">{{ $episode->transcode_error }}</div>
-                            @endif
-                        @endif
-                    </div>
-                    @error('video_file') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                </div>
-
-                <div class="mb-3">
-                    <label for="video_url" class="form-label">…or Video URL</label>
-                    <input type="url" class="form-control @error('video_url') is-invalid @enderror" id="video_url" name="video_url" value="{{ old('video_url', $episode->video_url) }}" placeholder="https://www.youtube.com/watch?v=... or https://example.com/ep.mp4">
-                    <div class="form-text">YouTube / Dropbox / direct URL. Used when no file is uploaded above.</div>
-                    @error('video_url') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                </div>
-
-                <div class="mb-3">
-                    <label for="dropbox_path" class="form-label">Dropbox path <span class="text-muted" style="font-size:11px;">(legacy)</span></label>
-                    <input type="text" class="form-control @error('dropbox_path') is-invalid @enderror" id="dropbox_path" name="dropbox_path" value="{{ old('dropbox_path', $episode->dropbox_path) }}" placeholder="/Jambo/shows/my-show/s01e01.mp4">
-                    <div class="form-text">Kept for reference only — the player now uses Video URL above.</div>
-                    @error('dropbox_path') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                </div>
-                <div class="mb-0">
-                    <label for="tier_required" class="form-label">Required tier</label>
-                    <select name="tier_required" id="tier_required" class="form-select">
-                        <option value="">Free (no subscription required)</option>
-                        <option value="basic" @selected(old('tier_required', $episode->tier_required) === 'basic')>Basic</option>
-                        <option value="premium" @selected(old('tier_required', $episode->tier_required) === 'premium')>Premium</option>
-                    </select>
-                </div>
+                <label for="tier_required" class="form-label">Required tier</label>
+                <select name="tier_required" id="tier_required" class="form-select">
+                    <option value="">Free (no subscription required)</option>
+                    <option value="basic" @selected(old('tier_required', $episode->tier_required) === 'basic')>Basic</option>
+                    <option value="premium" @selected(old('tier_required', $episode->tier_required) === 'premium')>Premium</option>
+                </select>
             </div>
         </div>
     </div>
@@ -114,8 +80,11 @@
 </div>
 
 <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
-    <a href="{{ route('admin.seasons.edit', $season) }}" class="btn btn-ghost">← Back to season</a>
+    <a href="{{ route('admin.series.seasons.edit', [$show, $season]) }}" class="btn btn-ghost">← Back to season</a>
     <button type="submit" class="btn btn-primary">
         <i class="ph ph-floppy-disk me-1"></i> Save episode
     </button>
 </div>
+
+@include('content::admin.partials.media-picker-script')
+@include('content::admin.partials.streaming-tabs-script')

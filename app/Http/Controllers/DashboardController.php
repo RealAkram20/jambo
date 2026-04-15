@@ -13,6 +13,7 @@ use Modules\Content\app\Models\Rating;
 use Modules\Content\app\Models\Review;
 use Modules\Content\app\Models\Comment;
 use Modules\Content\app\Models\Episode;
+use Modules\Content\app\Models\Vj;
 use Modules\Payments\app\Models\PaymentOrder;
 use Modules\Subscriptions\app\Models\UserSubscription;
 use App\Models\User;
@@ -128,6 +129,13 @@ class DashboardController extends Controller
         return view('DashboardPages.movies.MovieGenres', compact('title', 'genres'));
     }
 
+    public function vjs(Request $request)
+    {
+        $title = 'Vjs';
+        $vjs = Vj::withCount(['movies', 'shows'])->orderBy('name')->get();
+        return view('DashboardPages.vjs.VjsPage', compact('title', 'vjs'));
+    }
+
     public function movieTags(Request $request)
     {
         $title = __('streamTag.tags');
@@ -159,12 +167,6 @@ class DashboardController extends Controller
     {
         $title = __('sidebar.season');
         return view('DashboardPages.tv-show.SeasonsPage', compact('title'));
-    }
-
-    public function episodes(Request $request)
-    {
-        $title = __('sidebar.episodes');
-        return view('DashboardPages.tv-show.EpisodesPage', compact('title'));
     }
 
     public function showGenres(Request $request)

@@ -14,6 +14,7 @@ use Modules\Content\app\Http\Requests\UpdateMovieRequest;
 use Modules\Content\app\Jobs\TranscodeVideoJob;
 use Modules\Content\app\Models\Category;
 use Modules\Content\app\Models\Genre;
+use Modules\Content\app\Models\Vj;
 use Modules\Content\app\Models\Movie;
 use Modules\Content\app\Models\Person;
 use Modules\Content\app\Models\Tag;
@@ -67,9 +68,11 @@ class MovieController extends Controller
         return view('content::admin.movies.create', [
             'movie' => new Movie(['status' => 'draft', 'year' => now()->year]),
             'genres' => Genre::orderBy('name')->get(),
+            'vjs' => Vj::orderBy('name')->get(),
             'categories' => Category::orderBy('name')->get(),
             'tags' => Tag::orderBy('name')->get(),
             'persons' => Person::orderBy('last_name')->orderBy('first_name')->get(),
+            'currentVjIds' => [],
         ]);
     }
 
@@ -77,6 +80,7 @@ class MovieController extends Controller
     {
         $movie = DB::transaction(function () use ($request) {
             $data = $request->validated();
+            [$videoUrl, $dropboxPath] = $this->resolveVideoSource($data);
 
             $movie = Movie::create([
                 'title' => $data['title'],
@@ -88,8 +92,8 @@ class MovieController extends Controller
                 'poster_url' => $data['poster_url'] ?? null,
                 'backdrop_url' => $data['backdrop_url'] ?? null,
                 'trailer_url' => $data['trailer_url'] ?? null,
-                'dropbox_path' => $data['dropbox_path'] ?? null,
-                'video_url' => $data['video_url'] ?? null,
+                'dropbox_path' => $dropboxPath,
+                'video_url' => $videoUrl,
                 'tier_required' => $data['tier_required'] ?? null,
                 'status' => $data['status'] ?? 'draft',
                 'published_at' => ($data['status'] ?? 'draft') === 'published' ? now() : null,
@@ -109,15 +113,17 @@ class MovieController extends Controller
 
     public function edit(Movie $movie): View
     {
-        $movie->load(['genres', 'categories', 'tags', 'cast']);
+        $movie->load(['genres', 'vjs', 'categories', 'tags', 'cast']);
 
         return view('content::admin.movies.edit', [
             'movie' => $movie,
             'genres' => Genre::orderBy('name')->get(),
+            'vjs' => Vj::orderBy('name')->get(),
             'categories' => Category::orderBy('name')->get(),
             'tags' => Tag::orderBy('name')->get(),
             'persons' => Person::orderBy('last_name')->orderBy('first_name')->get(),
             'currentGenreIds' => $movie->genres->pluck('id')->toArray(),
+            'currentVjIds' => $movie->vjs->pluck('id')->toArray(),
             'currentCategoryIds' => $movie->categories->pluck('id')->toArray(),
             'currentTagIds' => $movie->tags->pluck('id')->toArray(),
             'currentCast' => $movie->cast->map(fn ($p) => [
@@ -134,6 +140,7 @@ class MovieController extends Controller
     {
         DB::transaction(function () use ($request, $movie) {
             $data = $request->validated();
+            [$videoUrl, $dropboxPath] = $this->resolveVideoSource($data);
 
             $movie->fill([
                 'title' => $data['title'],
@@ -144,8 +151,8 @@ class MovieController extends Controller
                 'poster_url' => $data['poster_url'] ?? null,
                 'backdrop_url' => $data['backdrop_url'] ?? null,
                 'trailer_url' => $data['trailer_url'] ?? null,
-                'dropbox_path' => $data['dropbox_path'] ?? null,
-                'video_url' => $data['video_url'] ?? null,
+                'dropbox_path' => $dropboxPath,
+                'video_url' => $videoUrl,
                 'tier_required' => $data['tier_required'] ?? null,
             ]);
 
@@ -172,6 +179,33 @@ class MovieController extends Controller
         return redirect()
             ->route('admin.movies.edit', $movie)
             ->with('success', 'Movie saved.');
+    }
+
+    /**
+     * Resolve the video source based on the active tab (video_source).
+     * Returns [video_url, dropbox_path] with the inactive fields nulled so
+     * only one source of truth is persisted.
+     *
+     * Falls back to autodetection if no source was posted (API/legacy clients).
+     */
+    private function resolveVideoSource(array $data): array
+    {
+        $source = $data['video_source'] ?? null;
+        $url = trim((string) ($data['video_url'] ?? ''));
+        $local = trim((string) ($data['video_local'] ?? ''));
+        $dropbox = trim((string) ($data['dropbox_path'] ?? ''));
+
+        if (!$source) {
+            if ($dropbox !== '') $source = 'dropbox';
+            elseif ($local !== '') $source = 'local';
+            else $source = 'url';
+        }
+
+        return match ($source) {
+            'local'   => [$local !== '' ? $local : null, null],
+            'dropbox' => [null, $dropbox !== '' ? $dropbox : null],
+            default   => [$url !== '' ? $url : null, null],
+        };
     }
 
     /**
@@ -251,6 +285,7 @@ class MovieController extends Controller
     private function syncRelationships(Movie $movie, array $data): void
     {
         $movie->genres()->sync($data['genre_ids'] ?? []);
+        $movie->vjs()->sync($data['vj_ids'] ?? []);
         $movie->categories()->sync($data['category_ids'] ?? []);
         $movie->tags()->sync($data['tag_ids'] ?? []);
 

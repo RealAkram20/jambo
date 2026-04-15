@@ -2,7 +2,7 @@
 <div class="card mt-4">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h6 class="mb-0">Seasons</h6>
-        <a href="{{ route('admin.seasons.create', ['show_id' => $show->id]) }}" class="btn btn-sm btn-primary">
+        <a href="{{ route('admin.series.seasons.create', $show) }}" class="btn btn-sm btn-primary">
             <i class="ph ph-plus me-1"></i> Add season
         </a>
     </div>
@@ -31,10 +31,10 @@
                             </td>
                             <td class="text-end">
                                 <div class="d-inline-flex gap-1">
-                                    <a href="{{ route('admin.seasons.edit', $season) }}" class="btn btn-sm btn-success-subtle" title="Edit">
+                                    <a href="{{ route('admin.series.seasons.edit', [$show, $season]) }}" class="btn btn-sm btn-success-subtle" title="Edit">
                                         <i class="ph ph-pencil-simple"></i>
                                     </a>
-                                    <form method="POST" action="{{ route('admin.seasons.destroy', $season) }}" class="d-inline" onsubmit="return confirm('Delete season {{ $season->number }}? This cannot be undone.');">
+                                    <form method="POST" action="{{ route('admin.series.seasons.destroy', [$show, $season]) }}" class="d-inline" onsubmit="return confirm('Delete season {{ $season->number }}? This cannot be undone.');">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-sm btn-danger-subtle" title="Delete">
@@ -48,7 +48,7 @@
                         <tr>
                             <td colspan="5" class="text-center py-4 text-muted" style="font-size:14px;">
                                 No seasons yet.
-                                <a href="{{ route('admin.seasons.create', ['show_id' => $show->id]) }}">Add the first season →</a>
+                                <a href="{{ route('admin.series.seasons.create', $show) }}">Add the first season →</a>
                             </td>
                         </tr>
                     @endforelse

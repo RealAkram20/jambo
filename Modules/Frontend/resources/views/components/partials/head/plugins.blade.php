@@ -1,5 +1,5 @@
 <!-- Favicon -->
-<link rel="shortcut icon" href="{{ asset('frontend/images/favicon.ico') }}" />
+<link rel="shortcut icon" href="{{ branding_asset('favicon', 'frontend/images/favicon.ico') }}" />
 
 <!-- font-awesome css -->
 <link rel="stylesheet" href="{{ asset('frontend/vendor/font-awesome/css/all.min.css') }}" />

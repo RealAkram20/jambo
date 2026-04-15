@@ -1,4 +1,4 @@
-@extends('layouts.app', ['module_title' => 'Show List', 'isSweetalert' => true, 'isFlatpickr' => true, 'isSelect2' => true, 'Activelink' => 'Tvshow', 'isQuillEditor' => true])
+@extends('layouts.app', ['module_title' => 'Series Lists', 'isSweetalert' => true, 'isFlatpickr' => true, 'isSelect2' => true, 'Activelink' => 'Tvshow', 'isQuillEditor' => true])
 @section('content')
     <div class="row">
         <div class="col-sm-12">
@@ -11,8 +11,8 @@
                         <span class="position-relative ">
                             {{__('form.tv-show-list')}} </span>
                     </h2>
-                    @if (Route::has('admin.shows.create'))
-                        <a href="{{ route('admin.shows.create') }}" class="btn btn-primary">
+                    @if (Route::has('admin.series.create'))
+                        <a href="{{ route('admin.series.create') }}" class="btn btn-primary">
                             <i class="fa-solid fa-plus me-2"></i>{{ __('dashboard.Add_Show') }}
                         </a>
                     @else
@@ -67,13 +67,13 @@
                                     </td>
                                     <td>
                                         <div class="d-flex align-items-center list-user-action gap-2">
-                                            @if (Route::has('admin.shows.edit'))
-                                                <a href="{{ route('admin.shows.edit', $show) }}" class="btn btn-sm btn-icon btn-success-subtle rounded" data-bs-toggle="tooltip" data-bs-placement="top" title="Edit">
+                                            @if (Route::has('admin.series.edit'))
+                                                <a href="{{ route('admin.series.edit', $show) }}" class="btn btn-sm btn-icon btn-success-subtle rounded" data-bs-toggle="tooltip" data-bs-placement="top" title="Edit">
                                                     <i class="ph ph-pencil-simple fs-6"></i>
                                                 </a>
                                             @endif
-                                            @if (Route::has('admin.shows.destroy'))
-                                                <form method="POST" action="{{ route('admin.shows.destroy', $show) }}" class="d-inline" onsubmit="return confirm('Delete {{ addslashes($show->title) }}?');">
+                                            @if (Route::has('admin.series.destroy'))
+                                                <form method="POST" action="{{ route('admin.series.destroy', $show) }}" class="d-inline" onsubmit="return confirm('Delete {{ addslashes($show->title) }}?');">
                                                     @csrf
                                                     @method('DELETE')
                                                     <button type="submit" class="btn btn-sm btn-icon btn-danger-subtle rounded" data-bs-toggle="tooltip" data-bs-placement="top" title="Delete">

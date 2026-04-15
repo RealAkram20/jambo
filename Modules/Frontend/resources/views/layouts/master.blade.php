@@ -7,7 +7,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
 
-    <title>{{ isset($title) ? $title . ' - ' : '' }}{{ config('app.name', 'Jambo') }}</title>
+    <title>{{ isset($title) ? $title . ' - ' : '' }}{{ app_name() }}</title>
+    <meta name="description" content="{{ meta_description() }}">
 
     @include('frontend::components.partials.head.plugins')
     {{-- Vite CSS --}}
@@ -106,8 +107,6 @@
     </main>
 
     @include('frontend::components.partials.footer-default')
-
-    @include('frontend::components.partials.setting')
 
     @include('frontend::components.partials.back-to-top')
     {{-- Vite JS --}}

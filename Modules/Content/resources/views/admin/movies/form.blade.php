@@ -43,72 +43,39 @@
         <div class="card mt-4">
             <div class="card-header"><h6 class="mb-0">Media</h6></div>
             <div class="card-body">
-                <div class="mb-3">
-                    <label for="poster_url" class="form-label">Poster URL</label>
-                    <input type="url" class="form-control @error('poster_url') is-invalid @enderror" id="poster_url" name="poster_url" value="{{ old('poster_url', $movie->poster_url) }}" placeholder="https://...">
-                </div>
-                <div class="mb-3">
-                    <label for="backdrop_url" class="form-label">Backdrop URL</label>
-                    <input type="url" class="form-control @error('backdrop_url') is-invalid @enderror" id="backdrop_url" name="backdrop_url" value="{{ old('backdrop_url', $movie->backdrop_url) }}" placeholder="https://...">
-                </div>
-                <div class="mb-3">
-                    <label for="trailer_url" class="form-label">Trailer URL</label>
-                    <input type="url" class="form-control @error('trailer_url') is-invalid @enderror" id="trailer_url" name="trailer_url" value="{{ old('trailer_url', $movie->trailer_url) }}" placeholder="https://youtube.com/watch?v=...">
-                </div>
+                @include('content::admin.partials.media-picker-field', [
+                    'key' => 'poster_url', 'label' => 'Poster',
+                    'value' => old('poster_url', $movie->poster_url),
+                    'accept' => ['jpg','jpeg','png','webp','svg'], 'aspect' => '2/3',
+                    'placeholder' => 'https://... or /storage/media/posters/...',
+                ])
+                @include('content::admin.partials.media-picker-field', [
+                    'key' => 'backdrop_url', 'label' => 'Backdrop',
+                    'value' => old('backdrop_url', $movie->backdrop_url),
+                    'accept' => ['jpg','jpeg','png','webp','svg'], 'aspect' => '16/9',
+                    'placeholder' => 'https://... or /storage/media/backdrops/...',
+                ])
+                @include('content::admin.partials.media-picker-field', [
+                    'key' => 'trailer_url', 'label' => 'Trailer',
+                    'value' => old('trailer_url', $movie->trailer_url),
+                    'accept' => ['mp4','webm','mov','m4v','mkv'], 'aspect' => '16/9',
+                    'placeholder' => 'https://youtube.com/watch?v=... or /storage/media/trailers/...',
+                    'hint' => 'YouTube URL or MP4 / WEBM / MOV',
+                ])
             </div>
         </div>
 
+        @include('content::admin.partials.streaming-tabs', ['model' => $movie])
+
         <div class="card mt-4">
-            <div class="card-header"><h6 class="mb-0">Streaming</h6></div>
+            <div class="card-header"><h6 class="mb-0">Access</h6></div>
             <div class="card-body">
-                {{-- Upload path: a file here triggers transcoding into an HLS
-                     ladder (360p + 720p) served through /stream/movie/{slug},
-                     so storage paths never leak to the browser. --}}
-                <div class="mb-3">
-                    <label for="video_file" class="form-label">Upload video file</label>
-                    <input type="file" class="form-control @error('video_file') is-invalid @enderror" id="video_file" name="video_file" accept="video/mp4,video/webm,video/quicktime,video/x-matroska">
-                    <div class="form-text">
-                        MP4 / MOV / MKV / WEBM. On save we queue a transcode job that produces an adaptive HLS stream (360p + 720p).
-                        @if ($movie->transcode_status)
-                            <br><strong>Current status:</strong>
-                            <span class="badge
-                                @switch($movie->transcode_status)
-                                    @case('queued') bg-secondary @break
-                                    @case('transcoding') bg-info @break
-                                    @case('ready') bg-success @break
-                                    @case('failed') bg-danger @break
-                                @endswitch">{{ ucfirst($movie->transcode_status) }}</span>
-                            @if ($movie->transcode_status === 'failed' && $movie->transcode_error)
-                                <div class="text-danger mt-1" style="font-size:12px;">{{ $movie->transcode_error }}</div>
-                            @endif
-                        @endif
-                    </div>
-                    @error('video_file') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                </div>
-
-                {{-- URL path: kept for YouTube/Dropbox (not transcodable) and
-                     for titles that already lived on an external URL before
-                     we added uploads. Ignored if a file is uploaded above. --}}
-                <div class="mb-3">
-                    <label for="video_url" class="form-label">…or Video URL</label>
-                    <input type="url" class="form-control @error('video_url') is-invalid @enderror" id="video_url" name="video_url" value="{{ old('video_url', $movie->video_url) }}" placeholder="https://www.youtube.com/watch?v=... or https://example.com/film.mp4">
-                    <div class="form-text">YouTube / Dropbox / direct URL. Used when no file is uploaded above.</div>
-                    @error('video_url') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                </div>
-
-                <div class="mb-3">
-                    <label for="dropbox_path" class="form-label">Dropbox path <span class="text-muted" style="font-size:11px;">(legacy)</span></label>
-                    <input type="text" class="form-control @error('dropbox_path') is-invalid @enderror" id="dropbox_path" name="dropbox_path" value="{{ old('dropbox_path', $movie->dropbox_path) }}" placeholder="/Jambo/movies/my-film.mp4">
-                    <div class="form-text">Kept for reference only — the player now uses Video URL above.</div>
-                </div>
-                <div class="mb-3">
-                    <label for="tier_required" class="form-label">Required tier</label>
-                    <select name="tier_required" id="tier_required" class="form-select">
-                        <option value="">Free (no subscription required)</option>
-                        <option value="basic" @selected(old('tier_required', $movie->tier_required) === 'basic')>Basic</option>
-                        <option value="premium" @selected(old('tier_required', $movie->tier_required) === 'premium')>Premium</option>
-                    </select>
-                </div>
+                <label for="tier_required" class="form-label">Required tier</label>
+                <select name="tier_required" id="tier_required" class="form-select">
+                    <option value="">Free (no subscription required)</option>
+                    <option value="basic" @selected(old('tier_required', $movie->tier_required) === 'basic')>Basic</option>
+                    <option value="premium" @selected(old('tier_required', $movie->tier_required) === 'premium')>Premium</option>
+                </select>
             </div>
         </div>
 
@@ -158,6 +125,33 @@
         </div>
 
         <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">Vjs</h6>
+                <a href="{{ route('dashboard.vjs') }}" class="text-decoration-none small" title="Manage Vjs">
+                    <i class="ph ph-gear"></i>
+                </a>
+            </div>
+            <div class="card-body">
+                @forelse ($vjs ?? [] as $vj)
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="vj{{ $vj->id }}" name="vj_ids[]" value="{{ $vj->id }}"
+                            @checked(in_array($vj->id, old('vj_ids', $currentVjIds ?? [])))>
+                        <label class="form-check-label" for="vj{{ $vj->id }}">
+                            @if ($vj->colour)
+                                <span class="d-inline-block rounded-circle me-1" style="width:10px;height:10px;background:{{ $vj->colour }};vertical-align:middle;"></span>
+                            @endif
+                            {{ $vj->name }}
+                        </label>
+                    </div>
+                @empty
+                    <div class="text-secondary small">
+                        No Vjs yet. <a href="{{ route('dashboard.vjs') }}">Add one →</a>
+                    </div>
+                @endforelse
+            </div>
+        </div>
+
+        <div class="card mt-4">
             <div class="card-header"><h6 class="mb-0">Categories</h6></div>
             <div class="card-body">
                 @foreach ($categories as $cat)
@@ -198,18 +192,15 @@
 
 <script>
 (function () {
-    const personsJson = @json($persons->map(fn($p) => ['id' => $p->id, 'label' => trim($p->first_name . ' ' . $p->last_name)]));
     let nextIndex = {{ count(old('cast') ?? $currentCast ?? []) }};
-
     document.getElementById('add-cast').addEventListener('click', function () {
         const tpl = document.getElementById('cast-row-template').innerHTML.replaceAll('__i__', nextIndex++);
         document.getElementById('cast-rows').insertAdjacentHTML('beforeend', tpl);
     });
-
     document.getElementById('cast-rows').addEventListener('click', function (e) {
-        if (e.target.closest('.remove-cast')) {
-            e.target.closest('.cast-row').remove();
-        }
+        if (e.target.closest('.remove-cast')) e.target.closest('.cast-row').remove();
     });
 })();
 </script>
+@include('content::admin.partials.media-picker-script')
+@include('content::admin.partials.streaming-tabs-script')

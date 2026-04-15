@@ -11,8 +11,10 @@
                         {{ $show->title }} · last updated {{ $season->updated_at?->diffForHumans() }}
                     </p>
                 </div>
-                <a href="{{ route('admin.shows.edit', $show) }}" class="btn btn-ghost">← Back to show</a>
+                <a href="{{ route('admin.series.edit', $show) }}" class="btn btn-ghost">← Back to series</a>
             </div>
+
+            @include('content::admin.partials.series-breadcrumb', ['show' => $show, 'season' => $season, 'episode' => null])
 
             @if (session('success'))
                 <div class="alert alert-success">{{ session('success') }}</div>
@@ -29,7 +31,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('admin.seasons.update', $season) }}">
+            <form method="POST" action="{{ route('admin.series.seasons.update', [$show, $season]) }}">
                 @method('PUT')
                 @include('content::admin.seasons.form')
             </form>

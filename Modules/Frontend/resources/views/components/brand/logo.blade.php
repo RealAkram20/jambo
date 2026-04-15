@@ -1,7 +1,7 @@
 <!--Logo Start-->
 <div class="logo-default">
     <a class="navbar-brand text-primary me-0" href="{{ route('frontend.ott') }}">
-        <img class="img-fluid logo" src="{{ asset('frontend/images/logo.png') }}" loading="lazy" alt="streamit" />
+        <img class="img-fluid logo" src="{{ branding_asset('logo', 'frontend/images/logo.png') }}" loading="lazy" alt="{{ app_name() }}" />
     </a>
 </div>
 <div class="logo-hotstar">

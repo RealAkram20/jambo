@@ -6,6 +6,7 @@ use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\RolePermission;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\LanguageController;
+use App\Http\Controllers\Admin\SettingController as AdminSettingController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -39,11 +40,11 @@ Route::group(['as' => 'dashboard.'], function () {
     Route::get('user-list', [DashboardController::class, 'user'])->name('user-list');
     Route::get('movie-list', [DashboardController::class, 'movieList'])->name('movie-list');
     Route::get('movie-genres', [DashboardController::class, 'movieGenres'])->name('movie-genres');
+    Route::get('vjs', [DashboardController::class, 'vjs'])->name('vjs');
     Route::get('movie-tags', [DashboardController::class, 'movieTags'])->name('movie-tags');
     Route::get('movie-playlist', [DashboardController::class, 'moviePlaylist'])->name('movie-playlist');
     Route::get('show-list', [DashboardController::class, 'showList'])->name('show-list');
     Route::get('seasons', [DashboardController::class, 'seasons'])->name('seasons');
-    Route::get('episodes', [DashboardController::class, 'episodes'])->name('episodes');
     Route::get('tvshow-genres', [DashboardController::class, 'showGenres'])->name('tvshow-genres');
     Route::get('tvshow-tags', [DashboardController::class, 'showTags'])->name('tvshow-tags');
     Route::get('tvshow-playlist', [DashboardController::class, 'showPlaylist'])->name('tvshow-playlist');
@@ -123,6 +124,15 @@ Route::group(['as' => 'backend.', 'middleware' => ['auth']], function () {
     Route::resource('permission', PermissionController::class);
     Route::resource('role', RoleController::class);
 });
+// Admin: System Settings (branding)
+Route::middleware(['auth', 'role:admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::get('settings', [AdminSettingController::class, 'index'])->name('settings.index');
+        Route::post('settings', [AdminSettingController::class, 'update'])->name('settings.update');
+    });
+
 // Language Switch
 Route::get('language/{language}', [LanguageController::class, 'switch'])->name('language.switch');
 

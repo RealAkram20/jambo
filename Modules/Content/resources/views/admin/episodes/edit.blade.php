@@ -14,8 +14,10 @@
                         @endif
                     </p>
                 </div>
-                <a href="{{ route('admin.seasons.edit', $season) }}" class="btn btn-ghost">← Back to season</a>
+                <a href="{{ route('admin.series.seasons.edit', [$show, $season]) }}" class="btn btn-ghost">← Back to season</a>
             </div>
+
+            @include('content::admin.partials.series-breadcrumb', ['show' => $show, 'season' => $season, 'episode' => $episode])
 
             @if (session('success'))
                 <div class="alert alert-success">{{ session('success') }}</div>
@@ -32,7 +34,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('admin.episodes.update', $episode) }}" enctype="multipart/form-data">
+            <form method="POST" action="{{ route('admin.series.seasons.episodes.update', [$show, $season, $episode]) }}" enctype="multipart/form-data">
                 @method('PUT')
                 @include('content::admin.episodes.form')
             </form>

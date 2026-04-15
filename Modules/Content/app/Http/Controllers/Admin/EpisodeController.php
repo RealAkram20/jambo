@@ -12,29 +12,21 @@ use Modules\Content\app\Http\Requests\UpdateEpisodeRequest;
 use Modules\Content\app\Jobs\TranscodeVideoJob;
 use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Season;
+use Modules\Content\app\Models\Show;
 
 /**
- * Admin CRUD for episodes.
+ * Admin CRUD for episodes (nested under Series → Season).
  *
- * No index view — episodes are always listed on the parent season's
- * edit page. create/store/edit/update/destroy only.
- *
- * Routes: /admin/episodes/*
+ * Routes: /admin/series/{show:slug}/seasons/{season:number}/episodes/{episode:number}/*
  * Middleware: web + auth + role:admin (set in the route file).
  */
 class EpisodeController extends Controller
 {
-    public function create(Request $request): View
+    public function create(Show $show, Season $season): View
     {
-        $request->validate([
-            'season_id' => 'required|integer|exists:seasons,id',
-        ]);
-
-        $season = Season::with('show')->findOrFail($request->query('season_id'));
-
         return view('content::admin.episodes.create', [
             'season' => $season,
-            'show' => $season->show,
+            'show' => $show,
             'episode' => new Episode([
                 'season_id' => $season->id,
                 'number' => ($season->episodes()->max('number') ?? 0) + 1,
@@ -42,19 +34,20 @@ class EpisodeController extends Controller
         ]);
     }
 
-    public function store(StoreEpisodeRequest $request): RedirectResponse
+    public function store(StoreEpisodeRequest $request, Show $show, Season $season): RedirectResponse
     {
         $data = $request->validated();
 
-        $episode = Episode::create([
-            'season_id' => $data['season_id'],
+        [$videoUrl, $dropboxPath] = $this->resolveVideoSource($data);
+
+        $episode = $season->episodes()->create([
             'number' => $data['number'],
             'title' => $data['title'],
             'synopsis' => $data['synopsis'] ?? null,
             'runtime_minutes' => $data['runtime_minutes'] ?? null,
             'still_url' => $data['still_url'] ?? null,
-            'dropbox_path' => $data['dropbox_path'] ?? null,
-            'video_url' => $data['video_url'] ?? null,
+            'dropbox_path' => $dropboxPath,
+            'video_url' => $videoUrl,
             'tier_required' => $data['tier_required'] ?? null,
             'published_at' => $data['published_at'] ?? null,
         ]);
@@ -62,26 +55,25 @@ class EpisodeController extends Controller
         $this->handleVideoUpload($request, $episode);
 
         return redirect()
-            ->route('admin.episodes.edit', $episode)
+            ->route('admin.series.seasons.episodes.edit', [$show, $season, $episode])
             ->with('success', "Episode {$episode->number} added.");
     }
 
-    public function edit(Episode $episode): View
+    public function edit(Show $show, Season $season, Episode $episode): View
     {
-        $episode->load(['season.show']);
-
         return view('content::admin.episodes.edit', [
             'episode' => $episode,
-            'season' => $episode->season,
-            'show' => $episode->season->show,
+            'season' => $season,
+            'show' => $show,
         ]);
     }
 
-    public function update(UpdateEpisodeRequest $request, Episode $episode): RedirectResponse
+    public function update(UpdateEpisodeRequest $request, Show $show, Season $season, Episode $episode): RedirectResponse
     {
         $data = $request->validated();
 
         $wasPublished = (bool) $episode->published_at;
+        [$videoUrl, $dropboxPath] = $this->resolveVideoSource($data);
 
         $episode->fill([
             'number' => $data['number'],
@@ -89,8 +81,8 @@ class EpisodeController extends Controller
             'synopsis' => $data['synopsis'] ?? null,
             'runtime_minutes' => $data['runtime_minutes'] ?? null,
             'still_url' => $data['still_url'] ?? null,
-            'dropbox_path' => $data['dropbox_path'] ?? null,
-            'video_url' => $data['video_url'] ?? null,
+            'dropbox_path' => $dropboxPath,
+            'video_url' => $videoUrl,
             'tier_required' => $data['tier_required'] ?? null,
         ]);
 
@@ -111,8 +103,32 @@ class EpisodeController extends Controller
         $this->handleVideoUpload($request, $episode);
 
         return redirect()
-            ->route('admin.episodes.edit', $episode)
+            ->route('admin.series.seasons.episodes.edit', [$show, $season, $episode])
             ->with('success', 'Episode saved.');
+    }
+
+    /**
+     * Resolve the video source based on the active tab (video_source).
+     * Mirror of MovieController::resolveVideoSource.
+     */
+    private function resolveVideoSource(array $data): array
+    {
+        $source = $data['video_source'] ?? null;
+        $url = trim((string) ($data['video_url'] ?? ''));
+        $local = trim((string) ($data['video_local'] ?? ''));
+        $dropbox = trim((string) ($data['dropbox_path'] ?? ''));
+
+        if (!$source) {
+            if ($dropbox !== '') $source = 'dropbox';
+            elseif ($local !== '') $source = 'local';
+            else $source = 'url';
+        }
+
+        return match ($source) {
+            'local'   => [$local !== '' ? $local : null, null],
+            'dropbox' => [null, $dropbox !== '' ? $dropbox : null],
+            default   => [$url !== '' ? $url : null, null],
+        };
     }
 
     /**
@@ -148,14 +164,13 @@ class EpisodeController extends Controller
         TranscodeVideoJob::dispatch('episode', $episode->id);
     }
 
-    public function destroy(Episode $episode): RedirectResponse
+    public function destroy(Show $show, Season $season, Episode $episode): RedirectResponse
     {
-        $seasonId = $episode->season_id;
         $number = $episode->number;
         $episode->delete();
 
         return redirect()
-            ->route('admin.seasons.edit', $seasonId)
+            ->route('admin.series.seasons.edit', [$show, $season])
             ->with('success', "Deleted episode {$number}.");
     }
 }

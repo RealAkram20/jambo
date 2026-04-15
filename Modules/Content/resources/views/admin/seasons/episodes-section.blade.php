@@ -2,7 +2,7 @@
 <div class="card mt-4">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h6 class="mb-0">Episodes</h6>
-        <a href="{{ route('admin.episodes.create', ['season_id' => $season->id]) }}" class="btn btn-sm btn-primary">
+        <a href="{{ route('admin.series.seasons.episodes.create', [$show, $season]) }}" class="btn btn-sm btn-primary">
             <i class="ph ph-plus me-1"></i> Add episode
         </a>
     </div>
@@ -41,10 +41,10 @@
                             </td>
                             <td class="text-end">
                                 <div class="d-inline-flex gap-1">
-                                    <a href="{{ route('admin.episodes.edit', $episode) }}" class="btn btn-sm btn-success-subtle" title="Edit">
+                                    <a href="{{ route('admin.series.seasons.episodes.edit', [$show, $season, $episode]) }}" class="btn btn-sm btn-success-subtle" title="Edit">
                                         <i class="ph ph-pencil-simple"></i>
                                     </a>
-                                    <form method="POST" action="{{ route('admin.episodes.destroy', $episode) }}" class="d-inline" onsubmit="return confirm('Delete episode {{ $episode->number }}? This cannot be undone.');">
+                                    <form method="POST" action="{{ route('admin.series.seasons.episodes.destroy', [$show, $season, $episode]) }}" class="d-inline" onsubmit="return confirm('Delete episode {{ $episode->number }}? This cannot be undone.');">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-sm btn-danger-subtle" title="Delete">
@@ -58,7 +58,7 @@
                         <tr>
                             <td colspan="6" class="text-center py-4 text-muted" style="font-size:14px;">
                                 No episodes yet.
-                                <a href="{{ route('admin.episodes.create', ['season_id' => $season->id]) }}">Add the first episode →</a>
+                                <a href="{{ route('admin.series.seasons.episodes.create', [$show, $season]) }}">Add the first episode →</a>
                             </td>
                         </tr>
                     @endforelse

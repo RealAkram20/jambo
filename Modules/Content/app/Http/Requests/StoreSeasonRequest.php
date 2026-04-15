@@ -19,7 +19,7 @@ class StoreSeasonRequest extends FormRequest
             'number' => 'required|integer|min:1',
             'title' => 'nullable|string|max:255',
             'synopsis' => 'nullable|string|max:5000',
-            'poster_url' => 'nullable|url|max:500',
+            'poster_url' => ['nullable', 'string', 'max:500', 'regex:/^(https?:\/\/|\/)/'],
             'released_at' => 'nullable|date',
         ];
     }

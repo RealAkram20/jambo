@@ -10,6 +10,7 @@
     <title>{{ app_name() }}</title>
 
     <meta name="app_name" content="{{ app_name() }}">
+    <meta name="description" content="{{ meta_description() }}">
 
     @include('components.partials.head.head')
     <!-- Scripts -->
@@ -126,6 +127,9 @@
 
     @include('components.partials.customizer')
     @include('components.setting-offcanvas')
+    @auth
+        @include('components.partials.media-picker')
+    @endauth
     @include('components.partials.scripts.plugin')
     @include('components.partials.scripts.script')
     <!-- SwiperSlider Script -->

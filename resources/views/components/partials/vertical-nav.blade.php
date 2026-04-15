@@ -102,8 +102,8 @@
 
     <li class="nav-item">
         <a class="nav-link" data-bs-toggle="collapse" href="#sidebar-Shows" role="button" aria-expanded="false">
-            <i class="icon" data-bs-toggle="tooltip" title="TV Shows" data-bs-placement="right"
-                aria-label="TV Shows" data-bs-original-title="TV Shows">
+            <i class="icon" data-bs-toggle="tooltip" title="Series" data-bs-placement="right"
+                aria-label="Series" data-bs-original-title="Series">
                 <i class="ph ph-television-simple fs-4"></i>
             </i>
             <span class="item-name">{{ __('sidebar.tv_shows') }}</span>
@@ -116,10 +116,10 @@
         </a>
         <ul class="sub-nav collapse" id="sidebar-Shows" data-bs-parent="#sidebar-menu">
             <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.show-list')) }}"
-                    href="{{ route('dashboard.show-list') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Show Lists" data-bs-placement="right"
-                        aria-label="Show Lists" data-bs-original-title="Show Lists">
+                <a class="nav-link {{ request()->routeIs('admin.series.*') ? 'active' : '' }}"
+                    href="{{ route('admin.series.index') }}">
+                    <i class="icon" data-bs-toggle="tooltip" title="Series Lists" data-bs-placement="right"
+                        aria-label="Series Lists" data-bs-original-title="Series Lists">
                         <i class="ph ph-monitor-play fs-5"></i>
                     </i>
                     <span class="item-name">{{ __('sidebar.show_list') }}</span>
@@ -137,16 +137,6 @@
                     </a>
                 </li>
             @endcan -->
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.episodes')) }}"
-                    href="{{ route('dashboard.episodes') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Episodes" data-bs-placement="right"
-                        aria-label="Episodes" data-bs-original-title="Episodes">
-                        <i class="ph ph-monitor-play fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.episodes') }}</span>
-                </a>
-            </li>
             <li class="nav-item">
                 <a class="nav-link {{ activeRoute(route('dashboard.tvshow-genres')) }}"
                     href="{{ route('dashboard.tvshow-genres') }}">
@@ -178,6 +168,16 @@
                 </a>
             </li>
         </ul>
+    </li>
+
+    <li class="nav-item">
+        <a class="nav-link {{ activeRoute(route('dashboard.vjs')) }}" aria-current="page" href="{{ route('dashboard.vjs') }}">
+            <i class="icon" data-bs-toggle="tooltip" title="Vjs" data-bs-placement="right" aria-label="Vjs"
+                data-bs-original-title="Vjs">
+                <i class="ph ph-microphone-stage fs-4"></i>
+            </i>
+            <span class="item-name">Vjs</span>
+        </a>
     </li>
 
     <li class="nav-item">
@@ -889,6 +889,18 @@
             </a>
         </li>
     @endif
+    @role('admin')
+        <li class="nav-item">
+            <a class="nav-link {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}"
+                href="{{ route('admin.settings.index') }}">
+                <i class="icon" title="Settings" data-bs-toggle="tooltip" data-bs-placement="right"
+                    aria-label="Settings" data-bs-original-title="Settings">
+                    <i class="ph ph-gear fs-4"></i>
+                </i>
+                <span class="item-name">Settings</span>
+            </a>
+        </li>
+    @endrole
 </ul>
 
 <!-- Sidebar Menu End -->

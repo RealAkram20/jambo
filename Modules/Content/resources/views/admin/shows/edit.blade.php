@@ -1,4 +1,4 @@
-@extends('layouts.app', ['module_title' => 'Edit Show'])
+@extends('layouts.app', ['module_title' => 'Edit Series'])
 
 @section('content')
 <div class="container-fluid">
@@ -14,8 +14,10 @@
                         @endif
                     </p>
                 </div>
-                <a href="{{ route('admin.shows.index') }}" class="btn btn-ghost">← Back to list</a>
+                <a href="{{ route('admin.series.index') }}" class="btn btn-ghost">← Back to list</a>
             </div>
+
+            @include('content::admin.partials.series-breadcrumb', ['show' => $show, 'season' => null, 'episode' => null])
 
             @if (session('success'))
                 <div class="alert alert-success">{{ session('success') }}</div>
@@ -32,7 +34,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('admin.shows.update', $show) }}">
+            <form method="POST" action="{{ route('admin.series.update', $show) }}">
                 @method('PUT')
                 @include('content::admin.shows.form')
             </form>

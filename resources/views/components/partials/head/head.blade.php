@@ -1,4 +1,4 @@
-<link rel="shortcut icon" href="{{ asset('dashboard/images/favicon.ico') }}">
+<link rel="shortcut icon" href="{{ branding_asset('favicon', 'dashboard/images/favicon.ico') }}">
 @if (isset($isTour) && $isTour)
     <link rel="stylesheet" href="{{ asset('dashboard/vendor/sheperd/dist/css/sheperd.css') }}" />
 @endif

@@ -1,4 +1,4 @@
-@extends('layouts.app', ['module_title' => 'Shows'])
+@extends('layouts.app', ['module_title' => 'Series'])
 
 @section('content')
 <div class="container-fluid">
@@ -7,15 +7,15 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
                     <div>
-                        <h4 class="card-title mb-1">Shows</h4>
+                        <h4 class="card-title mb-1">Series</h4>
                         <p class="text-muted mb-0" style="font-size:13px;">
                             {{ $statusCounts['all'] }} total
                             · {{ $statusCounts['published'] }} published
                             · {{ $statusCounts['draft'] }} drafts
                         </p>
                     </div>
-                    <a href="{{ route('admin.shows.create') }}" class="btn btn-primary">
-                        <i class="ph ph-plus me-1"></i> Add show
+                    <a href="{{ route('admin.series.create') }}" class="btn btn-primary">
+                        <i class="ph ph-plus me-1"></i> Add series
                     </a>
                 </div>
 
@@ -24,7 +24,7 @@
                 @endif
 
                 <div class="card-body">
-                    <form method="GET" action="{{ route('admin.shows.index') }}" class="row g-2 align-items-end mb-4">
+                    <form method="GET" action="{{ route('admin.series.index') }}" class="row g-2 align-items-end mb-4">
                         <div class="col-md-6">
                             <label class="form-label" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--bs-secondary);">Search</label>
                             <input type="text" name="q" value="{{ $search }}" class="form-control" placeholder="Search by title...">
@@ -40,7 +40,7 @@
                         <div class="col-md-3 d-flex gap-2">
                             <button type="submit" class="btn btn-primary flex-fill">Filter</button>
                             @if ($search || $statusFilter)
-                                <a href="{{ route('admin.shows.index') }}" class="btn btn-ghost">Clear</a>
+                                <a href="{{ route('admin.series.index') }}" class="btn btn-ghost">Clear</a>
                             @endif
                         </div>
                     </form>
@@ -104,10 +104,10 @@
                                         <td style="font-size:12px;color:var(--bs-secondary);">{{ $show->updated_at?->diffForHumans() }}</td>
                                         <td class="text-end">
                                             <div class="d-inline-flex gap-1">
-                                                <a href="{{ route('admin.shows.edit', $show) }}" class="btn btn-sm btn-success-subtle" title="Edit">
+                                                <a href="{{ route('admin.series.edit', $show) }}" class="btn btn-sm btn-success-subtle" title="Edit">
                                                     <i class="ph ph-pencil-simple"></i>
                                                 </a>
-                                                <form method="POST" action="{{ route('admin.shows.destroy', $show) }}" class="d-inline" onsubmit="return confirm('Delete {{ $show->title }}? This cannot be undone.');">
+                                                <form method="POST" action="{{ route('admin.series.destroy', $show) }}" class="d-inline" onsubmit="return confirm('Delete {{ $show->title }}? This cannot be undone.');">
                                                     @csrf
                                                     @method('DELETE')
                                                     <button type="submit" class="btn btn-sm btn-danger-subtle" title="Delete">
@@ -120,8 +120,8 @@
                                 @empty
                                     <tr>
                                         <td colspan="9" class="text-center py-5 text-muted" style="font-size:14px;">
-                                            No shows yet.
-                                            <a href="{{ route('admin.shows.create') }}">Add your first show →</a>
+                                            No series yet.
+                                            <a href="{{ route('admin.series.create') }}">Add your first series →</a>
                                         </td>
                                     </tr>
                                 @endforelse

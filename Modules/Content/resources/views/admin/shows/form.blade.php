@@ -39,18 +39,25 @@
         <div class="card mt-4">
             <div class="card-header"><h6 class="mb-0">Media</h6></div>
             <div class="card-body">
-                <div class="mb-3">
-                    <label for="poster_url" class="form-label">Poster URL</label>
-                    <input type="url" class="form-control @error('poster_url') is-invalid @enderror" id="poster_url" name="poster_url" value="{{ old('poster_url', $show->poster_url) }}" placeholder="https://...">
-                </div>
-                <div class="mb-3">
-                    <label for="backdrop_url" class="form-label">Backdrop URL</label>
-                    <input type="url" class="form-control @error('backdrop_url') is-invalid @enderror" id="backdrop_url" name="backdrop_url" value="{{ old('backdrop_url', $show->backdrop_url) }}" placeholder="https://...">
-                </div>
-                <div class="mb-3">
-                    <label for="trailer_url" class="form-label">Trailer URL</label>
-                    <input type="url" class="form-control @error('trailer_url') is-invalid @enderror" id="trailer_url" name="trailer_url" value="{{ old('trailer_url', $show->trailer_url) }}" placeholder="https://youtube.com/watch?v=...">
-                </div>
+                @include('content::admin.partials.media-picker-field', [
+                    'key' => 'poster_url', 'label' => 'Poster',
+                    'value' => old('poster_url', $show->poster_url),
+                    'accept' => ['jpg','jpeg','png','webp','svg'], 'aspect' => '2/3',
+                    'placeholder' => 'https://... or /storage/media/posters/...',
+                ])
+                @include('content::admin.partials.media-picker-field', [
+                    'key' => 'backdrop_url', 'label' => 'Backdrop',
+                    'value' => old('backdrop_url', $show->backdrop_url),
+                    'accept' => ['jpg','jpeg','png','webp','svg'], 'aspect' => '16/9',
+                    'placeholder' => 'https://... or /storage/media/backdrops/...',
+                ])
+                @include('content::admin.partials.media-picker-field', [
+                    'key' => 'trailer_url', 'label' => 'Trailer',
+                    'value' => old('trailer_url', $show->trailer_url),
+                    'accept' => ['mp4','webm','mov','m4v','mkv'], 'aspect' => '16/9',
+                    'placeholder' => 'https://youtube.com/watch?v=... or /storage/media/trailers/...',
+                    'hint' => 'YouTube URL or MP4 / WEBM / MOV',
+                ])
             </div>
         </div>
 
@@ -64,7 +71,7 @@
                         <option value="basic" @selected(old('tier_required', $show->tier_required) === 'basic')>Basic</option>
                         <option value="premium" @selected(old('tier_required', $show->tier_required) === 'premium')>Premium</option>
                     </select>
-                    <div class="form-text">Shows carry per-episode dropbox paths, not per-show. Set Dropbox paths on each episode.</div>
+                    <div class="form-text">Series carry per-episode dropbox paths. Set Dropbox paths on each episode.</div>
                 </div>
             </div>
         </div>
@@ -115,6 +122,33 @@
         </div>
 
         <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">Vjs</h6>
+                <a href="{{ route('dashboard.vjs') }}" class="text-decoration-none small" title="Manage Vjs">
+                    <i class="ph ph-gear"></i>
+                </a>
+            </div>
+            <div class="card-body">
+                @forelse ($vjs ?? [] as $vj)
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="vj{{ $vj->id }}" name="vj_ids[]" value="{{ $vj->id }}"
+                            @checked(in_array($vj->id, old('vj_ids', $currentVjIds ?? [])))>
+                        <label class="form-check-label" for="vj{{ $vj->id }}">
+                            @if ($vj->colour)
+                                <span class="d-inline-block rounded-circle me-1" style="width:10px;height:10px;background:{{ $vj->colour }};vertical-align:middle;"></span>
+                            @endif
+                            {{ $vj->name }}
+                        </label>
+                    </div>
+                @empty
+                    <div class="text-secondary small">
+                        No Vjs yet. <a href="{{ route('dashboard.vjs') }}">Add one →</a>
+                    </div>
+                @endforelse
+            </div>
+        </div>
+
+        <div class="card mt-4">
             <div class="card-header"><h6 class="mb-0">Categories</h6></div>
             <div class="card-body">
                 @foreach ($categories as $cat)
@@ -143,9 +177,9 @@
 </div>
 
 <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
-    <a href="{{ route('admin.shows.index') }}" class="btn btn-ghost">← Back to list</a>
+    <a href="{{ route('admin.series.index') }}" class="btn btn-ghost">← Back to list</a>
     <button type="submit" class="btn btn-primary">
-        <i class="ph ph-floppy-disk me-1"></i> Save show
+        <i class="ph ph-floppy-disk me-1"></i> Save series
     </button>
 </div>
 
@@ -170,3 +204,4 @@
     });
 })();
 </script>
+@include('content::admin.partials.media-picker-script')

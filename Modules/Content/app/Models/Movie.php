@@ -35,6 +35,11 @@ class Movie extends Model
 
     protected $table = 'movies';
 
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
+
     protected $fillable = [
         'title',
         'slug',
@@ -71,6 +76,11 @@ class Movie extends Model
     public function genres(): BelongsToMany
     {
         return $this->belongsToMany(Genre::class, 'genre_movie');
+    }
+
+    public function vjs(): BelongsToMany
+    {
+        return $this->belongsToMany(Vj::class, 'movie_vj');
     }
 
     public function tags(): BelongsToMany

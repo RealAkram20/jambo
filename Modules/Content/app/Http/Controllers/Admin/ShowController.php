@@ -15,6 +15,7 @@ use Modules\Content\app\Models\Genre;
 use Modules\Content\app\Models\Person;
 use Modules\Content\app\Models\Show;
 use Modules\Content\app\Models\Tag;
+use Modules\Content\app\Models\Vj;
 
 /**
  * Admin CRUD for shows.
@@ -64,10 +65,12 @@ class ShowController extends Controller
         return view('content::admin.shows.create', [
             'show' => new Show(['status' => 'draft', 'year' => now()->year]),
             'genres' => Genre::orderBy('name')->get(),
+            'vjs' => Vj::orderBy('name')->get(),
             'categories' => Category::orderBy('name')->get(),
             'tags' => Tag::orderBy('name')->get(),
             'persons' => Person::orderBy('last_name')->orderBy('first_name')->get(),
             'currentGenreIds' => [],
+            'currentVjIds' => [],
             'currentCategoryIds' => [],
             'currentTagIds' => [],
             'currentCast' => [],
@@ -99,13 +102,13 @@ class ShowController extends Controller
         });
 
         return redirect()
-            ->route('admin.shows.edit', $show)
+            ->route('admin.series.edit', $show)
             ->with('success', "Show \"{$show->title}\" created.");
     }
 
     public function edit(Show $show): View
     {
-        $show->load(['genres', 'categories', 'tags', 'cast', 'seasons']);
+        $show->load(['genres', 'vjs', 'categories', 'tags', 'cast', 'seasons']);
 
         $seasons = $show->seasons()->withCount('episodes')->orderBy('number')->get();
 
@@ -113,10 +116,12 @@ class ShowController extends Controller
             'show' => $show,
             'seasons' => $seasons,
             'genres' => Genre::orderBy('name')->get(),
+            'vjs' => Vj::orderBy('name')->get(),
             'categories' => Category::orderBy('name')->get(),
             'tags' => Tag::orderBy('name')->get(),
             'persons' => Person::orderBy('last_name')->orderBy('first_name')->get(),
             'currentGenreIds' => $show->genres->pluck('id')->toArray(),
+            'currentVjIds' => $show->vjs->pluck('id')->toArray(),
             'currentCategoryIds' => $show->categories->pluck('id')->toArray(),
             'currentTagIds' => $show->tags->pluck('id')->toArray(),
             'currentCast' => $show->cast->map(fn ($p) => [
@@ -164,7 +169,7 @@ class ShowController extends Controller
         });
 
         return redirect()
-            ->route('admin.shows.edit', $show)
+            ->route('admin.series.edit', $show)
             ->with('success', 'Show saved.');
     }
 
@@ -174,7 +179,7 @@ class ShowController extends Controller
         $show->delete();
 
         return redirect()
-            ->route('admin.shows.index')
+            ->route('admin.series.index')
             ->with('success', "Deleted \"$title\".");
     }
 
@@ -204,6 +209,7 @@ class ShowController extends Controller
     private function syncRelationships(Show $show, array $data): void
     {
         $show->genres()->sync($data['genre_ids'] ?? []);
+        $show->vjs()->sync($data['vj_ids'] ?? []);
         $show->categories()->sync($data['category_ids'] ?? []);
         $show->tags()->sync($data['tag_ids'] ?? []);
 

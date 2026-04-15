@@ -20,11 +20,13 @@ class StoreMovieRequest extends FormRequest
             'year' => 'nullable|integer|min:1900|max:2100',
             'runtime_minutes' => 'nullable|integer|min:1|max:1000',
             'rating' => 'nullable|string|max:8',
-            'poster_url' => 'nullable|url|max:500',
-            'backdrop_url' => 'nullable|url|max:500',
-            'trailer_url' => 'nullable|url|max:500',
+            'poster_url' => ['nullable', 'string', 'max:500', 'regex:/^(https?:\/\/|\/)/'],
+            'backdrop_url' => ['nullable', 'string', 'max:500', 'regex:/^(https?:\/\/|\/)/'],
+            'trailer_url' => ['nullable', 'string', 'max:500', 'regex:/^(https?:\/\/|\/)/'],
             'dropbox_path' => 'nullable|string|max:500',
-            'video_url' => 'nullable|url|max:500',
+            'video_url' => ['nullable', 'string', 'max:500', 'regex:/^(https?:\/\/|\/)/'],
+            'video_local' => ['nullable', 'string', 'max:500', 'regex:/^\//'],
+            'video_source' => 'nullable|in:url,local,dropbox',
             // 2 GB cap — anything bigger and you should be uploading to
             // object storage and passing a URL, not through PHP.
             'video_file' => 'nullable|file|mimetypes:video/mp4,video/webm,video/quicktime,video/x-matroska|max:2097152',
@@ -33,6 +35,9 @@ class StoreMovieRequest extends FormRequest
 
             'genre_ids' => 'nullable|array',
             'genre_ids.*' => 'integer|exists:genres,id',
+
+            'vj_ids' => 'nullable|array',
+            'vj_ids.*' => 'integer|exists:vjs,id',
 
             'category_ids' => 'nullable|array',
             'category_ids.*' => 'integer|exists:categories,id',

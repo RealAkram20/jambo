@@ -23,7 +23,7 @@
                     <select name="type" class="form-select">
                         <option value="">All Types</option>
                         <option value="movie" @selected(request('type') === 'movie')>Movie</option>
-                        <option value="show" @selected(request('type') === 'show')>TV Show</option>
+                        <option value="show" @selected(request('type') === 'show')>Series</option>
                         <option value="episode" @selected(request('type') === 'episode')>Episode</option>
                     </select>
                 </div>

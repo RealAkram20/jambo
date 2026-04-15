@@ -68,6 +68,30 @@ if (! function_exists('setting')) {
     }
 }
 
+if (! function_exists('branding_asset')) {
+    /**
+     * Resolve a branding asset URL (logo, favicon, preloader).
+     * Falls back to the bundled template asset when unset.
+     */
+    function branding_asset($key, $fallback = null)
+    {
+        $value = setting($key);
+        if (! empty($value)) {
+            return str_starts_with($value, 'http') || str_starts_with($value, '/')
+                ? $value
+                : asset($value);
+        }
+        return $fallback ? asset($fallback) : null;
+    }
+}
+
+if (! function_exists('meta_description')) {
+    function meta_description()
+    {
+        return setting('meta_description') ?? config('app.name') . ' streaming platform';
+    }
+}
+
 
 if(!function_exists('activeRoute')) {
     function activeRoute($route, $isClass = false): string

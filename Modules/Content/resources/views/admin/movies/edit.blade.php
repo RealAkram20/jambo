@@ -17,6 +17,8 @@
                 <a href="{{ route('admin.movies.index') }}" class="btn btn-ghost">← Back to list</a>
             </div>
 
+            @include('content::admin.partials.movie-breadcrumb', ['movie' => $movie])
+
             @if (session('success'))
                 <div class="alert alert-success">{{ session('success') }}</div>
             @endif

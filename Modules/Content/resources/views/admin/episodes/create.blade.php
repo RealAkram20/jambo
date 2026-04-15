@@ -9,8 +9,10 @@
                     <h4 class="mb-1">Add episode to: {{ $show->title }} — Season {{ $season->number }}</h4>
                     <p class="text-muted mb-0" style="font-size:13px;">Create a new episode under this season.</p>
                 </div>
-                <a href="{{ route('admin.seasons.edit', $season) }}" class="btn btn-ghost">← Back to season</a>
+                <a href="{{ route('admin.series.seasons.edit', [$show, $season]) }}" class="btn btn-ghost">← Back to season</a>
             </div>
+
+            @include('content::admin.partials.series-breadcrumb', ['show' => $show, 'season' => $season, 'episode' => null, 'leaf' => 'Add episode'])
 
             @if ($errors->any())
                 <div class="alert alert-danger">
@@ -23,8 +25,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('admin.episodes.store') }}" enctype="multipart/form-data">
-                <input type="hidden" name="season_id" value="{{ $season->id }}">
+            <form method="POST" action="{{ route('admin.series.seasons.episodes.store', [$show, $season]) }}" enctype="multipart/form-data">
                 @include('content::admin.episodes.form')
             </form>
         </div>

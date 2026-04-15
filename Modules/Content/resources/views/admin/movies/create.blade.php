@@ -12,6 +12,8 @@
                 <a href="{{ route('admin.movies.index') }}" class="btn btn-ghost">← Back to list</a>
             </div>
 
+            @include('content::admin.partials.movie-breadcrumb', ['movie' => null, 'leaf' => 'Add movie'])
+
             @if ($errors->any())
                 <div class="alert alert-danger">
                     <strong>Please fix the following:</strong>

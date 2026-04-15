@@ -32,6 +32,11 @@ class Show extends Model
 
     protected $table = 'shows';
 
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
+
     protected $fillable = [
         'title',
         'slug',
@@ -64,6 +69,11 @@ class Show extends Model
     public function genres(): BelongsToMany
     {
         return $this->belongsToMany(Genre::class, 'genre_show');
+    }
+
+    public function vjs(): BelongsToMany
+    {
+        return $this->belongsToMany(Vj::class, 'show_vj');
     }
 
     public function tags(): BelongsToMany
