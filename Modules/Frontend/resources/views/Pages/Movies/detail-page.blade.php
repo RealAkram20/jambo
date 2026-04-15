@@ -11,7 +11,7 @@
 @endphp
 
 @section('content')
-<div class="position-relative">
+<div class="position-relative" id="jambo-hero-wrap">
     <div class="iq-main-slider site-video position-relative">
         @php
             $videoSetup = json_encode([
@@ -25,6 +25,21 @@
             class="my-video video-js vjs-big-play-centered w-100" loop autoplay muted preload="auto"
             data-setup='{!! $videoSetup !!}'>
         </video>
+
+        {{-- Inline full-feature player. Hidden until the user clicks
+             Start Watching. Lives inside the hero wrap so it occupies
+             the same visual slot the trailer does. --}}
+        <div id="jambo-inline-wrap" class="jambo-inline-wrap" hidden>
+            <button type="button" class="jambo-mini-close" id="jambo-mini-close" aria-label="Close mini-player" title="Close">
+                <i class="ph ph-x"></i>
+            </button>
+            <video
+                id="jambo-inline-player"
+                class="video-js vjs-default-skin vjs-big-play-centered vjs-fluid"
+                controls
+                preload="auto"
+                playsinline></video>
+        </div>
     </div>
 
     <div class="movie-detail-part position-relative">
@@ -41,6 +56,7 @@
                     'videoUrl' => route('streaming.watch.movie', ['movie' => $movie->slug]),
                     'movieDescription' => $movie->synopsis,
                     'movieGenres' => $movie->genres->pluck('name')->all(),
+                    'subscribeToWatch' => ! $canWatch,
                 ])
             </div>
         </div>
@@ -149,4 +165,190 @@
 {{-- Mobile Footer --}}
 @include('frontend::components.widgets.mobile-footer')
 {{-- Mobile Footer End --}}
+
+@if ($canWatch && $source)
+<style>
+    /* Inline player sits on top of the trailer hero, same visual slot. */
+    .jambo-inline-wrap {
+        position: absolute;
+        inset: 0;
+        background: #000;
+        z-index: 5;
+    }
+    .jambo-inline-wrap[hidden] { display: none; }
+    .jambo-inline-wrap .video-js { width: 100%; height: 100%; }
+
+    /* Mini mode: when the inline player scrolls out of view, we detach
+       it from the hero slot and float it bottom-right, YouTube style. */
+    body.jambo-mini-active .jambo-inline-wrap {
+        position: fixed;
+        inset: auto 16px 16px auto;
+        width: min(380px, 80vw);
+        aspect-ratio: 16/9;
+        height: auto;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        z-index: 1080;
+        transition: transform 200ms ease;
+    }
+    body.jambo-mini-active .jambo-inline-wrap .video-js {
+        border-radius: 10px;
+    }
+
+    .jambo-mini-close {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        z-index: 10;
+        width: 28px;
+        height: 28px;
+        border: 0;
+        border-radius: 50%;
+        background: rgba(0,0,0,0.65);
+        color: #fff;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+    .jambo-mini-close:hover { background: rgba(0,0,0,0.85); }
+    body.jambo-mini-active .jambo-mini-close { display: flex; }
+</style>
+
+<script src="https://vjs.zencdn.net/8.21.1/video.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/videojs-youtube@3.0.1/dist/Youtube.min.js"></script>
+<link href="https://vjs.zencdn.net/8.21.1/video-js.css" rel="stylesheet" />
+<script>
+(function () {
+    const config = {
+        source: {{ Js::from([
+            'type' => $source['type'],
+            'url' => $source['url'],
+            'mime' => $source['mime'] ?? null,
+            'embed_url' => $source['embed_url'] ?? null,
+        ]) }},
+        payableId: {{ Js::from($movie->id) }},
+        payableKind: 'movie',
+        resume: {{ Js::from(0) }},
+        heartbeatUrl: {{ Js::from(url('/api/v1/streaming/heartbeat')) }},
+        csrf: document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+    };
+
+    const heroWrap = document.getElementById('jambo-hero-wrap');
+    const inlineWrap = document.getElementById('jambo-inline-wrap');
+    const trailer = document.getElementById('my-video');
+    const startBtn = document.querySelector('.iq-play-button a');
+    const closeBtn = document.getElementById('jambo-mini-close');
+    if (!heroWrap || !inlineWrap || !startBtn) return;
+
+    let player = null;
+    let lastPosition = 0;
+    let duration = null;
+    let miniObserver = null;
+
+    function initPlayer() {
+        const src = config.source;
+        player = videojs('jambo-inline-player', {
+            controls: true,
+            fluid: true,
+            autoplay: true,
+            playsinline: true,
+            techOrder: src.type === 'youtube' ? ['youtube', 'html5'] : ['html5'],
+            playbackRates: [0.5, 1, 1.25, 1.5, 2],
+            sources: [
+                src.type === 'youtube'
+                    ? { src: src.url, type: 'video/youtube' }
+                    : { src: src.url, type: src.mime || 'video/mp4' },
+            ],
+            youtube: { iv_load_policy: 3, modestbranding: 1, rel: 0 },
+        });
+
+        player.one('loadedmetadata', function () {
+            const total = player.duration();
+            if (config.resume > 0 && total && config.resume < total - 5) {
+                player.currentTime(config.resume);
+            }
+        });
+        player.on('timeupdate', function () {
+            lastPosition = player.currentTime() || 0;
+            duration = player.duration() || null;
+        });
+        player.on('pause', sendHeartbeat);
+        player.on('ended', sendHeartbeat);
+        setInterval(sendHeartbeat, 15000);
+        window.addEventListener('pagehide', sendHeartbeat);
+    }
+
+    async function sendHeartbeat() {
+        if (lastPosition <= 0) return;
+        try {
+            await fetch(config.heartbeatUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': config.csrf,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({
+                    payable_type: config.payableKind,
+                    payable_id: config.payableId,
+                    position: Math.floor(lastPosition),
+                    duration: duration ? Math.floor(duration) : null,
+                }),
+            });
+        } catch (e) {
+            console.debug('[watch-inline] heartbeat failed', e);
+        }
+    }
+
+    function startWatching(e) {
+        e.preventDefault();
+        // Hide the trailer + pause/mute it (it's set to loop+autoplay+muted).
+        if (trailer) {
+            trailer.style.display = 'none';
+            try { trailer.pause(); } catch (err) {}
+        }
+        inlineWrap.hidden = false;
+        if (!player) initPlayer();
+        attachMiniObserver();
+    }
+
+    function attachMiniObserver() {
+        if (miniObserver || !('IntersectionObserver' in window)) return;
+        miniObserver = new IntersectionObserver(function (entries) {
+            const entry = entries[0];
+            // Don't kick into mini-mode if the user is fullscreen.
+            if (document.fullscreenElement) return;
+            if (entry.intersectionRatio < 0.25) {
+                document.body.classList.add('jambo-mini-active');
+            } else {
+                document.body.classList.remove('jambo-mini-active');
+            }
+        }, { threshold: [0, 0.25, 0.5, 1] });
+        miniObserver.observe(inlineWrap);
+    }
+
+    // Close button exits mini mode by dismissing the player entirely.
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function () {
+            document.body.classList.remove('jambo-mini-active');
+            sendHeartbeat();
+            if (player) {
+                try { player.pause(); } catch (err) {}
+                try { player.dispose(); } catch (err) {}
+                player = null;
+            }
+            if (miniObserver) { miniObserver.disconnect(); miniObserver = null; }
+            inlineWrap.hidden = true;
+            if (trailer) { trailer.style.display = ''; }
+        });
+    }
+
+    startBtn.addEventListener('click', startWatching);
+})();
+</script>
+@endif
 @endsection

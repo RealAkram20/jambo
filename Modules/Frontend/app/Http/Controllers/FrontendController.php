@@ -9,6 +9,8 @@ use Modules\Content\app\Models\Genre;
 use Modules\Content\app\Models\Tag;
 use Modules\Content\app\Models\Person;
 use Modules\Content\app\Models\Episode;
+use Modules\Subscriptions\app\Models\SubscriptionTier;
+use Modules\Subscriptions\app\Models\UserSubscription;
 
 class FrontendController extends Controller
 {
@@ -127,7 +129,44 @@ class FrontendController extends Controller
             ->take(6)
             ->get();
 
-        return view('frontend::Pages.Movies.detail-page', compact('movie', 'recommended'));
+        $source = $movie->streamSource();
+        $canWatch = $this->userCanWatch($movie);
+
+        return view('frontend::Pages.Movies.detail-page', compact('movie', 'recommended', 'source', 'canWatch'));
+    }
+
+    /**
+     * Mirrors the server-side TierGate check so the detail page can
+     * decide whether to play inline (allowed) or redirect to pricing.
+     * The middleware is still the source of truth — this is just a
+     * read-only gate for rendering the right button/state.
+     */
+    private function userCanWatch(Movie|Episode $content): bool
+    {
+        $requiredSlug = $content->tier_required ?? null;
+        if (!$requiredSlug) {
+            return true;
+        }
+
+        $user = auth()->user();
+        if (!$user) {
+            return false;
+        }
+
+        $requiredTier = SubscriptionTier::where('slug', $requiredSlug)->first();
+        if (!$requiredTier) {
+            return true;
+        }
+
+        $sub = UserSubscription::with('tier')
+            ->where('user_id', $user->id)
+            ->current()
+            ->orderByDesc('ends_at')
+            ->first();
+
+        $userLevel = $sub?->tier?->access_level ?? SubscriptionTier::ACCESS_FREE;
+
+        return $userLevel >= $requiredTier->access_level;
     }
 
     public function movie_player()
