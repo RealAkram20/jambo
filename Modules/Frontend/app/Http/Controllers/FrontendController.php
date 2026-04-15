@@ -255,7 +255,6 @@ class FrontendController extends Controller
 
     public function episode(?string $slug = null)
     {
-        // Slug format: {show-slug}--s{N}e{M} — if missing, fall back to first episode of first show
         $episode = null;
         if ($slug) {
             $episode = Episode::where('id', $slug)->first();
@@ -265,10 +264,35 @@ class FrontendController extends Controller
         }
 
         abort_unless($episode, 404);
-        $episode->load(['season.show.genres', 'season.episodes']);
+        $episode->load(['season.show.genres', 'season.show.seasons.episodes']);
         $show = $episode->season->show;
 
-        return view('frontend::Pages.TvShows.episode-page', compact('episode', 'show'));
+        $source = $episode->streamSource();
+        $canWatch = $this->userCanWatch($episode);
+
+        if (!$canWatch) {
+            return redirect()->route('frontend.pricing-page')
+                ->with('info', "A subscription is required to watch episodes of \"{$show->title}\".");
+        }
+
+        // Next episode: try the next number in the same season; fall
+        // back to the first published episode of the next season. The
+        // autoplay-next toggle on the page wires onto this.
+        $nextEpisode = Episode::where('season_id', $episode->season_id)
+            ->where('number', '>', $episode->number)
+            ->orderBy('number')
+            ->first();
+
+        if (! $nextEpisode) {
+            $nextSeason = $show->seasons
+                ->sortBy('number')
+                ->firstWhere(fn ($s) => $s->number > $episode->season->number);
+            if ($nextSeason) {
+                $nextEpisode = $nextSeason->episodes->sortBy('number')->first();
+            }
+        }
+
+        return view('frontend::Pages.TvShows.episode-page', compact('episode', 'show', 'source', 'canWatch', 'nextEpisode'));
     }
 
     public function watchlist_detail()

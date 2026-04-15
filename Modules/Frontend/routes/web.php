@@ -29,7 +29,7 @@ Route::group([], function () {
     Route::get('/view-more', [FrontendController::class, 'view_more'])->name('frontend.view-more');
     Route::get('/resticted', [FrontendController::class, 'resticted'])->name('frontend.resticted');
     Route::get('/tv-show-detail/{slug?}', [FrontendController::class, 'tvshow_detail'])->name('frontend.tvshow_detail');
-    Route::get('/episode/{slug?}', [FrontendController::class, 'episode'])->name('frontend.episode');
+    Route::get('/episode/{slug?}', [FrontendController::class, 'episode'])->middleware('auth')->name('frontend.episode');
     Route::get('/person-detail', [FrontendController::class, 'person_detail'])->name('frontend.person_detail');
     Route::get('/watchlist-detail', [FrontendController::class, 'watchlist_detail'])->name('frontend.watchlist_detail');
     Route::get('/playlist-detail', [FrontendController::class, 'playlist_detail'])->name('frontend.playlist_detail');
