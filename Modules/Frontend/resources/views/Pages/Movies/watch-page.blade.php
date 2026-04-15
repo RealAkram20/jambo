@@ -10,18 +10,19 @@
 
 <div class="iq-main-slider site-video position-relative" id="jambo-watch-hero">
     @if ($source)
-        <div class="jambo-inline-wrap" id="jambo-inline-wrap">
-            <button type="button" class="jambo-mini-close" id="jambo-mini-close" aria-label="Close mini-player" title="Close">
-                <i class="ph ph-x"></i>
-            </button>
-            <video
-                id="jambo-watch-player"
-                class="video-js vjs-default-skin vjs-big-play-centered vjs-fluid w-100"
-                controls
-                preload="auto"
-                autoplay
-                playsinline
-                @if ($poster) poster="{{ $poster }}" @endif></video>
+        <div id="jambo-player-slot" class="jambo-player-slot">
+            <div class="jambo-inline-wrap" id="jambo-inline-wrap">
+                <button type="button" class="jambo-mini-close" id="jambo-mini-close" aria-label="Close mini-player" title="Close">
+                    <i class="ph ph-x"></i>
+                </button>
+                <video
+                    id="jambo-watch-player"
+                    class="video-js vjs-default-skin vjs-big-play-centered"
+                    controls
+                    preload="auto"
+                    playsinline
+                    @if ($poster) poster="{{ $poster }}" @endif></video>
+            </div>
         </div>
     @else
         <div class="d-flex align-items-center justify-content-center text-light" style="min-height: 60vh; background:#000;">
@@ -131,8 +132,17 @@
 
 @if ($source)
 <style>
-    .jambo-inline-wrap {
+    /* Slot reserves the hero space so mini-mode can float the wrap out
+       without the page reflowing. Aspect 16:9 matches the player. */
+    .jambo-player-slot {
         position: relative;
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        background: #000;
+    }
+    .jambo-inline-wrap {
+        position: absolute;
+        inset: 0;
         background: #000;
     }
     .jambo-inline-wrap .video-js { width: 100%; height: 100%; }
@@ -145,9 +155,8 @@
         height: auto;
         border-radius: 10px;
         overflow: hidden;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        z-index: 1080;
-        transition: transform 200ms ease;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+        z-index: 2147483646;
     }
     body.jambo-mini-active .jambo-inline-wrap .video-js { border-radius: 10px; }
 
@@ -184,13 +193,15 @@
     const heartbeatUrl = {{ Js::from(url('/api/v1/streaming/heartbeat')) }};
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
+    const slot = document.getElementById('jambo-player-slot');
     const inlineWrap = document.getElementById('jambo-inline-wrap');
     const closeBtn = document.getElementById('jambo-mini-close');
 
     const player = videojs('jambo-watch-player', {
         controls: true,
-        fluid: true,
-        autoplay: true,
+        fill: true,              // slot controls dimensions, player fills it
+        autoplay: 'muted',
+        muted: true,
         playsinline: true,
         techOrder: src.type === 'youtube' ? ['youtube', 'html5'] : ['html5'],
         playbackRates: [0.5, 1, 1.25, 1.5, 2],
@@ -200,6 +211,11 @@
                 : { src: src.url, type: src.mime || 'video/mp4' },
         ],
         youtube: { iv_load_policy: 3, modestbranding: 1, rel: 0 },
+    });
+
+    player.ready(function () {
+        const p = player.play();
+        if (p && typeof p.catch === 'function') p.catch(() => {});
     });
 
     let lastPosition = 0;
@@ -236,17 +252,20 @@
     setInterval(sendHeartbeat, 15000);
     window.addEventListener('pagehide', sendHeartbeat);
 
-    // Mini-mode: pops into bottom-right once the hero scrolls mostly out.
-    if ('IntersectionObserver' in window && inlineWrap) {
+    // Mini-mode: observe the SLOT (stays in flow, stable size) — not
+    // the wrap, which leaves flow when mini kicks in and would cause
+    // the observer to oscillate.
+    if ('IntersectionObserver' in window && slot) {
         const io = new IntersectionObserver((entries) => {
             if (document.fullscreenElement) return;
-            if (entries[0].intersectionRatio < 0.25) {
+            const r = entries[0].intersectionRatio;
+            if (r < 0.25) {
                 document.body.classList.add('jambo-mini-active');
-            } else {
+            } else if (r > 0.5) {
                 document.body.classList.remove('jambo-mini-active');
             }
         }, { threshold: [0, 0.25, 0.5, 1] });
-        io.observe(inlineWrap);
+        io.observe(slot);
     }
 
     if (closeBtn) {
@@ -255,7 +274,7 @@
             sendHeartbeat();
             try { player.pause(); } catch (e) {}
             try { player.dispose(); } catch (e) {}
-            if (inlineWrap) inlineWrap.style.display = 'none';
+            if (slot) slot.style.display = 'none';
         });
     }
 })();

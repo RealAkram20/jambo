@@ -27,18 +27,22 @@
         </video>
 
         {{-- Inline full-feature player. Hidden until the user clicks
-             Start Watching. Lives inside the hero wrap so it occupies
-             the same visual slot the trailer does. --}}
-        <div id="jambo-inline-wrap" class="jambo-inline-wrap" hidden>
-            <button type="button" class="jambo-mini-close" id="jambo-mini-close" aria-label="Close mini-player" title="Close">
-                <i class="ph ph-x"></i>
-            </button>
-            <video
-                id="jambo-inline-player"
-                class="video-js vjs-default-skin vjs-big-play-centered vjs-fluid"
-                controls
-                preload="auto"
-                playsinline></video>
+             Start Watching. The `player-slot` is the sentinel the
+             IntersectionObserver watches; it keeps its own 16:9 height
+             whether or not the player-wrap is currently floated into
+             mini mode, so toggling never causes layout oscillation. --}}
+        <div id="jambo-player-slot" class="jambo-player-slot" hidden>
+            <div id="jambo-inline-wrap" class="jambo-inline-wrap">
+                <button type="button" class="jambo-mini-close" id="jambo-mini-close" aria-label="Close mini-player" title="Close">
+                    <i class="ph ph-x"></i>
+                </button>
+                <video
+                    id="jambo-inline-player"
+                    class="video-js vjs-default-skin vjs-big-play-centered"
+                    controls
+                    preload="auto"
+                    playsinline></video>
+            </div>
         </div>
     </div>
 
@@ -168,18 +172,24 @@
 
 @if ($canWatch && $source)
 <style>
-    /* Inline player sits on top of the trailer hero, same visual slot. */
+    /* The slot reserves hero space and is what the observer watches.
+       Its aspect-ratio keeps the page from reflowing when the wrap
+       goes fixed, which is what caused the earlier mini-mode flicker. */
+    .jambo-player-slot {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+    }
+    .jambo-player-slot[hidden] { display: none; }
     .jambo-inline-wrap {
         position: absolute;
         inset: 0;
         background: #000;
-        z-index: 5;
     }
-    .jambo-inline-wrap[hidden] { display: none; }
     .jambo-inline-wrap .video-js { width: 100%; height: 100%; }
 
-    /* Mini mode: when the inline player scrolls out of view, we detach
-       it from the hero slot and float it bottom-right, YouTube style. */
+    /* Mini mode: float bottom-right, YouTube-style. Only the wrap
+       leaves flow — the slot stays put so the observer doesn't ping. */
     body.jambo-mini-active .jambo-inline-wrap {
         position: fixed;
         inset: auto 16px 16px auto;
@@ -188,13 +198,11 @@
         height: auto;
         border-radius: 10px;
         overflow: hidden;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        z-index: 1080;
-        transition: transform 200ms ease;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+        /* Above Bootstrap modal backdrop (1050) and the sticky header. */
+        z-index: 2147483646;
     }
-    body.jambo-mini-active .jambo-inline-wrap .video-js {
-        border-radius: 10px;
-    }
+    body.jambo-mini-active .jambo-inline-wrap .video-js { border-radius: 10px; }
 
     .jambo-mini-close {
         position: absolute;
@@ -236,11 +244,12 @@
     };
 
     const heroWrap = document.getElementById('jambo-hero-wrap');
+    const slot = document.getElementById('jambo-player-slot');
     const inlineWrap = document.getElementById('jambo-inline-wrap');
     const trailer = document.getElementById('my-video');
     const startBtn = document.querySelector('.iq-play-button a');
     const closeBtn = document.getElementById('jambo-mini-close');
-    if (!heroWrap || !inlineWrap || !startBtn) return;
+    if (!heroWrap || !slot || !inlineWrap || !startBtn) return;
 
     let player = null;
     let lastPosition = 0;
@@ -251,8 +260,9 @@
         const src = config.source;
         player = videojs('jambo-inline-player', {
             controls: true,
-            fluid: true,
-            autoplay: true,
+            fill: true,           // fill the parent; slot controls aspect ratio
+            autoplay: 'muted',    // browsers block non-muted autoplay
+            muted: true,
             playsinline: true,
             techOrder: src.type === 'youtube' ? ['youtube', 'html5'] : ['html5'],
             playbackRates: [0.5, 1, 1.25, 1.5, 2],
@@ -262,6 +272,14 @@
                     : { src: src.url, type: src.mime || 'video/mp4' },
             ],
             youtube: { iv_load_policy: 3, modestbranding: 1, rel: 0 },
+        });
+
+        // Kick off playback explicitly — autoplay:'muted' can still be
+        // denied on some browsers until the user interacts, so we try
+        // and swallow the rejected promise if that happens.
+        player.ready(function () {
+            const p = player.play();
+            if (p && typeof p.catch === 'function') p.catch(() => {});
         });
 
         player.one('loadedmetadata', function () {
@@ -306,12 +324,12 @@
 
     function startWatching(e) {
         e.preventDefault();
-        // Hide the trailer + pause/mute it (it's set to loop+autoplay+muted).
+        // Hide the trailer (keeps its slot height; the slot does too).
         if (trailer) {
             trailer.style.display = 'none';
             try { trailer.pause(); } catch (err) {}
         }
-        inlineWrap.hidden = false;
+        slot.hidden = false;
         if (!player) initPlayer();
         attachMiniObserver();
     }
@@ -324,11 +342,16 @@
             if (document.fullscreenElement) return;
             if (entry.intersectionRatio < 0.25) {
                 document.body.classList.add('jambo-mini-active');
-            } else {
+            } else if (entry.intersectionRatio > 0.5) {
+                // Hysteresis — we only go back out of mini when most
+                // of the slot is visible again, which prevents flicker
+                // when the user parks near the boundary.
                 document.body.classList.remove('jambo-mini-active');
             }
         }, { threshold: [0, 0.25, 0.5, 1] });
-        miniObserver.observe(inlineWrap);
+        // The slot is in normal flow and never repositions, so its
+        // intersection with the viewport is a stable signal.
+        miniObserver.observe(slot);
     }
 
     // Close button exits mini mode by dismissing the player entirely.
@@ -342,7 +365,7 @@
                 player = null;
             }
             if (miniObserver) { miniObserver.disconnect(); miniObserver = null; }
-            inlineWrap.hidden = true;
+            slot.hidden = true;
             if (trailer) { trailer.style.display = ''; }
         });
     }
