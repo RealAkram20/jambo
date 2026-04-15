@@ -42,11 +42,35 @@ trait HasStreamSource
             ];
         }
 
+        // Dropbox: rewrite share URLs to direct-streamable ones. The
+        // regular www.dropbox.com/s/... URL serves an HTML preview
+        // page — useless to the player — so we normalise to the
+        // dl.dropboxusercontent.com host and drop the dl=0/dl=1 flag.
+        if ($host === 'dropbox.com'
+            || str_ends_with($host, '.dropbox.com')
+            || str_ends_with($host, '.dropboxusercontent.com')
+        ) {
+            return [
+                'type' => 'file',
+                'url' => $this->normaliseDropboxUrl($url),
+                'mime' => $this->guessVideoMime($url),
+            ];
+        }
+
         return [
             'type' => 'file',
             'url' => $url,
             'mime' => $this->guessVideoMime($url),
         ];
+    }
+
+    private function normaliseDropboxUrl(string $url): string
+    {
+        // https://www.dropbox.com/s/xxx/file.mp4?dl=0
+        //   -> https://dl.dropboxusercontent.com/s/xxx/file.mp4
+        $url = preg_replace('#^https?://(www\.)?dropbox\.com/#i', 'https://dl.dropboxusercontent.com/', $url);
+        $url = preg_replace('/([?&])dl=\d+(&|$)/i', '$1', $url);
+        return rtrim($url, '?&');
     }
 
     private function extractYouTubeId(string $url): ?string

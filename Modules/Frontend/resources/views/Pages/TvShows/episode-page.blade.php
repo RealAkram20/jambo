@@ -139,6 +139,7 @@
 @include('frontend::components.widgets.mobile-footer')
 
 @if ($source)
+@include('frontend::components.partials.jambo-player-extras')
 <style>
     .jambo-watch-hero {
         width: 100%;
@@ -233,7 +234,6 @@
         muted: true,
         playsinline: true,
         techOrder: src.type === 'youtube' ? ['youtube', 'html5'] : ['html5'],
-        playbackRates: [0.5, 1, 1.25, 1.5, 2],
         sources: [
             src.type === 'youtube'
                 ? { src: src.url, type: 'video/youtube' }
@@ -241,6 +241,8 @@
         ],
         youtube: { iv_load_policy: 3, modestbranding: 1, rel: 0 },
     });
+
+    jamboAttachSettingsMenu(player);
 
     player.ready(function () {
         const p = player.play();
