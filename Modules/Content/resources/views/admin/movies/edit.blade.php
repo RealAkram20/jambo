@@ -32,7 +32,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('admin.movies.update', $movie) }}">
+            <form method="POST" action="{{ route('admin.movies.update', $movie) }}" enctype="multipart/form-data">
                 @method('PUT')
                 @include('content::admin.movies.form')
             </form>

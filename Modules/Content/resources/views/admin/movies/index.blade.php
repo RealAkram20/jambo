@@ -96,6 +96,22 @@
                                             @else
                                                 <span class="badge bg-warning">Draft</span>
                                             @endif
+                                            @if ($movie->transcode_status)
+                                                @switch($movie->transcode_status)
+                                                    @case('queued')
+                                                        <span class="badge bg-secondary" title="Transcode queued" style="font-size:10px;">Queued</span>
+                                                        @break
+                                                    @case('transcoding')
+                                                        <span class="badge bg-info" title="Transcoding in progress" style="font-size:10px;">Transcoding</span>
+                                                        @break
+                                                    @case('ready')
+                                                        <span class="badge bg-success" title="HLS stream ready" style="font-size:10px;">HLS</span>
+                                                        @break
+                                                    @case('failed')
+                                                        <span class="badge bg-danger" title="{{ $movie->transcode_error }}" style="font-size:10px;">Transcode failed</span>
+                                                        @break
+                                                @endswitch
+                                            @endif
                                         </td>
                                         <td style="font-size:12px;color:var(--bs-secondary);">{{ $movie->updated_at?->diffForHumans() }}</td>
                                         <td class="text-end">

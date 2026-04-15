@@ -5,9 +5,11 @@ namespace Modules\Content\app\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Modules\Content\app\Http\Requests\StoreEpisodeRequest;
 use Modules\Content\app\Http\Requests\UpdateEpisodeRequest;
+use Modules\Content\app\Jobs\TranscodeVideoJob;
 use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Season;
 
@@ -57,6 +59,8 @@ class EpisodeController extends Controller
             'published_at' => $data['published_at'] ?? null,
         ]);
 
+        $this->handleVideoUpload($request, $episode);
+
         return redirect()
             ->route('admin.episodes.edit', $episode)
             ->with('success', "Episode {$episode->number} added.");
@@ -104,9 +108,44 @@ class EpisodeController extends Controller
 
         $episode->save();
 
+        $this->handleVideoUpload($request, $episode);
+
         return redirect()
             ->route('admin.episodes.edit', $episode)
             ->with('success', 'Episode saved.');
+    }
+
+    /**
+     * Mirror of MovieController@handleVideoUpload — see comments there.
+     * Duplicated instead of pushed into a shared trait because the two
+     * methods may diverge (e.g. episode-specific rendition ladder).
+     */
+    private function handleVideoUpload(Request $request, Episode $episode): void
+    {
+        if (!$request->hasFile('video_file')) return;
+
+        $file = $request->file('video_file');
+        $ext = strtolower($file->getClientOriginalExtension() ?: 'mp4');
+
+        Storage::disk('source')->putFileAs(
+            'episodes/' . $episode->id,
+            $file,
+            'source.' . $ext
+        );
+
+        if ($episode->hls_master_path) {
+            Storage::disk('hls')->deleteDirectory('episode/' . $episode->id);
+        }
+
+        $episode->forceFill([
+            'source_path' => 'episodes/' . $episode->id . '/source.' . $ext,
+            'hls_master_path' => null,
+            'transcode_status' => 'queued',
+            'transcode_error' => null,
+            'video_url' => null,
+        ])->save();
+
+        TranscodeVideoJob::dispatch('episode', $episode->id);
     }
 
     public function destroy(Episode $episode): RedirectResponse

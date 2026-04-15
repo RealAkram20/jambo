@@ -19,6 +19,29 @@ trait HasStreamSource
 {
     public function streamSource(): ?array
     {
+        // HLS takes precedence. Once the transcode job finishes, the
+        // hls_master_path points at master.m3u8 on the private `hls` disk,
+        // and we serve it through the StreamController so the browser
+        // never sees the storage path. Video.js + VHS picks it up and
+        // handles adaptive bitrate automatically.
+        if (($this->transcode_status ?? null) === 'ready' && !empty($this->hls_master_path)) {
+            $routeName = $this instanceof \Modules\Content\app\Models\Episode
+                ? 'stream.episode'
+                : 'stream.movie';
+            $routeKey = $this instanceof \Modules\Content\app\Models\Episode
+                ? $this->id
+                : $this->slug;
+
+            return [
+                'type' => 'hls',
+                'url' => route($routeName, [
+                    $this instanceof \Modules\Content\app\Models\Episode ? 'episode' : 'movie' => $routeKey,
+                    'path' => 'master.m3u8',
+                ]),
+                'mime' => 'application/vnd.apple.mpegurl',
+            ];
+        }
+
         $url = $this->video_url ?? null;
         if (!$url) {
             return null;

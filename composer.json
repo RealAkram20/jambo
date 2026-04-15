@@ -14,6 +14,7 @@
         "laravel/tinker": "^2.8",
         "laravelcollective/html": "^6.4",
         "nwidart/laravel-modules": "^10.0",
+        "pbmedia/laravel-ffmpeg": "^8.7",
         "spatie/laravel-medialibrary": "^10.0.0",
         "spatie/laravel-permission": "^6.1",
         "yajra/laravel-datatables-oracle": "^10.3.1"

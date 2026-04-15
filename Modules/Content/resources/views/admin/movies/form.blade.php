@@ -61,10 +61,38 @@
         <div class="card mt-4">
             <div class="card-header"><h6 class="mb-0">Streaming</h6></div>
             <div class="card-body">
+                {{-- Upload path: a file here triggers transcoding into an HLS
+                     ladder (360p + 720p) served through /stream/movie/{slug},
+                     so storage paths never leak to the browser. --}}
                 <div class="mb-3">
-                    <label for="video_url" class="form-label">Video URL</label>
+                    <label for="video_file" class="form-label">Upload video file</label>
+                    <input type="file" class="form-control @error('video_file') is-invalid @enderror" id="video_file" name="video_file" accept="video/mp4,video/webm,video/quicktime,video/x-matroska">
+                    <div class="form-text">
+                        MP4 / MOV / MKV / WEBM. On save we queue a transcode job that produces an adaptive HLS stream (360p + 720p).
+                        @if ($movie->transcode_status)
+                            <br><strong>Current status:</strong>
+                            <span class="badge
+                                @switch($movie->transcode_status)
+                                    @case('queued') bg-secondary @break
+                                    @case('transcoding') bg-info @break
+                                    @case('ready') bg-success @break
+                                    @case('failed') bg-danger @break
+                                @endswitch">{{ ucfirst($movie->transcode_status) }}</span>
+                            @if ($movie->transcode_status === 'failed' && $movie->transcode_error)
+                                <div class="text-danger mt-1" style="font-size:12px;">{{ $movie->transcode_error }}</div>
+                            @endif
+                        @endif
+                    </div>
+                    @error('video_file') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                </div>
+
+                {{-- URL path: kept for YouTube/Dropbox (not transcodable) and
+                     for titles that already lived on an external URL before
+                     we added uploads. Ignored if a file is uploaded above. --}}
+                <div class="mb-3">
+                    <label for="video_url" class="form-label">…or Video URL</label>
                     <input type="url" class="form-control @error('video_url') is-invalid @enderror" id="video_url" name="video_url" value="{{ old('video_url', $movie->video_url) }}" placeholder="https://www.youtube.com/watch?v=... or https://example.com/film.mp4">
-                    <div class="form-text">YouTube link (embedded as iframe) or direct file URL (.mp4 / .webm / .m3u8). Leave blank for "not streamable yet".</div>
+                    <div class="form-text">YouTube / Dropbox / direct URL. Used when no file is uploaded above.</div>
                     @error('video_url') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
 

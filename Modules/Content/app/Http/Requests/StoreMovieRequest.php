@@ -25,6 +25,9 @@ class StoreMovieRequest extends FormRequest
             'trailer_url' => 'nullable|url|max:500',
             'dropbox_path' => 'nullable|string|max:500',
             'video_url' => 'nullable|url|max:500',
+            // 2 GB cap — anything bigger and you should be uploading to
+            // object storage and passing a URL, not through PHP.
+            'video_file' => 'nullable|file|mimetypes:video/mp4,video/webm,video/quicktime,video/x-matroska|max:2097152',
             'tier_required' => 'nullable|string|max:50',
             'status' => 'required|in:draft,published',
 

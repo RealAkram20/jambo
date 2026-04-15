@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Streaming\app\Http\Controllers\StreamController;
 use Modules\Streaming\app\Http\Controllers\StreamingController;
 
 /*
@@ -32,4 +33,20 @@ Route::middleware(['auth'])->group(function () {
 
     Route::post('/api/v1/streaming/heartbeat', [StreamingController::class, 'heartbeat'])
         ->name('streaming.heartbeat');
+
+    // HLS stream endpoints. Uses implicit model binding so the existing
+    // TierGate middleware can read the Movie/Episode from the route. The
+    // trailing `{path}` captures the rest — master.m3u8 by default, or a
+    // rendition sub-playlist / segment (e.g. `720p/seg_003.ts`) — and the
+    // `.*` constraint lets slashes through. The controller whitelists
+    // characters and blocks traversal, so storage paths never leak.
+    Route::get('/stream/movie/{movie:slug}/{path?}', [StreamController::class, 'movie'])
+        ->where('path', '.*')
+        ->middleware('tier_gate')
+        ->name('stream.movie');
+
+    Route::get('/stream/episode/{episode}/{path?}', [StreamController::class, 'episode'])
+        ->where('path', '.*')
+        ->middleware('tier_gate')
+        ->name('stream.episode');
 });

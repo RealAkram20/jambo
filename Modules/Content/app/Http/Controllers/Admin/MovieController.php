@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Modules\Content\app\Http\Requests\StoreMovieRequest;
 use Modules\Content\app\Http\Requests\UpdateMovieRequest;
+use Modules\Content\app\Jobs\TranscodeVideoJob;
 use Modules\Content\app\Models\Category;
 use Modules\Content\app\Models\Genre;
 use Modules\Content\app\Models\Movie;
@@ -98,6 +100,8 @@ class MovieController extends Controller
             return $movie;
         });
 
+        $this->handleVideoUpload($request, $movie);
+
         return redirect()
             ->route('admin.movies.edit', $movie)
             ->with('success', "Movie \"{$movie->title}\" created.");
@@ -163,9 +167,52 @@ class MovieController extends Controller
             $this->syncRelationships($movie, $data);
         });
 
+        $this->handleVideoUpload($request, $movie);
+
         return redirect()
             ->route('admin.movies.edit', $movie)
             ->with('success', 'Movie saved.');
+    }
+
+    /**
+     * Save an uploaded video to the private `source` disk and queue a
+     * transcode job. Existing HLS output for this movie is cleared so the
+     * old stream stops serving the moment a new source replaces it.
+     *
+     * A file upload always wins over the `video_url` field — keeping both
+     * in sync would be surprising; picking one and sticking with it is
+     * easier to reason about.
+     */
+    private function handleVideoUpload(Request $request, Movie $movie): void
+    {
+        if (!$request->hasFile('video_file')) return;
+
+        $file = $request->file('video_file');
+        $ext = strtolower($file->getClientOriginalExtension() ?: 'mp4');
+        $path = 'movies/' . $movie->id . '/source.' . $ext;
+
+        Storage::disk('source')->putFileAs(
+            'movies/' . $movie->id,
+            $file,
+            'source.' . $ext
+        );
+
+        // Wipe the previous HLS output; the old stream URL becomes 404
+        // until the new transcode finishes.
+        if ($movie->hls_master_path) {
+            Storage::disk('hls')->deleteDirectory('movie/' . $movie->id);
+        }
+
+        $movie->forceFill([
+            'source_path' => $path,
+            'hls_master_path' => null,
+            'transcode_status' => 'queued',
+            'transcode_error' => null,
+            // Clear the URL field: the file is now the source of truth.
+            'video_url' => null,
+        ])->save();
+
+        TranscodeVideoJob::dispatch('movie', $movie->id);
     }
 
     public function destroy(Movie $movie): RedirectResponse

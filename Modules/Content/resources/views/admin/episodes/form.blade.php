@@ -48,9 +48,31 @@
             <div class="card-header"><h6 class="mb-0">Streaming</h6></div>
             <div class="card-body">
                 <div class="mb-3">
-                    <label for="video_url" class="form-label">Video URL</label>
+                    <label for="video_file" class="form-label">Upload video file</label>
+                    <input type="file" class="form-control @error('video_file') is-invalid @enderror" id="video_file" name="video_file" accept="video/mp4,video/webm,video/quicktime,video/x-matroska">
+                    <div class="form-text">
+                        MP4 / MOV / MKV / WEBM. On save we queue a transcode job that produces an adaptive HLS stream (360p + 720p).
+                        @if ($episode->transcode_status)
+                            <br><strong>Current status:</strong>
+                            <span class="badge
+                                @switch($episode->transcode_status)
+                                    @case('queued') bg-secondary @break
+                                    @case('transcoding') bg-info @break
+                                    @case('ready') bg-success @break
+                                    @case('failed') bg-danger @break
+                                @endswitch">{{ ucfirst($episode->transcode_status) }}</span>
+                            @if ($episode->transcode_status === 'failed' && $episode->transcode_error)
+                                <div class="text-danger mt-1" style="font-size:12px;">{{ $episode->transcode_error }}</div>
+                            @endif
+                        @endif
+                    </div>
+                    @error('video_file') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                </div>
+
+                <div class="mb-3">
+                    <label for="video_url" class="form-label">…or Video URL</label>
                     <input type="url" class="form-control @error('video_url') is-invalid @enderror" id="video_url" name="video_url" value="{{ old('video_url', $episode->video_url) }}" placeholder="https://www.youtube.com/watch?v=... or https://example.com/ep.mp4">
-                    <div class="form-text">YouTube link or direct file URL (.mp4 / .webm / .m3u8). Leave blank if the episode isn't streamable yet.</div>
+                    <div class="form-text">YouTube / Dropbox / direct URL. Used when no file is uploaded above.</div>
                     @error('video_url') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
 

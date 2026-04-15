@@ -23,7 +23,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('admin.movies.store') }}">
+            <form method="POST" action="{{ route('admin.movies.store') }}" enctype="multipart/form-data">
                 @include('content::admin.movies.form', [
                     'currentGenreIds' => [],
                     'currentCategoryIds' => [],

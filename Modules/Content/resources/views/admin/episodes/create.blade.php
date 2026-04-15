@@ -23,7 +23,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('admin.episodes.store') }}">
+            <form method="POST" action="{{ route('admin.episodes.store') }}" enctype="multipart/form-data">
                 <input type="hidden" name="season_id" value="{{ $season->id }}">
                 @include('content::admin.episodes.form')
             </form>
