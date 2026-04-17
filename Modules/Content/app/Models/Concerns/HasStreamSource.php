@@ -43,6 +43,13 @@ trait HasStreamSource
         }
 
         $url = $this->video_url ?? null;
+
+        // Fall back to dropbox_path — users may paste a Dropbox share URL
+        // into the Dropbox tab instead of the URL tab.
+        if (!$url && !empty($this->dropbox_path)) {
+            $url = $this->dropbox_path;
+        }
+
         if (!$url) {
             return null;
         }
@@ -87,13 +94,55 @@ trait HasStreamSource
         ];
     }
 
+    /**
+     * Returns the stream source for the low-quality (Data Saver) version.
+     * Only available when the admin has set a video_url_low.
+     */
+    public function streamSourceLow(): ?array
+    {
+        $url = $this->video_url_low ?? null;
+        if (!$url) return null;
+
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+
+        if ($host === 'dropbox.com'
+            || str_ends_with($host, '.dropbox.com')
+            || str_ends_with($host, '.dropboxusercontent.com')
+        ) {
+            return [
+                'type' => 'file',
+                'url' => $this->normaliseDropboxUrl($url),
+                'mime' => $this->guessVideoMime($url),
+            ];
+        }
+
+        return [
+            'type' => 'file',
+            'url' => $url,
+            'mime' => $this->guessVideoMime($url),
+        ];
+    }
+
     private function normaliseDropboxUrl(string $url): string
     {
-        // https://www.dropbox.com/s/xxx/file.mp4?dl=0
-        //   -> https://dl.dropboxusercontent.com/s/xxx/file.mp4
-        $url = preg_replace('#^https?://(www\.)?dropbox\.com/#i', 'https://dl.dropboxusercontent.com/', $url);
-        $url = preg_replace('/([?&])dl=\d+(&|$)/i', '$1', $url);
-        return rtrim($url, '?&');
+        $path = (string) parse_url($url, PHP_URL_PATH);
+
+        if (str_starts_with($path, '/scl/')) {
+            // New format: /scl/fi/xxx/file.mkv?rlkey=...&dl=0
+            // Keep on www.dropbox.com, just flip dl=0 → dl=1.
+            $url = preg_replace('/([?&])dl=\d+/', '$1dl=1', $url);
+            if (!str_contains($url, 'dl=1')) {
+                $url .= (str_contains($url, '?') ? '&' : '?') . 'dl=1';
+            }
+        } else {
+            // Legacy format: /s/xxx/file.mp4?dl=0
+            // Rewrite domain to dl.dropboxusercontent.com.
+            $url = preg_replace('#^https?://(www\.)?dropbox\.com/#i', 'https://dl.dropboxusercontent.com/', $url);
+            $url = preg_replace('/([?&])dl=\d+(&|$)/i', '$1', $url);
+            $url = rtrim($url, '?&');
+        }
+
+        return $url;
     }
 
     private function extractYouTubeId(string $url): ?string

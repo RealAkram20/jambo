@@ -106,6 +106,7 @@
                         <span class="badge
                             @switch($transcodeStatus)
                                 @case('queued') bg-secondary @break
+                                @case('downloading') bg-warning @break
                                 @case('transcoding') bg-info @break
                                 @case('ready') bg-success @break
                                 @case('failed') bg-danger @break
@@ -126,6 +127,23 @@
                 <div class="form-text">Legacy — resolved at playback.</div>
                 @error('dropbox_path') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
+        </div>
+
+        <hr class="my-3">
+
+        <div class="mb-0">
+            <label for="video_url_low" class="form-label d-flex align-items-center gap-2">
+                <i class="ph ph-film-strip"></i> 480p version
+                <span class="badge bg-success-subtle text-success">Optional</span>
+            </label>
+            <input type="text" class="form-control @error('video_url_low') is-invalid @enderror"
+                id="video_url_low" name="video_url_low"
+                value="{{ old('video_url_low', $model->video_url_low ?? '') }}"
+                placeholder="https://www.dropbox.com/.../movie-480p.mp4 or /Jambo/storage/media/...">
+            <div class="form-text">
+                Lower-quality version. When set, viewers get a <strong>Quality</strong> option in the player to switch between Original and 480p.
+            </div>
+            @error('video_url_low') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
         </div>
     </div>
 </div>

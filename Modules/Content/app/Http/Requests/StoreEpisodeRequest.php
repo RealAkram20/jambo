@@ -24,6 +24,7 @@ class StoreEpisodeRequest extends FormRequest
             'dropbox_path' => 'nullable|string|max:500',
             'video_url' => ['nullable', 'string', 'max:500', 'regex:/^(https?:\/\/|\/)/'],
             'video_local' => ['nullable', 'string', 'max:500', 'regex:/^\//'],
+            'video_url_low' => ['nullable', 'string', 'max:2048', 'regex:/^(https?:\/\/|\/)/'],
             'video_source' => 'nullable|in:url,local,dropbox',
             'video_file' => 'nullable|file|mimetypes:video/mp4,video/webm,video/quicktime,video/x-matroska|max:2097152',
             'tier_required' => 'nullable|string|max:50',

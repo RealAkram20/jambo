@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="{{ asset('frontend/css/player.css') }}">
     <script type="module" src="https://cdn.jsdelivr.net/npm/@videojs/html/cdn/video-minimal-ui.js"></script>
     <script src="{{ asset('frontend/js/jambo-settings-menu.js') }}" defer></script>
+    <script src="{{ asset('frontend/js/jambo-player-gestures.js') }}" defer></script>
 
     <div class="jambo-watch-hero" id="jambo-player-hero">
         {{-- Sentinel: the IntersectionObserver watches this element, which
@@ -25,8 +26,10 @@
             </button>
             @include('frontend::components.partials.jambo-minimal-player', [
                 'playerSrc' => $source['url'],
+                'playerSrcLow' => ($movie->streamSourceLow()['url'] ?? null),
                 'playerPoster' => $poster,
                 'playerId' => 'jambo-watch-player',
+                'resumePosition' => $resumePosition ?? 0,
             ])
         </div>
     </div>
@@ -159,6 +162,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     // --- Settings gear menu --------------------------------------------
     if (typeof window.jamboAttachSettingsMenu === 'function') {
         window.jamboAttachSettingsMenu('jambo-watch-player');
+    }
+    if (typeof window.jamboAttachGestures === 'function') {
+        window.jamboAttachGestures('jambo-watch-player');
     }
 
     // --- Heartbeat ------------------------------------------------------

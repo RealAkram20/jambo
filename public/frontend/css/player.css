@@ -1363,3 +1363,102 @@ media-tooltip-group {
     vertical-align: super;
     letter-spacing: 0.03em;
 }
+
+/* Data Saver badge inside the quality option row. */
+.jambo-datasaver-badge {
+    margin-left: auto;
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    background: oklch(0.55 0.15 145 / 0.2);
+    color: oklch(0.8 0.15 145);
+    line-height: 1.2;
+}
+
+/* ================================================================== */
+/* Gesture zones + keyboard shortcut feedback                         */
+/* ================================================================== */
+
+/* Invisible touch/click zones on left and right thirds of the player. */
+.jambo-gesture-zone {
+    position: absolute;
+    top: 0;
+    width: 30%;
+    height: calc(100% - 3rem); /* above controls */
+    z-index: 6;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.jambo-gesture-zone--left  { left: 0; }
+.jambo-gesture-zone--right { right: 0; }
+
+/* Ripple on double-tap. */
+.jambo-gesture-zone::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 5rem; height: 5rem;
+    border-radius: 50%;
+    background: oklch(1 0 0 / 0.15);
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+    pointer-events: none;
+}
+.jambo-gesture-zone.jambo-ripple::after {
+    animation: jambo-ripple-anim 0.5s ease-out forwards;
+}
+@keyframes jambo-ripple-anim {
+    0%   { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+}
+
+/* Center feedback overlay — play/pause/seek icon + text. */
+.jambo-gesture-feedback {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    z-index: 7;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    color: oklch(1 0 0);
+    pointer-events: none;
+    opacity: 0;
+    transition: none;
+}
+.jambo-gesture-feedback.jambo-feedback-show {
+    animation: jambo-feedback-pop 0.6s ease-out forwards;
+}
+@keyframes jambo-feedback-pop {
+    0%   { opacity: 1; transform: translate(-50%, -50%) scale(0.8); }
+    30%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.1); }
+}
+.jambo-gesture-icon {
+    width: 3rem;
+    height: 3rem;
+    filter: drop-shadow(0 2px 8px oklch(0 0 0 / 0.5));
+}
+.jambo-gesture-text {
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-shadow: 0 1px 4px oklch(0 0 0 / 0.6);
+}
+
+/* Green gear icon when Data Saver is active. */
+.jambo-settings-trigger.jambo-datasaver-active {
+    color: oklch(0.8 0.18 145);
+}
+
+/* Data Saver "On" indicator dot on the main menu row. */
+.jambo-settings-row .jambo-ds-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: oklch(0.72 0.19 145);
+    margin-left: auto;
+    flex-shrink: 0;
+}

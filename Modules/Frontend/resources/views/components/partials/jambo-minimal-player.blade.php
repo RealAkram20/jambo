@@ -1,9 +1,10 @@
 {{--
     Shared <video-player> skeleton using @videojs/html's minimal skin.
     Expects the caller to define these variables before @including:
-      $playerSrc  : URL to the video file / HLS master
+      $playerSrc    : URL to the video file / HLS master
+      $playerSrcLow : URL to the low-quality (Data Saver) version (nullable)
       $playerPoster : poster image URL (nullable)
-      $playerId : DOM id on the inner <video>, so JS can wire heartbeat/etc.
+      $playerId     : DOM id on the inner <video>, so JS can wire heartbeat/etc.
 
     The `<script type="module" src=".../video-minimal-ui.js">` import that
     upgrades these custom elements is loaded once on the page itself, not
@@ -11,7 +12,42 @@
 --}}
 <video-player>
     <media-container class="media-minimal-skin media-minimal-skin--video">
-        <video id="{{ $playerId }}" src="{{ $playerSrc }}" playsinline></video>
+        <video id="{{ $playerId }}"
+            data-src-default="{{ $playerSrc }}"
+            @if (!empty($playerSrcLow)) data-src-low="{{ $playerSrcLow }}" @endif
+            @if (!empty($resumePosition)) data-resume="{{ $resumePosition }}" @endif
+            playsinline></video>
+        {{-- Set src + preload immediately before the browser starts buffering.
+             Data Saver ON  → preload="metadata" (only download what you watch)
+             Data Saver OFF → preload="auto" (buffer ahead for smooth playback)
+             Quality: if a low-quality URL exists and is selected, use it. --}}
+        <script>
+        (function(){
+            var v = document.getElementById('{{ $playerId }}');
+            if (!v) return;
+            var ds = localStorage.getItem('jambo.dataSaver') === '1';
+            var quality = localStorage.getItem('jambo.quality') || 'default';
+            var low = v.dataset.srcLow;
+            var resume = parseInt(v.dataset.resume || '0', 10);
+
+            // Pick source based on quality preference.
+            v.src = (quality === 'low' && low) ? low : v.dataset.srcDefault;
+
+            // Data Saver: minimize buffering.
+            v.preload = ds ? 'metadata' : 'auto';
+
+            // Resume from last position once video metadata loads.
+            if (resume > 0) {
+                v.addEventListener('loadedmetadata', function onMeta() {
+                    v.removeEventListener('loadedmetadata', onMeta);
+                    // Don't resume if near the end (within 30s).
+                    if (v.duration && resume < v.duration - 30) {
+                        v.currentTime = resume;
+                    }
+                });
+            }
+        })();
+        </script>
 
         @if (!empty($playerPoster))
             <media-poster>
@@ -167,12 +203,19 @@
                     <span class="jambo-settings-value" data-summary="speed">Normal</span>
                     <span class="jambo-settings-chev">›</span>
                 </button>
-                <button type="button" class="jambo-settings-row" data-open-pane="quality">
+                <button type="button" class="jambo-settings-row jambo-datasaver-toggle" data-action="toggle-datasaver">
+                    <span class="jambo-settings-icon">
+                        <svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 2C5.134 2 2 5.134 2 9s3.134 7 7 7 7-3.134 7-7-3.134-7-7-7zm-.5 3.5a.75.75 0 0 1 1.5 0v4a.75.75 0 0 1-1.5 0v-4zM9 14a1 1 0 1 1 0-2 1 1 0 0 1 0 2z" fill="currentColor"/></svg>
+                    </span>
+                    <span class="jambo-settings-label">Data Saver</span>
+                    <span class="jambo-settings-value" data-summary="datasaver">Off</span>
+                </button>
+                <button type="button" class="jambo-settings-row jambo-quality-row" data-open-pane="quality" style="display:none;">
                     <span class="jambo-settings-icon">
                         <svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 5h6M13 5h2M3 9h2M9 9h6M3 13h8M14 13h1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="11" cy="5" r="1.5" fill="currentColor"/><circle cx="7" cy="9" r="1.5" fill="currentColor"/><circle cx="12.5" cy="13" r="1.5" fill="currentColor"/></svg>
                     </span>
                     <span class="jambo-settings-label">Quality</span>
-                    <span class="jambo-settings-value" data-summary="quality">Auto</span>
+                    <span class="jambo-settings-value" data-summary="quality">Original</span>
                     <span class="jambo-settings-chev">›</span>
                 </button>
             </div>
@@ -227,16 +270,26 @@
                     <span>Quality</span>
                 </button>
                 <div class="jambo-settings-options" data-kind="quality">
-                    {{-- MP4 sources only ever have "Auto". When the HLS
-                         transcode job finishes and the source becomes .m3u8,
-                         the JS will populate real rungs (e.g. 720p, 360p)
-                         from the HLS manifest. --}}
-                    <button type="button" class="jambo-settings-row is-active" data-value="auto">
+                    <button type="button" class="jambo-settings-row is-active" data-value="default">
                         <span class="jambo-settings-icon"><svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 9l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-                        <span class="jambo-settings-label">Auto</span>
+                        <span class="jambo-settings-label">Original</span>
+                    </button>
+                    {{-- 480p option — only shown when video_url_low is set --}}
+                    <button type="button" class="jambo-settings-row jambo-quality-low-option" data-value="low" style="display:none;">
+                        <span class="jambo-settings-icon"><svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 9l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                        <span class="jambo-settings-label">480p</span>
                     </button>
                 </div>
             </div>
+        </div>
+
+        {{-- Gesture zones: left = rewind, center = play/pause, right = forward --}}
+        <div class="jambo-gesture-zone jambo-gesture-zone--left" data-gesture="rewind"></div>
+        <div class="jambo-gesture-zone jambo-gesture-zone--right" data-gesture="forward"></div>
+
+        {{-- Visual feedback overlays --}}
+        <div class="jambo-gesture-feedback" id="{{ $playerId }}-gesture-feedback">
+            <svg class="jambo-gesture-icon" viewBox="0 0 48 48" fill="none"><path d="M16 10v28l22-14z" fill="currentColor"/></svg>
         </div>
 
         <div class="media-overlay"></div>

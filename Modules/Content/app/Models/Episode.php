@@ -40,6 +40,7 @@ class Episode extends Model
         'still_url',
         'dropbox_path',
         'video_url',
+        'video_url_low',
         'tier_required',
         'published_at',
     ];

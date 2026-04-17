@@ -26,6 +26,7 @@ class StoreMovieRequest extends FormRequest
             'dropbox_path' => 'nullable|string|max:500',
             'video_url' => ['nullable', 'string', 'max:500', 'regex:/^(https?:\/\/|\/)/'],
             'video_local' => ['nullable', 'string', 'max:500', 'regex:/^\//'],
+            'video_url_low' => ['nullable', 'string', 'max:2048', 'regex:/^(https?:\/\/|\/)/'],
             'video_source' => 'nullable|in:url,local,dropbox',
             // 2 GB cap — anything bigger and you should be uploading to
             // object storage and passing a URL, not through PHP.

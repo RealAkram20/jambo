@@ -49,4 +49,6 @@ Route::middleware(['auth'])->group(function () {
         ->where('path', '.*')
         ->middleware('tier_gate')
         ->name('stream.episode');
+
+
 });

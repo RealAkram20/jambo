@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Modules\Content\app\Http\Requests\StoreEpisodeRequest;
 use Modules\Content\app\Http\Requests\UpdateEpisodeRequest;
+use Modules\Content\app\Jobs\DownloadAndTranscodeJob;
 use Modules\Content\app\Jobs\TranscodeVideoJob;
 use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Season;
@@ -48,11 +49,10 @@ class EpisodeController extends Controller
             'still_url' => $data['still_url'] ?? null,
             'dropbox_path' => $dropboxPath,
             'video_url' => $videoUrl,
+            'video_url_low' => trim($data['video_url_low'] ?? '') ?: null,
             'tier_required' => $data['tier_required'] ?? null,
             'published_at' => $data['published_at'] ?? null,
         ]);
-
-        $this->handleVideoUpload($request, $episode);
 
         return redirect()
             ->route('admin.series.seasons.episodes.edit', [$show, $season, $episode])
@@ -83,6 +83,7 @@ class EpisodeController extends Controller
             'still_url' => $data['still_url'] ?? null,
             'dropbox_path' => $dropboxPath,
             'video_url' => $videoUrl,
+            'video_url_low' => trim($data['video_url_low'] ?? '') ?: null,
             'tier_required' => $data['tier_required'] ?? null,
         ]);
 
@@ -99,8 +100,6 @@ class EpisodeController extends Controller
         }
 
         $episode->save();
-
-        $this->handleVideoUpload($request, $episode);
 
         return redirect()
             ->route('admin.series.seasons.episodes.edit', [$show, $season, $episode])
@@ -124,9 +123,11 @@ class EpisodeController extends Controller
             else $source = 'url';
         }
 
+        $isDropboxUrl = $dropbox !== '' && str_starts_with($dropbox, 'http');
+
         return match ($source) {
             'local'   => [$local !== '' ? $local : null, null],
-            'dropbox' => [null, $dropbox !== '' ? $dropbox : null],
+            'dropbox' => [$isDropboxUrl ? $dropbox : null, $dropbox !== '' ? $dropbox : null],
             default   => [$url !== '' ? $url : null, null],
         };
     }
@@ -162,6 +163,106 @@ class EpisodeController extends Controller
         ])->save();
 
         TranscodeVideoJob::dispatch('episode', $episode->id);
+    }
+
+    /**
+     * When a local file is chosen via FileManager, copy it to the private
+     * `source` disk and queue the transcode job.
+     */
+    private function handleLocalTranscode(Request $request, Episode $episode): void
+    {
+        if ($request->hasFile('video_file')) return;
+        if (($request->input('video_source') ?? '') !== 'local') return;
+
+        $localUrl = trim((string) $request->input('video_local'));
+        if ($localUrl === '') return;
+
+        if ($episode->transcode_status === 'ready' && $episode->video_url === $localUrl) return;
+        if ($episode->transcode_status === 'queued' || $episode->transcode_status === 'transcoding') return;
+
+        $absolute = $this->resolveLocalPath($localUrl);
+        if (!$absolute || !file_exists($absolute)) return;
+
+        $ext = strtolower(pathinfo($absolute, PATHINFO_EXTENSION) ?: 'mp4');
+        $destPath = 'episodes/' . $episode->id . '/source.' . $ext;
+
+        Storage::disk('source')->makeDirectory('episodes/' . $episode->id);
+        $stream = fopen($absolute, 'r');
+        Storage::disk('source')->put($destPath, $stream);
+        if (is_resource($stream)) fclose($stream);
+
+        if ($episode->hls_master_path) {
+            Storage::disk('hls')->deleteDirectory('episode/' . $episode->id);
+        }
+
+        $episode->forceFill([
+            'source_path' => $destPath,
+            'hls_master_path' => null,
+            'transcode_status' => 'queued',
+            'transcode_error' => null,
+        ])->save();
+
+        TranscodeVideoJob::dispatch('episode', $episode->id);
+    }
+
+    private function resolveLocalPath(string $url): ?string
+    {
+        $parsed = urldecode(parse_url($url, PHP_URL_PATH) ?: $url);
+
+        $base = parse_url(config('app.url'), PHP_URL_PATH) ?: '';
+        $base = rtrim($base, '/');
+        if ($base !== '' && str_starts_with($parsed, $base)) {
+            $parsed = substr($parsed, strlen($base));
+        }
+
+        $absolute = public_path(ltrim($parsed, '/'));
+
+        $real = realpath($absolute);
+        if (!$real || !str_starts_with($real, realpath(public_path()))) {
+            return null;
+        }
+
+        return $real;
+    }
+
+    private function handleDropboxTranscode(Request $request, Episode $episode): void
+    {
+        if ($request->hasFile('video_file')) return;
+        if (($request->input('video_source') ?? '') !== 'dropbox') return;
+
+        $dropbox = trim((string) $request->input('dropbox_path'));
+        if ($dropbox === '' || !str_starts_with($dropbox, 'http')) return;
+
+        if ($episode->transcode_status === 'ready' && $episode->dropbox_path === $dropbox) return;
+        if (in_array($episode->transcode_status, ['queued', 'downloading', 'transcoding'])) return;
+
+        $downloadUrl = $this->normaliseDropboxUrl($dropbox);
+
+        $episode->forceFill([
+            'transcode_status' => 'queued',
+            'transcode_error'  => null,
+            'hls_master_path'  => null,
+        ])->save();
+
+        DownloadAndTranscodeJob::dispatch('episode', $episode->id, $downloadUrl);
+    }
+
+    private function normaliseDropboxUrl(string $url): string
+    {
+        $path = (string) parse_url($url, PHP_URL_PATH);
+
+        if (str_starts_with($path, '/scl/')) {
+            $url = preg_replace('/([?&])dl=\d+/', '$1dl=1', $url);
+            if (!str_contains($url, 'dl=1')) {
+                $url .= (str_contains($url, '?') ? '&' : '?') . 'dl=1';
+            }
+        } else {
+            $url = preg_replace('#^https?://(www\.)?dropbox\.com/#i', 'https://dl.dropboxusercontent.com/', $url);
+            $url = preg_replace('/([?&])dl=\d+(&|$)/i', '$1', $url);
+            $url = rtrim($url, '?&');
+        }
+
+        return $url;
     }
 
     public function destroy(Show $show, Season $season, Episode $episode): RedirectResponse

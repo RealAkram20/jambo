@@ -52,6 +52,7 @@ class Movie extends Model
         'trailer_url',
         'dropbox_path',
         'video_url',
+        'video_url_low',
         'tier_required',
         'status',
         'published_at',

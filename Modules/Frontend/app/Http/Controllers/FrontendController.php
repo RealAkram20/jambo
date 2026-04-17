@@ -8,6 +8,7 @@ use Modules\Content\app\Models\Show;
 use Modules\Content\app\Models\Genre;
 use Modules\Content\app\Models\Tag;
 use Modules\Content\app\Models\Person;
+use Modules\Streaming\app\Models\WatchHistoryItem;
 use Modules\Content\app\Models\Episode;
 use Modules\Subscriptions\app\Models\SubscriptionTier;
 use Modules\Subscriptions\app\Models\UserSubscription;
@@ -191,7 +192,16 @@ class FrontendController extends Controller
                 ->get()
             : collect();
 
-        return view('frontend::Pages.Movies.watch-page', compact('movie', 'source', 'recommended', 'similar'));
+        $resumePosition = 0;
+        if (auth()->check()) {
+            $history = WatchHistoryItem::where('user_id', auth()->id())
+                ->where('watchable_type', $movie->getMorphClass())
+                ->where('watchable_id', $movie->id)
+                ->first();
+            $resumePosition = ($history && !$history->completed) ? $history->position_seconds : 0;
+        }
+
+        return view('frontend::Pages.Movies.watch-page', compact('movie', 'source', 'recommended', 'similar', 'resumePosition'));
     }
 
     /**
@@ -292,7 +302,16 @@ class FrontendController extends Controller
             }
         }
 
-        return view('frontend::Pages.TvShows.episode-page', compact('episode', 'show', 'source', 'canWatch', 'nextEpisode'));
+        $resumePosition = 0;
+        if (auth()->check()) {
+            $history = WatchHistoryItem::where('user_id', auth()->id())
+                ->where('watchable_type', $episode->getMorphClass())
+                ->where('watchable_id', $episode->id)
+                ->first();
+            $resumePosition = ($history && !$history->completed) ? $history->position_seconds : 0;
+        }
+
+        return view('frontend::Pages.TvShows.episode-page', compact('episode', 'show', 'source', 'canWatch', 'nextEpisode', 'resumePosition'));
     }
 
     public function watchlist_detail()

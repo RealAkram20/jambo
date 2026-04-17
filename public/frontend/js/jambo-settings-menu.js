@@ -69,12 +69,20 @@
             setOpen(false);
         });
 
-        // Drill-down + back navigation inside the popover.
+        // Drill-down + back + Data Saver toggle inside the popover.
         popover.addEventListener('click', (e) => {
             const back = e.target.closest('[data-back]');
             if (back) {
                 e.stopPropagation();
                 showPane('main');
+                return;
+            }
+            const dsBtn = e.target.closest('[data-action="toggle-datasaver"]');
+            if (dsBtn) {
+                e.stopPropagation();
+                var newVal = localStorage.getItem('jambo.dataSaver') === '1' ? '0' : '1';
+                localStorage.setItem('jambo.dataSaver', newVal);
+                window.location.reload();
                 return;
             }
             const drill = e.target.closest('[data-open-pane]');
@@ -209,47 +217,88 @@
         });
 
         /* --------------------------------------------------------------- */
-        /* Quality                                                         */
+        /* Data Saver (buffer control — toggle on main menu)               */
         /* --------------------------------------------------------------- */
 
-        const qualityPane = popover.querySelector('[data-kind="quality"]');
+        const DATASAVER_KEY = 'jambo.dataSaver';
+        const isDataSaver = localStorage.getItem(DATASAVER_KEY) === '1';
+        const dsSummary = popover.querySelector('[data-summary="datasaver"]');
 
-        // Populate from an HLS manifest if the page exposes a hook. This
-        // lets the HLS wiring (when added) attach its `qualityLevels` shim
-        // to the element without this file knowing about it directly.
-        // For plain MP4 the default single "Auto" row stays.
-        function setQualityLevels(levels, activeIndex) {
-            let html =
-                '<button type="button" class="jambo-settings-row ' + (activeIndex == null ? 'is-active' : '') + '" data-value="auto">' +
-                    '<span class="jambo-settings-icon"><svg viewBox="0 0 18 18" fill="none"><path d="M4 9l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>' +
-                    '<span class="jambo-settings-label">Auto</span>' +
-                '</button>';
-            levels.forEach((lvl, i) => {
-                const label = lvl.height ? lvl.height + 'p' : (lvl.bitrate ? Math.round(lvl.bitrate / 1000) + 'k' : ('Level ' + (i + 1)));
-                const sup = qualitySup(lvl.height);
-                html +=
-                    '<button type="button" class="jambo-settings-row ' + (i === activeIndex ? 'is-active' : '') + '" data-value="' + i + '">' +
-                        '<span class="jambo-settings-icon"><svg viewBox="0 0 18 18" fill="none"><path d="M4 9l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>' +
-                        '<span class="jambo-settings-label">' + escapeHtml(label) + (sup ? ' <span class="jambo-settings-sup">' + sup + '</span>' : '') + '</span>' +
-                    '</button>';
-            });
-            qualityPane.innerHTML = html;
-            summaries.quality.textContent = (activeIndex == null) ? 'Auto' : (levels[activeIndex]?.height + 'p' || 'Auto');
+        // Reflect current state in summary text.
+        if (dsSummary) dsSummary.textContent = isDataSaver ? 'On' : 'Off';
+
+        // Green gear icon when Data Saver is active.
+        if (isDataSaver && trigger) {
+            trigger.classList.add('jambo-datasaver-active');
         }
-        // Expose on the element so HLS wiring can call it.
-        video.jamboSetQualityLevels = setQualityLevels;
 
-        qualityPane.addEventListener('click', (e) => {
-            const opt = e.target.closest('button[data-value]');
+        // Add green dot next to the Data Saver row when it's on.
+        const dsToggle = popover.querySelector('[data-action="toggle-datasaver"]');
+        if (dsToggle && isDataSaver) {
+            var dot = document.createElement('span');
+            dot.className = 'jambo-ds-dot';
+            dsToggle.appendChild(dot);
+        }
+
+        /* --------------------------------------------------------------- */
+        /* Volume persistence                                              */
+        /* --------------------------------------------------------------- */
+
+        const VOLUME_KEY = 'jambo.volume';
+        const MUTED_KEY = 'jambo.muted';
+
+        // Restore saved volume on load.
+        var savedVolume = localStorage.getItem(VOLUME_KEY);
+        var savedMuted = localStorage.getItem(MUTED_KEY);
+        if (savedVolume !== null) video.volume = parseFloat(savedVolume);
+        if (savedMuted !== null) video.muted = savedMuted === '1';
+
+        // Persist on change.
+        video.addEventListener('volumechange', function () {
+            localStorage.setItem(VOLUME_KEY, String(video.volume));
+            localStorage.setItem(MUTED_KEY, video.muted ? '1' : '0');
+        });
+
+        /* --------------------------------------------------------------- */
+        /* Quality (file selection — only when admin sets multiple URLs)    */
+        /* --------------------------------------------------------------- */
+
+        const QUALITY_KEY = 'jambo.quality';
+        const qualityPane = popover.querySelector('[data-kind="quality"]');
+        const srcLow = video.dataset.srcLow || null;
+        const activeQuality = localStorage.getItem(QUALITY_KEY) || 'default';
+
+        // Show the Quality row + 480p option only if a second URL exists.
+        var qualityRow = popover.querySelector('.jambo-quality-row');
+        var qualityLowOption = popover.querySelector('.jambo-quality-low-option');
+        if (srcLow) {
+            if (qualityRow) qualityRow.style.display = '';
+            if (qualityLowOption) qualityLowOption.style.display = '';
+        }
+
+        // Reflect active quality in menu.
+        if (summaries.quality) {
+            summaries.quality.textContent = (activeQuality === 'low' && srcLow) ? '480p' : 'Original';
+        }
+        qualityPane.querySelectorAll('.jambo-settings-row').forEach(function (r) {
+            var isActive = r.dataset.value === ((activeQuality === 'low' && srcLow) ? 'low' : 'default');
+            r.classList.toggle('is-active', isActive);
+        });
+
+        qualityPane.addEventListener('click', function (e) {
+            var opt = e.target.closest('button[data-value]');
             if (!opt) return;
             e.stopPropagation();
-            const value = opt.dataset.value;
-            if (typeof video.jamboOnQualityChange === 'function') {
-                video.jamboOnQualityChange(value);
+
+            var newQuality = opt.dataset.value;
+            var oldQuality = localStorage.getItem(QUALITY_KEY) || 'default';
+
+            if (newQuality !== oldQuality) {
+                localStorage.setItem(QUALITY_KEY, newQuality);
+                window.location.reload();
+            } else {
+                showPane('main');
             }
-            summaries.quality.textContent = opt.querySelector('.jambo-settings-label')?.textContent?.trim() || 'Auto';
-            markActive(qualityPane, opt);
-            showPane('main');
         });
 
         /* --------------------------------------------------------------- */
@@ -259,15 +308,6 @@
         function markActive(pane, button) {
             pane.querySelectorAll('.jambo-settings-row').forEach((r) => r.classList.remove('is-active'));
             button.classList.add('is-active');
-        }
-
-        function qualitySup(height) {
-            if (!height) return '';
-            if (height >= 2160) return '4K';
-            if (height >= 1440) return 'QHD';
-            if (height >= 1080) return 'HD';
-            if (height >= 720) return 'HD';
-            return '';
         }
 
         function escapeHtml(s) {
