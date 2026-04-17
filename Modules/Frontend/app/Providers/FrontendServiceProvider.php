@@ -5,6 +5,7 @@ namespace Modules\Frontend\app\Providers;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use Modules\Frontend\app\View\Composers\HeaderComposer;
 use Modules\Frontend\app\View\Composers\SectionDataComposer;
 
 class FrontendServiceProvider extends ServiceProvider
@@ -38,6 +39,11 @@ class FrontendServiceProvider extends ServiceProvider
             'frontend::Pages.*',
             'frontend::components.sections.*',
         ], SectionDataComposer::class);
+
+        View::composer(
+            'frontend::components.partials.header-default',
+            HeaderComposer::class
+        );
     }
 
     /**

@@ -106,10 +106,6 @@
 </head>
 
 <body class=" {{ isset($bodyClass) ? $bodyClass : '' }}">
-    <!-- loader Start -->
-    <div id="loading">
-        @include('components.partials.loader')
-    </div>
     @include('components.partials.sidebar')
     <main class="main-content">
         <div class="position-relative {{ isset($isBanner) && $isBanner ? 'iq-banner' : '' }}">

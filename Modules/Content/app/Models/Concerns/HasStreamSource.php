@@ -129,10 +129,32 @@ trait HasStreamSource
 
         if (str_starts_with($path, '/scl/')) {
             // New format: /scl/fi/xxx/file.mkv?rlkey=...&dl=0
-            // Keep on www.dropbox.com, just flip dl=0 → dl=1.
+            // Flip dl=0 → dl=1, then resolve the 302 redirect to get the
+            // actual CDN URL (dl.dropboxusercontent.com). The www.dropbox.com
+            // URL with dl=1 returns an HTML/JSON redirect page, not raw bytes.
             $url = preg_replace('/([?&])dl=\d+/', '$1dl=1', $url);
             if (!str_contains($url, 'dl=1')) {
                 $url .= (str_contains($url, '?') ? '&' : '?') . 'dl=1';
+            }
+
+            // Follow the redirect to get the direct CDN URL.
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_FOLLOWLOCATION => false,
+                CURLOPT_HEADER         => true,
+                CURLOPT_NOBODY         => false,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 8,
+                CURLOPT_USERAGENT      => 'Jambo/1.0',
+            ]);
+            $response = curl_exec($ch);
+            curl_close($ch);
+
+            if ($response && preg_match('/^Location:\s*(.+)$/mi', $response, $m)) {
+                $cdnUrl = trim($m[1]);
+                if (str_contains($cdnUrl, 'dropboxusercontent.com')) {
+                    return $cdnUrl;
+                }
             }
         } else {
             // Legacy format: /s/xxx/file.mp4?dl=0
@@ -177,6 +199,9 @@ trait HasStreamSource
             'ogv', 'ogg' => 'video/ogg',
             'm3u8' => 'application/vnd.apple.mpegurl',
             'mov' => 'video/quicktime',
+            'mkv' => 'video/x-matroska',
+            'avi' => 'video/x-msvideo',
+            'ts' => 'video/mp2t',
             default => 'video/mp4',
         };
     }

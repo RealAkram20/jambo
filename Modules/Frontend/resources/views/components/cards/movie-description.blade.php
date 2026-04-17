@@ -164,13 +164,6 @@
             </button>
         @endif
 
-        @if(empty($isNotdownloadbtn))
-            <button type="button" class="btn btn-secondary action-btn border" data-bs-toggle="modal" data-bs-target="#downloadModal">
-                <span class="h-100 w-100 d-block" data-bs-toggle="tooltip" data-bs-placement="top" title="{{__('streamTag.download')}}">
-                    <i class="ph ph-download-simple"></i>
-                </span>
-            </button>
-        @endif
     </div>
 </div>
 <!-- Movie Description End -->
@@ -178,5 +171,4 @@
 <!-- Modals -->
 @include('frontend::components.widgets.playlist-modal')
 @include('frontend::components.widgets.share-modal')
-@include('frontend::components.widgets.download-modal')
 <!-- Modals End -->

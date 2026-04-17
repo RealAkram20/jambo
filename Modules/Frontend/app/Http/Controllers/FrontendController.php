@@ -12,12 +12,49 @@ use Modules\Streaming\app\Models\WatchHistoryItem;
 use Modules\Content\app\Models\Episode;
 use Modules\Subscriptions\app\Models\SubscriptionTier;
 use Modules\Subscriptions\app\Models\UserSubscription;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class FrontendController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+    public function search(Request $request): JsonResponse
+    {
+        $q = trim((string) $request->query('q'));
+        if (strlen($q) < 2) {
+            return response()->json(['movies' => [], 'shows' => []]);
+        }
+
+        $like = '%' . $q . '%';
+
+        $movies = Movie::published()
+            ->where(fn ($query) => $query->where('title', 'like', $like)->orWhere('synopsis', 'like', $like))
+            ->take(5)
+            ->get(['id', 'title', 'slug', 'poster_url', 'year'])
+            ->map(fn ($m) => [
+                'id' => $m->id,
+                'title' => $m->title,
+                'poster' => $m->poster_url,
+                'year' => $m->year,
+                'type' => 'Movie',
+                'url' => route('frontend.movie_detail', $m->slug),
+            ]);
+
+        $shows = Show::published()
+            ->where(fn ($query) => $query->where('title', 'like', $like)->orWhere('synopsis', 'like', $like))
+            ->take(5)
+            ->get(['id', 'title', 'slug', 'poster_url', 'year'])
+            ->map(fn ($s) => [
+                'id' => $s->id,
+                'title' => $s->title,
+                'poster' => $s->poster_url,
+                'year' => $s->year,
+                'type' => 'Series',
+                'url' => route('frontend.tvshow_detail', $s->slug),
+            ]);
+
+        return response()->json(['movies' => $movies, 'shows' => $shows]);
+    }
+
     //main pages
     public function index()
     {

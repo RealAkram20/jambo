@@ -18,6 +18,7 @@ Route::group([], function () {
     //main pages
     Route::get('/', [FrontendController::class, 'ott'])->name('frontend.ott');
     Route::get('/home', [FrontendController::class, 'index'])->name('frontend.index');
+    Route::get('/search', [FrontendController::class, 'search'])->name('frontend.search');
     Route::get('/movie', [FrontendController::class, 'movie'])->name('frontend.movie');
     Route::get('/tv-show', [FrontendController::class, 'tv_show'])->name('frontend.tv-show');
 

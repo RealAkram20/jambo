@@ -62,8 +62,8 @@
         <media-error-dialog class="media-error">
             <div class="media-error__dialog">
                 <div class="media-error__content">
-                    <media-alert-dialog-title class="media-error__title">Something went wrong.</media-alert-dialog-title>
-                    <media-alert-dialog-description class="media-error__description"></media-alert-dialog-description>
+                    <media-alert-dialog-title class="media-error__title">Unable to play this video</media-alert-dialog-title>
+                    <media-alert-dialog-description class="media-error__description">This video format may not be supported by your browser. For best results, use H.264 MP4 files.</media-alert-dialog-description>
                 </div>
                 <div class="media-error__actions">
                     <media-alert-dialog-close class="media-button media-button--primary">OK</media-alert-dialog-close>

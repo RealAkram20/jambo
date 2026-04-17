@@ -89,11 +89,14 @@
         })();
     </script>
 
+    <link rel="stylesheet" href="{{ asset('frontend/css/jambo-header.css') }}">
 </head>
 
 <body class="{{ $bodyClass ?? '' }}">
 
-    @include('frontend::components.loader-component')
+    @if (Route::currentRouteName() === 'frontend.ott')
+        @include('frontend::components.loader-component')
+    @endif
 
     <main class="main-content">
 
