@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Modules\Streaming\app\Http\Controllers\StreamController;
 use Modules\Streaming\app\Http\Controllers\StreamingController;
+use Modules\Streaming\app\Http\Controllers\StreamProxyController;
 
 /*
 |--------------------------------------------------------------------------
@@ -34,12 +35,18 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/api/v1/streaming/heartbeat', [StreamingController::class, 'heartbeat'])
         ->name('streaming.heartbeat');
 
-    // HLS stream endpoints. Uses implicit model binding so the existing
-    // TierGate middleware can read the Movie/Episode from the route. The
-    // trailing `{path}` captures the rest — master.m3u8 by default, or a
-    // rendition sub-playlist / segment (e.g. `720p/seg_003.ts`) — and the
-    // `.*` constraint lets slashes through. The controller whitelists
-    // characters and blocks traversal, so storage paths never leak.
+    // Format proxy: converts MKV/HEVC/x265 → H.264 MP4 on the fly via FFmpeg.
+    // Must be BEFORE the HLS routes — the /stream/movie/{slug}/{path?} wildcard
+    // would otherwise swallow /stream/proxy/... URLs.
+    Route::get('/stream/proxy/movie/{movie:slug}', [StreamProxyController::class, 'movie'])
+        ->middleware('tier_gate')
+        ->name('stream.proxy.movie');
+
+    Route::get('/stream/proxy/episode/{episode}', [StreamProxyController::class, 'episode'])
+        ->middleware('tier_gate')
+        ->name('stream.proxy.episode');
+
+    // HLS stream endpoints.
     Route::get('/stream/movie/{movie:slug}/{path?}', [StreamController::class, 'movie'])
         ->where('path', '.*')
         ->middleware('tier_gate')
@@ -49,6 +56,4 @@ Route::middleware(['auth'])->group(function () {
         ->where('path', '.*')
         ->middleware('tier_gate')
         ->name('stream.episode');
-
-
 });

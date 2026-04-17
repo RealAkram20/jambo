@@ -72,26 +72,58 @@ trait HasStreamSource
             ];
         }
 
-        // Dropbox: rewrite share URLs to direct-streamable ones. The
-        // regular www.dropbox.com/s/... URL serves an HTML preview
-        // page — useless to the player — so we normalise to the
-        // dl.dropboxusercontent.com host and drop the dl=0/dl=1 flag.
+        // Dropbox: rewrite share URLs to direct-streamable ones.
         if ($host === 'dropbox.com'
             || str_ends_with($host, '.dropbox.com')
             || str_ends_with($host, '.dropboxusercontent.com')
         ) {
+            $resolved = $this->normaliseDropboxUrl($url);
+            $mime = $this->guessVideoMime($url);
+        } else {
+            $resolved = $url;
+            $mime = $this->guessVideoMime($url);
+        }
+
+        // If the format isn't natively browser-playable, route through
+        // the FFmpeg proxy that converts to H.264 MP4 on the fly.
+        if ($this->needsProxy($url)) {
+            $isEpisode = $this instanceof \Modules\Content\app\Models\Episode;
             return [
                 'type' => 'file',
-                'url' => $this->normaliseDropboxUrl($url),
-                'mime' => $this->guessVideoMime($url),
+                'url' => route(
+                    $isEpisode ? 'stream.proxy.episode' : 'stream.proxy.movie',
+                    [$isEpisode ? 'episode' : 'movie' => $isEpisode ? $this->id : $this->slug]
+                ),
+                'mime' => 'video/mp4',
             ];
         }
 
         return [
             'type' => 'file',
-            'url' => $url,
-            'mime' => $this->guessVideoMime($url),
+            'url' => $resolved,
+            'mime' => $mime,
         ];
+    }
+
+    /**
+     * Check if the video format needs server-side transcoding.
+     *
+     * Browsers natively play: MP4 (H.264), WebM, OGG.
+     * Everything else gets routed through the FFmpeg proxy which
+     * converts to H.264 MP4 on the fly.
+     *
+     * Formats Dropbox accepts that need proxying:
+     *   MKV, MOV, AVI, MPEG/MPG, WMV, FLV, 3GP, M4V (some codecs)
+     */
+    private function needsProxy(string $url): bool
+    {
+        $path = (string) parse_url($url, PHP_URL_PATH);
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
+        // These play natively in all modern browsers.
+        $browserSafe = ['mp4', 'webm', 'ogg', 'ogv'];
+
+        return !in_array($ext, $browserSafe);
     }
 
     /**
@@ -202,6 +234,11 @@ trait HasStreamSource
             'mkv' => 'video/x-matroska',
             'avi' => 'video/x-msvideo',
             'ts' => 'video/mp2t',
+            'wmv' => 'video/x-ms-wmv',
+            'flv' => 'video/x-flv',
+            'mpg', 'mpeg' => 'video/mpeg',
+            '3gp' => 'video/3gpp',
+            'm4v' => 'video/x-m4v',
             default => 'video/mp4',
         };
     }

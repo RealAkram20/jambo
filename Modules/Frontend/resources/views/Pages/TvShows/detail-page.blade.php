@@ -10,7 +10,7 @@
     $posterSrc = $backdrop && \Illuminate\Support\Str::startsWith($backdrop, ['http://', 'https://'])
         ? $backdrop
         : ($backdrop ? asset('frontend/images/' . $backdrop) : asset('frontend/images/media/vikings.webp'));
-    $trailer = $show->trailer_url ?: 'https://www.youtube.com/watch?v=spGSAeqxVUc';
+    $trailer = $show->trailer_url;
     $cast = $show->cast->filter(fn ($p) => ($p->pivot->role ?? null) === 'actor');
     $crew = $show->cast->filter(fn ($p) => in_array(($p->pivot->role ?? null), ['director', 'writer', 'producer']));
     $seasons = $show->seasons->sortBy('number');
@@ -20,17 +20,36 @@
     <div class="position-relative">
         <div class="iq-main-slider site-video position-relative">
             @php
-                $videoSetup = json_encode([
-                    'techOrder' => ['youtube'],
-                    'sources' => [['type' => 'video/youtube', 'src' => $trailer]],
-                    'youtube' => ['modestbranding' => 1, 'rel' => 0, 'showinfo' => 0, 'autoplay' => 1],
-                    'fullscreen' => true,
-                ]);
+                $trailerUrl = $show->trailer_url;
+                $isYouTubeTrailer = $trailerUrl && (
+                    str_contains($trailerUrl, 'youtube.com') ||
+                    str_contains($trailerUrl, 'youtu.be')
+                );
+                $hasTrailer = !empty($trailerUrl);
+
+                if ($isYouTubeTrailer) {
+                    $videoSetup = json_encode([
+                        'techOrder' => ['youtube'],
+                        'sources' => [['type' => 'video/youtube', 'src' => $trailerUrl]],
+                        'youtube' => ['modestbranding' => 1, 'rel' => 0, 'showinfo' => 0, 'autoplay' => 1],
+                        'fullscreen' => true,
+                    ]);
+                } elseif ($hasTrailer) {
+                    $videoSetup = json_encode([
+                        'sources' => [['type' => 'video/mp4', 'src' => $trailerUrl]],
+                        'fullscreen' => true,
+                    ]);
+                }
             @endphp
-            <video id="my-video" poster="{{ $posterSrc }}"
-                class="my-video video-js vjs-big-play-centered w-100" loop autoplay muted preload="auto"
-                data-setup='{!! $videoSetup !!}'>
-            </video>
+
+            @if ($hasTrailer)
+                <video id="my-video" poster="{{ $posterSrc }}"
+                    class="my-video video-js vjs-big-play-centered w-100" loop autoplay muted preload="auto"
+                    data-setup='{!! $videoSetup !!}'>
+                </video>
+            @else
+                <div class="w-100" style="aspect-ratio:21/9; background: url('{{ $posterSrc }}') center/cover no-repeat;"></div>
+            @endif
         </div>
 
         <div class="movie-detail-part position-relative">
