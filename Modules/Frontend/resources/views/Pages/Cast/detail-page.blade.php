@@ -44,7 +44,7 @@
                     <h4 class="mb-3">{{ $fullName }}</h4>
                     @if ($person->known_for)
                         <ul class="person-category d-flex flex-wrap align-items-center gap-5 ps-0">
-                            <li class="list-group-item"><a href="javascript:void(0)">{{ $person->known_for }}</a></li>
+                            <li class="list-group-item"><span>{{ $person->known_for }}</span></li>
                         </ul>
                     @endif
 

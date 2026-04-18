@@ -17,9 +17,10 @@
         </h6>
         <ul class="d-flex align-items-center justify-content-center gap-2 list-inline p-0 m-0">
             <li>
-                <a href="javascript:void(0)" class="person-cats d-block">
-                    {{ $castSubTitle }}
-                </a>
+                {{-- Role subtitle (Actor / Director / etc.) rendered as
+                     plain text. No "all actors" route exists yet, so the
+                     earlier javascript:void(0) anchor was a dead click. --}}
+                <span class="person-cats d-block">{{ $castSubTitle }}</span>
             </li>
         </ul>
     </div>

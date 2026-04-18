@@ -10,7 +10,7 @@
                 @forelse ($homeGenres ?? collect() as $genre)
                     <li class="swiper-slide">
                         @include('frontend::components.cards.card-genres-grid', [
-                            'image' => 'https://picsum.photos/seed/' . $genre->slug . '/600/400',
+                            'image' => $genre->featured_image_url ?: 'media/rabbit.webp',
                             'title' => $genre->name,
                             'genersUrl' => route('frontend.genres', $genre->slug),
                         ])

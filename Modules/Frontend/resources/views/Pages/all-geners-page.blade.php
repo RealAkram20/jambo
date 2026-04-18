@@ -16,7 +16,7 @@
                     <div class="col slide-items">
                         @include('frontend::components.cards.genres-card', [
                             'genersTitle' => $genre->name,
-                            'genersImage' => 'https://picsum.photos/seed/' . $genre->slug . '/400/300',
+                            'genersImage' => $genre->featured_image_url ?: 'media/rabbit.webp',
                             'genersUrl' => route('frontend.genres', $genre->slug),
                         ])
                     </div>

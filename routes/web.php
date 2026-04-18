@@ -1,11 +1,9 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\RolePermission;
 use App\Http\Controllers\RoleController;
-use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\Admin\SettingController as AdminSettingController;
 use Illuminate\Support\Facades\Route;
 
@@ -26,11 +24,10 @@ Route::get('/', function () {
 
 Route::get('/app', [DashboardController::class, 'index'])->middleware(['auth'])->name('dashboard');
 
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-});
+// Breeze shipped /profile routes pointing at App\Http\Controllers\
+// ProfileController — that class has been deleted; the profile hub
+// now lives under /{username}. Removing these avoids shadowing
+// `profile.update` and silences the route:list reflection error.
 
 // Dashboard Routes
 Route::group(['as' => 'dashboard.'], function () {
@@ -133,8 +130,57 @@ Route::middleware(['auth', 'role:admin'])
         Route::post('settings', [AdminSettingController::class, 'update'])->name('settings.update');
     });
 
-// Language Switch
-Route::get('language/{language}', [LanguageController::class, 'switch'])->name('language.switch');
-
-
 require __DIR__ . '/auth.php';
+
+/*
+|--------------------------------------------------------------------------
+| Profile hub — /{username}/...
+|--------------------------------------------------------------------------
+|
+| MUST be registered last. These routes use a catch-all `{username}`
+| segment that would shadow any single-segment route defined after them.
+| The `where('username', ...)` constraint blocks filenames / paths with
+| dots + slashes; ReservedUsername rule at registration blocks pickups
+| that would collide with real top-level routes like /login, /movie,
+| etc.
+|
+*/
+Route::middleware('auth')->group(function () {
+    $usernamePattern = '[a-zA-Z0-9._\-]+';
+
+    Route::get('/{username}',
+        [\App\Http\Controllers\ProfileHubController::class, 'show'])
+        ->where('username', $usernamePattern)
+        ->name('profile.show');
+
+    Route::put('/{username}',
+        [\App\Http\Controllers\ProfileHubController::class, 'updateProfile'])
+        ->where('username', $usernamePattern)
+        ->name('profile.update');
+
+    Route::get('/{username}/security',
+        [\App\Http\Controllers\ProfileHubController::class, 'security'])
+        ->where('username', $usernamePattern)
+        ->name('profile.security');
+
+    Route::get('/{username}/membership',
+        [\App\Http\Controllers\ProfileHubController::class, 'membership'])
+        ->where('username', $usernamePattern)
+        ->name('profile.membership');
+
+    Route::get('/{username}/billing',
+        [\App\Http\Controllers\ProfileHubController::class, 'billing'])
+        ->where('username', $usernamePattern)
+        ->name('profile.billing');
+
+    Route::get('/{username}/billing/{orderId}',
+        [\App\Http\Controllers\ProfileHubController::class, 'invoice'])
+        ->where('username', $usernamePattern)
+        ->whereNumber('orderId')
+        ->name('profile.invoice');
+
+    Route::get('/{username}/watchlist',
+        [\App\Http\Controllers\ProfileHubController::class, 'watchlist'])
+        ->where('username', $usernamePattern)
+        ->name('profile.watchlist');
+});

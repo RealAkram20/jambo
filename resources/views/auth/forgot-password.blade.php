@@ -1,38 +1,40 @@
-@extends('layouts.auth')
+@extends('layouts.jambo-auth', ['title' => 'Forgot password'])
+
+@section('header-cta')
+    <a href="{{ route('login') }}" class="text-decoration-none">
+        <i class="ph ph-arrow-left me-1"></i> Back to sign in
+    </a>
+@endsection
 
 @section('content')
-    <x-auth-card>
-        <x-slot name="logo">
-            <a href="/">
-                <x-application-logo class="w-20 h-20 " />
-            </a>
-        </x-slot>
+    <div class="jambo-auth-card">
+        <h1>Forgot your password?</h1>
+        <p class="jambo-auth-card__subtitle">
+            We'll email you a reset link. No password is changed until you click it.
+        </p>
 
-        <div class="my-4">
-            {{ __('Forgot your password? No problem. Just let us know your email address and we will email you a password reset link that will allow you to choose a new one.') }}
-        </div>
+        @if (session('status'))
+            <div class="jambo-auth-alert jambo-auth-alert--success">{{ session('status') }}</div>
+        @endif
 
-        <!-- Session Status -->
-        <x-auth-session-status class="mb-4" :status="session('status')" />
+        @if ($errors->any())
+            <div class="jambo-auth-alert">{{ $errors->first() }}</div>
+        @endif
 
-        <!-- Validation Errors -->
-        <x-auth-validation-errors class="mb-4" :errors="$errors" />
-
-        <form method="POST" action="{{ route('password.email') }}">
+        <form method="POST" action="{{ route('password.email') }}" novalidate>
             @csrf
 
-            <!-- Email Address -->
-            <div>
-                <x-label for="email" :value="__('Email')" />
-
-                <x-input id="email" class="mt-1" type="email" name="email" :value="old('email')" required autofocus />
+            <div class="jambo-field">
+                <label for="email">Email</label>
+                <input id="email" type="email" name="email" value="{{ old('email') }}"
+                       autocomplete="email" autofocus required placeholder="you@example.com">
             </div>
 
-            <div class="d-flex align-items-center justify-content-center mt-4">
-                <x-button class="w-100">
-                    {{ __('Email Password Reset Link') }}
-                </x-button>
-            </div>
+            <button type="submit" class="jambo-auth-btn mt-3">Send reset link</button>
         </form>
-    </x-auth-card>
+
+        <div class="jambo-auth-footer">
+            Remembered it? <a href="{{ route('login') }}">Sign in</a>
+        </div>
+    </div>
 @endsection

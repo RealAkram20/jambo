@@ -93,44 +93,6 @@
                         </li>
                     </ul>
                 </li>
-                <li class="nav-item dropdown">
-                    <a href="#" class="nav-link" id="langues-drop" data-bs-toggle="dropdown">
-                        <i class="ph ph-translate fs-4 align-middle"></i>
-                    </a>
-                    <ul class="dropdown-menu dropdown-content">
-                        <li data-setting="attribute">
-                            <div class="dropdown-item d-flex align-items-center">
-                                <input type="radio" value="ltr" class="btn-check" name="theme_scheme_direction"
-                                    data-prop="dir" id="theme-scheme-direction-ltr" checked>
-                                <label class="d-block" for="theme-scheme-direction-ltr">
-                                    <span class="ms-2 mb-0"> LTR </span>
-                                </label>
-
-                            </div>
-                        </li>
-                        <li data-setting="attribute">
-                            <div class="dropdown-item d-flex align-items-center">
-                                <input type="radio" value="rtl" class="btn-check" name="theme_scheme_direction"
-                                    data-prop="dir" id="theme-scheme-direction-rtl">
-                                <label class=" d-block" for="theme-scheme-direction-rtl">
-                                    <span class="ms-2 mb-0"> RTL </span>
-                                </label>
-                            </div>
-                        </li>
-                    </ul>
-                </li>
-
-                <li class="nav-item dropdown">
-                    <select class="form-select py-1" onchange="window.location.href=this.value;">
-                        @foreach (config('app.available_locales') as $locale => $title)
-                            <option value="{{ route('language.switch', $locale) }}"
-                                {{ App::getLocale() === $locale ? 'selected' : '' }}>
-                                {{ $title }}
-                            </option>
-                        @endforeach
-                    </select>
-                </li>
-
                 @include('components.partials.notifications-bell')
                 <li class="nav-item theme-scheme-dropdown dropdown">
                     <a href="#" class="nav-link" id="mode-drop" data-bs-toggle="dropdown">

@@ -261,6 +261,27 @@
     color: #fff;
 }
 
+/* Unread-notification count badge on the bell icon. Absolute-positioned
+   relative to .jambo-header__icon so it sits on the top-right corner
+   without affecting the icon's hit target. */
+.jambo-notif-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: var(--bs-primary, #1A98FF);
+    color: #fff;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    pointer-events: none;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.8);
+}
+
 .jambo-header__avatar {
     display: flex;
     align-items: center;

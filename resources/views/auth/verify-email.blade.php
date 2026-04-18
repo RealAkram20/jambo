@@ -1,41 +1,31 @@
-@extends('layouts.auth')
+@extends('layouts.jambo-auth', ['title' => 'Verify your email'])
 
 @section('content')
-    <x-auth-card>
-        <x-slot name="logo">
-            <a href="/">
-                <x-application-logo class="w-20 h-20 " />
-            </a>
-        </x-slot>
-
-        <div class="mb-4 text-sm text-gray-600">
-            {{ __('Thanks for signing up! Before getting started, could you verify your email address by clicking on the link we just emailed to you? If you didn\'t receive the email, we will gladly send you another.') }}
-        </div>
+    <div class="jambo-auth-card">
+        <h1>Verify your email</h1>
+        <p class="jambo-auth-card__subtitle">
+            Thanks for signing up. We've sent a verification link to your inbox —
+            click it to activate your account. Can't find it? Check your spam folder.
+        </p>
 
         @if (session('status') == 'verification-link-sent')
-            <div class="mb-4 font-medium text-sm text-green-600">
-                {{ __('A new verification link has been sent to the email address you provided during registration.') }}
+            <div class="jambo-auth-alert jambo-auth-alert--success">
+                A new verification link has been sent.
             </div>
         @endif
 
-        <div class="mt-4 flex items-center justify-between">
+        <div class="d-flex flex-column gap-2 mt-3">
             <form method="POST" action="{{ route('verification.send') }}">
                 @csrf
-
-                <div>
-                    <x-button>
-                        {{ __('Resend Verification Email') }}
-                    </x-button>
-                </div>
+                <button type="submit" class="jambo-auth-btn">Resend verification link</button>
             </form>
 
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
-
-                <button type="submit" class="underline text-sm text-gray-600 hover:text-gray-900">
-                    {{ __('Log Out') }}
+                <button type="submit" class="jambo-social-btn">
+                    <i class="ph ph-sign-out"></i> Log out
                 </button>
             </form>
         </div>
-    </x-auth-card>
+    </div>
 @endsection

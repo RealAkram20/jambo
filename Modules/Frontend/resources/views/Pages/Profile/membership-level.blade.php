@@ -1,68 +1,76 @@
-@extends('frontend::layouts.master', ['isSwiperSlider' => true, 'IS_MEGA' => true, 'isBreadCrumb' => true, 'title' => __('profile.membership_levels')])
+@extends('frontend::layouts.master', ['isBreadCrumb' => true, 'title' => __('profile.membership_levels') ?? 'Plans'])
 
 @section('content')
     <div class="section-padding">
         <div class="pmpro container">
             <section id="pmpro_levels" class="pmpro_section">
                 <div class="pmpro_section_content">
-                    <div id="pmpro_level_group-1" class="pmpro_card pmpro_level_group">
+                    <div class="pmpro_card pmpro_level_group">
                         <div class="pmpro_card_content">
-                            <table class="pmpro_table pmpro_levels_table">
-                                <thead>
-                                    <tr>
-                                        <th>{{ __('streamTag.level') }}</th>
-                                        <th>{{ __('streamMovies.Price') }}</th>
-                                        <th><span class="screen-reader-text">{{ __('streamTag.action') }}</span></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr id="pmpro_level-2" class="pmpro_level">
-                                        <th data-title="Level">{{ __('streamPricing.basic_plan') }}</th>
-                                        <td data-title="Price">
-                                            <p class="pmpro_level-price"><strong>$10.00</strong> {{ __('streamMovies.now') }}. </p>
-                                        </td>
-                                        <td>
+                            @if ($tiers->count())
+                                <table class="pmpro_table pmpro_levels_table">
+                                    <thead>
+                                        <tr>
+                                            <th>{{ __('streamTag.level') ?? 'Plan' }}</th>
+                                            <th>{{ __('streamMovies.Price') ?? 'Price' }}</th>
+                                            <th><span class="screen-reader-text">{{ __('streamTag.action') ?? 'Action' }}</span></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($tiers as $tier)
+                                            @php $isCurrent = $currentTierId === $tier->id; @endphp
+                                            <tr class="pmpro_level {{ $isCurrent ? 'pmpro_level-current' : '' }}">
+                                                <th data-title="Level">
+                                                    {{ $tier->name }}
+                                                    @if ($isCurrent)
+                                                        <span class="pmpro_tag pmpro_tag-success ms-2">Current</span>
+                                                    @endif
+                                                    @if ($tier->description)
+                                                        <div class="text-muted small fw-normal mt-1">{{ $tier->description }}</div>
+                                                    @endif
+                                                </th>
+                                                <td data-title="Price">
+                                                    <p class="pmpro_level-price mb-0">
+                                                        <strong>{{ $tier->currency ?: 'USD' }} {{ number_format($tier->price, 2) }}</strong>
+                                                        @if ($tier->billing_period)
+                                                            / {{ $tier->billing_period }}
+                                                        @endif
+                                                    </p>
+                                                </td>
+                                                <td>
+                                                    @if ($isCurrent)
+                                                        <button class="pmpro_btn pmpro_btn-select w-100" disabled>
+                                                            {{ __('form.select') ?? 'Select' }}
+                                                        </button>
+                                                    @else
+                                                        <a class="pmpro_btn pmpro_btn-select w-100"
+                                                           href="{{ route('frontend.pricing-page') }}?tier={{ $tier->slug }}"
+                                                           aria-label="Select the {{ $tier->name }} plan">
+                                                            {{ __('form.select') ?? 'Select' }}
+                                                        </a>
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            @else
+                                <p class="text-muted mb-0">No plans are available right now.</p>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-                                            <a aria-label="Select the Basic Plan membership level"
-                                                class="pmpro_btn pmpro_btn-select w-100"
-                                                href="membership-comfirmation">{{ __('form.select') }}</a>
-                                        </td>
-                                    </tr>
-                                    <tr id="pmpro_level-3" class="pmpro_level">
-                                        <th data-title="Level">{{ __('streamTag.standard_plan') }}</th>
-                                        <td data-title="Price">
-                                            <p class="pmpro_level-price"><strong>$79.00</strong> {{ __('streamMovies.now_and_then') }} <strong>$89.00
-                                                    {{ __('streamMovies.per_month') }}</strong>. </p>
-                                        </td>
-                                        <td>
-
-                                            <a aria-label="Select the Standard Plan membership level"
-                                                class="pmpro_btn pmpro_btn-select w-100"
-                                                href="membership-comfirmation">{{ __('form.select') }}</a>
-                                        </td>
-                                    </tr>
-                                    <tr id="pmpro_level-4" class="pmpro_level">
-                                        <th data-title="Level">{{__('streamPricing.premium_plan')}}</th>
-                                        <td data-title="Price">
-                                            <p class="pmpro_level-price"><strong>$180.00 {{ __('streamMovies.every') }} 3 {{ __('streamMovies.Months') }}</strong>. </p>
-                                        </td>
-                                        <td>
-
-                                            <a aria-label="Select the Premium Plan membership level"
-                                                class="pmpro_btn pmpro_btn-select w-100"
-                                                href="membership-comfirmation">{{ __('form.select') }}</a>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div> <!-- end pmpro_card_content -->
-                    </div> <!-- end pmpro_card -->
-                </div> <!-- end pmpro_section_content -->
-            </section> <!-- end pmpro_section -->
+            @if ($currentSub)
+                <div class="pmpro_actions_nav mt-4">
+                    <span class="pmpro_actions_nav-left">
+                        <a href="{{ route('frontend.membership-account') }}">← Back to My Account</a>
+                    </span>
+                </div>
+            @endif
         </div>
     </div>
 
-    {{-- Mobile Footer --}}
     @include('frontend::components.widgets.mobile-footer')
-    {{-- Mobile Footer End --}}
 @endsection

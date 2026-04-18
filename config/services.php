@@ -31,4 +31,24 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Social login (Socialite)
+    |--------------------------------------------------------------------------
+    |
+    | Google OAuth. The login/register views surface the "Continue with
+    | Google" button only when GOOGLE_CLIENT_ID is set in .env, so
+    | deployments without credentials don't see a broken button.
+    |
+    | Local dev credentials: create a project at
+    |   https://console.cloud.google.com/ → Credentials → OAuth 2.0 Client IDs
+    | Authorized redirect URI: {APP_URL}/auth/google/callback
+    |
+    */
+    'google' => [
+        'client_id'     => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect'      => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
+    ],
+
 ];

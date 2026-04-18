@@ -37,24 +37,19 @@
       </a>
     </div>
     <div class="card-description with-transition">
-      <ul class="genres-list p-0 mb-2 d-flex align-items-center flex-wrap list-inline">
-        @if ($cardGenres)
+      {{-- Genre chips. Shown only when the caller actually passes
+           genre names — no placeholder text. They render as spans
+           because we only receive names, not slugs; until callers
+           pass slugs, there's nothing to link to. --}}
+      @if ($cardGenres)
+        <ul class="genres-list p-0 mb-2 d-flex align-items-center flex-wrap list-inline">
           @foreach ($cardGenres as $g)
             <li class="fw-semi-bold">
-              <a href="javascript:void(0)" tabindex="0" class="font-size-14">{{ $g }}</a>
+              <span tabindex="0" class="font-size-14">{{ $g }}</span>
             </li>
           @endforeach
-        @else
-          <li class="fw-semi-bold">
-            <a href="view-all" tabindex="0" class="font-size-14">{{__('streamTag.action')}}</a>
-          </li>
-          @if ($addlist)
-            <li class="fw-semi-bold">
-              <a href="view-all" tabindex="0" class="font-size-14">{{__('streamTag.action')}}</a>
-            </li>
-          @endif
-        @endif
-      </ul>
+        </ul>
+      @endif
       <div class="cart-content">
         <div class="content-left">
           <h5 class="iq-title text-capitalize mb-0">
@@ -76,14 +71,17 @@
             <i class="ph {{ $watchlistIcon }} font-size-18"></i>
           </button>
         @else
-          {{-- Fallback for callers not yet updated — links to the
-               watchlist page so the affordance remains consistent. --}}
-          <a href="{{ route('frontend.watchlist_detail') }}"
+          {{-- Fallback when the caller hasn't passed watchableType/Id
+               (guest users, legacy pages). Show the affordance but
+               don't navigate anywhere — tooltip nudges sign-in so the
+               click isn't a silent dead end. --}}
+          <button type="button"
             class="d-flex align-items-center justify-content-center flex-shrink-0 border-0 add-to-wishlist-btn btn btn-secondary"
             data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="custom-tooltip"
-            data-bs-title="{{__('sectionTitle.add_to_watchlist_tooltip')}}">
+            data-bs-title="Sign in to save"
+            onclick="event.preventDefault();">
             <i class="ph ph-plus font-size-18"></i>
-          </a>
+          </button>
         @endif
         <div class="iq-play-button iq-button">
           <a href="{{ $cardPath }}" class="btn btn-primary w-100">{{__('streamButtons.play_now')}}</a>
@@ -108,24 +106,15 @@
       </a>
     </div>
     <div class="card-description with-transition">
-      <ul class="genres-list p-0 mb-2 d-flex align-items-center flex-wrap list-inline">
-        @if ($cardGenres)
+      @if ($cardGenres)
+        <ul class="genres-list p-0 mb-2 d-flex align-items-center flex-wrap list-inline">
           @foreach ($cardGenres as $g)
             <li class="fw-semi-bold">
-              <a href="javascript:void(0)" tabindex="0" class="font-size-14">{{ $g }}</a>
+              <span tabindex="0" class="font-size-14">{{ $g }}</span>
             </li>
           @endforeach
-        @else
-          <li class="fw-semi-bold">
-            <a href="view-all" tabindex="0" class="font-size-14">{{__('streamTag.action')}}</a>
-          </li>
-          @if ($addlist)
-            <li class="fw-semi-bold">
-              <a href="view-all" tabindex="0" class="font-size-14">{{__('streamTag.action')}}</a>
-            </li>
-          @endif
-        @endif
-      </ul>
+        </ul>
+      @endif
       <div class="cart-content">
         <div class="content-left">
           <h5 class="iq-title text-capitalize">
@@ -161,14 +150,17 @@
             <i class="ph {{ $watchlistIcon }} font-size-18"></i>
           </button>
         @else
-          {{-- Fallback for callers not yet updated — links to the
-               watchlist page so the affordance remains consistent. --}}
-          <a href="{{ route('frontend.watchlist_detail') }}"
+          {{-- Fallback when the caller hasn't passed watchableType/Id
+               (guest users, legacy pages). Show the affordance but
+               don't navigate anywhere — tooltip nudges sign-in so the
+               click isn't a silent dead end. --}}
+          <button type="button"
             class="d-flex align-items-center justify-content-center flex-shrink-0 border-0 add-to-wishlist-btn btn btn-secondary"
             data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="custom-tooltip"
-            data-bs-title="{{__('sectionTitle.add_to_watchlist_tooltip')}}">
+            data-bs-title="Sign in to save"
+            onclick="event.preventDefault();">
             <i class="ph ph-plus font-size-18"></i>
-          </a>
+          </button>
         @endif
         <div class="iq-play-button iq-button">
           <a href="{{ $cardPath }}" class="btn btn-primary w-100">{{__('streamButtons.play_now')}}</a>

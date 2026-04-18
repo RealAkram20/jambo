@@ -170,6 +170,12 @@
     'ratingCount' => $movie->rating ?: '',
 ])
 
+{{-- Reviews & ratings --}}
+@include('frontend::components.partials.reviews-block', [
+    'storeRoute'   => route('frontend.movie_review_store',   $movie->slug),
+    'destroyRoute' => route('frontend.movie_review_destroy', $movie->slug),
+])
+
 {{-- Mobile Footer --}}
 @include('frontend::components.widgets.mobile-footer')
 {{-- Mobile Footer End --}}

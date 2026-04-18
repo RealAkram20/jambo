@@ -214,6 +214,12 @@
         </div>
     </div>
 
+    {{-- Reviews & ratings --}}
+    @include('frontend::components.partials.reviews-block', [
+        'storeRoute'   => route('frontend.series_review_store',   $show->slug),
+        'destroyRoute' => route('frontend.series_review_destroy', $show->slug),
+    ])
+
     {{-- Mobile Footer --}}
     @include('frontend::components.widgets.mobile-footer')
     {{-- Mobile Footer End --}}

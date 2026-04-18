@@ -34,10 +34,6 @@ Route::group([], function () {
     //detail pages
     Route::get('/movie-detail/{slug?}', [FrontendController::class, 'movie_detail'])->name('frontend.movie_detail');
     Route::get('/watch/{slug?}', [FrontendController::class, 'movie_watch'])->middleware('auth')->name('frontend.watch');
-    Route::get('/movie-player', [FrontendController::class, 'movie_player'])->name('frontend.movie_player');
-    Route::get('/download', [FrontendController::class, 'download'])->name('frontend.download');
-    Route::get('/view-more', [FrontendController::class, 'view_more'])->name('frontend.view-more');
-    Route::get('/resticted', [FrontendController::class, 'resticted'])->name('frontend.resticted');
     Route::get('/series/{slug}', [FrontendController::class, 'tvshow_detail'])->name('frontend.series_detail');
     Route::get('/tv-show-detail/{slug?}', function (?string $slug = null) {
         return $slug
@@ -53,6 +49,18 @@ Route::group([], function () {
         ->whereIn('type', ['movie', 'show'])
         ->whereNumber('id')
         ->name('frontend.continue_watching_remove');
+
+    // Reviews + comments (auth-gated writes)
+    Route::middleware('auth')->group(function () {
+        Route::post('/movies/{slug}/reviews', [FrontendController::class, 'storeMovieReview'])->name('frontend.movie_review_store');
+        Route::delete('/movies/{slug}/reviews', [FrontendController::class, 'destroyMovieReview'])->name('frontend.movie_review_destroy');
+
+        Route::post('/series/{slug}/reviews', [FrontendController::class, 'storeShowReview'])->name('frontend.series_review_store');
+        Route::delete('/series/{slug}/reviews', [FrontendController::class, 'destroyShowReview'])->name('frontend.series_review_destroy');
+
+        Route::post('/episodes/{episode}/comments', [FrontendController::class, 'storeEpisodeComment'])->name('frontend.episode_comment_store');
+        Route::delete('/comments/{comment}', [FrontendController::class, 'destroyComment'])->name('frontend.comment_destroy');
+    });
     Route::get('/api/v1/watchlist/{slug}/player-data', [FrontendController::class, 'watchlistMoviePlayerData'])
         ->middleware('auth')
         ->where('slug', '[A-Za-z0-9-]+')
@@ -66,8 +74,12 @@ Route::group([], function () {
         ->middleware('auth')
         ->whereNumber('id')
         ->name('frontend.watchlist_remove');
-    Route::get('/person-detail', [FrontendController::class, 'person_detail'])->name('frontend.person_detail');
-    Route::get('/watchlist', [FrontendController::class, 'watchlist_detail'])->middleware('auth')->name('frontend.watchlist_detail');
+    // Legacy /watchlist — now lives under the profile hub. Kept as a
+    // named redirect so card/header templates referencing
+    // `route('frontend.watchlist_detail')` still resolve.
+    Route::get('/watchlist', function () {
+        return redirect()->route('profile.watchlist', ['username' => auth()->user()->username]);
+    })->middleware('auth')->name('frontend.watchlist_detail');
     // Prettier URL: /watchlist/{movie-slug}. Only Movies are served by
     // this endpoint — episodes in the queue link to /episode/{id}
     // (already wired), and shows to /series/{slug}.
@@ -94,12 +106,21 @@ Route::group([], function () {
         }
         return redirect()->route('frontend.watchlist_detail');
     })->middleware('auth');
-    Route::get('/playlist-detail', [FrontendController::class, 'playlist_detail'])->name('frontend.playlist_detail');
     Route::get('/view-all', [FrontendController::class, 'view_all'])->name('frontend.view_all');
 
     //Genres pages
     Route::get('/geners/{slug?}', [FrontendController::class, 'genres'])->name('frontend.genres');
     Route::get('/all-genres', [FrontendController::class, 'all_genres'])->name('frontend.all-genres');
+
+    //Categories pages (mirror of genres)
+    Route::get('/categories', [FrontendController::class, 'all_categories'])->name('frontend.all-categories');
+    Route::get('/categories/{slug}', [FrontendController::class, 'category'])->name('frontend.category');
+
+    // Notifications live in the Notifications module — its routes
+    // are `notifications.index`, `notifications.read`,
+    // `notifications.mark-all-read`, `notifications.destroy`. The
+    // header bell + frontend notifications page both resolve to
+    // them; no frontend-side duplicates here.
 
     //cast pages
     Route::get('/cast-list', [FrontendController::class, 'cast_list'])->name('frontend.cast_list');
@@ -109,7 +130,6 @@ Route::group([], function () {
     //tag pages
     Route::get('/tag/{slug?}', [FrontendController::class, 'tag'])->name('frontend.tag');
     Route::get('/view-all-tags', [FrontendController::class, 'view_all_tags'])->name('frontend.view-all-tags');
-    Route::get('/playlist', [FrontendController::class, 'play_list'])->name('frontend.play_list');
 
     // Extra Pages
     Route::get('/about-us', [FrontendController::class, 'about_us'])->name('frontend.about_us');
@@ -123,14 +143,39 @@ Route::group([], function () {
     Route::get('/error-page2', [FrontendController::class, 'error_page2'])->name('frontend.error_page2');
 
     //Profile
-    Route::get('/profile-marvin', [FrontendController::class, 'profile_marvin'])->name('frontend.profile-marvin');
-    Route::get('/archive-playlist', [FrontendController::class, 'archive_playlist'])->name('frontend.archive-playlist');
-    Route::get('/membership-invoice', [FrontendController::class, 'membership_invoice'])->name('frontend.membership-invoice');
-    Route::get('/membership-orders', [FrontendController::class, 'membership_orders'])->name('frontend.membership-orders');
-    Route::get('/membership-account', [FrontendController::class, 'membership_account'])->name('frontend.membership-account');
-    Route::get('/membership-level', [FrontendController::class, 'membership_level'])->name('frontend.membership-level');
-    Route::get('/membership-comfirmation', [FrontendController::class, 'membership_comfirmation'])->name('frontend.membership-comfirmation');
-    Route::get('/your-profile', [FrontendController::class, 'your_profile'])->middleware('auth')->name('frontend.your-profile');
-    Route::post('/your-profile', [FrontendController::class, 'updateProfile'])->middleware('auth')->name('frontend.your-profile.update');
-    Route::get('/change-password', [FrontendController::class, 'change_password'])->name('frontend.change-password');
+    // Legacy membership URLs — all now redirect into the profile
+    // hub's Membership / Billing tabs. Route names are preserved so
+    // any templates still using `route('frontend.membership-*')` keep
+    // working until they're rewritten.
+    Route::middleware('auth')->group(function () {
+        Route::get('/membership-account', function () {
+            return redirect()->route('profile.membership', ['username' => auth()->user()->username]);
+        })->name('frontend.membership-account');
+
+        Route::get('/membership-orders', function () {
+            return redirect()->route('profile.billing', ['username' => auth()->user()->username]);
+        })->name('frontend.membership-orders');
+
+        Route::get('/membership-invoice/{order?}', function ($order = null) {
+            $username = auth()->user()->username;
+            return $order
+                ? redirect()->route('profile.invoice', ['username' => $username, 'orderId' => $order])
+                : redirect()->route('profile.billing', ['username' => $username]);
+        })->name('frontend.membership-invoice');
+
+        Route::get('/membership-level', function () {
+            return redirect()->route('profile.membership', ['username' => auth()->user()->username]);
+        })->name('frontend.membership-level');
+
+        Route::get('/membership-comfirmation', [FrontendController::class, 'membership_comfirmation'])
+            ->name('frontend.membership-comfirmation');
+
+        Route::get('/your-profile', function () {
+            return redirect()->route('profile.show', ['username' => auth()->user()->username]);
+        })->name('frontend.your-profile');
+
+        Route::get('/change-password', function () {
+            return redirect()->route('profile.security', ['username' => auth()->user()->username]);
+        })->name('frontend.change-password');
+    });
 });

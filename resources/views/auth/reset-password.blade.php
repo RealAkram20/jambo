@@ -1,48 +1,56 @@
-@extends('layouts.auth')
+@extends('layouts.jambo-auth', ['title' => 'Reset password'])
 
 @section('content')
-    <x-auth-card>
-        <x-slot name="logo">
-            <a href="/">
-                <x-application-logo class="w-20 h-20 " />
-            </a>
-        </x-slot>
+    <div class="jambo-auth-card">
+        <h1>Choose a new password</h1>
+        <p class="jambo-auth-card__subtitle">Pick something you'll remember — 8 characters minimum.</p>
 
-        <!-- Validation Errors -->
-        <x-auth-validation-errors class="mb-4" :errors="$errors" />
+        @if ($errors->any())
+            <div class="jambo-auth-alert">
+                @if ($errors->count() === 1)
+                    {{ $errors->first() }}
+                @else
+                    <ul>
+                        @foreach ($errors->all() as $e) <li>{{ $e }}</li> @endforeach
+                    </ul>
+                @endif
+            </div>
+        @endif
 
-        <form method="POST" action="{{ route('password.update') }}">
+        <form method="POST" action="{{ route('password.update') }}" novalidate>
             @csrf
-
-            <!-- Password Reset Token -->
             <input type="hidden" name="token" value="{{ $request->route('token') }}">
 
-            <!-- Email Address -->
-            <div>
-                <x-label for="email" :value="__('Email')" />
-
-                <x-input id="email" class="" type="email" name="email" :value="old('email', $request->email)" required autofocus />
+            <div class="jambo-field">
+                <label for="email">Email</label>
+                <input id="email" type="email" name="email"
+                       value="{{ old('email', $request->email) }}"
+                       autocomplete="email" required>
             </div>
 
-            <!-- Password -->
-            <div class="mt-4">
-                <x-label for="password" :value="__('Password')" />
-
-                <x-input id="password" class="" type="password" name="password" required />
+            <div class="jambo-field jambo-field--with-toggle">
+                <label for="password">New password</label>
+                <input id="password" type="password" name="password"
+                       autocomplete="new-password" required placeholder="New password">
+                <button type="button" class="jambo-field__toggle" aria-label="Show password">
+                    <i class="ph ph-eye-slash"></i>
+                </button>
             </div>
 
-            <!-- Confirm Password -->
-            <div class="mt-4">
-                <x-label for="password_confirmation" :value="__('Confirm Password')" />
-
-                <x-input id="password_confirmation" class="" type="password" name="password_confirmation" required />
+            <div class="jambo-field jambo-field--with-toggle">
+                <label for="password_confirmation">Confirm password</label>
+                <input id="password_confirmation" type="password" name="password_confirmation"
+                       autocomplete="new-password" required placeholder="Repeat new password">
+                <button type="button" class="jambo-field__toggle" aria-label="Show password">
+                    <i class="ph ph-eye-slash"></i>
+                </button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-end mt-4">
-                <x-button>
-                    {{ __('Reset Password') }}
-                </x-button>
-            </div>
+            <button type="submit" class="jambo-auth-btn mt-3">Reset password</button>
         </form>
-    </x-auth-card>
+
+        <div class="jambo-auth-footer">
+            <a href="{{ route('login') }}">Back to sign in</a>
+        </div>
+    </div>
 @endsection

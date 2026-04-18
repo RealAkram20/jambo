@@ -1,123 +1,111 @@
-@extends('layouts.auth')
+@extends('layouts.jambo-auth', ['title' => 'Sign up'])
+
+@section('header-cta')
+    Already have an account?
+    <a href="{{ route('login') }}" class="text-primary fw-semibold text-decoration-none ms-1">
+        Sign in
+    </a>
+@endsection
 
 @section('content')
-    <section class=sign-in-page style="background-image: url('{{ asset('dashboard/images/login/login.webp') }}')">
-        <x-auth-card customClassCol="col-lg-7">
-            <!-- Validation Errors -->
+    <div class="jambo-auth-card jambo-auth-card--wide">
+        <h1>Create your account</h1>
+        <p class="jambo-auth-card__subtitle">It's free to start — pick a plan once you're in.</p>
 
-            <!-- Social login -->
+        @if ($errors->any())
+            <div class="jambo-auth-alert">
+                @if ($errors->count() === 1)
+                    {{ $errors->first() }}
+                @else
+                    <ul>
+                        @foreach ($errors->all() as $e) <li>{{ $e }}</li> @endforeach
+                    </ul>
+                @endif
+            </div>
+        @endif
 
-            <x-auth-social-login />
-            <div class="sign-in-page-data">
-                <div class="sign-in-from w-100 m-auto">
-                    <x-auth-validation-errors class="mb-4" :errors="$errors" />
+        <form method="POST" action="{{ route('register') }}" novalidate>
+            @csrf
 
-                    <x-slot name="logo">
-                        <a href="/">
-                            <x-application-logo />
-                        </a>
-                    </x-slot>
-
-                    <form method="POST" action="{{ route('register') }}">
-                        @csrf
-                        <div class="row">
-                            <!-- contect  -->
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <x-label for="mobile" :value="__('authentication.username')" />
-
-                                    <x-input id="mobile" type="text" name="name" required
-                                        placeholder="{{ __('authentication.enter_full_name') }}" class="mb-0" />
-
-                                </div>
-                            </div>
-
-                            <!-- email add -->
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <x-label for="email" :value="__('authentication.e_mail')" />
-
-                                    <x-input id="email" type="email" name="email" :value="old('email')" required
-                                        placeholder="Enter email" class="mb-0" />
-                                </div>
-                            </div>
-
-
-                            <!-- firdt name -->
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <x-label for="first_name" :value="__('First Name')" />
-
-                                    <x-input id="first_name" type="text" name="first_name" :value="old('first_name')" required
-                                        autofocus placeholder="{{ __('authentication.first_name') }}" class="mb-0" />
-
-                                </div>
-                            </div>
-                            <!-- last name  -->
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <x-label for="last_name" :value="__('Last Name')" />
-
-                                    <x-input id="last_name" type="text" name="last_name" :value="old('last_name')" required
-                                        autofocus placeholder="{{ __('authentication.last_name') }}" class="mb-0" />
-
-                                </div>
-                            </div>
-
-                            <!-- Password -->
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <x-label for="password" :value="__('Password')" />
-                                    <div class="input-group custom-input-group mb-3">
-                                        <x-input id="password" type="password" name="password" required
-                                            autocomplete="new-password" placeholder=" Password" class="mb-0" />
-                                        <span class="input-group-text"><i class="ph ph-eye-slash"
-                                                id="togglePassword"></i></span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Confirm Password -->
-                            <div class="col-md-6">
-                                <div class="mb-b">
-                                    <x-label for="password_confirmation" :value="__('Repeat Password')" />
-                                    <div class="input-group custom-input-group mb-3">
-                                        <x-input id="password_confirmation" type="password" name="password_confirmation"
-                                            required placeholder=" Password" class="mb-0" />
-                                        <span class="input-group-text"><i class="ph ph-eye-slash"
-                                                id="togglePassword"></i></span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="form-check my-2"><input type="radio" id="customRadio1" name="customRadio"
-                                class="form-check-input"><label class="form-check-label" for="customRadio1">Premium-$39 /
-                                3 Months with a 5 day free trial</label></div>
-                        <div class="form-check"><input type="radio" id="customRadio2" name="customRadio"
-                                class="form-check-input"><label class="form-check-label" for="customRadio2"> Basic- $19 /
-                                1 Month</label></div>
-                        <div class="form-check"><input type="radio" id="customRadio3" name="customRadio"
-                                class="form-check-input"><label class="form-check-label"
-                                for="customRadio3">Free-Free</label></div>
-                        <div class="submit mt-3">
-                            <x-button class="w-100 custom-sign-btn">
-                                {{ __('authentication.sign_up') }}
-                            </x-button>
-                        </div>
-                    </form>
-                    <div class="mt-3">
-                        <div class="d-flex justify-content-center links">Already have an account? <a
-                                class="text-primary ms-2" href="{{ route('login') }}">Sign In</a> </div>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="jambo-field">
+                        <label for="first_name">First name</label>
+                        <input id="first_name" type="text" name="first_name"
+                               value="{{ old('first_name') }}" required autofocus
+                               placeholder="First name">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="jambo-field">
+                        <label for="last_name">Last name</label>
+                        <input id="last_name" type="text" name="last_name"
+                               value="{{ old('last_name') }}" required
+                               placeholder="Last name">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="jambo-field">
+                        <label for="username">Display name</label>
+                        <input id="username" type="text" name="username"
+                               value="{{ old('username') }}" required
+                               placeholder="How you'll show up"
+                               autocomplete="username">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="jambo-field">
+                        <label for="email">Email</label>
+                        <input id="email" type="email" name="email" value="{{ old('email') }}"
+                               required autocomplete="email" placeholder="you@example.com">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="jambo-field jambo-field--with-toggle">
+                        <label for="password">Password</label>
+                        <input id="password" type="password" name="password" required
+                               autocomplete="new-password" placeholder="At least 8 characters">
+                        <button type="button" class="jambo-field__toggle" aria-label="Show password">
+                            <i class="ph ph-eye-slash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="jambo-field jambo-field--with-toggle">
+                        <label for="password_confirmation">Confirm password</label>
+                        <input id="password_confirmation" type="password" name="password_confirmation"
+                               required autocomplete="new-password" placeholder="Repeat your password">
+                        <button type="button" class="jambo-field__toggle" aria-label="Show password">
+                            <i class="ph ph-eye-slash"></i>
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <x-slot name="extra">
-                <span>
-                    {{ __('Already registered?') }} <a href="{{ route('login') }}">Login</a>.
-                </span>
-            </x-slot>
+            {{-- Terms acceptance. Not persisted on the User row — the
+                 fact of account creation is the implicit consent record,
+                 and the registration event logs IP+UA server-side which
+                 satisfies most audit needs. --}}
+            <div class="mt-3 small text-muted">
+                By creating an account you agree to our
+                <a href="{{ route('frontend.terms-and-policy') }}" class="text-primary text-decoration-none">Terms</a>
+                and
+                <a href="{{ route('frontend.privacy-policy') }}" class="text-primary text-decoration-none">Privacy Policy</a>.
+            </div>
 
-        </x-auth-card>
-    </section>
+            <button type="submit" class="jambo-auth-btn mt-4">Create account</button>
+        </form>
+
+        @if (config('services.google.client_id'))
+            <div class="jambo-auth-divider">or continue with</div>
+            <a href="{{ route('auth.social', 'google') }}" class="jambo-social-btn">
+                <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.9 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 19.8-8 19.8-20 0-1.3-.1-2.3-.2-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 16 18.9 13 24 13c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 7.1 29.3 5 24 5c-7.7 0-14.3 4.4-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.6-5.2l-6.3-5.2c-2 1.4-4.5 2.4-7.3 2.4-5.2 0-9.6-3.3-11.2-7.9l-6.5 5C9.4 39.5 16.1 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4 5.6l6.3 5.2C41 35.5 44 30.2 44 24c0-1.3-.1-2.3-.4-3.5z"/></svg>
+                Continue with Google
+            </a>
+        @endif
+
+        <div class="jambo-auth-footer">
+            Already have an account? <a href="{{ route('login') }}">Sign in</a>
+        </div>
+    </div>
 @endsection

@@ -10,7 +10,6 @@ export default defineConfig({
                 // "public/dashboard/scss/dark.scss",
                 "public/dashboard/scss/customizer.scss",
                 "public/dashboard/scss/pro.scss",
-                "public/dashboard/scss/rtl.scss",
                 "public/dashboard/scss/custom.scss",
                 "resources/css/app.scss",
                 "resources/js/app.js",

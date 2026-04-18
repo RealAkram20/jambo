@@ -43,6 +43,8 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
     ];
 
     /**
@@ -51,9 +53,26 @@ class User extends Authenticatable implements MustVerifyEmail
      * @var array<string, string>
      */
     protected $casts = [
-        'email_verified_at' => 'datetime',
-        'password' => 'hashed',
+        'email_verified_at'       => 'datetime',
+        'two_factor_confirmed_at' => 'datetime',
+        'deactivated_at'          => 'datetime',
+        'password'                => 'hashed',
     ];
+
+    /**
+     * True when the user has both set up AND confirmed 2FA — the
+     * middleware only challenges confirmed users, so a half-finished
+     * setup can't lock someone out.
+     */
+    public function hasEnabledTwoFactorAuthentication(): bool
+    {
+        return !is_null($this->two_factor_confirmed_at);
+    }
+
+    public function isDeactivated(): bool
+    {
+        return !is_null($this->deactivated_at);
+    }
 
     protected $appends = ['full_name', 'profile_image'];
 

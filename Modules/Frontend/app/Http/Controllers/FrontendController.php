@@ -5,6 +5,7 @@ namespace Modules\Frontend\app\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Modules\Content\app\Models\Movie;
 use Modules\Content\app\Models\Show;
+use Modules\Content\app\Models\Category;
 use Modules\Content\app\Models\Genre;
 use Modules\Content\app\Models\Tag;
 use Modules\Content\app\Models\Person;
@@ -12,6 +13,9 @@ use Modules\Content\app\Models\Vj;
 use Modules\Streaming\app\Models\WatchHistoryItem;
 use Modules\Streaming\app\Models\WatchlistItem;
 use Modules\Content\app\Models\Episode;
+use Modules\Content\app\Models\Comment;
+use Modules\Content\app\Models\Review;
+use Modules\Payments\app\Models\PaymentOrder;
 use Modules\Subscriptions\app\Models\SubscriptionTier;
 use Modules\Subscriptions\app\Models\UserSubscription;
 use Illuminate\Http\JsonResponse;
@@ -381,22 +385,6 @@ class FrontendController extends Controller
         return response($html)->header('X-Has-More', $hasMore ? '1' : '0');
     }
 
-    //movies pages
-    public function download()
-    {
-        return view('frontend::Pages.Movies.download-page');
-    }
-
-    public function view_more()
-    {
-        return view('frontend::Pages.view-more');
-    }
-
-    public function resticted()
-    {
-        return view('frontend::Pages.Movies.resticted-page');
-    }
-
     //deatil pages
     public function movie_detail(?string $slug = null)
     {
@@ -412,8 +400,9 @@ class FrontendController extends Controller
 
         $source = $movie->streamSource();
         $canWatch = $this->userCanWatch($movie);
+        [$reviews, $reviewStats, $myReview] = $this->loadReviewData($movie);
 
-        return view('frontend::Pages.Movies.detail-page', compact('movie', 'recommended', 'source', 'canWatch'));
+        return view('frontend::Pages.Movies.detail-page', compact('movie', 'recommended', 'source', 'canWatch', 'reviews', 'reviewStats', 'myReview'));
     }
 
     /**
@@ -525,11 +514,6 @@ class FrontendController extends Controller
         return $userLevel >= $requiredTier->access_level;
     }
 
-    public function movie_player()
-    {
-        return view('frontend::Pages.Movies.movie-player');
-    }
-
     public function tvshow_detail(?string $slug = null)
     {
         $show = $slug
@@ -547,7 +531,41 @@ class FrontendController extends Controller
             ->take(6)
             ->get();
 
-        return view('frontend::Pages.TvShows.detail-page', compact('show', 'recommended'));
+        [$reviews, $reviewStats, $myReview] = $this->loadReviewData($show);
+
+        return view('frontend::Pages.TvShows.detail-page', compact('show', 'recommended', 'reviews', 'reviewStats', 'myReview'));
+    }
+
+    /**
+     * Shared loader — returns the latest 10 published reviews with
+     * user names, aggregate stats (count + rounded avg), and the
+     * current user's review (if any) so the view can branch between
+     * "write a review" and "your review" states without guessing.
+     *
+     * @return array{0:\Illuminate\Support\Collection,1:array{count:int,avg:float},2:?Review}
+     */
+    private function loadReviewData(Movie|Show $content): array
+    {
+        $base = Review::where('reviewable_type', $content->getMorphClass())
+            ->where('reviewable_id', $content->id);
+
+        $reviews = (clone $base)
+            ->where('is_published', true)
+            ->with('user:id,username,first_name,last_name')
+            ->latest()
+            ->take(10)
+            ->get();
+
+        $stats = [
+            'count' => (clone $base)->where('is_published', true)->count(),
+            'avg'   => round((float) (clone $base)->where('is_published', true)->avg('stars'), 1),
+        ];
+
+        $myReview = auth()->check()
+            ? (clone $base)->where('user_id', auth()->id())->first()
+            : null;
+
+        return [$reviews, $stats, $myReview];
     }
 
     public function episode(?string $slug = null)
@@ -651,7 +669,18 @@ class FrontendController extends Controller
             ->take(6)
             ->get();
 
-        return view('frontend::Pages.TvShows.episode-page', compact('episode', 'show', 'source', 'canWatch', 'nextEpisode', 'previousEpisode', 'resumePosition', 'similarShows', 'recommendedShows'));
+        // Comments thread — approved comments only, newest first,
+        // top-level only (replies not rendered yet).
+        $comments = Comment::where('commentable_type', $episode->getMorphClass())
+            ->where('commentable_id', $episode->id)
+            ->where('is_approved', true)
+            ->whereNull('parent_id')
+            ->with('user:id,username,first_name,last_name')
+            ->latest()
+            ->take(30)
+            ->get();
+
+        return view('frontend::Pages.TvShows.episode-page', compact('episode', 'show', 'source', 'canWatch', 'nextEpisode', 'previousEpisode', 'resumePosition', 'similarShows', 'recommendedShows', 'comments'));
     }
 
     /**
@@ -768,6 +797,113 @@ class FrontendController extends Controller
         }
 
         return response()->json(['ok' => true, 'removed' => $deleted]);
+    }
+
+    /* ---------------------------------------------------------------
+     | Reviews (movies + shows)
+     | --------------------------------------------------------------- */
+
+    public function storeMovieReview(Request $request, string $slug)
+    {
+        $movie = Movie::where('slug', $slug)->firstOrFail();
+        $this->persistReview($request, $movie);
+        return back()->with('success', 'Thanks — your review was saved.');
+    }
+
+    public function storeShowReview(Request $request, string $slug)
+    {
+        $show = Show::where('slug', $slug)->firstOrFail();
+        $this->persistReview($request, $show);
+        return back()->with('success', 'Thanks — your review was saved.');
+    }
+
+    public function destroyMovieReview(string $slug)
+    {
+        $movie = Movie::where('slug', $slug)->firstOrFail();
+        $this->deleteOwnReview($movie);
+        return back()->with('success', 'Your review was removed.');
+    }
+
+    public function destroyShowReview(string $slug)
+    {
+        $show = Show::where('slug', $slug)->firstOrFail();
+        $this->deleteOwnReview($show);
+        return back()->with('success', 'Your review was removed.');
+    }
+
+    /**
+     * One review per (user, content). `updateOrCreate` makes the form
+     * idempotent — editing an existing review silently overwrites the
+     * previous one instead of stacking duplicates.
+     */
+    private function persistReview(Request $request, Movie|Show $content): void
+    {
+        $data = $request->validate([
+            'stars' => 'required|integer|min:1|max:5',
+            'title' => 'nullable|string|max:200',
+            'body'  => 'required|string|min:3|max:4000',
+        ]);
+
+        Review::updateOrCreate(
+            [
+                'user_id'         => auth()->id(),
+                'reviewable_type' => $content->getMorphClass(),
+                'reviewable_id'   => $content->id,
+            ],
+            [
+                'stars'        => $data['stars'],
+                'title'        => $data['title'] ?? null,
+                'body'         => $data['body'],
+                'is_published' => true,
+            ],
+        );
+    }
+
+    private function deleteOwnReview(Movie|Show $content): void
+    {
+        Review::where('user_id', auth()->id())
+            ->where('reviewable_type', $content->getMorphClass())
+            ->where('reviewable_id', $content->id)
+            ->delete();
+    }
+
+    /* ---------------------------------------------------------------
+     | Comments (episodes)
+     | --------------------------------------------------------------- */
+
+    public function storeEpisodeComment(Request $request, Episode $episode)
+    {
+        $data = $request->validate([
+            'body' => 'required|string|min:2|max:2000',
+            'parent_id' => 'nullable|integer|exists:comments,id',
+        ]);
+
+        Comment::create([
+            'user_id'          => auth()->id(),
+            'commentable_type' => $episode->getMorphClass(),
+            'commentable_id'   => $episode->id,
+            'parent_id'        => $data['parent_id'] ?? null,
+            'body'             => $data['body'],
+            'is_approved'      => true,
+        ]);
+
+        return back()->with('success', 'Comment posted.');
+    }
+
+    /**
+     * Users can delete their own comments. Admins can delete any.
+     */
+    public function destroyComment(Comment $comment)
+    {
+        $user = auth()->user();
+        abort_if(
+            $comment->user_id !== $user->id && !$user->hasRole('admin'),
+            403
+        );
+
+        $comment->delete();
+
+        return back()->with('success', 'Comment removed.');
     }
 
     public function watchlist_detail()
@@ -1008,11 +1144,6 @@ class FrontendController extends Controller
         return response()->json(['ok' => (bool) $deleted]);
     }
 
-    public function playlist_detail()
-    {
-        return view('frontend::Pages.playlist-detail');
-    }
-
     public function view_all()
     {
         return view('frontend::Pages.view-all');
@@ -1030,6 +1161,30 @@ class FrontendController extends Controller
 
         $genres = Genre::withCount(['movies', 'shows'])->orderBy('name')->get();
         return view('frontend::Pages.geners-page', compact('genres'));
+    }
+
+    /* ---------------------------------------------------------------
+     | Categories (mirror of genres — curated shelves like Trending,
+     | Editor's Picks, etc. admins assign via the admin UI)
+     | --------------------------------------------------------------- */
+
+    public function all_categories()
+    {
+        $categories = Category::withCount(['movies', 'shows'])
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        return view('frontend::Pages.categories-page', compact('categories'));
+    }
+
+    public function category(string $slug)
+    {
+        $category = Category::where('slug', $slug)->firstOrFail();
+        $movies = $category->movies()->published()->with('genres')->get();
+        $shows  = $category->shows()->published()->with('genres')->get();
+
+        return view('frontend::Pages.categories-page', compact('category', 'movies', 'shows'));
     }
 
     public function all_genres()
@@ -1054,7 +1209,11 @@ class FrontendController extends Controller
 
     public function view_all_tags()
     {
-        return view('frontend::Pages.view-all-tags');
+        $tags = Tag::withCount(['movies', 'shows'])
+            ->orderBy('name')
+            ->get();
+
+        return view('frontend::Pages.view-all-tags', compact('tags'));
     }
 
     // cast Pages Routes
@@ -1082,11 +1241,6 @@ class FrontendController extends Controller
     }
 
     // playlist Pages Routes
-    public function play_list()
-    {
-        return view('frontend::Pages.playlist');
-    }
-
     // Extra Pages
     public function about_us()
     {
@@ -1134,60 +1288,108 @@ class FrontendController extends Controller
         return view('frontend::Pages.ExtraPages.error-page2');
     }
 
-    // new development
-    public function profile_marvin()
-    {
-        // Watchlist feeds under the profile's Watchlist tab — split by
-        // polymorphic type so the two sub-tabs (Movies / Series) each
-        // loop their own collection. Episodes are intentionally left
-        // out here; the user asked for Movies + Series only.
-        $watchlistMovies = collect();
-        $watchlistShows  = collect();
-
-        if (auth()->check()) {
-            $items = WatchlistItem::where('user_id', auth()->id())
-                ->with(['watchable.genres'])
-                ->latest('added_at')
-                ->get();
-
-            $movieClass = (new Movie)->getMorphClass();
-            $showClass  = (new Show)->getMorphClass();
-
-            $watchlistMovies = $items->where('watchable_type', $movieClass)->values();
-            $watchlistShows  = $items->where('watchable_type', $showClass)->values();
-        }
-
-        return view('frontend::Pages.profile-marvin', compact('watchlistMovies', 'watchlistShows'));
-    }
-
-    public function archive_playlist()
-    {
-        return view('frontend::Pages.archive-playlist');
-    }
-
-    public function membership_invoice()
-    {
-        return view('frontend::Pages.Profile.membership-invoice');
-    }
-
-    public function membership_orders()
-    {
-        return view('frontend::Pages.Profile.membership-orders');
-    }
-
+    /**
+     * Account dashboard — profile summary, active subscription, and
+     * the five most-recent payment orders. The routes group already
+     * forces auth, so `auth()->user()` is always set here.
+     */
     public function membership_account()
     {
-        return view('frontend::Pages.Profile.membership-account');
+        $user = auth()->user();
+
+        $activeSub = UserSubscription::with('tier')
+            ->where('user_id', $user->id)
+            ->current()
+            ->orderByDesc('ends_at')
+            ->first();
+
+        $recentOrders = PaymentOrder::where('user_id', $user->id)
+            ->with('payable.tier')
+            ->latest()
+            ->take(5)
+            ->get();
+
+        return view('frontend::Pages.Profile.membership-account', compact('user', 'activeSub', 'recentOrders'));
     }
 
+    /**
+     * Full payment-order history, paginated.
+     */
+    public function membership_orders()
+    {
+        $orders = PaymentOrder::where('user_id', auth()->id())
+            ->with('payable.tier')
+            ->latest()
+            ->paginate(15);
+
+        return view('frontend::Pages.Profile.membership-orders', compact('orders'));
+    }
+
+    /**
+     * Single-order invoice. Accepts an order id (`{order?}`); falls
+     * back to the most recent one for the user when not provided so
+     * bookmarking `/membership-invoice` still shows something useful.
+     * Ownership check via route-model binding implicit scope.
+     */
+    public function membership_invoice(?PaymentOrder $order = null)
+    {
+        $user = auth()->user();
+
+        if ($order && $order->exists) {
+            abort_if($order->user_id !== $user->id, 404);
+        } else {
+            $order = PaymentOrder::where('user_id', $user->id)
+                ->with('payable.tier')
+                ->latest()
+                ->first();
+        }
+
+        if ($order) {
+            $order->loadMissing('payable.tier');
+        }
+
+        return view('frontend::Pages.Profile.membership-invoice', compact('user', 'order'));
+    }
+
+    /**
+     * All active tiers with the user's current tier flagged so the
+     * "current plan" card can highlight itself.
+     */
     public function membership_level()
     {
-        return view('frontend::Pages.Profile.membership-level');
+        $user = auth()->user();
+
+        $currentSub = UserSubscription::with('tier')
+            ->where('user_id', $user->id)
+            ->current()
+            ->orderByDesc('ends_at')
+            ->first();
+
+        $currentTierId = $currentSub?->subscription_tier_id;
+
+        $tiers = SubscriptionTier::where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('access_level')
+            ->get();
+
+        return view('frontend::Pages.Profile.membership-level', compact('tiers', 'currentTierId', 'currentSub'));
     }
 
+    /**
+     * Post-checkout landing — renders the most recent successful
+     * payment for the user. If the user lands here without any
+     * completed orders (fresh signup, direct link), the view shows
+     * an empty-state with a link back to /pricing.
+     */
     public function membership_comfirmation()
     {
-        return view('frontend::Pages.Profile.membership-comfirmation');
+        $order = PaymentOrder::where('user_id', auth()->id())
+            ->where('status', PaymentOrder::STATUS_COMPLETED)
+            ->with('payable.tier')
+            ->latest()
+            ->first();
+
+        return view('frontend::Pages.Profile.membership-comfirmation', compact('order'));
     }
 
     public function your_profile()

@@ -4,8 +4,8 @@
         <div class="d-flex align-items-center gap-3">
             <a id="openReviewButton" class="btn btn-link p-0 custom-fs-14 openReviewButton" data-bs-toggle="offcanvas"
                 href="#offcanvasReview" role="button" aria-controls="offcanvasReview">
-                {{__('streamButtons.add_review')}} </a>
-            <a class="btn btn-link p-0 custom-fs-14" href="view-more">{{__('streamButtons.view_more')}}</a>
+                {{__('streamButtons.add_review')}}
+            </a>
         </div>
     </div>
     <div class="comments-section">

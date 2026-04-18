@@ -1,36 +1,30 @@
-@extends('layouts.auth')
+@extends('layouts.jambo-auth', ['title' => 'Confirm your password'])
 
 @section('content')
-    <section class=sign-in-page style="background-image: url('{{ asset('dashboard/images/login/login.webp') }}')">
-        <x-auth-card customClassCol="col-lg-7">
-            <x-slot name="logo">
-                <x-application-logo />
-            </x-slot>
+    <div class="jambo-auth-card">
+        <h1>Confirm your password</h1>
+        <p class="jambo-auth-card__subtitle">
+            This is a protected area. Please confirm your password to continue.
+        </p>
 
-            <div class="my-4">
-                {{ __('This is a secure area of the application. Please confirm your password before continuing.') }}
+        @if ($errors->any())
+            <div class="jambo-auth-alert">{{ $errors->first() }}</div>
+        @endif
+
+        <form method="POST" action="{{ route('password.confirm') }}">
+            @csrf
+
+            <div class="jambo-field jambo-field--with-toggle">
+                <label for="password">Password</label>
+                <input id="password" type="password" name="password"
+                       autocomplete="current-password" required autofocus
+                       placeholder="Your password">
+                <button type="button" class="jambo-field__toggle" aria-label="Show password">
+                    <i class="ph ph-eye-slash"></i>
+                </button>
             </div>
 
-            <!-- Validation Errors -->
-            <x-auth-validation-errors class="mb-4" :errors="$errors" />
-
-            <form method="POST" action="{{ route('password.confirm') }}">
-                @csrf
-
-                <!-- Password -->
-                <div>
-                    <x-label for="password" :value="__('Password')" />
-
-                    <x-input id="password" class="block mt-1" type="password" name="password" required
-                        autocomplete="current-password" />
-                </div>
-
-                <div class="d-flex justify-content-end align-items-center mt-4">
-                    <x-button>
-                        {{ __('Confirm') }}
-                    </x-button>
-                </div>
-            </form>
-        </x-auth-card>
-    </section>
+            <button type="submit" class="jambo-auth-btn mt-3">Confirm</button>
+        </form>
+    </div>
 @endsection

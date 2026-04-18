@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Providers\RouteServiceProvider;
+use App\Rules\ReservedUsername;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,22 +31,33 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        $data = $request->validate([
+            'first_name' => ['required', 'string', 'max:100'],
+            'last_name'  => ['required', 'string', 'max:100'],
+            'username'   => ['required', 'string', 'min:3', 'max:50', 'regex:/^[a-zA-Z0-9_.\-]+$/', new ReservedUsername(), 'unique:'.User::class],
+            'email'      => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'password'   => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'first_name' => $data['first_name'],
+            'last_name'  => $data['last_name'],
+            'username'   => $data['username'],
+            'email'      => $data['email'],
+            'password'   => Hash::make($data['password']),
         ]);
+
+        // Default role so RBAC checks work without an admin having to
+        // touch every new signup. The `admin` role stays hand-assigned.
+        if (method_exists($user, 'assignRole') && \Spatie\Permission\Models\Role::where('name', 'user')->exists()) {
+            $user->assignRole('user');
+        }
 
         event(new Registered($user));
 
         Auth::login($user);
 
-        return redirect(RouteServiceProvider::HOME);
+        return redirect(RouteServiceProvider::HOME)
+            ->with('status', 'Welcome to ' . config('app.name') . '!');
     }
 }

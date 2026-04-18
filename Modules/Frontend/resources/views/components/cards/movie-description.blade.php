@@ -1,21 +1,20 @@
 <!-- Movie Description Start-->
-<ul class="p-0 mb-2 list-inline d-flex flex-wrap movie-tag">
-    @if (isset($movieGenres) && count($movieGenres))
+{{-- Genre chips. Render as plain spans until callers start passing
+     genre slugs alongside names — there's no slug here to link to. --}}
+@if (isset($movieGenres) && count($movieGenres))
+    <ul class="p-0 mb-2 list-inline d-flex flex-wrap movie-tag">
         @foreach ($movieGenres as $g)
-            <li class="trending-list"><a href="javascript:void(0)">{{ $g }}</a></li>
+            <li class="trending-list"><span>{{ $g }}</span></li>
         @endforeach
-    @else
-        <li class="trending-list"><a class="" href="{{ route('frontend.view_all') }}">{{ __('streamTag.action') }}</a></li>
-        <li class="trending-list"><a class="" href="{{ route('frontend.view_all') }}">{{ __('streamTag.adventure') }}</a></li>
-        <li class="trending-list"><a class="" href="{{ route('frontend.view_all') }}">{{ __('streamTag.drama') }}</a></li>
-    @endif
-</ul>
+    </ul>
+@endif
 <div class="d-block d-lg-flex align-items-center">
     @if(isset($isnotmovieTitle) && $isnotmovieTitle)
         <h5 class="css_prefix-title text-capitalize line-count-1">
-            <a href="javascript:void(0)" class="color-inherit">
-                {{ $moveName }}
-            </a>
+            {{-- Plain heading: the surrounding card already links the
+                 poster to the detail page, wrapping the title in a
+                 dummy anchor added nothing. --}}
+            {{ $moveName }}
         </h5>
     @else
         <h3 class="trending-text fw-bold texture-text text-uppercase my-0 fadeInLeft animated d-inline-block"
@@ -158,14 +157,17 @@
                     </span>
                 </button>
             @else
-                {{-- Fallback for callers not yet updated with watchableType/Id. --}}
-                <a href="{{ route('frontend.watchlist_detail') }}" class="btn btn-secondary border rounded-3" data-bs-toggle="tooltip"
-                    data-bs-placement="top" title="{{__('sectionTitle.add_to_watchlist_tooltip')}}">
+                {{-- Fallback when the caller hasn't passed watchableType/Id
+                     (guests, legacy pages). Keep the affordance visible but
+                     nudge to sign in instead of navigating into a dead end. --}}
+                <button type="button" class="btn btn-secondary border rounded-3" data-bs-toggle="tooltip"
+                    data-bs-placement="top" title="Sign in to save"
+                    onclick="event.preventDefault();">
                     <span class="d-flex align-items-center justify-content-center gap-2">
                         <span class="fw-semibold"><i class="ph ph-plus"></i></span>
                         <span class="fw-semibold">{{__('streamTag.watch_lists')}}</span>
                     </span>
-                </a>
+                </button>
             @endif
         </div>
     @endif

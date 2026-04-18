@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 
 /**
@@ -63,7 +64,7 @@ class NotificationController extends Controller
         ]);
     }
 
-    public function markAsRead(Request $request, string $id): JsonResponse
+    public function markAsRead(Request $request, string $id)
     {
         $notification = $request->user()->notifications()->findOrFail($id);
 
@@ -71,20 +72,31 @@ class NotificationController extends Controller
             $notification->markAsRead();
         }
 
-        return response()->json([
-            'ok' => true,
-            'unread_count' => $request->user()->unreadNotifications()->count(),
-        ]);
+        // Frontend plain-form submits get a redirect back (or to the
+        // notification's action URL if one exists, for one-click
+        // inbox-to-destination flow). AJAX consumers still get JSON.
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'ok' => true,
+                'unread_count' => $request->user()->unreadNotifications()->count(),
+            ]);
+        }
+
+        $target = $notification->data['action_url'] ?? null;
+        if ($target) {
+            return redirect()->away($target);
+        }
+        return back();
     }
 
-    public function markAllAsRead(Request $request): JsonResponse
+    public function markAllAsRead(Request $request)
     {
         $request->user()->unreadNotifications->markAsRead();
 
-        return response()->json([
-            'ok' => true,
-            'unread_count' => 0,
-        ]);
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json(['ok' => true, 'unread_count' => 0]);
+        }
+        return back()->with('success', 'All notifications marked as read.');
     }
 
     public function destroy(Request $request, string $id): JsonResponse

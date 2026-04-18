@@ -89,7 +89,7 @@ class SectionDataComposer
             // Movies
             'latestMovies'   => $movieBase()->orderByDesc('published_at')->take(10)->get(),
             'popularMovies'  => $movieBase()->orderByDesc('views_count')->take(10)->get(),
-            'topMovies'      => $movieBase()->orderByDesc('rating')->orderByDesc('views_count')->take(10)->get(),
+            'topMovies'      => $this->topPicks(Movie::class, 10),
             'upcomingMovies' => $movieBase()->where('published_at', '>', now())->orderBy('published_at')->take(10)->get(),
             'recommendedMovies' => $movieBase()->inRandomOrder()->take(10)->get(),
             'specialsMovies' => $movieBase()->orderByDesc('published_at')->take(10)->get(),
@@ -98,7 +98,7 @@ class SectionDataComposer
             // Shows
             'latestShows'    => $showBase()->orderByDesc('published_at')->take(10)->get(),
             'popularShows'   => $showBase()->orderByDesc('views_count')->take(10)->get(),
-            'topShows'       => $showBase()->orderByDesc('rating')->orderByDesc('views_count')->take(10)->get(),
+            'topShows'       => $this->topPicks(Show::class, 10),
             'recommendedShows' => $showBase()->inRandomOrder()->take(10)->get(),
             'internationalShows' => $showBase()->inRandomOrder()->take(10)->get(),
 
@@ -284,6 +284,77 @@ class SectionDataComposer
             'removeType'      => 'movie',
             'removeId'        => $m->id,
         ];
+    }
+
+    /**
+     * Weighted "Top Picks" ranking for the Top 10 row — blends
+     * popularity, quality (completion rate), editorial sentiment,
+     * recency, and an admin-set boost into a single SQL-side score.
+     *
+     * Signals & weights (tuned for a small catalog; raise/lower the
+     * multipliers without breaking anything):
+     *   + 1.0 × views_count                      popularity
+     *   + 3.0 × completed_count                  quality (people finished it)
+     *   + 0.5 × watchlist_count                  wish-to-watch
+     *   + 2.0 × AVG(user stars)                  sentiment (0..10 contribution)
+     *   + 0.5 × published_review_count           buzz
+     *   - 0.01 × days_since_published            mild recency decay
+     *   + 100 × editor_boost                     editorial override
+     *
+     * Cold-start: when the platform has fewer than COLD_START_MIN
+     * completions across all titles of this kind, the algorithm
+     * would rank noise — so fall back to "most-viewed + newest".
+     *
+     * @param class-string<Movie|Show> $modelClass
+     */
+    private const COLD_START_MIN = 20;
+
+    private function topPicks(string $modelClass, int $limit = 10)
+    {
+        $completionsTotal = \DB::table('watch_history')
+            ->where('watchable_type', $modelClass)
+            ->where('completed', true)
+            ->count();
+
+        $base = $modelClass::published()->with('genres');
+
+        if ($completionsTotal < self::COLD_START_MIN) {
+            // Editor boost wins even during cold-start — admins pinning
+            // a title should work on day one, not only after the
+            // organic-signal threshold is reached.
+            return $base
+                ->orderByDesc('editor_boost')
+                ->orderByDesc('views_count')
+                ->orderByDesc('published_at')
+                ->take($limit)
+                ->get();
+        }
+
+        $table = (new $modelClass)->getTable();
+
+        // Morph columns differ per table — watch_history/watchlist use
+        // `watchable_*`, ratings uses `ratable_*`, reviews uses
+        // `reviewable_*`. Parameterised so the same SQL fits both
+        // Movie and Show callers.
+        return $base
+            ->select($table . '.*')
+            ->selectRaw("(
+                1.0 * {$table}.views_count
+                + 3.0 * COALESCE((SELECT COUNT(*) FROM watch_history
+                        WHERE watchable_type = ? AND watchable_id = {$table}.id AND completed = 1), 0)
+                + 0.5 * COALESCE((SELECT COUNT(*) FROM watchlist_items
+                        WHERE watchable_type = ? AND watchable_id = {$table}.id), 0)
+                + 2.0 * COALESCE((SELECT AVG(stars) FROM ratings
+                        WHERE ratable_type = ? AND ratable_id = {$table}.id), 0)
+                + 0.5 * COALESCE((SELECT COUNT(*) FROM reviews
+                        WHERE reviewable_type = ? AND reviewable_id = {$table}.id AND is_published = 1), 0)
+                - 0.01 * COALESCE(DATEDIFF(NOW(), {$table}.published_at), 0)
+                + 100 * COALESCE({$table}.editor_boost, 0)
+            ) AS top_pick_score", [$modelClass, $modelClass, $modelClass, $modelClass])
+            ->orderByDesc('top_pick_score')
+            ->orderByDesc('views_count')   // stable tiebreaker
+            ->take($limit)
+            ->get();
     }
 
     private function buildEpisodeCard(WatchHistoryItem $h, Episode $e): object

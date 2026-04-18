@@ -33,28 +33,47 @@
                 <button class="jambo-header__search-toggle jambo-header__icon d-lg-none" type="button" id="jambo-search-toggle" aria-label="Search">
                     <i class="ph ph-magnifying-glass"></i>
                 </button>
-                <a href="{{ auth()->check() ? route('frontend.profile-marvin') : route('login') }}" class="jambo-header__icon" title="Notifications">
-                    <i class="ph ph-bell"></i>
+                @php
+                    // Cheap count — the `notifications` table has a
+                    // composite index on notifiable; one extra query
+                    // per request is fine.
+                    $jamboNotifUnread = auth()->check()
+                        ? auth()->user()->unreadNotifications()->count()
+                        : 0;
+                @endphp
+                <a href="{{ auth()->check() ? route('notifications.index') : route('login') }}"
+                   class="jambo-header__icon position-relative" title="Notifications">
+                    <i class="ph {{ $jamboNotifUnread > 0 ? 'ph-fill ph-bell' : 'ph-bell' }}"></i>
+                    @if ($jamboNotifUnread > 0)
+                        <span class="jambo-notif-badge">{{ $jamboNotifUnread > 99 ? '99+' : $jamboNotifUnread }}</span>
+                    @endif
                 </a>
 
                 @if (auth()->check())
                     <div class="dropdown">
                         <a href="javascript:void(0)" class="jambo-header__avatar" data-bs-toggle="dropdown" aria-expanded="false">
-                            <img src="{{ asset('frontend/images/user/user6.jpg') }}" alt="{{ auth()->user()->name ?? 'User' }}" class="rounded-circle" width="32" height="32" loading="lazy">
+                            <img src="{{ asset('frontend/images/user/user6.jpg') }}" alt="{{ auth()->user()->full_name ?: (auth()->user()->username ?? 'User') }}" class="rounded-circle" width="32" height="32" loading="lazy">
                         </a>
                         <div class="dropdown-menu dropdown-menu-end jambo-user-dropdown">
                             <div class="d-flex align-items-center gap-3 px-3 py-2 border-bottom border-dark">
                                 <img src="{{ asset('frontend/images/user/user6.jpg') }}" class="rounded-circle" width="40" height="40" alt="">
                                 <div>
-                                    <div class="fw-semibold">{{ auth()->user()->name ?? 'User' }}</div>
+                                    <div class="fw-semibold">{{ auth()->user()->full_name ?: (auth()->user()->username ?? 'User') }}</div>
                                     <small class="text-muted">{{ auth()->user()->email ?? '' }}</small>
                                 </div>
                             </div>
-                            <a href="{{ route('frontend.profile-marvin') }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
-                                <i class="ph ph-user"></i> Profile
+                            @php $jamboHubUser = auth()->user()->username; @endphp
+                            <a href="{{ route('profile.show', ['username' => $jamboHubUser]) }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
+                                <i class="ph ph-user-circle"></i> Profile
                             </a>
-                            <a href="{{ route('frontend.watchlist_detail') }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
-                                <i class="ph ph-plus"></i> Watchlist
+                            <a href="{{ route('profile.membership', ['username' => $jamboHubUser]) }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
+                                <i class="ph ph-crown"></i> Membership
+                            </a>
+                            <a href="{{ route('profile.watchlist', ['username' => $jamboHubUser]) }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
+                                <i class="ph ph-bookmarks-simple"></i> Watchlist
+                            </a>
+                            <a href="{{ route('profile.security', ['username' => $jamboHubUser]) }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
+                                <i class="ph ph-shield-check"></i> Security
                             </a>
                             <a href="{{ route('frontend.pricing-page') }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
                                 <i class="ph-fill ph-crown text-warning"></i> Subscribe

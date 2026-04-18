@@ -111,25 +111,6 @@ return [
 
     'faker_locale' => 'en_US',
 
-      /*
-    |--------------------------------------------------------------------------
-    | Available Locales
-    |--------------------------------------------------------------------------
-    |
-    | Available locales will be used any location in code , that need to show
-    | all available languages
-    |
-    */
-
-    'available_locales' => [
-        'ar' => 'ar',
-        'en' => 'en',
-        'el' => 'gr',
-        'fr' => 'fr',
-        'de' => 'de',
-        'es' => 'es',
-    ],
-
     /*
     |--------------------------------------------------------------------------
     | Encryption Key

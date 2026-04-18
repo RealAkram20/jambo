@@ -226,6 +226,12 @@
     </div>
 </div>
 
+{{-- Comments thread --}}
+@include('frontend::components.partials.comments-block', [
+    'storeRoute'      => route('frontend.episode_comment_store', $episode->id),
+    'destroyRouteFn'  => fn ($c) => route('frontend.comment_destroy', $c->id),
+])
+
 @include('frontend::components.widgets.mobile-footer')
 
 @if ($source)
