@@ -118,4 +118,128 @@
     @include('frontend::components.partials.scripts.plugins')
 
     @include('frontend::components.partials.scripts.script')
+
+    {{-- Global watchlist toggle. Any .jambo-watchlist-toggle-btn with
+         data-watchable-type + data-watchable-id posts to the toggle
+         endpoint. Unauthenticated users get redirected to login. --}}
+    <script>
+    (function () {
+        var csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        var isAuthed = {{ auth()->check() ? 'true' : 'false' }};
+        var loginUrl = {{ Js::from(route('login')) }};
+
+        // Remove-by-watchlist-id handler. Works on any page that renders
+        // the .jambo-watchlist-remove-btn (watchlist detail, profile).
+        // After success we fade out the row(s) tagged with the matching
+        // data-watchlist-row / data-watchlist-item — otherwise the page
+        // needs a full reload to reflect the removal.
+        document.addEventListener('click', async function (e) {
+            var rm = e.target.closest('.jambo-watchlist-remove-btn');
+            if (!rm) return;
+            e.preventDefault();
+            e.stopPropagation();
+
+            var id = rm.dataset.watchlistId;
+            if (!id || rm.dataset.busy === '1') return;
+            rm.dataset.busy = '1';
+
+            try {
+                var res = await fetch({{ Js::from(url('/api/v1/watchlist')) }} + '/' + id, {
+                    method: 'DELETE',
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrf,
+                    },
+                });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+
+                document.querySelectorAll(
+                    '[data-watchlist-row="' + id + '"], [data-watchlist-item="' + id + '"]'
+                ).forEach(function (row) {
+                    row.style.transition = 'opacity .2s, transform .2s';
+                    row.style.opacity = '0';
+                    row.style.transform = 'translateX(6px)';
+                    setTimeout(function () { row.remove(); }, 200);
+                });
+            } catch (err) {
+                console.warn('[watchlist-remove]', err);
+                rm.dataset.busy = '';
+            }
+        });
+
+        document.addEventListener('click', async function (e) {
+            var btn = e.target.closest('.jambo-watchlist-toggle-btn');
+            if (!btn) return;
+            e.preventDefault();
+
+            if (!isAuthed) {
+                window.location.href = loginUrl;
+                return;
+            }
+
+            var type = btn.dataset.watchableType;
+            var id   = btn.dataset.watchableId;
+            if (!type || !id) return;
+            if (btn.dataset.busy === '1') return;
+            btn.dataset.busy = '1';
+
+            try {
+                var res = await fetch({{ Js::from(url('/api/v1/watchlist')) }} + '/' + type + '/' + id, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrf,
+                    },
+                });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                var data = await res.json();
+
+                // Every button on the page that represents the same
+                // (type, id) should flip together — a user might see the
+                // same movie in multiple rails, and it would be
+                // confusing if only the clicked card updated.
+                var siblings = document.querySelectorAll(
+                    '.jambo-watchlist-toggle-btn[data-watchable-type="' + type
+                    + '"][data-watchable-id="' + id + '"]'
+                );
+                var addTip = {{ Js::from(__('sectionTitle.add_to_watchlist_tooltip')) }};
+                var removeTip = {{ Js::from(__('streamPlaylist.remove_from_watchlist') ?? 'Remove from watchlist') }};
+                siblings.forEach(function (el) {
+                    var i = el.querySelector('i');
+                    if (i) {
+                        i.classList.toggle('ph-plus', !data.inList);
+                        i.classList.toggle('ph-check', data.inList);
+                    }
+                    el.classList.toggle('is-in-watchlist', data.inList);
+                    var newTitle = data.inList ? removeTip : addTip;
+                    el.setAttribute('data-bs-title', newTitle);
+                    el.setAttribute('aria-label', newTitle);
+                    // Refresh the already-bound Bootstrap tooltip if any.
+                    if (window.bootstrap && bootstrap.Tooltip) {
+                        var tip = bootstrap.Tooltip.getInstance(el);
+                        if (tip) { tip.setContent({ '.tooltip-inner': newTitle }); }
+                    }
+                    // Swap the visible label on buttons that have one
+                    // (hero "Add to Watchlist" / "In Watchlist" button).
+                    var label = el.querySelector('.jambo-watchlist-label');
+                    if (label) {
+                        var addLabel = el.getAttribute('data-watchlist-label-add');
+                        var removeLabel = el.getAttribute('data-watchlist-label-remove');
+                        if (addLabel && removeLabel) {
+                            label.textContent = data.inList ? removeLabel : addLabel;
+                        }
+                    }
+                });
+            } catch (err) {
+                console.warn('[watchlist-toggle]', err);
+            } finally {
+                btn.dataset.busy = '';
+            }
+        });
+    })();
+    </script>
 </body>

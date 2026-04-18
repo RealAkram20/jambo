@@ -73,7 +73,7 @@
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link fw-bold" data-bs-toggle="pill" href="#tvshows" role="tab" aria-selected="false">
-                                    {{ __('frontendheader.tvshow') ?? 'TV Shows' }} ({{ $person->shows->count() }})
+                                    {{ __('frontendheader.tvshow') ?? 'Series' }} ({{ $person->shows->count() }})
                                 </a>
                             </li>
                         </ul>
@@ -88,6 +88,8 @@
                                                 'movietime' => $movie->runtime_minutes ? floor($movie->runtime_minutes / 60) . 'hr : ' . ($movie->runtime_minutes % 60) . 'mins' : null,
                                                 'cardLang' => 'English',
                                                 'cardPath' => route('frontend.movie_detail', $movie->slug),
+                                                'watchableType' => 'movie',
+                                                'watchableId'   => $movie->id,
                                             ])
                                         </div>
                                     @endforeach
@@ -98,7 +100,9 @@
                                                 'cardTitle' => $show->title,
                                                 'movietime' => null,
                                                 'cardLang' => 'English',
-                                                'cardPath' => route('frontend.tvshow_detail', $show->slug),
+                                                'cardPath' => route('frontend.series_detail', $show->slug),
+                                                'watchableType' => 'show',
+                                                'watchableId'   => $show->id,
                                             ])
                                         </div>
                                     @endforeach
@@ -117,6 +121,8 @@
                                                 'movietime' => $movie->runtime_minutes ? floor($movie->runtime_minutes / 60) . 'hr : ' . ($movie->runtime_minutes % 60) . 'mins' : null,
                                                 'cardLang' => 'English',
                                                 'cardPath' => route('frontend.movie_detail', $movie->slug),
+                                                'watchableType' => 'movie',
+                                                'watchableId'   => $movie->id,
                                             ])
                                         </div>
                                     @empty
@@ -133,7 +139,9 @@
                                                 'cardTitle' => $show->title,
                                                 'movietime' => null,
                                                 'cardLang' => 'English',
-                                                'cardPath' => route('frontend.tvshow_detail', $show->slug),
+                                                'cardPath' => route('frontend.series_detail', $show->slug),
+                                                'watchableType' => 'show',
+                                                'watchableId'   => $show->id,
                                             ])
                                         </div>
                                     @empty

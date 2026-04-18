@@ -92,6 +92,8 @@ return [
     '2_hours' => '2 hours ago',
 
     'watch_lists' => 'Watch Lists',
+    'in_watch_list' => 'In Watchlist',
+    'add_to_watchlist' => 'Add to Watchlist',
     'like' => 'Like',
     'share' => 'Share',
     'playlist' => 'Playlist',

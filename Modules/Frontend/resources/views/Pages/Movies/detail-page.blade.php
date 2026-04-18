@@ -61,6 +61,8 @@
                     'movieDescription' => $movie->synopsis,
                     'movieGenres' => $movie->genres->pluck('name')->all(),
                     'subscribeToWatch' => ! $canWatch,
+                    'watchableType' => 'movie',
+                    'watchableId'   => $movie->id,
                 ])
             </div>
         </div>
@@ -146,6 +148,8 @@
                                         'cardLang' => 'English',
                                         'cardPath' => route('frontend.movie_detail', $rec->slug),
                                         'cardGenres' => $rec->genres->take(2)->pluck('name')->all(),
+                                        'watchableType' => 'movie',
+                                        'watchableId'   => $rec->id,
                                     ])
                                 </li>
                             @endforeach

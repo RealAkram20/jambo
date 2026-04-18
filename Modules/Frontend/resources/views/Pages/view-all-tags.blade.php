@@ -51,7 +51,7 @@
         </div>
     </section>
 
-    {{-- TV Show Tag Section --}}
+    {{-- Series Tag Section --}}
     <section class="section-padding tag-section" id="tvshowTag">
         <div class="container-fluid">
             <div class="d-flex align-items-center justify-content-between mb-4">

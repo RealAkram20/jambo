@@ -19,7 +19,7 @@
             {{-- Center: search bar --}}
             <div class="jambo-header__search flex-grow-1" id="jambo-search">
                 <form class="jambo-search-form" action="{{ route('frontend.search') }}" method="GET" autocomplete="off">
-                    <input type="text" class="jambo-search-input" id="jambo-search-input" name="q" placeholder="Search movies, shows, cast..." aria-label="Search">
+                    <input type="text" class="jambo-search-input" id="jambo-search-input" name="q" placeholder="Search movies, series, cast..." aria-label="Search">
                     <button type="submit" class="jambo-search-btn" aria-label="Search">
                         <i class="ph ph-magnifying-glass"></i>
                     </button>
@@ -98,8 +98,8 @@
             <a href="{{ route('frontend.movie') }}" class="jambo-sidebar__link {{ Route::currentRouteName() === 'frontend.movie' ? 'active' : '' }}">
                 <i class="ph ph-film-strip"></i><span>Movies</span>
             </a>
-            <a href="{{ route('frontend.tv-show') }}" class="jambo-sidebar__link {{ Route::currentRouteName() === 'frontend.tv-show' ? 'active' : '' }}">
-                <i class="ph ph-monitor-play"></i><span>TV Shows</span>
+            <a href="{{ route('frontend.series') }}" class="jambo-sidebar__link {{ Route::currentRouteName() === 'frontend.series' ? 'active' : '' }}">
+                <i class="ph ph-monitor-play"></i><span>Series</span>
             </a>
             <a href="{{ route('frontend.genres') }}" class="jambo-sidebar__link {{ Route::currentRouteName() === 'frontend.genres' ? 'active' : '' }}">
                 <i class="ph ph-squares-four"></i><span>Genres</span>

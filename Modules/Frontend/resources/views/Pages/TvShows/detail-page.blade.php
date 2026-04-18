@@ -66,6 +66,8 @@
                         'videoUrl' => route('frontend.episode'),
                         'movieDescription' => $show->synopsis,
                         'movieGenres' => $show->genres->pluck('name')->all(),
+                        'watchableType' => 'show',
+                        'watchableId'   => $show->id,
                     ])
                 </div>
             </div>
@@ -181,7 +183,7 @@
             @if ($recommended->count())
                 <section class="related-movie-block">
                     <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
-                        <h4 class="main-title text-capitalize mb-0">{{ __('sectionTitle.popular_show') ?? 'Popular Shows' }}</h4>
+                        <h4 class="main-title text-capitalize mb-0">{{ __('sectionTitle.popular_show') ?? 'Popular Series' }}</h4>
                     </div>
                     <div class="card-style-slider">
                         <div class="position-relative swiper swiper-card" data-slide="6" data-laptop="6" data-tab="3"
@@ -195,8 +197,10 @@
                                             'cardTitle' => $rec->title,
                                             'movietime' => null,
                                             'cardLang' => 'English',
-                                            'cardPath' => route('frontend.tvshow_detail', $rec->slug),
+                                            'cardPath' => route('frontend.series_detail', $rec->slug),
                                             'cardGenres' => $rec->genres->take(2)->pluck('name')->all(),
+                                            'watchableType' => 'show',
+                                            'watchableId'   => $rec->id,
                                         ])
                                     </li>
                                 @endforeach

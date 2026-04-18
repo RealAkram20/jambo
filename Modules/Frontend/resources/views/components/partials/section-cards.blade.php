@@ -20,11 +20,13 @@
                 : null,
             'cardLang' => 'English',
             'cardPath' => $isShow
-                ? route('frontend.tvshow_detail', $item->slug)
+                ? route('frontend.series_detail', $item->slug)
                 : route('frontend.movie_detail', $item->slug),
             'cardGenres' => $item->relationLoaded('genres') ? $item->genres->take(2)->pluck('name')->all() : null,
             'productPremium' => (bool) $item->tier_required,
             'isCardStyle2' => $isCardStyle2,
+            'watchableType' => $isShow ? 'show' : 'movie',
+            'watchableId'   => $item->id,
         ])
     </li>
 @empty

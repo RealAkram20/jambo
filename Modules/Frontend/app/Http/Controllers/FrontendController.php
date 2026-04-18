@@ -8,7 +8,9 @@ use Modules\Content\app\Models\Show;
 use Modules\Content\app\Models\Genre;
 use Modules\Content\app\Models\Tag;
 use Modules\Content\app\Models\Person;
+use Modules\Content\app\Models\Vj;
 use Modules\Streaming\app\Models\WatchHistoryItem;
+use Modules\Streaming\app\Models\WatchlistItem;
 use Modules\Content\app\Models\Episode;
 use Modules\Subscriptions\app\Models\SubscriptionTier;
 use Modules\Subscriptions\app\Models\UserSubscription;
@@ -49,7 +51,7 @@ class FrontendController extends Controller
                 'poster' => $s->poster_url,
                 'year' => $s->year,
                 'type' => 'Series',
-                'url' => route('frontend.tvshow_detail', $s->slug),
+                'url' => route('frontend.series_detail', $s->slug),
             ]);
 
         return response()->json(['movies' => $movies, 'shows' => $shows]);
@@ -115,12 +117,151 @@ class FrontendController extends Controller
             ->take(3)
             ->get();
 
-        $movies = Movie::published()
+        // Top 5 VJs by catalogue size — most active narrators first.
+        // Additional VJs are fetched via the load-more endpoint below
+        // so the initial payload stays small.
+        $vjs = $this->topVjsForPage(0, 5);
+        $vjsTotal = Vj::whereHas('movies', fn ($q) => $q->published())->count();
+
+        return view('frontend::Pages.MainPages.movies-page', compact('featuredMovies', 'vjs', 'vjsTotal'));
+    }
+
+    /**
+     * AJAX endpoint — returns the next slice of VJ carousels as HTML
+     * so the JS "Load More" button on /movie can append without
+     * duplicating the card template in JavaScript.
+     */
+    public function moreVjsForMoviesPage(Request $request): \Illuminate\Http\Response
+    {
+        $offset = max(0, (int) $request->query('offset', 0));
+        $limit  = min(10, max(1, (int) $request->query('limit', 5)));
+
+        $vjs = $this->topVjsForPage($offset, $limit);
+
+        $total = Vj::whereHas('movies', fn ($q) => $q->published())->count();
+        $hasMore = ($offset + $vjs->count()) < $total;
+
+        $html = '';
+        foreach ($vjs as $vj) {
+            $html .= view('frontend::components.sections.vj-carousel', [
+                'vj' => $vj,
+                'movies' => $vj->movies,
+            ])->render();
+        }
+
+        return response($html)->header('X-Has-More', $hasMore ? '1' : '0');
+    }
+
+    /**
+     * Shared loader so /movie's initial render and the load-more
+     * endpoint walk the exact same ordering.
+     */
+    private function topVjsForPage(int $offset, int $limit)
+    {
+        return Vj::whereHas('movies', fn ($q) => $q->published())
+            ->withCount(['movies as movies_count' => fn ($q) => $q->published()])
+            ->with(['movies' => fn ($q) => $q->published()->with('genres')->orderByDesc('published_at')->limit(10)])
+            ->orderByDesc('movies_count')
+            ->orderBy('id')
+            ->skip($offset)
+            ->take($limit)
+            ->get();
+    }
+
+    /**
+     * Shows-side twin of topVjsForPage(). Keeps the two endpoints
+     * (/series initial render and /series/more-vjs) in lockstep on
+     * ordering.
+     */
+    private function topVjsForShowsPage(int $offset, int $limit)
+    {
+        return Vj::whereHas('shows', fn ($q) => $q->published())
+            ->withCount(['shows as shows_count' => fn ($q) => $q->published()])
+            ->with(['shows' => fn ($q) => $q->published()->with('genres')->orderByDesc('published_at')->limit(10)])
+            ->orderByDesc('shows_count')
+            ->orderBy('id')
+            ->skip($offset)
+            ->take($limit)
+            ->get();
+    }
+
+    /**
+     * VJ detail page — organises that VJ's catalogue by genre. Each
+     * genre section gets an initial slice of movies; Load More in the
+     * UI pulls additional pages via vjGenreLoadMore() below.
+     */
+    public function vjDetail(string $slug)
+    {
+        $vj = Vj::where('slug', $slug)->firstOrFail();
+
+        // Featured banner — top 3 movies by this VJ, newest first.
+        $featuredMovies = $vj->movies()->published()
             ->with('genres')
             ->orderByDesc('published_at')
+            ->take(3)
             ->get();
 
-        return view('frontend::Pages.MainPages.movies-page', compact('featuredMovies', 'movies'));
+        // Group the VJ's catalogue by genre. Each genre bucket keeps
+        // its first 15 movies plus a total-count + has-more flag so
+        // the load-more button knows whether to show.
+        $genres = Genre::whereHas('movies', fn ($q) =>
+            $q->published()->whereHas('vjs', fn ($v) => $v->where('vjs.id', $vj->id))
+        )->orderBy('name')->get();
+
+        $buckets = $genres->map(function ($genre) use ($vj) {
+            $query = Movie::published()
+                ->with('genres')
+                ->whereHas('genres', fn ($q) => $q->where('genres.id', $genre->id))
+                ->whereHas('vjs', fn ($q) => $q->where('vjs.id', $vj->id))
+                ->orderByDesc('published_at');
+
+            $total = (clone $query)->count();
+            $initial = $query->take(15)->get();
+
+            return (object) [
+                'genre' => $genre,
+                'movies' => $initial,
+                'total' => $total,
+                'hasMore' => $total > $initial->count(),
+            ];
+        });
+
+        return view('frontend::Pages.Vjs.detail-page', compact('vj', 'featuredMovies', 'buckets'));
+    }
+
+    /**
+     * Load-more endpoint for a single genre within a VJ's catalogue.
+     * Appends to an existing grid — returns rendered movie-card HTML
+     * so the client JS just needs to insertAdjacentHTML.
+     */
+    public function vjGenreLoadMore(string $slug, Request $request): \Illuminate\Http\Response
+    {
+        $vj = Vj::where('slug', $slug)->firstOrFail();
+        $genreSlug = (string) $request->query('genre', '');
+        $offset = max(0, (int) $request->query('offset', 0));
+        $limit  = min(60, max(1, (int) $request->query('limit', 15)));
+
+        $genre = Genre::where('slug', $genreSlug)->firstOrFail();
+
+        $query = Movie::published()
+            ->with('genres')
+            ->whereHas('genres', fn ($q) => $q->where('genres.id', $genre->id))
+            ->whereHas('vjs', fn ($q) => $q->where('vjs.id', $vj->id))
+            ->orderByDesc('published_at');
+
+        $total  = (clone $query)->count();
+        $movies = $query->skip($offset)->take($limit)->get();
+        $hasMore = ($offset + $movies->count()) < $total;
+
+        $html = '';
+        foreach ($movies as $movie) {
+            $html .= view('frontend::components.partials.vj-grid-card', [
+                'item' => $movie,
+                'contentKind' => 'movie',
+            ])->render();
+        }
+
+        return response($html)->header('X-Has-More', $hasMore ? '1' : '0');
     }
 
     public function tv_show()
@@ -130,12 +271,114 @@ class FrontendController extends Controller
             ->take(3)
             ->get();
 
-        $shows = Show::published()
+        // Mirrors /movie: top 5 VJs (by published show count), then a
+        // Load More button fetches the rest so the first render stays
+        // lean.
+        $vjs = $this->topVjsForShowsPage(0, 5);
+        $vjsTotal = Vj::whereHas('shows', fn ($q) => $q->published())->count();
+
+        return view('frontend::Pages.MainPages.tv-shows-page', compact('featuredShows', 'vjs', 'vjsTotal'));
+    }
+
+    /**
+     * AJAX endpoint for /series — returns the next slice of VJ
+     * carousels as rendered HTML so the client JS just appends.
+     * Mirrors moreVjsForMoviesPage() scoped to shows.
+     */
+    public function moreVjsForSeriesPage(Request $request): \Illuminate\Http\Response
+    {
+        $offset = max(0, (int) $request->query('offset', 0));
+        $limit  = min(10, max(1, (int) $request->query('limit', 5)));
+
+        $vjs = $this->topVjsForShowsPage($offset, $limit);
+
+        $total = Vj::whereHas('shows', fn ($q) => $q->published())->count();
+        $hasMore = ($offset + $vjs->count()) < $total;
+
+        $html = '';
+        foreach ($vjs as $vj) {
+            $html .= view('frontend::components.sections.vj-carousel', [
+                'vj' => $vj,
+                'items' => $vj->shows,
+                'contentKind' => 'show',
+            ])->render();
+        }
+
+        return response($html)->header('X-Has-More', $hasMore ? '1' : '0');
+    }
+
+    /**
+     * VJ series detail page — that VJ's shows grouped by genre,
+     * mirroring vjDetail() for movies.
+     */
+    public function vjSeriesDetail(string $slug)
+    {
+        $vj = Vj::where('slug', $slug)->firstOrFail();
+
+        $featuredShows = $vj->shows()->published()
             ->with('genres')
             ->orderByDesc('published_at')
+            ->take(3)
             ->get();
 
-        return view('frontend::Pages.MainPages.tv-shows-page', compact('featuredShows', 'shows'));
+        $genres = Genre::whereHas('shows', fn ($q) =>
+            $q->published()->whereHas('vjs', fn ($v) => $v->where('vjs.id', $vj->id))
+        )->orderBy('name')->get();
+
+        $buckets = $genres->map(function ($genre) use ($vj) {
+            $query = Show::published()
+                ->with('genres')
+                ->whereHas('genres', fn ($q) => $q->where('genres.id', $genre->id))
+                ->whereHas('vjs', fn ($q) => $q->where('vjs.id', $vj->id))
+                ->orderByDesc('published_at');
+
+            $total = (clone $query)->count();
+            $initial = $query->take(15)->get();
+
+            return (object) [
+                'genre' => $genre,
+                'shows' => $initial,
+                'total' => $total,
+                'hasMore' => $total > $initial->count(),
+            ];
+        });
+
+        return view('frontend::Pages.Vjs.series-detail-page', compact('vj', 'featuredShows', 'buckets'));
+    }
+
+    /**
+     * Load-more endpoint for a single genre within a VJ's series
+     * catalogue. Returns server-rendered grid cells so the JS just
+     * insertAdjacentHTMLs.
+     */
+    public function vjSeriesGenreLoadMore(string $slug, Request $request): \Illuminate\Http\Response
+    {
+        $vj = Vj::where('slug', $slug)->firstOrFail();
+        $genreSlug = (string) $request->query('genre', '');
+        $offset = max(0, (int) $request->query('offset', 0));
+        $limit  = min(60, max(1, (int) $request->query('limit', 15)));
+
+        $genre = Genre::where('slug', $genreSlug)->firstOrFail();
+
+        $query = Show::published()
+            ->with('genres')
+            ->whereHas('genres', fn ($q) => $q->where('genres.id', $genre->id))
+            ->whereHas('vjs', fn ($q) => $q->where('vjs.id', $vj->id))
+            ->orderByDesc('published_at');
+
+        $total  = (clone $query)->count();
+        $shows  = $query->skip($offset)->take($limit)->get();
+        $hasMore = ($offset + $shows->count()) < $total;
+
+        $html = '';
+        foreach ($shows as $show) {
+            $html .= view('frontend::components.partials.vj-grid-card', [
+                'item' => $show,
+                'contentKind' => 'show',
+            ])->render();
+        }
+
+        return response($html)->header('X-Has-More', $hasMore ? '1' : '0');
     }
 
     //movies pages
@@ -259,6 +502,13 @@ class FrontendController extends Controller
             return false;
         }
 
+        // Admins bypass all tier gating — they're the ones curating the
+        // content and need to be able to verify playback regardless of
+        // what subscription they happen to have.
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+
         $requiredTier = SubscriptionTier::where('slug', $requiredSlug)->first();
         if (!$requiredTier) {
             return true;
@@ -311,7 +561,7 @@ class FrontendController extends Controller
         }
 
         abort_unless($episode, 404);
-        $episode->load(['season.show.genres', 'season.show.seasons.episodes']);
+        $episode->load(['season.show.genres', 'season.show.cast', 'season.show.seasons.episodes']);
         $show = $episode->season->show;
 
         $source = $episode->streamSource();
@@ -339,6 +589,23 @@ class FrontendController extends Controller
             }
         }
 
+        // Previous episode: mirror the next-episode logic in reverse —
+        // try the previous number in the same season, else the last
+        // episode of the previous season.
+        $previousEpisode = Episode::where('season_id', $episode->season_id)
+            ->where('number', '<', $episode->number)
+            ->orderByDesc('number')
+            ->first();
+
+        if (! $previousEpisode) {
+            $prevSeason = $show->seasons
+                ->sortByDesc('number')
+                ->firstWhere(fn ($s) => $s->number < $episode->season->number);
+            if ($prevSeason) {
+                $previousEpisode = $prevSeason->episodes->sortByDesc('number')->first();
+            }
+        }
+
         $resumePosition = 0;
         if (auth()->check()) {
             $history = WatchHistoryItem::where('user_id', auth()->id())
@@ -348,12 +615,397 @@ class FrontendController extends Controller
             $resumePosition = ($history && !$history->completed) ? $history->position_seconds : 0;
         }
 
-        return view('frontend::Pages.TvShows.episode-page', compact('episode', 'show', 'source', 'canWatch', 'nextEpisode', 'resumePosition'));
+        // Similar series: mirrors the movie_watch scoring — shared cast
+        // counts twice as much as shared genre. Excludes the current
+        // show from the result set.
+        $genreIds = $show->genres->pluck('id')->all();
+        $castIds  = $show->cast->pluck('id')->all();
+
+        $similarShows = (!empty($genreIds) || !empty($castIds))
+            ? Show::published()
+                ->where('id', '!=', $show->id)
+                ->where(function ($q) use ($genreIds, $castIds) {
+                    if (!empty($genreIds)) {
+                        $q->whereHas('genres', fn ($gq) => $gq->whereIn('genres.id', $genreIds));
+                    }
+                    if (!empty($castIds)) {
+                        $q->orWhereHas('cast', fn ($cq) => $cq->whereIn('persons.id', $castIds));
+                    }
+                })
+                ->with('genres')
+                ->withCount([
+                    'genres as shared_genres' => fn ($q) => !empty($genreIds) ? $q->whereIn('genres.id', $genreIds) : $q->whereRaw('0=1'),
+                    'cast as shared_cast'     => fn ($q) => !empty($castIds)  ? $q->whereIn('persons.id', $castIds) : $q->whereRaw('0=1'),
+                ])
+                ->orderByRaw('(shared_cast * 2 + shared_genres) DESC, published_at DESC')
+                ->take(8)
+                ->get()
+            : collect();
+
+        // Fallback recommendation bucket — random other published
+        // series, used so the page always has something below the
+        // similar row even when the current show has no taxonomy.
+        $recommendedShows = Show::published()
+            ->where('id', '!=', $show->id)
+            ->inRandomOrder()
+            ->take(6)
+            ->get();
+
+        return view('frontend::Pages.TvShows.episode-page', compact('episode', 'show', 'source', 'canWatch', 'nextEpisode', 'previousEpisode', 'resumePosition', 'similarShows', 'recommendedShows'));
+    }
+
+    /**
+     * JSON player-data for a single episode. Used by the fullscreen
+     * in-place swap — the client calls this when the user hits
+     * prev/next while fullscreen so we can change episodes without
+     * the browser exiting fullscreen mode (a full page navigation
+     * always drops fullscreen, per browser security rules).
+     *
+     * Same tier / auth gating as the HTML view so we don't leak a
+     * privileged stream URL via JSON.
+     */
+    public function episodePlayerData(Episode $episode): JsonResponse
+    {
+        if (! $this->userCanWatch($episode)) {
+            return response()->json(['error' => 'subscription_required'], 403);
+        }
+
+        $episode->load(['season.show.seasons.episodes']);
+        $show = $episode->season->show;
+        $source = $episode->streamSource();
+
+        $next = Episode::where('season_id', $episode->season_id)
+            ->where('number', '>', $episode->number)
+            ->orderBy('number')
+            ->first();
+        if (! $next) {
+            $nextSeason = $show->seasons->sortBy('number')
+                ->firstWhere(fn ($s) => $s->number > $episode->season->number);
+            if ($nextSeason) {
+                $next = $nextSeason->episodes->sortBy('number')->first();
+            }
+        }
+
+        $prev = Episode::where('season_id', $episode->season_id)
+            ->where('number', '<', $episode->number)
+            ->orderByDesc('number')
+            ->first();
+        if (! $prev) {
+            $prevSeason = $show->seasons->sortByDesc('number')
+                ->firstWhere(fn ($s) => $s->number < $episode->season->number);
+            if ($prevSeason) {
+                $prev = $prevSeason->episodes->sortByDesc('number')->first();
+            }
+        }
+
+        $resume = 0;
+        if (auth()->check()) {
+            $history = WatchHistoryItem::where('user_id', auth()->id())
+                ->where('watchable_type', $episode->getMorphClass())
+                ->where('watchable_id', $episode->id)
+                ->first();
+            $resume = ($history && !$history->completed) ? $history->position_seconds : 0;
+        }
+
+        $label = fn ($ep) => $ep
+            ? 'S' . str_pad($ep->season->number ?? 0, 2, '0', STR_PAD_LEFT)
+                . 'E' . str_pad($ep->number, 2, '0', STR_PAD_LEFT)
+                . ' — ' . $ep->title
+            : null;
+
+        return response()->json([
+            'id'              => $episode->id,
+            'detailUrl'       => route('frontend.episode', $episode->id),
+            'title'           => $label($episode),
+            'showTitle'       => $show->title,
+            'videoUrl'        => $source['url'] ?? null,
+            'videoUrlLow'     => $episode->streamSourceLow()['url'] ?? null,
+            'poster'          => $episode->still_url ?: ($show->backdrop_url ?: $show->poster_url),
+            'resumePosition'  => $resume,
+            'nextEpisode'     => $next ? [
+                'id'        => $next->id,
+                'url'       => route('frontend.episode', $next->id),
+                'label'     => $label($next),
+            ] : null,
+            'previousEpisode' => $prev ? [
+                'id'        => $prev->id,
+                'url'       => route('frontend.episode', $prev->id),
+                'label'     => $label($prev),
+            ] : null,
+        ]);
+    }
+
+    /**
+     * Drop an item from the authenticated user's Continue Watching row.
+     *
+     * `type` is either 'movie' (removes that one movie's history) or
+     * 'show' (removes every episode of that show — otherwise a single
+     * kept row would immediately repopulate the card on refresh since
+     * the composer dedupes show cards by show_id).
+     */
+    public function removeFromContinueWatching(string $type, int $id): JsonResponse
+    {
+        $userId = auth()->id();
+        if (!$userId) {
+            return response()->json(['error' => 'unauthenticated'], 401);
+        }
+
+        if ($type === 'movie') {
+            $deleted = WatchHistoryItem::where('user_id', $userId)
+                ->where('watchable_type', (new Movie)->getMorphClass())
+                ->where('watchable_id', $id)
+                ->delete();
+        } elseif ($type === 'show') {
+            // All episode-rows whose episode belongs to this show.
+            $episodeIds = Episode::whereHas('season', fn ($q) => $q->where('show_id', $id))
+                ->pluck('id');
+            $deleted = WatchHistoryItem::where('user_id', $userId)
+                ->where('watchable_type', (new Episode)->getMorphClass())
+                ->whereIn('watchable_id', $episodeIds)
+                ->delete();
+        } else {
+            return response()->json(['error' => 'invalid_type'], 422);
+        }
+
+        return response()->json(['ok' => true, 'removed' => $deleted]);
     }
 
     public function watchlist_detail()
     {
-        return view('frontend::Pages.watchlist-detail');
+        // Two buckets surfaced in the UI: Movies and Series. Episodes
+        // are intentionally excluded from this list view — they reach
+        // the watchlist via the toggle endpoint but play through the
+        // episode page directly, not this grid.
+        $movieClass = (new Movie)->getMorphClass();
+        $showClass  = (new Show)->getMorphClass();
+
+        $items = WatchlistItem::where('user_id', auth()->id())
+            ->whereIn('watchable_type', [$movieClass, $showClass])
+            ->with(['watchable.genres'])
+            ->latest('added_at')
+            ->get();
+
+        $movies = $items->where('watchable_type', $movieClass)->values();
+        $shows  = $items->where('watchable_type', $showClass)->values();
+
+        return view('frontend::Pages.watchlist-detail', compact('items', 'movies', 'shows'));
+    }
+
+    /**
+     * Toggle membership in the authenticated user's watchlist.
+     * JSON response — `inList` reflects the post-toggle state so the
+     * client can update the button icon.
+     */
+    public function toggleWatchlist(string $type, int $id): JsonResponse
+    {
+        $userId = auth()->id();
+        if (!$userId) {
+            return response()->json(['error' => 'unauthenticated'], 401);
+        }
+
+        $model = match ($type) {
+            'movie'   => Movie::find($id),
+            'show'    => Show::find($id),
+            'episode' => Episode::find($id),
+            default   => null,
+        };
+
+        if (!$model) {
+            return response()->json(['error' => 'not_found'], 404);
+        }
+
+        $morphType = $model->getMorphClass();
+        $existing  = WatchlistItem::where('user_id', $userId)
+            ->where('watchable_type', $morphType)
+            ->where('watchable_id', $model->getKey())
+            ->first();
+
+        if ($existing) {
+            $existing->delete();
+            return response()->json(['ok' => true, 'inList' => false]);
+        }
+
+        WatchlistItem::addFor($userId, $model);
+        return response()->json(['ok' => true, 'inList' => true]);
+    }
+
+    /**
+     * Watchlist player — pretty URL `/watchlist/{movie-slug}`.
+     *
+     * Only Movies are served here. Episodes in the queue link to
+     * `/episode/{id}` directly (existing page has its own prev/next
+     * wiring). Shows link to `/series/{slug}` so the user can pick an
+     * episode before playing.
+     *
+     * The slug identifies the Movie. We then look up the user's
+     * WatchlistItem pointing at it — if missing we fall back to the
+     * watch page behaviour (plays anyway, with the rest of the
+     * watchlist on the side if there is one).
+     */
+    public function watchlistPlay(string $slug)
+    {
+        $movie = Movie::where('slug', $slug)->first();
+        if (!$movie) {
+            return redirect()->route('frontend.watchlist_detail')
+                ->with('info', 'That movie is no longer available.');
+        }
+
+        $watchable = $movie;
+
+        // The matching watchlist row (if any) gives us the "current"
+        // anchor used to compute prev/next in the queue and highlight
+        // the active tile.
+        $current = WatchlistItem::where('user_id', auth()->id())
+            ->where('watchable_type', $movie->getMorphClass())
+            ->where('watchable_id', $movie->id)
+            ->first();
+
+        if (!$this->userCanWatch($watchable)) {
+            return redirect()->route('frontend.pricing-page')
+                ->with('info', "A subscription is required to watch \"{$watchable->title}\".");
+        }
+
+        $source = $watchable->streamSource();
+        $sourceLow = method_exists($watchable, 'streamSourceLow')
+            ? ($watchable->streamSourceLow()['url'] ?? null)
+            : null;
+
+        $poster = $watchable->backdrop_url ?: $watchable->poster_url;
+        $title = $watchable->title;
+        $detailUrl = route('frontend.movie_detail', $watchable->slug);
+
+        $resumePosition = 0;
+        $history = WatchHistoryItem::where('user_id', auth()->id())
+            ->where('watchable_type', $watchable->getMorphClass())
+            ->where('watchable_id', $watchable->id)
+            ->first();
+        if ($history && !$history->completed) {
+            $resumePosition = $history->position_seconds;
+        }
+
+        $items = WatchlistItem::where('user_id', auth()->id())
+            ->with(['watchable.genres'])
+            ->latest('added_at')
+            ->get();
+
+        // Prev/next navigation — limited to Movies because only those
+        // play through this queue. We find the current movie in the
+        // movie-only slice; the adjacent Movies become prev/next.
+        $movieClass = (new Movie)->getMorphClass();
+        $movieItems = $items->where('watchable_type', $movieClass)->values();
+        $currentMovieIndex = $movieItems->search(fn ($i) => $i->watchable_id === $watchable->id);
+        $prevMovie = $currentMovieIndex !== false && $currentMovieIndex > 0
+            ? $movieItems[$currentMovieIndex - 1]->watchable
+            : null;
+        $nextMovie = $currentMovieIndex !== false && $currentMovieIndex < $movieItems->count() - 1
+            ? $movieItems[$currentMovieIndex + 1]->watchable
+            : null;
+
+        $currentIndex = $current
+            ? $items->search(fn ($i) => $i->id === $current->id)
+            : false;
+
+        return view('frontend::Pages.watchlist-play-page', [
+            'current'        => $current,
+            'watchable'      => $watchable,
+            'items'          => $items,
+            'currentIndex'   => $currentIndex === false ? 0 : $currentIndex,
+            'source'         => $source,
+            'sourceLow'      => $sourceLow,
+            'poster'         => $poster,
+            'title'          => $title,
+            'detailUrl'      => $detailUrl,
+            'resumePosition' => $resumePosition,
+            'prevMovie'      => $prevMovie,
+            'nextMovie'      => $nextMovie,
+        ]);
+    }
+
+    /**
+     * JSON player-data for a movie in the watchlist queue. Used by
+     * the in-place fullscreen swap on `/watchlist/{slug}` — clicking
+     * prev/next (or autoplay on end) while fullscreen fetches this
+     * and swaps <video>.src without a page navigation, so the browser
+     * doesn't drop us out of fullscreen.
+     *
+     * Prev/next are computed against the user's current watchlist
+     * ordering, NOT the global movie catalogue. Same tier/auth gating
+     * as the HTML view so we don't leak a privileged URL via JSON.
+     */
+    public function watchlistMoviePlayerData(string $slug): JsonResponse
+    {
+        $movie = Movie::where('slug', $slug)->first();
+        if (!$movie) {
+            return response()->json(['error' => 'not_found'], 404);
+        }
+        if (!$this->userCanWatch($movie)) {
+            return response()->json(['error' => 'subscription_required'], 403);
+        }
+
+        $source    = $movie->streamSource();
+        $sourceLow = method_exists($movie, 'streamSourceLow')
+            ? ($movie->streamSourceLow()['url'] ?? null)
+            : null;
+        $poster = $movie->backdrop_url ?: $movie->poster_url;
+
+        $movieClass = (new Movie)->getMorphClass();
+        $items = WatchlistItem::where('user_id', auth()->id())
+            ->where('watchable_type', $movieClass)
+            ->with(['watchable'])
+            ->latest('added_at')
+            ->get();
+
+        $idx = $items->search(fn ($i) => $i->watchable_id === $movie->id);
+        $prev = ($idx !== false && $idx > 0) ? $items[$idx - 1]->watchable : null;
+        $next = ($idx !== false && $idx < $items->count() - 1) ? $items[$idx + 1]->watchable : null;
+
+        $resume = 0;
+        $history = WatchHistoryItem::where('user_id', auth()->id())
+            ->where('watchable_type', $movie->getMorphClass())
+            ->where('watchable_id', $movie->id)
+            ->first();
+        if ($history && !$history->completed) {
+            $resume = $history->position_seconds;
+        }
+
+        return response()->json([
+            'id'             => $movie->id,
+            'detailUrl'      => route('frontend.watchlist_play', $movie->slug),
+            'title'          => $movie->title,
+            'videoUrl'       => $source['url'] ?? null,
+            'videoUrlLow'    => $sourceLow,
+            'poster'         => $poster,
+            'resumePosition' => $resume,
+            'nextContent'    => $next ? [
+                'slug'  => $next->slug,
+                'url'   => route('frontend.watchlist_play', $next->slug),
+                'label' => $next->title,
+            ] : null,
+            'previousContent' => $prev ? [
+                'slug'  => $prev->slug,
+                'url'   => route('frontend.watchlist_play', $prev->slug),
+                'label' => $prev->title,
+            ] : null,
+        ]);
+    }
+
+    /**
+     * Remove a specific watchlist row. Used by the delete button on
+     * the /watchlist-detail page — the row's ID is known, so we don't
+     * need to resolve by morph class.
+     */
+    public function removeFromWatchlist(int $id): JsonResponse
+    {
+        $userId = auth()->id();
+        if (!$userId) {
+            return response()->json(['error' => 'unauthenticated'], 401);
+        }
+
+        $deleted = WatchlistItem::where('id', $id)
+            ->where('user_id', $userId)
+            ->delete();
+
+        return response()->json(['ok' => (bool) $deleted]);
     }
 
     public function playlist_detail()
@@ -485,7 +1137,27 @@ class FrontendController extends Controller
     // new development
     public function profile_marvin()
     {
-        return view('frontend::Pages.profile-marvin');
+        // Watchlist feeds under the profile's Watchlist tab — split by
+        // polymorphic type so the two sub-tabs (Movies / Series) each
+        // loop their own collection. Episodes are intentionally left
+        // out here; the user asked for Movies + Series only.
+        $watchlistMovies = collect();
+        $watchlistShows  = collect();
+
+        if (auth()->check()) {
+            $items = WatchlistItem::where('user_id', auth()->id())
+                ->with(['watchable.genres'])
+                ->latest('added_at')
+                ->get();
+
+            $movieClass = (new Movie)->getMorphClass();
+            $showClass  = (new Show)->getMorphClass();
+
+            $watchlistMovies = $items->where('watchable_type', $movieClass)->values();
+            $watchlistShows  = $items->where('watchable_type', $showClass)->values();
+        }
+
+        return view('frontend::Pages.profile-marvin', compact('watchlistMovies', 'watchlistShows'));
     }
 
     public function archive_playlist()
@@ -520,7 +1192,30 @@ class FrontendController extends Controller
 
     public function your_profile()
     {
-        return view('frontend::Pages.Profile.your-profile');
+        return view('frontend::Pages.Profile.your-profile', [
+            'user' => auth()->user(),
+        ]);
+    }
+
+    /**
+     * Update the authenticated user's profile. Only the fields
+     * rendered on the your-profile page are mass-assignable here;
+     * password changes have a dedicated flow at /change-password.
+     */
+    public function updateProfile(Request $request)
+    {
+        $user = auth()->user();
+
+        $data = $request->validate([
+            'first_name' => ['required', 'string', 'max:100'],
+            'last_name'  => ['required', 'string', 'max:100'],
+            'email'      => ['required', 'email', 'max:255', 'unique:users,email,' . $user->id],
+        ]);
+
+        $user->update($data);
+
+        return redirect()->route('frontend.your-profile')
+            ->with('status', __('streamAccount.profile_updated') ?? 'Profile updated.');
     }
 
     public function change_password()

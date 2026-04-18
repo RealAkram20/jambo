@@ -13,7 +13,7 @@
         ? $bg
         : ($bg ? asset('frontend/images/' . $bg) : asset('frontend/images/media/pirates-ofdayones-orignal.webp'));
 
-    $detailUrl = route('frontend.tvshow_detail', $item->slug);
+    $detailUrl = route('frontend.series_detail', $item->slug);
     $releaseLabel = ($item->published_at ?? $item->created_at)?->format('F Y') ?? '';
     $seasonsCount = $item->seasons->count();
     $seasons = $item->seasons->sortBy('number');

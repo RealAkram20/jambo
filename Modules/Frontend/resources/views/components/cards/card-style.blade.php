@@ -10,9 +10,21 @@
     $addlist = $addlist ?? false;
     $isnotlangCard = $isnotlangCard ?? false;
     $cardGenres = $cardGenres ?? null;
+    $watchableType = $watchableType ?? null;
+    $watchableId = $watchableId ?? null;
     $imgSrc = \Illuminate\Support\Str::startsWith($cardImage, ['http://', 'https://'])
         ? $cardImage
         : asset('frontend/images/' . $cardImage);
+
+    // Lookup the "in watchlist" state from the per-request index
+    // shared by SectionDataComposer. Guests always see "+".
+    $userWatchlistIndex = $userWatchlistIndex ?? [];
+    $isInWatchlist = $watchableType && $watchableId
+        && isset($userWatchlistIndex[$watchableType . ':' . $watchableId]);
+    $watchlistIcon = $isInWatchlist ? 'ph-check' : 'ph-plus';
+    $watchlistTooltip = $isInWatchlist
+        ? (__('streamPlaylist.remove_from_watchlist') ?? 'Remove from watchlist')
+        : __('sectionTitle.add_to_watchlist_tooltip');
 @endphp
 
 @if ($isCardStyle2)
@@ -51,12 +63,28 @@
         </div>
       </div>
       <div class="d-flex align-items-center justify-content-center gap-2 mt-3">
-        <a href="{{ route('frontend.watchlist_detail') }}"
-          class="d-flex align-items-center justify-content-center flex-shrink-0 border-0 add-to-wishlist-btn btn btn-secondary"
-          data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="custom-tooltip"
-          data-bs-title="{{__('sectionTitle.add_to_watchlist_tooltip')}}">
-          <i class="ph ph-plus font-size-18"></i>
-        </a>
+        @if (!empty($watchableType) && !empty($watchableId))
+          {{-- Real watchlist toggle. Initial icon reflects the server-side
+               index from SectionDataComposer; the shared JS delegate in
+               layouts/master.blade.php flips it after a successful POST. --}}
+          <button type="button"
+            class="d-flex align-items-center justify-content-center flex-shrink-0 border-0 add-to-wishlist-btn btn btn-secondary jambo-watchlist-toggle-btn {{ $isInWatchlist ? 'is-in-watchlist' : '' }}"
+            data-watchable-type="{{ $watchableType }}"
+            data-watchable-id="{{ $watchableId }}"
+            data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="custom-tooltip"
+            data-bs-title="{{ $watchlistTooltip }}">
+            <i class="ph {{ $watchlistIcon }} font-size-18"></i>
+          </button>
+        @else
+          {{-- Fallback for callers not yet updated — links to the
+               watchlist page so the affordance remains consistent. --}}
+          <a href="{{ route('frontend.watchlist_detail') }}"
+            class="d-flex align-items-center justify-content-center flex-shrink-0 border-0 add-to-wishlist-btn btn btn-secondary"
+            data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="custom-tooltip"
+            data-bs-title="{{__('sectionTitle.add_to_watchlist_tooltip')}}">
+            <i class="ph ph-plus font-size-18"></i>
+          </a>
+        @endif
         <div class="iq-play-button iq-button">
           <a href="{{ $cardPath }}" class="btn btn-primary w-100">{{__('streamButtons.play_now')}}</a>
         </div>
@@ -120,12 +148,28 @@
         </div>
       </div>
       <div class="d-flex align-items-center justify-content-center gap-2 mt-3">
-        <a href="{{ route('frontend.watchlist_detail') }}"
-          class="d-flex align-items-center justify-content-center flex-shrink-0 border-0 add-to-wishlist-btn btn btn-secondary"
-          data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="custom-tooltip"
-          data-bs-title="{{__('sectionTitle.add_to_watchlist_tooltip')}}">
-          <i class="ph ph-plus font-size-18"></i>
-        </a>
+        @if (!empty($watchableType) && !empty($watchableId))
+          {{-- Real watchlist toggle. Initial icon reflects the server-side
+               index from SectionDataComposer; the shared JS delegate in
+               layouts/master.blade.php flips it after a successful POST. --}}
+          <button type="button"
+            class="d-flex align-items-center justify-content-center flex-shrink-0 border-0 add-to-wishlist-btn btn btn-secondary jambo-watchlist-toggle-btn {{ $isInWatchlist ? 'is-in-watchlist' : '' }}"
+            data-watchable-type="{{ $watchableType }}"
+            data-watchable-id="{{ $watchableId }}"
+            data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="custom-tooltip"
+            data-bs-title="{{ $watchlistTooltip }}">
+            <i class="ph {{ $watchlistIcon }} font-size-18"></i>
+          </button>
+        @else
+          {{-- Fallback for callers not yet updated — links to the
+               watchlist page so the affordance remains consistent. --}}
+          <a href="{{ route('frontend.watchlist_detail') }}"
+            class="d-flex align-items-center justify-content-center flex-shrink-0 border-0 add-to-wishlist-btn btn btn-secondary"
+            data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="custom-tooltip"
+            data-bs-title="{{__('sectionTitle.add_to_watchlist_tooltip')}}">
+            <i class="ph ph-plus font-size-18"></i>
+          </a>
+        @endif
         <div class="iq-play-button iq-button">
           <a href="{{ $cardPath }}" class="btn btn-primary w-100">{{__('streamButtons.play_now')}}</a>
         </div>

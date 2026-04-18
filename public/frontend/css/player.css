@@ -1462,3 +1462,405 @@ media-tooltip-group {
     margin-left: auto;
     flex-shrink: 0;
 }
+
+/* --- Episode prev/next buttons ---------------------------------------- */
+
+/* Ensures the <a> tag styling matches sibling <media-*-button> components.
+   Media Chrome buttons set their own display/align; anchors need these
+   explicit props so they sit flush in the control-bar row. */
+.jambo-episode-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: inherit;
+    line-height: 1;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.jambo-episode-button:hover,
+.jambo-episode-button:focus-visible {
+    color: #fff;
+    text-decoration: none;
+}
+
+/* Disabled (no previous or no next episode): still visible for layout
+   stability, but clearly inert — dimmed, cursor blocked, no hover glow. */
+.jambo-episode-button.is-disabled,
+.jambo-episode-button[disabled] {
+    opacity: 0.35;
+    pointer-events: none;
+    cursor: not-allowed;
+}
+
+/* --- Autoplay-next iOS-style toggle switch (control bar) -------------- */
+
+/* Inline-flex wrapper so the switch sits flush next to surrounding
+   media-* buttons. Transparent background — only the pill itself is
+   visible. */
+.jambo-autoplay-switch {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    padding: 0 0.5rem;
+    margin: 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    height: 100%;
+}
+
+.jambo-autoplay-switch:focus-visible {
+    outline: 2px solid #7C6FF5;
+    outline-offset: 3px;
+    border-radius: 999px;
+}
+
+/* iOS-style pill track. Soft grey when off, indigo when on — matches
+   the screenshotted reference design. Dimensions picked so the thumb
+   sits with a clean 3px inset on all sides. */
+.jambo-autoplay-switch__track {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.28);
+    transition: background 0.2s ease-in-out;
+}
+
+.jambo-autoplay-switch:hover .jambo-autoplay-switch__track {
+    background: rgba(255, 255, 255, 0.42);
+}
+
+.jambo-autoplay-switch.is-on .jambo-autoplay-switch__track {
+    background: #7C6FF5;
+}
+
+.jambo-autoplay-switch.is-on:hover .jambo-autoplay-switch__track {
+    background: #8C80FF;
+}
+
+/* Thumb: white circle, 18px, inset 3px. The 20px translate lines up
+   the thumb with a symmetrical 3px gap on the right edge when on. */
+.jambo-autoplay-switch__thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s ease-in-out;
+}
+
+.jambo-autoplay-switch.is-on .jambo-autoplay-switch__thumb {
+    transform: translateX(20px);
+}
+
+/* Subtle press-down on click for tactile feedback. */
+.jambo-autoplay-switch:active .jambo-autoplay-switch__thumb {
+    transform: scale(0.92);
+}
+
+.jambo-autoplay-switch.is-on:active .jambo-autoplay-switch__thumb {
+    transform: translateX(20px) scale(0.92);
+}
+
+/* ====================================================================== */
+/* Mobile layout (< 768px): YouTube-style center overlay + cleaner bar    */
+/* ====================================================================== */
+
+/* Center overlay hidden on desktop — only shows on phones / small
+   tablets in portrait, or whenever the frame goes mini. Buttons are
+   bigger, with translucent backgrounds for tap visibility on busy
+   footage. */
+.jambo-mobile-center {
+    display: none;
+    opacity: 1;
+    transition: opacity 0.25s ease-out;
+}
+
+/* Faded out when the idle timer fires (JS toggles this class). Pointer
+   events are disabled so taps pass through to the video — which wakes
+   Media Chrome's activity detector and re-shows the overlay. Kept
+   visible while paused / ended by the JS, so this class never gets
+   added in those states. */
+.jambo-mobile-center.is-hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Play/pause icon swap — wired via JS (toggles [data-playing] on the
+   center play button). One icon visible at a time regardless of where
+   the overlay shows (mobile viewport, mini-player, etc.). Placed here
+   outside the media query so the rule applies in every context. */
+.jambo-mobile-center__btn--play .media-icon--pause { display: none; }
+.jambo-mobile-center__btn--play .media-icon--play  { display: block; }
+.jambo-mobile-center__btn--play[data-playing] .media-icon--play  { display: none; }
+.jambo-mobile-center__btn--play[data-playing] .media-icon--pause { display: block; }
+
+@media (max-width: 767px) {
+    .jambo-mobile-center {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 2.25rem;
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        pointer-events: none; /* let taps on empty area reach video */
+    }
+
+    /* Each button is a round dark-backed target. pointer-events re-enabled
+       on the button itself so taps register despite the parent opt-out. */
+    .jambo-mobile-center__btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.55);
+        color: #fff;
+        border: none;
+        cursor: pointer;
+        pointer-events: auto;
+        transition: background 0.15s, transform 0.1s;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .jambo-mobile-center__btn:active {
+        background: rgba(0, 0, 0, 0.75);
+        transform: scale(0.94);
+    }
+
+    .jambo-mobile-center__btn--play {
+        width: 72px;
+        height: 72px;
+    }
+
+    /* ---- Bottom-bar cleanup on mobile ---- */
+
+    /* Hide seek ±10s buttons in the bar — duplicated in the overlay. */
+    media-seek-button.media-button--seek {
+        display: none;
+    }
+
+    /* Hide the main play button in the bar — overlay handles play/pause. */
+    .media-controls media-play-button.media-button--play {
+        display: none;
+    }
+
+    /* Picture-in-Picture is a desktop affordance — drop it on phones. */
+    .media-button--pip,
+    media-pip-button {
+        display: none !important;
+    }
+
+    /* Captions and mute — keep these off the mobile bar for breathing
+       room; users can still enable captions through the settings gear. */
+    .media-button--captions,
+    media-captions-button {
+        display: none;
+    }
+
+    .media-button--mute,
+    media-mute-button {
+        display: none;
+    }
+
+    /* Episode skip buttons hidden on phones — they duplicate the flow
+       the Autoplay switch handles automatically at episode end, and
+       they clutter the narrow bar. Users who want manual control still
+       have the episode carousel below the player. */
+    .jambo-episode-button {
+        display: none;
+    }
+
+    /* Autoplay switch stays — it's the headline control on a mobile
+       series session. Slightly bigger tap target. */
+    .jambo-autoplay-switch {
+        padding: 0 0.35rem;
+    }
+
+    /* Give the remaining bar more breathing room so it doesn't look
+       stuffed: time, slider, autoplay, settings, fullscreen. */
+    .media-controls .media-button-group {
+        gap: 0.25rem;
+    }
+
+    /* The time-controls block: stack time + slider less tight so it
+       reads clearly on narrow screens. */
+    .media-time-controls {
+        gap: 0.5rem;
+    }
+}
+
+/* Very small phones (<= 400px) — squeeze the overlay gap tighter. */
+@media (max-width: 400px) {
+    .jambo-mobile-center {
+        gap: 1.5rem;
+    }
+
+    .jambo-mobile-center__btn {
+        width: 48px;
+        height: 48px;
+    }
+
+    .jambo-mobile-center__btn--play {
+        width: 64px;
+        height: 64px;
+    }
+}
+
+/* ====================================================================== */
+/* Mini-player: same YouTube-style overlay at any viewport size           */
+/* ====================================================================== */
+
+/* When the frame portals into mini-mode (via the IntersectionObserver in
+   the episode / watch page scripts), reuse the mobile overlay so the
+   user keeps the big tap targets at small player size. Scaled down to
+   fit the miniature frame without overwhelming it. */
+.jambo-player-frame--mini .jambo-mobile-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.jambo-player-frame--mini .jambo-mobile-center__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background 0.15s, transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.jambo-player-frame--mini .jambo-mobile-center__btn:active {
+    background: rgba(0, 0, 0, 0.75);
+    transform: scale(0.94);
+}
+
+.jambo-player-frame--mini .jambo-mobile-center__btn--play {
+    width: 44px;
+    height: 44px;
+}
+
+/* Shrink the SVG icons inside the mini-player overlay so they don't
+   spill out of the tiny buttons. */
+.jambo-player-frame--mini .jambo-mobile-center__btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.jambo-player-frame--mini .jambo-mobile-center__btn--play svg {
+    width: 24px;
+    height: 24px;
+}
+
+/* In mini-mode, also slim the bottom bar: most buttons would be
+   unreadable at that size anyway. Keep progress, autoplay switch,
+   settings gear, fullscreen, plus episode prev/next (reordered to the
+   right-hand side below). */
+.jambo-player-frame--mini .media-button--seek,
+.jambo-player-frame--mini .media-controls media-play-button.media-button--play,
+.jambo-player-frame--mini .media-button--pip,
+.jambo-player-frame--mini media-pip-button,
+.jambo-player-frame--mini .media-button--captions,
+.jambo-player-frame--mini media-captions-button,
+.jambo-player-frame--mini .media-button--mute,
+.jambo-player-frame--mini media-mute-button {
+    display: none;
+}
+
+/* Move the first button group (which holds the episode prev/next pair)
+   to the end of the control row, so they sit to the right of autoplay,
+   settings, and fullscreen — matches the user's requested placement.
+   Default flex-order is 0; bumping the first group to 3 pushes it past
+   the time-controls (0) and the second button group (0). */
+.jambo-player-frame--mini .media-tooltip-group .media-button-group:first-child {
+    order: 3;
+    margin-left: 0.5rem;
+}
+
+/* Re-show the episode prev/next buttons inside the mini-player bar —
+   they were hidden along with play/seek elsewhere, but here they're
+   the whole point of the group we just reordered. */
+.jambo-player-frame--mini .jambo-episode-button {
+    display: inline-flex;
+}
+
+/* Compact sizing for the episode buttons so they fit the mini frame
+   without crowding the time/slider. */
+.jambo-player-frame--mini .jambo-episode-button {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+}
+
+.jambo-player-frame--mini .jambo-episode-button .media-icon {
+    width: 16px;
+    height: 16px;
+}
+
+/* ====================================================================== */
+/* "Now playing" indicator on the episode carousel                        */
+/* ====================================================================== */
+
+/* Subtle primary-colored glow + NOW PLAYING badge on the slide that
+   matches the episode currently loaded in the player. Applied at the
+   .swiper-slide level so we don't have to touch the card partial. */
+.swiper-slide.is-playing {
+    position: relative;
+}
+
+.swiper-slide.is-playing > * {
+    outline: 2px solid var(--bs-primary, #1A98FF);
+    outline-offset: -2px;
+    border-radius: 8px;
+    box-shadow: 0 0 0 6px rgba(26, 152, 255, 0.15);
+}
+
+.swiper-slide.is-playing::after {
+    content: 'NOW PLAYING';
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 3;
+    background: var(--bs-primary, #1A98FF);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    text-transform: uppercase;
+    pointer-events: none;
+}
+
+/* Animated pulse to draw the eye, but subtle — don't want it to feel
+   like an alert. */
+@keyframes jamboNowPlayingPulse {
+    0%, 100% { box-shadow: 0 0 0 6px rgba(26, 152, 255, 0.15); }
+    50%      { box-shadow: 0 0 0 10px rgba(26, 152, 255, 0.22); }
+}
+
+.swiper-slide.is-playing > * {
+    animation: jamboNowPlayingPulse 2.4s ease-in-out infinite;
+}

@@ -2,12 +2,16 @@
 
 namespace Modules\Frontend\app\View\Composers;
 
+use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Genre;
 use Modules\Content\app\Models\Movie;
 use Modules\Content\app\Models\Person;
 use Modules\Content\app\Models\Show;
+use Modules\Streaming\app\Models\WatchHistoryItem;
+use Modules\Streaming\app\Models\WatchlistItem;
 
 /**
  * Shares the collections that every section-template on the public frontend
@@ -21,6 +25,7 @@ use Modules\Content\app\Models\Show;
 class SectionDataComposer
 {
     private static ?array $cache = null;
+    private static ?array $perUserCache = null;
 
     public function compose(View $view): void
     {
@@ -31,6 +36,48 @@ class SectionDataComposer
         foreach (self::$cache as $key => $value) {
             $view->with($key, $value);
         }
+
+        // Per-user data that must NOT live in the static public cache —
+        // otherwise cards on every page would show the first logged-in
+        // user's watchlist state to everyone. Rebuilt once per request.
+        if (self::$perUserCache === null) {
+            self::$perUserCache = $this->buildPerUser();
+        }
+        foreach (self::$perUserCache as $key => $value) {
+            $view->with($key, $value);
+        }
+    }
+
+    /**
+     * Lightweight lookup set so every card on the page can render its
+     * "in watchlist / not in watchlist" state without N extra queries.
+     * Keys are "<type>:<id>" where type is 'movie' | 'show' | 'episode'.
+     * Empty array for guests.
+     */
+    private function buildPerUser(): array
+    {
+        $userId = auth()->id();
+        if (!$userId) {
+            return ['userWatchlistIndex' => []];
+        }
+
+        $rows = WatchlistItem::where('user_id', $userId)
+            ->get(['watchable_type', 'watchable_id']);
+
+        $typeMap = [
+            (new Movie)->getMorphClass()   => 'movie',
+            (new Show)->getMorphClass()    => 'show',
+            (new Episode)->getMorphClass() => 'episode',
+        ];
+
+        $index = [];
+        foreach ($rows as $row) {
+            $kind = $typeMap[$row->watchable_type] ?? null;
+            if ($kind) {
+                $index[$kind . ':' . $row->watchable_id] = true;
+            }
+        }
+        return ['userWatchlistIndex' => $index];
     }
 
     private function build(): array
@@ -103,7 +150,7 @@ class SectionDataComposer
                 ->take(12)
                 ->get(),
 
-            'continueWatching' => $this->continueWatchingFallback(),
+            'continueWatching' => $this->continueWatchingForUser(),
         ];
     }
 
@@ -146,12 +193,116 @@ class SectionDataComposer
     }
 
     /**
-     * Until Phase 5 (Streaming) wires real watch history, surface the most
-     * recent published movies as a stand-in. When the history table is live,
-     * swap this for a per-user watch_history query.
+     * Real Continue Watching row, per authenticated user.
+     *
+     * Contract:
+     *   • Anonymous viewers get an empty collection — the section blade
+     *     hides itself entirely in that case.
+     *   • For signed-in users: up to 6 cards, ordered by most recent
+     *     heartbeat. Completed rows are excluded.
+     *   • Series are deduplicated: one card per show, and the card
+     *     points at the latest episode the user was watching (most
+     *     recent heartbeat wins).
+     *
+     * Each returned element is a normalised stdClass so the card
+     * template doesn't need to branch on movie-vs-episode.
      */
-    private function continueWatchingFallback()
+    private function continueWatchingForUser(): Collection
     {
-        return Movie::published()->with('genres')->orderByDesc('updated_at')->take(6)->get();
+        $userId = auth()->id();
+        if (!$userId) {
+            return collect();
+        }
+
+        // Pull enough rows to dedupe across shows. 24 is generous —
+        // unlikely a real user has more in-progress items than that
+        // between heartbeats, but it gives room for a bingewatcher
+        // with multiple episodes of several shows still open.
+        $rows = WatchHistoryItem::where('user_id', $userId)
+            ->where('completed', false)
+            ->orderByDesc('watched_at')
+            ->with(['watchable' => function (MorphTo $morphTo) {
+                $morphTo->morphWith([
+                    Movie::class   => ['genres'],
+                    Episode::class => ['season.show'],
+                ]);
+            }])
+            ->take(24)
+            ->get();
+
+        $cards = collect();
+        $seenShows = [];
+
+        foreach ($rows as $row) {
+            $w = $row->watchable;
+            if (!$w) continue;
+
+            if ($w instanceof Movie) {
+                $cards->push($this->buildMovieCard($row, $w));
+            } elseif ($w instanceof Episode) {
+                $showId = $w->season?->show_id;
+                if (!$showId || in_array($showId, $seenShows, true)) {
+                    continue;
+                }
+                $seenShows[] = $showId;
+                $cards->push($this->buildEpisodeCard($row, $w));
+            }
+
+            if ($cards->count() >= 6) break;
+        }
+
+        return $cards;
+    }
+
+    /**
+     * Minutes remaining. Prefers the heartbeat-reported duration
+     * (real), falls back to `runtime_minutes` (admin-set). The fallback
+     * assumes the user's position splits evenly — inaccurate, but
+     * better than showing nothing.
+     */
+    private function minutesLeft(WatchHistoryItem $h, ?int $runtimeMinutes): int
+    {
+        if ($h->duration_seconds && $h->duration_seconds > $h->position_seconds) {
+            return max(1, (int) ceil(($h->duration_seconds - $h->position_seconds) / 60));
+        }
+        if ($runtimeMinutes) {
+            $pct = max(0, 100 - $h->progressPercent());
+            return max(1, (int) ceil($runtimeMinutes * $pct / 100));
+        }
+        return 10;
+    }
+
+    private function buildMovieCard(WatchHistoryItem $h, Movie $m): object
+    {
+        return (object) [
+            'imagePath'       => $m->backdrop_url ?: $m->poster_url ?: 'gameofhero.webp',
+            'title'           => $m->title,
+            'subtitle'        => $m->published_at?->format('M Y') ?? ($m->year ? (string) $m->year : ''),
+            'progressPercent' => $h->progressPercent(),
+            'minutesLeft'     => $this->minutesLeft($h, $m->runtime_minutes),
+            'watchLink'       => route('frontend.watch', $m->slug),
+            'removeType'      => 'movie',
+            'removeId'        => $m->id,
+        ];
+    }
+
+    private function buildEpisodeCard(WatchHistoryItem $h, Episode $e): object
+    {
+        $show = $e->season->show;
+        $ep = 'S' . str_pad($e->season->number, 2, '0', STR_PAD_LEFT)
+            . 'E' . str_pad($e->number, 2, '0', STR_PAD_LEFT);
+        return (object) [
+            'imagePath'       => $e->still_url ?: ($show->backdrop_url ?: $show->poster_url ?: 'vikings-portrait.webp'),
+            'title'           => $show->title,
+            'subtitle'        => $ep . ' · ' . $e->title,
+            'progressPercent' => $h->progressPercent(),
+            'minutesLeft'     => $this->minutesLeft($h, $e->runtime_minutes),
+            'watchLink'       => route('frontend.episode', $e->id),
+            // For shows, remove-by-show_id wipes every episode's history,
+            // otherwise a kept row would re-surface the show card on the
+            // next render (composer dedupes by show).
+            'removeType'      => 'show',
+            'removeId'        => $show->id,
+        ];
     }
 }

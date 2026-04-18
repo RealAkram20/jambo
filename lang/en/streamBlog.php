@@ -25,7 +25,7 @@ return [
     'blog7' => 'Box Office to Couch The Movie Viewing Shift',
     'blog7_desc' => 'Potenti fusce himenaeos hac aenean quis donec vivamus aliquet, wprdpress integer inceptos curae sollicitudin in class sociosqu netus, euismod tempus fermentum odio gravida eleifend viverra pulvinar inceptos ligula consectetur. Potenti ante porttitor tristique curae scelerisque tristique, dictum eu donec conubia sit rutrum duis viverra in commodo.',
 
-    'blog8' => 'Behind the Scenes Making Your Favorite Shows',
+    'blog8' => 'Behind the Scenes Making Your Favorite Series',
     'blog8_desc' => 'Nisi habitasse viverra praesent a maecenas odio erat tristique praesent elementum rutrum maecenas blandit nec curabitur donec, turpis varius etiam felis ultrices sit, per inceptos dapibus fames donec praesent quisque commodo primis proin leo nisl lacinia dictumst justo sagittis luctus vestibulum sed quisque.',
 
     'blog9' => 'Top Independent Films to Stream Now',
@@ -37,7 +37,7 @@ return [
     'blog11' => 'Why Are Horror Movies So Addictive?',
     'blog11_desc' => 'Dive into the world of horror and what keeps audiences coming back for more.',
 
-    'blog12' => 'Comedy Gold The Funniest TV Shows to Watch',
+    'blog12' => 'Comedy Gold The Funniest Series to Watch',
     'blog12_desc' => 'A handpicked list of laugh-out-loud comedies to brighten your day. This curated selection features a diverse range of comedic styles, from hilarious rom-coms and witty workplace comedies to side-splitting action-comedies and heartwarming family films. Get ready to laugh until your sides hurt with this guaranteed mood booster.',
 
     'blog13' => 'Animated Family Films The Streaming Success Story',

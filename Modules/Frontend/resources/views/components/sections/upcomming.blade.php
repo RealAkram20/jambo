@@ -7,7 +7,7 @@
         $upcItems = $latestShows ?? collect();
         $upcIsShow = true;
         $upcTitle = __('sectionTitle.tv_upcoming_title');
-        $upcHref = route('frontend.tv-show');
+        $upcHref = route('frontend.series');
         $upcFallback = 'media/vikings-portrait.webp';
     } else {
         $upcItems = ($upcomingMovies ?? collect())->count()
@@ -29,8 +29,8 @@
         @endif
     </div>
     <div class="card-style-slider">
-        <div class="position-relative swiper swiper-card" data-slide="6" data-laptop="4" data-tab="3" data-mobile="2"
-            data-mobile-sm="2" data-autoplay="false" data-loop="false" data-navigation="true" data-pagination="true">
+        <div class="position-relative swiper swiper-card" data-slide="7" data-laptop="5" data-tab="4" data-mobile="3"
+            data-mobile-sm="3" data-autoplay="false" data-loop="false" data-navigation="true" data-pagination="true">
             <ul class="p-0 swiper-wrapper m-0 list-inline">
                 @include('frontend::components.partials.section-cards', [
                     'items' => $upcItems,

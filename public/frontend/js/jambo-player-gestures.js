@@ -118,6 +118,18 @@
             }
         }
 
+        // Navigate to the sibling episode by "clicking" the corresponding
+        // prev/next button in the control bar. We piggyback on the <a> so
+        // the navigation path (and any page leave handlers like the final
+        // heartbeat) stays identical to a mouse click.
+        function goToEpisode(which) {
+            var sel = '[data-episode-nav="' + which + '"]';
+            var btn = (container && container.querySelector(sel)) || document.querySelector(sel);
+            if (btn && !btn.classList.contains('is-disabled') && !btn.disabled) {
+                btn.click();
+            }
+        }
+
         // ---- Double-tap gesture zones ----
         var zones = container.querySelectorAll('.jambo-gesture-zone');
         zones.forEach(function (zone) {
@@ -210,6 +222,12 @@
                 case '7': seekPercent(70); break;
                 case '8': seekPercent(80); break;
                 case '9': seekPercent(90); break;
+                case 'N': // Shift+N — next episode (YouTube convention)
+                    if (e.shiftKey) goToEpisode('next'); else handled = false;
+                    break;
+                case 'P': // Shift+P — previous episode
+                    if (e.shiftKey) goToEpisode('prev'); else handled = false;
+                    break;
                 default:
                     handled = false;
             }

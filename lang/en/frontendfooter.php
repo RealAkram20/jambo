@@ -18,7 +18,7 @@ return [
     "follow_us" => "Follow Us:",
     "privacy-policy" => "Privacy-Policy",
     "watch_list" => "Watch List",
-    "desc" => "All Rights Reserved. All videos and shows on this platform are trademarks of, and all related images and content are the property of, Jambo Duplication and copy of this is strictly prohibited.",
+    "desc" => "All Rights Reserved. All videos and series on this platform are trademarks of, and all related images and content are the property of, Jambo Duplication and copy of this is strictly prohibited.",
     "download_app" => "Download Jambo App",
     "email" => "Email*",
     "stay_connected" => "Stay Connected on:",

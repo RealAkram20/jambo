@@ -16,7 +16,7 @@
 
     // Detail URL
     $detailUrl = $isShow
-        ? route('frontend.tvshow_detail', $item->slug)
+        ? route('frontend.series_detail', $item->slug)
         : route('frontend.movie_detail', $item->slug);
 
     // Badge: certification (NC-17/PG) for movies, "N season" for shows

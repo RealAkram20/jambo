@@ -7,6 +7,7 @@ return [
     'ott_home' => 'OTT Home',
     'movie' => 'Movie',
     'tv_show' => 'Series',
+    'tvshow' => 'Series',
     'episode' => 'Episode',
     'search' => 'Search',
     'merchandise_store' => 'Merchandise Store',

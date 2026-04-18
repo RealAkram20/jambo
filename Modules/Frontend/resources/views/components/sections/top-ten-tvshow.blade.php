@@ -12,12 +12,12 @@
                         @include('frontend::components.cards.top-ten-card', [
                             'imagePath' => $show->poster_url ?: 'vikings-portrait.webp',
                             'countValue' => $i + 1,
-                            'cardUrlPath' => route('frontend.tvshow_detail', $show->slug),
+                            'cardUrlPath' => route('frontend.series_detail', $show->slug),
                             'productPremium' => (bool) $show->tier_required,
                         ])
                     </li>
                 @empty
-                    <li class="swiper-slide"><p class="text-muted">{{ __('streamTag.no_results') ?? 'No top shows yet.' }}</p></li>
+                    <li class="swiper-slide"><p class="text-muted">{{ __('streamTag.no_results') ?? 'No top series yet.' }}</p></li>
                 @endforelse
             </ul>
             <div class="d-none d-lg-block">

@@ -4,6 +4,10 @@ namespace Modules\Content\app\Providers;
 
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
+use Modules\Content\app\Models\Episode;
+use Modules\Content\app\Models\Movie;
+use Modules\Content\app\Observers\EpisodeObserver;
+use Modules\Content\app\Observers\MovieObserver;
 
 class ContentServiceProvider extends ServiceProvider
 {
@@ -22,6 +26,13 @@ class ContentServiceProvider extends ServiceProvider
         $this->registerConfig();
         $this->registerViews();
         $this->loadMigrationsFrom(module_path($this->moduleName, 'database/migrations'));
+
+        // Auto-detect runtime from the actual video file/stream so the
+        // display numbers (watch page, episode carousel, continue-
+        // watching, etc.) always match reality — no manual entry
+        // needed for admins.
+        Movie::observe(MovieObserver::class);
+        Episode::observe(EpisodeObserver::class);
     }
 
     /**

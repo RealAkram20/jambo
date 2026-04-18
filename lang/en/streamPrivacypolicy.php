@@ -3,7 +3,7 @@
 return [
 
     "description_service" => "Description of Service and Acceptance of Terms of Use",
-    "desc1" => "The Jambo website provides streaming services for various entertainment content including movies, TV shows, and documentaries.",
+    "desc1" => "The Jambo website provides streaming services for various entertainment content including movies, series, and documentaries.",
     "desc2" => "By accessing or using the Jambo website, you agree to abide by the Terms of Use outlined herein.",
     "desc3" => "Jambo requires users to have the latest version of compatible browsers such as Google Chrome, Firefox, or Safari, with JavaScript and cookies enabled for optimal performance.",
     "works_best_with" => "The Jambo website works best with:",

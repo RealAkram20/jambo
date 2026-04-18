@@ -23,6 +23,8 @@
                                     'cardPath' => route('frontend.movie_detail', $movie->slug),
                                     'cardGenres' => $movie->genres->take(2)->pluck('name')->all(),
                                     'productPremium' => (bool) $movie->tier_required,
+                                    'watchableType' => 'movie',
+                                    'watchableId'   => $movie->id,
                                 ])
                             </div>
                         @endforeach
@@ -30,7 +32,7 @@
                 @endif
 
                 @if ($shows->count())
-                    <h6 class="main-title text-capitalize mt-5 mb-3">{{ __('frontendheader.tvshow') ?? 'TV Shows' }}</h6>
+                    <h6 class="main-title text-capitalize mt-5 mb-3">{{ __('frontendheader.tvshow') ?? 'Series' }}</h6>
                     <div class="row row-cols-xl-5 row-cols-md-3 row-cols-2 g-3">
                         @foreach ($shows as $show)
                             <div class="col">
@@ -39,9 +41,11 @@
                                     'cardTitle' => $show->title,
                                     'movietime' => null,
                                     'cardLang' => 'English',
-                                    'cardPath' => route('frontend.tvshow_detail', $show->slug),
+                                    'cardPath' => route('frontend.series_detail', $show->slug),
                                     'cardGenres' => $show->genres->take(2)->pluck('name')->all(),
                                     'productPremium' => (bool) $show->tier_required,
+                                    'watchableType' => 'show',
+                                    'watchableId'   => $show->id,
                                 ])
                             </div>
                         @endforeach

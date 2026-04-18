@@ -28,7 +28,7 @@ return [
     "basic_plan" => "Basic Plan",
     "sofbox_series" => "Sofbox series",
     "streamit_special" => "Jambo Special",
-    "prokit_hd_shows" => "Prokit HD Shows",
+    "prokit_hd_shows" => "Prokit HD Series",
     "active" => "Active",
     "standard_plan" => "Standard Plan",
     "professional_plan" => "Professional Plan",

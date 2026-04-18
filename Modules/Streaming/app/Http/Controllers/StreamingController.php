@@ -57,7 +57,7 @@ class StreamingController extends Controller
         return view('streaming::watch', [
             'title' => ($show?->title ?? 'Episode') . ' — S' . ($episode->season?->number ?? '?') . 'E' . $episode->number . ' · ' . $episode->title,
             'backLabel' => 'Back to series',
-            'backUrl' => $show ? route('frontend.tvshow_detail', ['slug' => $show->slug]) : url('/'),
+            'backUrl' => $show ? route('frontend.series_detail', ['slug' => $show->slug]) : url('/'),
             'poster' => $episode->still_url,
             'source' => $source,
             'payableType' => $episode->getMorphClass(),

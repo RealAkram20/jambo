@@ -126,14 +126,47 @@
     @endif
 
     @if(empty($isNotwatchList))
+        @php
+            $watchableType = $watchableType ?? null;
+            $watchableId   = $watchableId   ?? null;
+            $userWatchlistIndex = $userWatchlistIndex ?? [];
+            $isInWatchlist = $watchableType && $watchableId
+                && isset($userWatchlistIndex[$watchableType . ':' . $watchableId]);
+            $watchlistIcon = $isInWatchlist ? 'ph-check' : 'ph-plus';
+            $watchlistTooltip = $isInWatchlist
+                ? (__('streamPlaylist.remove_from_watchlist') ?? 'Remove from watchlist')
+                : __('sectionTitle.add_to_watchlist_tooltip');
+            $watchlistLabel = $isInWatchlist
+                ? (__('streamTag.in_watch_list') ?? 'In Watchlist')
+                : __('streamTag.watch_lists');
+        @endphp
         <div class="watchlist-button-wrapper">
-            <a href="{{ route('frontend.watchlist_detail') }}" class="btn btn-secondary border rounded-3" data-bs-toggle="tooltip"
-                data-bs-placement="top" title="{{__('sectionTitle.add_to_watchlist_tooltip')}}">
-                <span class="d-flex align-items-center justify-content-center gap-2">
-                    <span class="fw-semibold"><i class="ph ph-plus"></i></span>
-                    <span class="fw-semibold">{{__('streamTag.watch_lists')}}</span>
-                </span>
-            </a>
+            @if ($watchableType && $watchableId)
+                {{-- Real toggle — global delegate in layouts/master.blade.php
+                     handles the POST and flips the icon + label. --}}
+                <button type="button"
+                    class="btn btn-secondary border rounded-3 jambo-watchlist-toggle-btn {{ $isInWatchlist ? 'is-in-watchlist' : '' }}"
+                    data-watchable-type="{{ $watchableType }}"
+                    data-watchable-id="{{ $watchableId }}"
+                    data-watchlist-label-add="{{ __('streamTag.watch_lists') }}"
+                    data-watchlist-label-remove="{{ __('streamTag.in_watch_list') ?? 'In Watchlist' }}"
+                    data-bs-toggle="tooltip" data-bs-placement="top"
+                    data-bs-title="{{ $watchlistTooltip }}">
+                    <span class="d-flex align-items-center justify-content-center gap-2">
+                        <span class="fw-semibold"><i class="ph {{ $watchlistIcon }}"></i></span>
+                        <span class="fw-semibold jambo-watchlist-label">{{ $watchlistLabel }}</span>
+                    </span>
+                </button>
+            @else
+                {{-- Fallback for callers not yet updated with watchableType/Id. --}}
+                <a href="{{ route('frontend.watchlist_detail') }}" class="btn btn-secondary border rounded-3" data-bs-toggle="tooltip"
+                    data-bs-placement="top" title="{{__('sectionTitle.add_to_watchlist_tooltip')}}">
+                    <span class="d-flex align-items-center justify-content-center gap-2">
+                        <span class="fw-semibold"><i class="ph ph-plus"></i></span>
+                        <span class="fw-semibold">{{__('streamTag.watch_lists')}}</span>
+                    </span>
+                </a>
+            @endif
         </div>
     @endif
 
@@ -156,19 +189,10 @@
             </button>
         @endif
 
-        @if(empty($isNotPlaylistbtn))
-            <button type="button" class="btn btn-secondary action-btn border" data-bs-toggle="modal" data-bs-target="#playlistModal">
-                <span class="h-100 w-100 d-block" data-bs-toggle="tooltip" data-bs-placement="top" title="{{__('streamTag.playlist')}}">
-                    <i class="ph ph-playlist"></i>
-                </span>
-            </button>
-        @endif
-
     </div>
 </div>
 <!-- Movie Description End -->
 
 <!-- Modals -->
-@include('frontend::components.widgets.playlist-modal')
 @include('frontend::components.widgets.share-modal')
 <!-- Modals End -->

@@ -5,6 +5,19 @@
     $season = $episode->season;
     $seasons = $show->seasons->sortBy('number');
     $headline = 'S' . str_pad($season->number, 2, '0', STR_PAD_LEFT) . 'E' . str_pad($episode->number, 2, '0', STR_PAD_LEFT) . ' — ' . $episode->title;
+
+    // Sibling-episode metadata for the player's prev/next buttons.
+    $epLabel = function ($ep) {
+        if (! $ep) return null;
+        $sn = $ep->season->number ?? null;
+        return 'S' . str_pad($sn ?? 0, 2, '0', STR_PAD_LEFT)
+            . 'E' . str_pad($ep->number, 2, '0', STR_PAD_LEFT)
+            . ' — ' . $ep->title;
+    };
+    $prevEpUrl   = $previousEpisode ? route('frontend.episode', $previousEpisode->id) : null;
+    $nextEpUrl   = $nextEpisode     ? route('frontend.episode', $nextEpisode->id)     : null;
+    $prevEpLabel = $epLabel($previousEpisode);
+    $nextEpLabel = $epLabel($nextEpisode);
 @endphp
 
 @section('content')
@@ -27,6 +40,11 @@
                 'playerPoster' => $poster,
                 'playerId' => 'jambo-watch-player',
                 'resumePosition' => $resumePosition ?? 0,
+                'isSeries' => true,
+                'prevEpisodeUrl' => $prevEpUrl,
+                'nextEpisodeUrl' => $nextEpUrl,
+                'prevEpisodeLabel' => $prevEpLabel,
+                'nextEpisodeLabel' => $nextEpLabel,
             ])
         </div>
     </div>
@@ -36,7 +54,7 @@
             <div class="text-center p-5">
                 <h3 class="mb-3">This episode isn't streamable yet.</h3>
                 <p class="text-muted mb-4">No Video URL has been set for <strong>{{ $headline }}</strong>.</p>
-                <a href="{{ route('frontend.tvshow_detail', $show->slug) }}" class="btn btn-outline-light">← Back to series</a>
+                <a href="{{ route('frontend.series_detail', $show->slug) }}" class="btn btn-outline-light">← Back to series</a>
             </div>
         </div>
     </div>
@@ -52,7 +70,7 @@
                             @include('frontend::components.cards.movie-description', [
                                 'moveName' => $headline,
                                 'movieReleased' => $episode->published_at?->format('Y') ?: ($show->year ?? ''),
-                                'movieViews' => '— ' . __('frontendplaylist.views'),
+                                'movieViews' => number_format($show->views_count ?? 0) . ' ' . __('frontendplaylist.views'),
                                 'isNotimdbRating' => true,
                                 'movieDuration' => $episode->runtime_minutes ? $episode->runtime_minutes . ' min' : '—',
                                 'isNotTVShowbadge' => true,
@@ -62,21 +80,9 @@
                                 'movieGenres' => $show->genres->pluck('name')->all(),
                             ])
 
-                            @if ($nextEpisode)
-                                <div class="d-flex align-items-center gap-3 mb-4">
-                                    <label class="d-flex align-items-center gap-2 form-check-label" for="autoplay-next" style="cursor:pointer;">
-                                        <input class="form-check-input m-0" type="checkbox" role="switch" id="autoplay-next">
-                                        <span class="fw-medium">Autoplay next episode</span>
-                                        <span class="text-muted" style="font-size: 12px;">
-                                            Up next: S{{ str_pad($nextEpisode->season->number ?? $season->number, 2, '0', STR_PAD_LEFT) }}E{{ str_pad($nextEpisode->number, 2, '0', STR_PAD_LEFT) }} — {{ $nextEpisode->title }}
-                                        </span>
-                                    </label>
-                                </div>
-                            @endif
-
                             <div class="mt-3">
                                 <small class="text-muted">{{ __('sectionTitle.from') ?? 'From' }}:</small>
-                                <a href="{{ route('frontend.tvshow_detail', $show->slug) }}" class="ms-1 text-primary text-decoration-none">{{ $show->title }}</a>
+                                <a href="{{ route('frontend.series_detail', $show->slug) }}" class="ms-1 text-primary text-decoration-none">{{ $show->title }}</a>
                             </div>
                         </div>
                     </div>
@@ -106,14 +112,31 @@
                 </ul>
                 <div class="tab-content">
                     @foreach ($seasons as $s)
+                        @php
+                            // In the current season's tab, rotate the list
+                            // so the episode the user is watching sits at
+                            // the left edge. Episodes that come after it
+                            // follow naturally, then the ones before it
+                            // wrap around to the end. Other seasons keep
+                            // their natural 1→N order.
+                            $sEpisodes = $s->episodes->sortBy('number')->values();
+                            if ($s->id === $season->id) {
+                                $currentIdx = $sEpisodes->search(fn ($e) => $e->id === $episode->id);
+                                if ($currentIdx !== false && $currentIdx > 0) {
+                                    $sEpisodes = $sEpisodes->slice($currentIdx)
+                                        ->concat($sEpisodes->slice(0, $currentIdx))
+                                        ->values();
+                                }
+                            }
+                        @endphp
                         <div id="season-{{ $s->number }}" class="tab-pane animated fadeInUp {{ $s->id === $season->id ? 'active show' : '' }}" role="tabpanel">
                             <div class="card-style-slider">
                                 <div class="position-relative swiper swiper-card mt-4 mb-5 overflow-hidden" data-slide="5"
-                                    data-laptop="5" data-tab="2" data-mobile="2" data-mobile-sm="1"
+                                    data-laptop="5" data-tab="3" data-mobile="2" data-mobile-sm="2"
                                     data-autoplay="false" data-loop="false">
                                     <div class="p-0 swiper-wrapper m-0 list-inline">
-                                        @foreach ($s->episodes->sortBy('number') as $ep)
-                                            <div class="swiper-slide">
+                                        @foreach ($sEpisodes as $ep)
+                                            <div class="swiper-slide {{ $ep->id === $episode->id ? 'is-playing' : '' }}">
                                                 @include('frontend::components.cards.episode-card', [
                                                     'episodePath' => route('frontend.episode', $ep->id),
                                                     'showImg' => $ep->still_url ?: 'media/episode/s1e1-the-buddha.webp',
@@ -134,6 +157,72 @@
                 </div>
             </div>
         @endif
+
+        @if (!empty($similarShows) && $similarShows->count())
+            <div class="show-episode section-padding">
+                <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
+                    <h5 class="main-title text-capitalize mb-0 fw-medium">Similar Series</h5>
+                </div>
+                <div class="card-style-slider">
+                    <div class="position-relative swiper swiper-card mt-4 mb-5" data-slide="7"
+                        data-laptop="7" data-tab="4" data-mobile="3" data-mobile-sm="3"
+                        data-autoplay="false" data-loop="false" data-navigation="true" data-pagination="true">
+                        <ul class="p-0 swiper-wrapper m-0 list-inline">
+                            @foreach ($similarShows as $sim)
+                                <li class="swiper-slide">
+                                    @include('frontend::components.cards.card-style', [
+                                        'cardImage' => $sim->poster_url ?: 'media/vikings-portrait.webp',
+                                        'cardTitle' => $sim->title,
+                                        'movietime' => null,
+                                        'cardLang' => 'English',
+                                        'cardPath' => route('frontend.series_detail', $sim->slug),
+                                        'cardGenres' => $sim->relationLoaded('genres') ? $sim->genres->take(2)->pluck('name')->all() : null,
+                                        'productPremium' => (bool) $sim->tier_required,
+                                        'watchableType' => 'show',
+                                        'watchableId'   => $sim->id,
+                                    ])
+                                </li>
+                            @endforeach
+                        </ul>
+                        <div class="swiper-button swiper-button-next d-none d-lg-block"></div>
+                        <div class="swiper-button swiper-button-prev d-none d-lg-block"></div>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if (!empty($recommendedShows) && $recommendedShows->count())
+            <div class="show-episode section-padding">
+                <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
+                    <h5 class="main-title text-capitalize mb-0 fw-medium">{{ __('sectionTitle.recommended_tv_show') ?? 'Recommended Series' }}</h5>
+                </div>
+                <div class="card-style-slider">
+                    <div class="position-relative swiper swiper-card mt-4 mb-5" data-slide="7"
+                        data-laptop="7" data-tab="4" data-mobile="3" data-mobile-sm="3"
+                        data-autoplay="false" data-loop="false" data-navigation="true" data-pagination="true">
+                        <ul class="p-0 swiper-wrapper m-0 list-inline">
+                            @foreach ($recommendedShows as $rec)
+                                <li class="swiper-slide">
+                                    @include('frontend::components.cards.card-style', [
+                                        'cardImage' => $rec->poster_url ?: 'media/vikings-portrait.webp',
+                                        'cardTitle' => $rec->title,
+                                        'movietime' => null,
+                                        'cardLang' => 'English',
+                                        'cardPath' => route('frontend.series_detail', $rec->slug),
+                                        'cardGenres' => $rec->relationLoaded('genres') ? $rec->genres->take(2)->pluck('name')->all() : null,
+                                        'productPremium' => (bool) $rec->tier_required,
+                                        'watchableType' => 'show',
+                                        'watchableId'   => $rec->id,
+                                    ])
+                                </li>
+                            @endforeach
+                        </ul>
+                        <div class="swiper-button swiper-button-next d-none d-lg-block"></div>
+                        <div class="swiper-button swiper-button-prev d-none d-lg-block"></div>
+                    </div>
+                </div>
+            </div>
+        @endif
     </div>
 </div>
 
@@ -147,7 +236,6 @@ document.addEventListener('DOMContentLoaded', async function () {
     const video = document.getElementById('jambo-watch-player');
     const frame = document.getElementById('jambo-player-frame');
     const closeBtn = document.getElementById('jambo-mini-close');
-    const autoplayToggle = document.getElementById('autoplay-next');
     if (!video) return;
 
     video.muted = true;
@@ -161,18 +249,21 @@ document.addEventListener('DOMContentLoaded', async function () {
         window.jamboAttachGestures('jambo-watch-player');
     }
 
-    // Persist the autoplay-next preference across episodes.
+    // Autoplay-next preference lives in localStorage; the pill switch
+    // in the control bar is the single source of truth. We only read
+    // it on `ended` below.
     const AUTOPLAY_KEY = 'jambo.autoplayNext';
-    if (autoplayToggle) {
-        autoplayToggle.checked = localStorage.getItem(AUTOPLAY_KEY) === '1';
-        autoplayToggle.addEventListener('change', () => {
-            localStorage.setItem(AUTOPLAY_KEY, autoplayToggle.checked ? '1' : '0');
-        });
-    }
 
-    const payableId = {{ Js::from($episode->id) }};
+    // Mutable so the fullscreen in-place swap can update them. Payable
+    // id is what the heartbeat writes against.
+    let payableId = {{ Js::from($episode->id) }};
+    let nextEpisodeId = {{ Js::from($nextEpisode ? $nextEpisode->id : null) }};
+    let nextEpisodeUrl = {{ Js::from($nextEpisode ? route('frontend.episode', $nextEpisode->id) : null) }};
+    let prevEpisodeId = {{ Js::from($previousEpisode ? $previousEpisode->id : null) }};
+    let prevEpisodeUrl = {{ Js::from($previousEpisode ? route('frontend.episode', $previousEpisode->id) : null) }};
+
     const heartbeatUrl = {{ Js::from(url('/api/v1/streaming/heartbeat')) }};
-    const nextEpisodeUrl = {{ Js::from($nextEpisode ? route('frontend.episode', $nextEpisode->id) : null) }};
+    const playerDataBase = {{ Js::from(url('/api/v1/episodes')) }}; // + /{id}/player-data
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
     let lastPosition = 0;
@@ -208,10 +299,124 @@ document.addEventListener('DOMContentLoaded', async function () {
     setInterval(sendHeartbeat, 15000);
     window.addEventListener('pagehide', sendHeartbeat);
 
-    // Autoplay-next: flush progress, then navigate when enabled.
+    // ------------------------------------------------------------------
+    // In-place episode swap (fullscreen only).
+    //
+    // Full page navigation always drops fullscreen per browser security
+    // rules, so when the user hits next / prev / autoplays while in
+    // fullscreen we instead fetch the target episode's player data and
+    // swap <video>.src in place. history.pushState keeps the URL bar
+    // honest, and the heartbeat + button refs follow along.
+    //
+    // When NOT in fullscreen, we fall back to a normal navigation so
+    // the page chrome below the player (episode carousel, title,
+    // synopsis) stays in sync with what's playing.
+    // ------------------------------------------------------------------
+    const prevEpBtn = document.querySelector('[data-episode-nav="prev"]');
+    const nextEpBtn = document.querySelector('[data-episode-nav="next"]');
+    const autoplayToggle = document.querySelector('button[data-action="toggle-autoplay-next"]');
+
+    function updateAutoplayTooltip(label) {
+        const tip = document.querySelector('#jambo-watch-player-autoplay-tooltip');
+        if (tip && label) tip.textContent = 'Autoplay next · ' + label;
+    }
+
+    async function swapToEpisode(targetId) {
+        if (!targetId) return false;
+        try {
+            // Flush current progress BEFORE we clobber payableId so the
+            // heartbeat targets the outgoing episode.
+            await sendHeartbeat();
+
+            const res = await fetch(playerDataBase + '/' + targetId + '/player-data', {
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            if (!res.ok) return false;
+            const data = await res.json();
+            if (!data.videoUrl) return false;
+
+            // Swap source. Using the data-src-default path mirrors what
+            // the partial's load-time script does, so quality switches
+            // keep working after a swap.
+            video.dataset.srcDefault = data.videoUrl;
+            if (data.videoUrlLow) {
+                video.dataset.srcLow = data.videoUrlLow;
+            } else {
+                delete video.dataset.srcLow;
+            }
+            const quality = localStorage.getItem('jambo.quality') || 'default';
+            video.src = (quality === 'low' && data.videoUrlLow) ? data.videoUrlLow : data.videoUrl;
+            video.load();
+            // Resume position (if any).
+            const resume = data.resumePosition || 0;
+            if (resume > 0) {
+                video.addEventListener('loadedmetadata', function onMeta(){
+                    video.removeEventListener('loadedmetadata', onMeta);
+                    if (video.duration && resume < video.duration - 30) {
+                        video.currentTime = resume;
+                    }
+                });
+            }
+            const p = video.play();
+            if (p && typeof p.catch === 'function') p.catch(() => {});
+
+            // Update rolling state.
+            payableId = data.id;
+            nextEpisodeId = data.nextEpisode ? data.nextEpisode.id : null;
+            nextEpisodeUrl = data.nextEpisode ? data.nextEpisode.url : null;
+            prevEpisodeId = data.previousEpisode ? data.previousEpisode.id : null;
+            prevEpisodeUrl = data.previousEpisode ? data.previousEpisode.url : null;
+            lastPosition = 0;
+            duration = null;
+
+            // Update button hrefs + disabled state so subsequent clicks
+            // (still in fullscreen) continue to work.
+            if (nextEpBtn) {
+                if (nextEpisodeUrl) { nextEpBtn.setAttribute('href', nextEpisodeUrl); nextEpBtn.classList.remove('is-disabled'); }
+                else                { nextEpBtn.removeAttribute('href'); nextEpBtn.classList.add('is-disabled'); }
+            }
+            if (prevEpBtn) {
+                if (prevEpisodeUrl) { prevEpBtn.setAttribute('href', prevEpisodeUrl); prevEpBtn.classList.remove('is-disabled'); }
+                else                { prevEpBtn.removeAttribute('href'); prevEpBtn.classList.add('is-disabled'); }
+            }
+            updateAutoplayTooltip(data.nextEpisode ? data.nextEpisode.label : null);
+
+            // URL + title — keep the back button honest.
+            if (data.detailUrl) history.pushState(null, '', data.detailUrl);
+            if (data.title) document.title = data.title + ' — ' + data.showTitle;
+
+            return true;
+        } catch (e) {
+            console.debug('[watch] in-place swap failed', e);
+            return false;
+        }
+    }
+
+    function inFullscreen() {
+        return !!(document.fullscreenElement || document.webkitFullscreenElement);
+    }
+
+    // Intercept prev/next link clicks while fullscreen — swap in place
+    // instead of navigating.
+    [prevEpBtn, nextEpBtn].forEach(btn => {
+        if (!btn) return;
+        btn.addEventListener('click', async (e) => {
+            if (!inFullscreen()) return; // regular nav
+            e.preventDefault();
+            e.stopPropagation();
+            const target = btn === nextEpBtn ? nextEpisodeId : prevEpisodeId;
+            await swapToEpisode(target);
+        });
+    });
+
+    // Autoplay-next on end: in-place if fullscreen, otherwise navigate.
     video.addEventListener('ended', async function () {
         await sendHeartbeat();
-        if (nextEpisodeUrl && autoplayToggle && autoplayToggle.checked) {
+        if (!nextEpisodeId || localStorage.getItem(AUTOPLAY_KEY) !== '1') return;
+        if (inFullscreen()) {
+            await swapToEpisode(nextEpisodeId);
+        } else {
             window.location.href = nextEpisodeUrl;
         }
     });

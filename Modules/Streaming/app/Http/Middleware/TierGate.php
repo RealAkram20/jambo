@@ -51,6 +51,12 @@ class TierGate
             abort(401);
         }
 
+        // Admins always pass — they curate the catalog and need to
+        // verify playback of every tier without juggling test subs.
+        if (method_exists($user, 'hasRole') && $user->hasRole('admin')) {
+            return $next($request);
+        }
+
         $activeSub = UserSubscription::with('tier')
             ->where('user_id', $user->id)
             ->current()
