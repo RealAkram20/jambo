@@ -55,11 +55,11 @@
                                     </a>
                                 @endif
                                 @if ($isUnread)
-                                    <button type="button" class="btn btn-ghost btn-sm jambo-hub-inbox__read">
+                                    <button type="button" class="btn btn-sm btn-primary-subtle jambo-hub-inbox__read">
                                         <i class="ph ph-check me-1"></i> Mark read
                                     </button>
                                 @endif
-                                <button type="button" class="btn btn-ghost btn-sm text-danger-emphasis jambo-hub-inbox__delete"
+                                <button type="button" class="btn btn-sm btn-danger-subtle jambo-hub-inbox__delete"
                                         title="Remove">
                                     <i class="ph ph-trash-simple"></i>
                                 </button>
