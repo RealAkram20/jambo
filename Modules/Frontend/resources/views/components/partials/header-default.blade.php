@@ -57,12 +57,11 @@
                         ]);
                     }
                 @endphp
-                <a href="{{ $jamboBellUrl }}"
+                <a href="{{ $jamboBellUrl }}" data-notif-bell
                    class="jambo-header__icon position-relative" title="Notifications">
-                    <i class="ph {{ $jamboNotifUnread > 0 ? 'ph-fill ph-bell' : 'ph-bell' }}"></i>
-                    @if ($jamboNotifUnread > 0)
-                        <span class="jambo-notif-badge">{{ $jamboNotifUnread > 99 ? '99+' : $jamboNotifUnread }}</span>
-                    @endif
+                    <i class="ph {{ $jamboNotifUnread > 0 ? 'ph-fill ph-bell' : 'ph-bell' }}" data-notif-bell-icon></i>
+                    <span class="jambo-notif-badge" data-notif-bell-badge
+                          style="{{ $jamboNotifUnread > 0 ? '' : 'display:none;' }}">{{ $jamboNotifUnread > 99 ? '99+' : $jamboNotifUnread }}</span>
                 </a>
 
                 @if (auth()->check())

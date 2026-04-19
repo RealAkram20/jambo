@@ -7,15 +7,15 @@
             <div>
                 <h5 class="mb-1">Inbox</h5>
                 <p class="jambo-hub-card__subtitle mb-0">
-                    {{ $unreadCount }} unread · {{ $notifications->total() }} total
+                    <span data-inbox-unread>{{ $unreadCount }}</span> unread
+                    · {{ $notifications->total() }} total
                 </p>
             </div>
             <div class="d-flex align-items-center gap-2">
-                @if ($unreadCount > 0)
-                    <button type="button" class="btn btn-ghost btn-sm" id="jambo-mark-all-read">
-                        <i class="ph ph-check-square me-1"></i> Mark all read
-                    </button>
-                @endif
+                <button type="button" class="btn btn-ghost btn-sm" id="jambo-mark-all-read"
+                        style="{{ $unreadCount > 0 ? '' : 'display:none;' }}">
+                    <i class="ph ph-check-square me-1"></i> Mark all read
+                </button>
                 <i class="ph ph-bell fs-2 text-muted"></i>
             </div>
         </div>
@@ -226,11 +226,61 @@
             });
         }
 
+        // Sync the unread count everywhere it's displayed: header bell,
+        // profile sidebar tab badge, inbox card subtitle, "Mark all
+        // read" button visibility. The server returns unread_count on
+        // every mark-read / delete / mark-all-read response.
+        function syncUnread(count) {
+            if (typeof count !== 'number' || count < 0) return;
+            const label = count > 99 ? '99+' : String(count);
+
+            const bellBadge = document.querySelector('[data-notif-bell-badge]');
+            if (bellBadge) {
+                bellBadge.textContent = label;
+                bellBadge.style.display = count > 0 ? '' : 'none';
+            }
+            const bellIcon = document.querySelector('[data-notif-bell-icon]');
+            if (bellIcon) {
+                bellIcon.classList.toggle('ph-fill', count > 0);
+            }
+
+            const hubBadge = document.querySelector('[data-hub-unread-badge]');
+            if (hubBadge) {
+                hubBadge.textContent = label;
+                hubBadge.style.display = count > 0 ? '' : 'none';
+            }
+
+            const inboxCount = document.querySelector('[data-inbox-unread]');
+            if (inboxCount) inboxCount.textContent = String(count);
+
+            const markAllBtn = document.getElementById('jambo-mark-all-read');
+            if (markAllBtn) markAllBtn.style.display = count > 0 ? '' : 'none';
+        }
+
+        async function postAndSync(url, method) {
+            const res = await post(url, method);
+            if (res.ok) {
+                try {
+                    const data = await res.json();
+                    if (data && typeof data.unread_count === 'number') {
+                        syncUnread(data.unread_count);
+                    }
+                } catch (_) { /* non-JSON response is fine */ }
+            }
+            return res;
+        }
+
         document.getElementById('jambo-mark-all-read')?.addEventListener('click', async (e) => {
             e.preventDefault();
             e.currentTarget.disabled = true;
-            await post('{{ route('notifications.mark-all-read') }}');
-            location.reload();
+            await postAndSync('{{ route('notifications.mark-all-read') }}');
+            // Clear the per-row "unread" styling and drop each row's
+            // Mark read button in place — cheaper than a full reload.
+            document.querySelectorAll('.jambo-hub-inbox__row.is-unread').forEach(row => {
+                row.classList.remove('is-unread');
+                row.querySelector('.jambo-hub-inbox__read')?.remove();
+            });
+            e.currentTarget.disabled = false;
         });
 
         document.querySelectorAll('.jambo-hub-inbox__read').forEach(btn => {
@@ -240,7 +290,7 @@
                 if (!row) return;
                 const id = row.dataset.id;
                 btn.disabled = true;
-                await post('/notifications/' + id + '/read');
+                await postAndSync('/notifications/' + id + '/read');
                 row.classList.remove('is-unread');
                 btn.remove();
             });
@@ -254,7 +304,7 @@
                 if (!row) return;
                 const id = row.dataset.id;
                 btn.disabled = true;
-                await post('/notifications/' + id, 'DELETE');
+                await postAndSync('/notifications/' + id, 'DELETE');
                 row.style.transition = 'opacity .2s, transform .2s';
                 row.style.opacity = '0';
                 row.style.transform = 'translateX(8px)';

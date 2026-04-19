@@ -39,8 +39,9 @@
                    class="jambo-hub-nav__link {{ $activeTab === $tab['key'] ? 'is-active' : '' }}">
                     <i class="ph {{ $tab['icon'] }}"></i>
                     <span>{{ $tab['label'] }}</span>
-                    @if ($tab['key'] === 'notifications' && $hubUnreadCount > 0)
-                        <span class="badge bg-primary rounded-pill ms-auto" style="font-size:10px;">
+                    @if ($tab['key'] === 'notifications')
+                        <span class="badge bg-primary rounded-pill ms-auto" data-hub-unread-badge
+                              style="font-size:10px; {{ $hubUnreadCount > 0 ? '' : 'display:none;' }}">
                             {{ $hubUnreadCount > 99 ? '99+' : $hubUnreadCount }}
                         </span>
                     @endif
