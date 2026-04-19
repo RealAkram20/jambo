@@ -310,10 +310,15 @@
             async function registerSW() {
                 // Resolve SW against the app URL, not the origin root,
                 // so it works when the app is mounted at a subdirectory
-                // (e.g. http://localhost/Jambo/). The scope defaults to
-                // the script's directory, which matches the app path.
+                // (e.g. http://localhost/Jambo/).
                 const existing = await navigator.serviceWorker.getRegistration(swScope);
-                return existing || navigator.serviceWorker.register(swUrl, { scope: swScope });
+                if (!existing) {
+                    await navigator.serviceWorker.register(swUrl, { scope: swScope });
+                }
+                // pushManager.subscribe() only works once the SW is
+                // ACTIVATED. register() resolves as soon as the SW is
+                // installing; `ready` resolves with the active one.
+                return navigator.serviceWorker.ready;
             }
 
             async function subscribe() {
