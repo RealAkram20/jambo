@@ -132,6 +132,106 @@
                     </div>
                 </div>
 
+                {{-- Email (SMTP) --}}
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h4 class="card-title mb-0">Email (SMTP)</h4>
+                        <small class="text-secondary">
+                            Outgoing mail server used for user notifications, receipts, and password resets.
+                            Leave the password blank when re-saving other fields to keep the existing password.
+                        </small>
+                    </div>
+                    <div class="card-body">
+                        @if (session('smtp_status'))
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                <i class="ph ph-check-circle me-1"></i> {{ session('smtp_status') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        @endif
+                        @if (session('smtp_error'))
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                <i class="ph ph-warning-circle me-1"></i> {{ session('smtp_error') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        @endif
+
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label class="form-label" for="mail_host">SMTP Host</label>
+                                <input type="text" name="mail_host" id="mail_host"
+                                    class="form-control @error('mail_host') is-invalid @enderror"
+                                    value="{{ old('mail_host', setting('mail_host')) }}"
+                                    placeholder="smtp.gmail.com">
+                                @error('mail_host')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="mail_port">Port</label>
+                                <input type="number" name="mail_port" id="mail_port"
+                                    class="form-control @error('mail_port') is-invalid @enderror"
+                                    value="{{ old('mail_port', setting('mail_port')) }}"
+                                    placeholder="587">
+                                @error('mail_port')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="mail_username">Username</label>
+                                <input type="text" name="mail_username" id="mail_username"
+                                    class="form-control @error('mail_username') is-invalid @enderror"
+                                    value="{{ old('mail_username', setting('mail_username')) }}"
+                                    placeholder="user@example.com"
+                                    autocomplete="off">
+                                @error('mail_username')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="mail_password">Password</label>
+                                <input type="password" name="mail_password" id="mail_password"
+                                    class="form-control @error('mail_password') is-invalid @enderror"
+                                    placeholder="{{ setting('mail_password') ? '•••••••• (leave blank to keep current)' : 'SMTP password or app-specific password' }}"
+                                    autocomplete="new-password">
+                                @error('mail_password')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="mail_encryption">Encryption</label>
+                                <select name="mail_encryption" id="mail_encryption"
+                                    class="form-select @error('mail_encryption') is-invalid @enderror">
+                                    @php $enc = old('mail_encryption', setting('mail_encryption') ?: 'tls'); @endphp
+                                    <option value="tls" @selected($enc === 'tls')>TLS (port 587)</option>
+                                    <option value="ssl" @selected($enc === 'ssl')>SSL (port 465)</option>
+                                    <option value="none" @selected($enc === 'none')>None (port 25)</option>
+                                </select>
+                                @error('mail_encryption')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="mail_from_address">From Address</label>
+                                <input type="email" name="mail_from_address" id="mail_from_address"
+                                    class="form-control @error('mail_from_address') is-invalid @enderror"
+                                    value="{{ old('mail_from_address', setting('mail_from_address')) }}"
+                                    placeholder="noreply@yourdomain.com">
+                                @error('mail_from_address')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="mail_from_name">From Name</label>
+                                <input type="text" name="mail_from_name" id="mail_from_name"
+                                    class="form-control @error('mail_from_name') is-invalid @enderror"
+                                    value="{{ old('mail_from_name', setting('mail_from_name') ?: config('app.name')) }}"
+                                    placeholder="{{ config('app.name') }}">
+                                @error('mail_from_name')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center gap-2 mt-3 pt-3 border-top">
+                            <small class="text-secondary flex-grow-1">
+                                Save first, then send a test to verify delivery.
+                            </small>
+                            <button type="submit"
+                                    formaction="{{ route('admin.settings.smtp-test') }}"
+                                    formmethod="POST"
+                                    class="btn btn-outline-primary btn-sm">
+                                <i class="ph ph-paper-plane-tilt me-1"></i> Send test email
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="d-flex justify-content-end mt-4 mb-5 gap-2">
                     <a href="{{ route('dashboard') }}" class="btn btn-secondary">Cancel</a>
                     <button type="submit" class="btn btn-primary">

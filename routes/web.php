@@ -123,13 +123,14 @@ Route::group(['as' => 'backend.', 'middleware' => ['auth', 'role:admin']], funct
     Route::resource('permission', PermissionController::class);
     Route::resource('role', RoleController::class);
 });
-// Admin: System Settings (branding)
+// Admin: System Settings (branding + SMTP)
 Route::middleware(['auth', 'role:admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
         Route::get('settings', [AdminSettingController::class, 'index'])->name('settings.index');
         Route::post('settings', [AdminSettingController::class, 'update'])->name('settings.update');
+        Route::post('settings/smtp-test', [AdminSettingController::class, 'sendTestEmail'])->name('settings.smtp-test');
     });
 
 require __DIR__ . '/auth.php';
