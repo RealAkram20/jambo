@@ -289,6 +289,8 @@
             }
 
             const vapidPublic = @json(config('webpush.vapid.public_key'));
+            const swUrl       = @json(url('/sw.js'));
+            const swScope     = @json(rtrim(parse_url(url('/'), PHP_URL_PATH) ?: '/', '/') . '/');
             if (!vapidPublic) {
                 pushInput.disabled = true;
                 pushInput.checked = false;
@@ -306,8 +308,12 @@
             }
 
             async function registerSW() {
-                const existing = await navigator.serviceWorker.getRegistration('/sw.js');
-                return existing || navigator.serviceWorker.register('/sw.js');
+                // Resolve SW against the app URL, not the origin root,
+                // so it works when the app is mounted at a subdirectory
+                // (e.g. http://localhost/Jambo/). The scope defaults to
+                // the script's directory, which matches the app path.
+                const existing = await navigator.serviceWorker.getRegistration(swScope);
+                return existing || navigator.serviceWorker.register(swUrl, { scope: swScope });
             }
 
             async function subscribe() {
