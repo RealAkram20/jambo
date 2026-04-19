@@ -58,6 +58,8 @@ class TwoFactorChallengeController extends Controller
         $request->session()->forget('login.id');
         $request->session()->regenerate();
 
-        return redirect()->intended(config('auth.home', '/'));
+        $destination = $user->hasRole('admin') ? '/app' : '/';
+
+        return redirect()->intended($destination);
     }
 }

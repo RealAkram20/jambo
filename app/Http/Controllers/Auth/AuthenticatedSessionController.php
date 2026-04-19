@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
-use App\Providers\RouteServiceProvider;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -64,7 +63,12 @@ class AuthenticatedSessionController extends Controller
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
 
-        return redirect()->intended(RouteServiceProvider::HOME);
+        // Admins land on the admin dashboard; regular users land on
+        // the public frontend. The two profiles never share a home
+        // page — see memory/feedback_admin_vs_user_separation.md.
+        $destination = $user->hasRole('admin') ? '/app' : '/';
+
+        return redirect()->intended($destination);
     }
 
     public function destroy(Request $request): RedirectResponse

@@ -10,10 +10,12 @@
                 <a href="{{ route('frontend.ott') }}" class="jambo-header__logo">
                     <img src="{{ branding_asset('logo', 'frontend/images/logo.webp') }}" alt="{{ config('app.name') }}" class="img-fluid" loading="lazy">
                 </a>
-                <a href="{{ route('frontend.pricing-page') }}" class="jambo-subscribe-badge d-none d-md-inline-flex">
-                    <i class="ph-fill ph-crown"></i>
-                    <span>Subscribe</span>
-                </a>
+                @unless (auth()->check() && auth()->user()->hasRole('admin'))
+                    <a href="{{ route('frontend.pricing-page') }}" class="jambo-subscribe-badge d-none d-md-inline-flex">
+                        <i class="ph-fill ph-crown"></i>
+                        <span>Subscribe</span>
+                    </a>
+                @endunless
             </div>
 
             {{-- Center: search bar --}}
@@ -50,6 +52,7 @@
                 </a>
 
                 @if (auth()->check())
+                    @php $jamboIsAdmin = auth()->user()->hasRole('admin'); @endphp
                     <div class="dropdown">
                         <a href="javascript:void(0)" class="jambo-header__avatar" data-bs-toggle="dropdown" aria-expanded="false">
                             <img src="{{ asset('frontend/images/user/user6.jpg') }}" alt="{{ auth()->user()->full_name ?: (auth()->user()->username ?? 'User') }}" class="rounded-circle" width="32" height="32" loading="lazy">
@@ -58,26 +61,40 @@
                             <div class="d-flex align-items-center gap-3 px-3 py-2 border-bottom border-dark">
                                 <img src="{{ asset('frontend/images/user/user6.jpg') }}" class="rounded-circle" width="40" height="40" alt="">
                                 <div>
-                                    <div class="fw-semibold">{{ auth()->user()->full_name ?: (auth()->user()->username ?? 'User') }}</div>
+                                    <div class="fw-semibold d-flex align-items-center gap-2">
+                                        {{ auth()->user()->full_name ?: (auth()->user()->username ?? 'User') }}
+                                        @if ($jamboIsAdmin)
+                                            <span class="badge bg-primary" style="font-size:10px;">Admin</span>
+                                        @endif
+                                    </div>
                                     <small class="text-muted">{{ auth()->user()->email ?? '' }}</small>
                                 </div>
                             </div>
-                            @php $jamboHubUser = auth()->user()->username; @endphp
-                            <a href="{{ route('profile.show', ['username' => $jamboHubUser]) }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
-                                <i class="ph ph-user-circle"></i> Profile
-                            </a>
-                            <a href="{{ route('profile.membership', ['username' => $jamboHubUser]) }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
-                                <i class="ph ph-crown"></i> Membership
-                            </a>
-                            <a href="{{ route('profile.watchlist', ['username' => $jamboHubUser]) }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
-                                <i class="ph ph-bookmarks-simple"></i> Watchlist
-                            </a>
-                            <a href="{{ route('profile.security', ['username' => $jamboHubUser]) }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
-                                <i class="ph ph-shield-check"></i> Security
-                            </a>
-                            <a href="{{ route('frontend.pricing-page') }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
-                                <i class="ph-fill ph-crown text-warning"></i> Subscribe
-                            </a>
+                            @if ($jamboIsAdmin)
+                                {{-- Admins never use the user profile hub
+                                     (see feedback_admin_vs_user_separation).
+                                     Single shortcut back to their dashboard. --}}
+                                <a href="{{ url('/app') }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
+                                    <i class="ph ph-squares-four"></i> Admin Dashboard
+                                </a>
+                            @else
+                                @php $jamboHubUser = auth()->user()->username; @endphp
+                                <a href="{{ route('profile.show', ['username' => $jamboHubUser]) }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
+                                    <i class="ph ph-user-circle"></i> Profile
+                                </a>
+                                <a href="{{ route('profile.membership', ['username' => $jamboHubUser]) }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
+                                    <i class="ph ph-crown"></i> Membership
+                                </a>
+                                <a href="{{ route('profile.watchlist', ['username' => $jamboHubUser]) }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
+                                    <i class="ph ph-bookmarks-simple"></i> Watchlist
+                                </a>
+                                <a href="{{ route('profile.security', ['username' => $jamboHubUser]) }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
+                                    <i class="ph ph-shield-check"></i> Security
+                                </a>
+                                <a href="{{ route('frontend.pricing-page') }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
+                                    <i class="ph-fill ph-crown text-warning"></i> Subscribe
+                                </a>
+                            @endif
                             <div class="border-top border-dark">
                                 <a href="{{ route('logout') }}" class="dropdown-item d-flex align-items-center gap-2 py-2"
                                     onclick="event.preventDefault(); document.getElementById('logout-form').submit();">

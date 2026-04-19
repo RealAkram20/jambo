@@ -30,10 +30,19 @@ class ProfileHubController extends Controller
     /**
      * Resolve & guard the username in the URL. Throws a redirect when
      * you're trying to look at someone else's profile.
+     *
+     * Admins are bounced to /app: the profile hub is the user-facing
+     * account surface, and admins manage their own account through the
+     * admin panel instead (see feedback_admin_vs_user_separation).
      */
     private function resolveOwn(Request $request, string $username): User
     {
         $authed = $request->user();
+
+        if ($authed->hasRole('admin')) {
+            abort(redirect('/app'));
+        }
+
         if (strcasecmp($authed->username, $username) !== 0) {
             abort(redirect()->route('profile.show', ['username' => $authed->username]));
         }

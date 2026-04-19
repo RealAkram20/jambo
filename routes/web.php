@@ -22,15 +22,17 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/app', [DashboardController::class, 'index'])->middleware(['auth'])->name('dashboard');
+Route::get('/app', [DashboardController::class, 'index'])->middleware(['auth', 'role:admin'])->name('dashboard');
 
 // Breeze shipped /profile routes pointing at App\Http\Controllers\
 // ProfileController — that class has been deleted; the profile hub
 // now lives under /{username}. Removing these avoids shadowing
 // `profile.update` and silences the route:list reflection error.
 
-// Dashboard Routes
-Route::group(['as' => 'dashboard.'], function () {
+// Dashboard Routes — template-showcase pages (UI elements, icons,
+// widgets, etc.). Admin-only because they live under the admin
+// chrome; regular users never need them.
+Route::group(['as' => 'dashboard.', 'middleware' => ['auth', 'role:admin']], function () {
     // Route::get('static-app', [DashboardController::class, 'index'])->name('home');
     Route::get('rating', [DashboardController::class, 'rating'])->name('rating');
     Route::get('comment', [DashboardController::class, 'comment'])->name('comment');
@@ -113,7 +115,7 @@ Route::group(['as' => 'dashboard.'], function () {
     Route::get('profile', [DashboardController::class, 'profile'])->name('profile');
     Route::get('privacy', [DashboardController::class, 'privacy'])->name('privacy');
 });
-Route::group(['as' => 'backend.', 'middleware' => ['auth']], function () {
+Route::group(['as' => 'backend.', 'middleware' => ['auth', 'role:admin']], function () {
     Route::get('permission-role', [RolePermission::class, 'index'])->name('permission-role')->middleware('password.confirm');
     Route::post('/permission-role/store/{role_id}', [RolePermission::class, 'store'])->name('permission-role.store');
     Route::get('/permission-role/reset/{role_id}', [RolePermission::class, 'reset_permission'])->name('permission-role.reset');

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Providers\RouteServiceProvider;
 use App\Rules\ReservedUsername;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -57,7 +56,10 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
-        return redirect(RouteServiceProvider::HOME)
+        // New signups are always regular users (the 'admin' role is
+        // hand-assigned only), so we send them to the public frontend,
+        // never to the admin dashboard.
+        return redirect('/')
             ->with('status', 'Welcome to ' . config('app.name') . '!');
     }
 }
