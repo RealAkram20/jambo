@@ -10,13 +10,13 @@
 @php
     $avatarInitial = strtoupper(substr($user->first_name ?? $user->username ?? '?', 0, 1));
     $tabs = [
+        ['key' => 'watchlist',     'label' => 'Watchlist',     'icon' => 'ph-bookmarks-simple', 'route' => route('profile.watchlist',     ['username' => $user->username])],
         ['key' => 'profile',       'label' => 'Profile',       'icon' => 'ph-user-circle',      'route' => route('profile.show',          ['username' => $user->username])],
         ['key' => 'security',      'label' => 'Security',      'icon' => 'ph-shield-check',     'route' => route('profile.security',      ['username' => $user->username])],
         ['key' => 'devices',       'label' => 'Devices',       'icon' => 'ph-devices',          'route' => route('profile.devices',       ['username' => $user->username])],
         ['key' => 'notifications', 'label' => 'Notifications', 'icon' => 'ph-bell',             'route' => route('profile.notifications', ['username' => $user->username])],
         ['key' => 'membership',    'label' => 'Membership',    'icon' => 'ph-crown',            'route' => route('profile.membership',    ['username' => $user->username])],
         ['key' => 'billing',       'label' => 'Billing',       'icon' => 'ph-receipt',          'route' => route('profile.billing',       ['username' => $user->username])],
-        ['key' => 'watchlist',     'label' => 'Watchlist',     'icon' => 'ph-bookmarks-simple', 'route' => route('profile.watchlist',     ['username' => $user->username])],
     ];
 
     // Surface unread count on the Notifications tab so users can see
