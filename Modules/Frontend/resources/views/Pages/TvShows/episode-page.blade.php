@@ -268,6 +268,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     let prevEpisodeId = {{ Js::from($previousEpisode ? $previousEpisode->id : null) }};
     let prevEpisodeUrl = {{ Js::from($previousEpisode ? route('frontend.episode', $previousEpisode->id) : null) }};
 
+    // Guests don't have watch history — skip the heartbeat loop.
+    const isAuthed = {{ auth()->check() ? 'true' : 'false' }};
     const heartbeatUrl = {{ Js::from(url('/api/v1/streaming/heartbeat')) }};
     const playerDataBase = {{ Js::from(url('/api/v1/episodes')) }}; // + /{id}/player-data
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -281,6 +283,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
 
     async function sendHeartbeat() {
+        if (!isAuthed) return;
         if (lastPosition <= 0) return;
         try {
             await fetch(heartbeatUrl, {
@@ -301,9 +304,11 @@ document.addEventListener('DOMContentLoaded', async function () {
             });
         } catch (e) { console.debug('[watch] heartbeat failed', e); }
     }
-    video.addEventListener('pause', sendHeartbeat);
-    setInterval(sendHeartbeat, 15000);
-    window.addEventListener('pagehide', sendHeartbeat);
+    if (isAuthed) {
+        video.addEventListener('pause', sendHeartbeat);
+        setInterval(sendHeartbeat, 15000);
+        window.addEventListener('pagehide', sendHeartbeat);
+    }
 
     // ------------------------------------------------------------------
     // In-place episode swap (fullscreen only).

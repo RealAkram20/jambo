@@ -424,6 +424,11 @@ class FrontendController extends Controller
         $canWatch = $this->userCanWatch($movie);
 
         if (!$canWatch) {
+            // Guests get prompted to sign in and bounce back here;
+            // authed users without the right tier go to pricing.
+            if (!auth()->check()) {
+                return redirect()->guest(route('login'));
+            }
             return redirect()->route('frontend.pricing-page')
                 ->with('info', "A subscription is required to watch \"{$movie->title}\".");
         }
@@ -626,6 +631,9 @@ class FrontendController extends Controller
         $canWatch = $this->userCanWatch($episode);
 
         if (!$canWatch) {
+            if (!auth()->check()) {
+                return redirect()->guest(route('login'));
+            }
             return redirect()->route('frontend.pricing-page')
                 ->with('info', "A subscription is required to watch episodes of \"{$show->title}\".");
         }

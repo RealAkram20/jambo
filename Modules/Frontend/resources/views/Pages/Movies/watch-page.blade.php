@@ -172,6 +172,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 
     // --- Heartbeat ------------------------------------------------------
+    // Guests browse + play free content but have no watch history, so
+    // the heartbeat only fires for authed users.
+    const isAuthed = {{ auth()->check() ? 'true' : 'false' }};
     const payableId = {{ Js::from($movie->id) }};
     const heartbeatUrl = {{ Js::from(url('/api/v1/streaming/heartbeat')) }};
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -185,6 +188,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
 
     async function sendHeartbeat() {
+        if (!isAuthed) return;
         if (lastPosition <= 0) return;
         try {
             await fetch(heartbeatUrl, {
@@ -205,10 +209,12 @@ document.addEventListener('DOMContentLoaded', async function () {
             });
         } catch (e) { console.debug('[watch] heartbeat failed', e); }
     }
-    video.addEventListener('pause', sendHeartbeat);
-    video.addEventListener('ended', sendHeartbeat);
-    setInterval(sendHeartbeat, 15000);
-    window.addEventListener('pagehide', sendHeartbeat);
+    if (isAuthed) {
+        video.addEventListener('pause', sendHeartbeat);
+        video.addEventListener('ended', sendHeartbeat);
+        setInterval(sendHeartbeat, 15000);
+        window.addEventListener('pagehide', sendHeartbeat);
+    }
 
     // --- Mini-mode on scroll -------------------------------------------
     // Observe the in-flow sentinel (never moves), not the frame itself

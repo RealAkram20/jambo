@@ -47,9 +47,16 @@ class TierGate
             return $next($request);
         }
 
+        // Guests can freely browse the app (marketing flow) and watch
+        // any free/ungated content. The `!$requiredSlug` branch above
+        // handles the free case already, so if we're here the content
+        // is premium. Send the guest to /login with intended() set so
+        // they return to this same URL after authenticating.
         $user = $request->user();
         if (!$user) {
-            abort(401);
+            return $request->expectsJson()
+                ? response()->json(['error' => 'unauthenticated'], 401)
+                : redirect()->guest(route('login'));
         }
 
         // Admins always pass — they curate the catalog and need to

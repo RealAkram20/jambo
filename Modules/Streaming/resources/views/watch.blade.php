@@ -40,6 +40,10 @@
     @php
         $payableKind = str_ends_with($payableType, 'Episode') ? 'episode' : 'movie';
     @endphp
+    // Guests can reach this page for free content — they have no
+    // watch history, so the heartbeat loop is only set up for authed
+    // users.
+    const isAuthed = {{ auth()->check() ? 'true' : 'false' }};
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const heartbeatUrl = '{{ url('/api/v1/streaming/heartbeat') }}';
     const payload = {
@@ -97,6 +101,7 @@
     });
 
     async function sendHeartbeat() {
+        if (!isAuthed) return;
         if (lastPosition <= 0) return;
         try {
             await fetch(heartbeatUrl, {
@@ -119,10 +124,12 @@
         }
     }
 
-    player.on('pause', sendHeartbeat);
-    player.on('ended', sendHeartbeat);
-    setInterval(sendHeartbeat, HEARTBEAT_MS);
-    window.addEventListener('pagehide', sendHeartbeat);
+    if (isAuthed) {
+        player.on('pause', sendHeartbeat);
+        player.on('ended', sendHeartbeat);
+        setInterval(sendHeartbeat, HEARTBEAT_MS);
+        window.addEventListener('pagehide', sendHeartbeat);
+    }
 })();
 </script>
 @endif

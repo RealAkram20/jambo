@@ -33,14 +33,17 @@ Route::group([], function () {
 
     //detail pages
     Route::get('/movie-detail/{slug?}', [FrontendController::class, 'movie_detail'])->name('frontend.movie_detail');
-    Route::get('/watch/{slug?}', [FrontendController::class, 'movie_watch'])->middleware('auth')->name('frontend.watch');
+    // Guest-friendly: free content plays for everyone; premium content
+    // sends guests to login via the tier check inside the controller.
+    Route::get('/watch/{slug?}', [FrontendController::class, 'movie_watch'])->name('frontend.watch');
     Route::get('/series/{slug}', [FrontendController::class, 'tvshow_detail'])->name('frontend.series_detail');
     Route::get('/tv-show-detail/{slug?}', function (?string $slug = null) {
         return $slug
             ? redirect()->route('frontend.series_detail', ['slug' => $slug], 301)
             : redirect()->route('frontend.series', [], 301);
     });
-    Route::get('/episode/{slug?}', [FrontendController::class, 'episode'])->middleware('auth')->name('frontend.episode');
+    // Same guest-friendly logic as /watch.
+    Route::get('/episode/{slug?}', [FrontendController::class, 'episode'])->name('frontend.episode');
     Route::get('/api/v1/episodes/{episode}/player-data', [FrontendController::class, 'episodePlayerData'])
         ->middleware('auth')
         ->name('frontend.episode_player_data');
