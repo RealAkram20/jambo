@@ -321,10 +321,28 @@
                 return navigator.serviceWorker.ready;
             }
 
-            async function subscribe() {
+            async function ensurePermission() {
+                if (Notification.permission === 'granted') return;
                 if (Notification.permission === 'denied') {
-                    throw new Error('Notifications are blocked in your browser settings.');
+                    const err = new Error(
+                        'Notifications are blocked for this site. ' +
+                        'Click the lock icon in the address bar → Site settings → Notifications → Allow, ' +
+                        'then reload the page and try again.'
+                    );
+                    err.code = 'permission_denied';
+                    throw err;
                 }
+                // 'default' — ask the user now.
+                const result = await Notification.requestPermission();
+                if (result !== 'granted') {
+                    const err = new Error('You need to allow notifications in the browser prompt to enable push.');
+                    err.code = 'permission_declined';
+                    throw err;
+                }
+            }
+
+            async function subscribe() {
+                await ensurePermission();
                 const reg = await registerSW();
                 const sub = await reg.pushManager.subscribe({
                     userVisibleOnly: true,
