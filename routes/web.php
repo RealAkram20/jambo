@@ -134,6 +134,8 @@ Route::middleware(['auth', 'role:admin'])
         Route::post('settings/branding', [AdminSettingController::class, 'updateBranding'])->name('settings.branding');
         Route::post('settings/smtp', [AdminSettingController::class, 'updateSmtp'])->name('settings.smtp');
         Route::post('settings/smtp-test', [AdminSettingController::class, 'sendTestEmail'])->name('settings.smtp-test');
+        Route::post('settings/vapid', [AdminSettingController::class, 'updateVapid'])->name('settings.vapid');
+        Route::post('settings/vapid-generate', [AdminSettingController::class, 'generateVapid'])->name('settings.vapid-generate');
     });
 
 require __DIR__ . '/auth.php';
@@ -152,7 +154,17 @@ require __DIR__ . '/auth.php';
 |
 */
 Route::middleware('auth')->group(function () {
-    $usernamePattern = '[a-zA-Z0-9._\-]+';
+    // Build the username constraint from the reserved list so that any
+    // top-level route path (/notifications, /admin, /movies, etc.) is
+    // excluded at route-match time, not just at signup validation.
+    // Without this, /notifications gets interpreted as a profile hub
+    // request with username="notifications" and admins get bounced to
+    // /app by resolveOwn().
+    $reserved = implode('|', array_map(
+        fn ($n) => preg_quote($n, '/'),
+        \App\Rules\ReservedUsername::RESERVED,
+    ));
+    $usernamePattern = '(?!(?:' . $reserved . ')$)[a-zA-Z0-9._\-]+';
 
     Route::get('/{username}',
         [\App\Http\Controllers\ProfileHubController::class, 'show'])

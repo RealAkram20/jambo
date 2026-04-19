@@ -5,6 +5,7 @@ namespace Modules\Notifications\app\Notifications;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use NotificationChannels\WebPush\WebPushMessage;
 
 /**
  * A pinned "hello world" notification used by the smoke test in
@@ -50,5 +51,15 @@ class TestNotification extends Notification
             'action_url' => null,
             'source' => 'test',
         ];
+    }
+
+    public function toWebPush($notifiable, $notification): WebPushMessage
+    {
+        return (new WebPushMessage())
+            ->title($this->title)
+            ->icon(url('/favicon.ico'))
+            ->body($this->message)
+            ->action('Open', 'open')
+            ->data(['url' => url('/notifications')]);
     }
 }

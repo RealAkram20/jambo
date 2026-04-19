@@ -79,7 +79,8 @@ class MovieController extends Controller
 
     public function store(StoreMovieRequest $request): RedirectResponse
     {
-        $movie = DB::transaction(function () use ($request) {
+        $wasPublished = false;
+        $movie = DB::transaction(function () use ($request, &$wasPublished) {
             $data = $request->validated();
             [$videoUrl, $dropboxPath] = $this->resolveVideoSource($data);
 
@@ -103,8 +104,16 @@ class MovieController extends Controller
 
             $this->syncRelationships($movie, $data);
 
+            $wasPublished = $movie->status === 'published';
+
             return $movie;
         });
+
+        if ($wasPublished) {
+            event(new \Modules\Notifications\app\Events\MovieAdded(
+                $movie->id, $movie->title, $movie->slug, $movie->poster_url,
+            ));
+        }
 
         return redirect()
             ->route('admin.movies.edit', $movie)
@@ -138,7 +147,8 @@ class MovieController extends Controller
 
     public function update(UpdateMovieRequest $request, Movie $movie): RedirectResponse
     {
-        DB::transaction(function () use ($request, $movie) {
+        $justPublished = false;
+        DB::transaction(function () use ($request, $movie, &$justPublished) {
             $data = $request->validated();
             [$videoUrl, $dropboxPath] = $this->resolveVideoSource($data);
 
@@ -163,6 +173,7 @@ class MovieController extends Controller
             }
 
             // Status transitions: draft → published stamps published_at.
+            $oldStatus = $movie->status;
             if (($data['status'] ?? $movie->status) !== $movie->status) {
                 $movie->status = $data['status'];
                 if ($data['status'] === 'published' && !$movie->published_at) {
@@ -173,7 +184,15 @@ class MovieController extends Controller
             $movie->save();
 
             $this->syncRelationships($movie, $data);
+
+            $justPublished = $oldStatus !== 'published' && $movie->status === 'published';
         });
+
+        if ($justPublished) {
+            event(new \Modules\Notifications\app\Events\MovieAdded(
+                $movie->id, $movie->title, $movie->slug, $movie->poster_url,
+            ));
+        }
 
         return redirect()
             ->route('admin.movies.edit', $movie)

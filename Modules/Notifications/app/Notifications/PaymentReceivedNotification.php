@@ -2,11 +2,8 @@
 
 namespace Modules\Notifications\app\Notifications;
 
-use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 use Modules\Payments\app\Models\PaymentOrder;
-use NotificationChannels\WebPush\WebPushChannel;
 use NotificationChannels\WebPush\WebPushMessage;
 
 /**
@@ -21,39 +18,15 @@ use NotificationChannels\WebPush\WebPushMessage;
  * Admins and other recipients without those columns fall through the
  * null-coalesce and receive on both channels by default.
  */
-class PaymentReceivedNotification extends Notification
+class PaymentReceivedNotification extends ChannelGatedNotification
 {
-    use Queueable;
-
     public function __construct(public readonly PaymentOrder $order)
     {
     }
 
-    public function via($notifiable): array
+    protected function settingKey(): string
     {
-        $channels = [];
-
-        if ($notifiable->in_app_notifications_enabled ?? true) {
-            $channels[] = 'database';
-        }
-
-        if (($notifiable->email_notifications_enabled ?? true) && !empty($notifiable->email)) {
-            $channels[] = 'mail';
-        }
-
-        // Push only fires when (a) the user opted in, (b) they have at
-        // least one push subscription registered, and (c) VAPID keys
-        // are configured on this deployment.
-        if (
-            ($notifiable->push_notifications_enabled ?? false)
-            && method_exists($notifiable, 'pushSubscriptions')
-            && $notifiable->pushSubscriptions()->exists()
-            && config('webpush.vapid.public_key')
-        ) {
-            $channels[] = WebPushChannel::class;
-        }
-
-        return $channels ?: ['database'];
+        return 'payment_received';
     }
 
     public function toDatabase($notifiable): array

@@ -37,9 +37,14 @@
                     @endphp
                     <li class="jambo-hub-inbox__row {{ $isUnread ? 'is-unread' : '' }}"
                         data-id="{{ $n->id }}">
-                        <div class="jambo-hub-inbox__icon bg-{{ $colour }}-subtle text-{{ $colour }}-emphasis">
-                            <i class="ph {{ $d['icon'] ?? 'ph-bell' }}"></i>
-                        </div>
+                        @if (!empty($d['image']))
+                            <img src="{{ $d['image'] }}" alt="" loading="lazy"
+                                 class="jambo-hub-inbox__image">
+                        @else
+                            <div class="jambo-hub-inbox__icon bg-{{ $colour }}-subtle text-{{ $colour }}-emphasis">
+                                <i class="ph {{ $d['icon'] ?? 'ph-bell' }}"></i>
+                            </div>
+                        @endif
                         <div class="flex-grow-1 min-width-0">
                             <div class="d-flex align-items-start justify-content-between gap-3">
                                 <div class="min-width-0">
@@ -185,6 +190,13 @@
             border-radius: 10px;
             display: flex; align-items: center; justify-content: center;
             font-size: 1.15rem;
+        }
+
+        .jambo-hub-inbox__image {
+            flex-shrink: 0;
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            object-fit: cover;
         }
 
         .jambo-pref-row {

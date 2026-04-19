@@ -41,6 +41,10 @@ class SeasonController extends Controller
             'released_at' => $data['released_at'] ?? null,
         ]);
 
+        event(new \Modules\Notifications\app\Events\SeasonAdded(
+            $show->title, $season->number, $show->slug, $season->poster_url ?? $show->poster_url,
+        ));
+
         return redirect()
             ->route('admin.series.seasons.edit', [$show, $season])
             ->with('success', "Season {$season->number} added.");

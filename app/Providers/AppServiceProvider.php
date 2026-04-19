@@ -24,6 +24,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->overrideMailConfigFromSettings();
+        $this->overrideWebPushConfigFromSettings();
     }
 
     /**
@@ -76,6 +77,36 @@ class AppServiceProvider extends ServiceProvider
         }
         if ($fromName = Setting::get('mail_from_name')) {
             Config::set('mail.from.name', $fromName);
+        }
+    }
+
+    /**
+     * Override webpush VAPID credentials with admin-saved settings if
+     * present. Same shape as overrideMailConfigFromSettings — the saved
+     * private key is Crypt-encrypted at rest.
+     */
+    private function overrideWebPushConfigFromSettings(): void
+    {
+        try {
+            if (!Schema::hasTable('settings')) {
+                return;
+            }
+        } catch (\Throwable $e) {
+            return;
+        }
+
+        if ($public = Setting::get('webpush_vapid_public_key')) {
+            Config::set('webpush.vapid.public_key', $public);
+        }
+        if ($subject = Setting::get('webpush_vapid_subject')) {
+            Config::set('webpush.vapid.subject', $subject);
+        }
+        if ($encPrivate = Setting::get('webpush_vapid_private_key')) {
+            try {
+                Config::set('webpush.vapid.private_key', Crypt::decryptString($encPrivate));
+            } catch (\Throwable $e) {
+                // APP_KEY rotated since save — leave the .env fallback in place.
+            }
         }
     }
 }

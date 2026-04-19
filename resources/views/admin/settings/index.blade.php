@@ -266,6 +266,104 @@
                 </div>
             </form>
 
+            {{-- Web Push (VAPID) =================================== --}}
+            <div class="card mt-4">
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <h4 class="card-title mb-0">Web Push (VAPID)</h4>
+                        <small class="text-secondary">
+                            Credentials used to sign browser push payloads. Paste a pair you already generated,
+                            or use the server-side generator. Changing the public key invalidates every existing
+                            subscription — users must re-enable push on their devices.
+                        </small>
+                    </div>
+                    <form action="{{ route('admin.settings.vapid-generate') }}" method="POST"
+                          onsubmit="return confirm('Generate fresh VAPID keys? All existing push subscriptions will stop working until users resubscribe.');"
+                          class="d-inline">
+                        @csrf
+                        <button type="submit" class="btn btn-outline-secondary btn-sm">
+                            <i class="ph ph-magic-wand me-1"></i> Generate new keys
+                        </button>
+                    </form>
+                </div>
+                <div class="card-body">
+                    @if (session('status_vapid'))
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="ph ph-check-circle me-1"></i> {{ session('status_vapid') }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    @endif
+                    @if (session('vapid_error'))
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="ph ph-warning-circle me-1"></i> {{ session('vapid_error') }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    @endif
+
+                    <form action="{{ route('admin.settings.vapid') }}" method="POST">
+                        @csrf
+
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label class="form-label" for="vapid_public_key">
+                                    Public key <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" name="vapid_public_key" id="vapid_public_key"
+                                    class="form-control font-monospace @error('vapid_public_key') is-invalid @enderror"
+                                    style="font-size:12px;"
+                                    value="{{ old('vapid_public_key', setting('webpush_vapid_public_key') ?: config('webpush.vapid.public_key')) }}"
+                                    required>
+                                @error('vapid_public_key')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="vapid_subject">
+                                    Subject <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" name="vapid_subject" id="vapid_subject"
+                                    class="form-control @error('vapid_subject') is-invalid @enderror"
+                                    value="{{ old('vapid_subject', setting('webpush_vapid_subject') ?: config('webpush.vapid.subject')) }}"
+                                    placeholder="mailto:admin@example.com"
+                                    required>
+                                @error('vapid_subject')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                <small class="text-secondary" style="font-size:11px;">Must start with <code>mailto:</code> or <code>https://</code>.</small>
+                            </div>
+                            <div class="col-12">
+                                @php
+                                    $privateStored = (bool) setting('webpush_vapid_private_key') || !empty(config('webpush.vapid.private_key'));
+                                @endphp
+                                <label class="form-label" for="vapid_private_key">
+                                    Private key
+                                    @if ($privateStored)
+                                        <small class="text-success" style="font-size:11px;">(already stored — leave blank to keep)</small>
+                                    @else
+                                        <span class="text-danger">*</span>
+                                    @endif
+                                </label>
+                                <input type="password" name="vapid_private_key" id="vapid_private_key"
+                                    class="form-control font-monospace @error('vapid_private_key') is-invalid @enderror"
+                                    style="font-size:12px;"
+                                    placeholder="{{ $privateStored ? '•••••••••••••••••••••••• (leave blank to keep existing)' : 'paste the 43-char base64url private key' }}"
+                                    autocomplete="new-password"
+                                    {{ $privateStored ? '' : 'required' }}>
+                                @error('vapid_private_key')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                <small class="text-secondary" style="font-size:11px;">
+                                    Stored encrypted at rest (Laravel Crypt). Never leaves the server after save.
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center gap-2 mt-3 pt-3 border-top">
+                            <small class="text-secondary flex-grow-1">
+                                After saving, open <a href="{{ route('notifications.index', ['tab' => 'settings']) }}">Notifications → Settings</a> to run a push test.
+                            </small>
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="ph ph-check me-1"></i> Save VAPID
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
             <div class="mb-5"></div>
         </div>
     </div>

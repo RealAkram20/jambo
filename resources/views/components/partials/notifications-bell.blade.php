@@ -42,9 +42,11 @@
     <template id="jambo-bell-row-template">
         <a href="#" class="iq-sub-card jambo-bell-row" data-read="false">
             <div class="d-flex align-items-start gap-2">
-                <div class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle bell-icon"
-                    style="width: 36px; height: 36px; background: rgba(26, 152, 255, 0.15); color: var(--bs-primary);">
-                    <i class="ph ph-bell fs-6"></i>
+                <div class="flex-shrink-0 bell-media"
+                    style="width: 36px; height: 36px;">
+                    {{-- Filled by render() with either an <img> (when the
+                         notification payload includes an image, e.g. a
+                         movie poster) or a Phosphor icon fallback. --}}
                 </div>
                 <div class="flex-grow-1">
                     <h6 class="mb-0 bell-title" style="font-size: 13px;"></h6>
@@ -103,7 +105,22 @@
                 row.dataset.read = n.read_at ? 'true' : 'false';
                 if (n.action_url) row.href = n.action_url;
 
-                row.querySelector('.bell-icon i').className = 'ph ' + (n.icon || 'ph-bell') + ' fs-6';
+                const media = row.querySelector('.bell-media');
+                if (n.image) {
+                    const img = document.createElement('img');
+                    img.src = n.image;
+                    img.alt = '';
+                    img.loading = 'lazy';
+                    img.style.cssText = 'width:36px;height:36px;object-fit:cover;border-radius:8px;';
+                    media.appendChild(img);
+                } else {
+                    media.classList.add('d-flex', 'align-items-center', 'justify-content-center', 'rounded-circle');
+                    media.style.background = 'rgba(26, 152, 255, 0.15)';
+                    media.style.color = 'var(--bs-primary)';
+                    const icon = document.createElement('i');
+                    icon.className = 'ph ' + (n.icon || 'ph-bell') + ' fs-6';
+                    media.appendChild(icon);
+                }
                 row.querySelector('.bell-title').textContent = n.title || 'Notification';
                 row.querySelector('.bell-message').textContent = n.message || '';
                 row.querySelector('.bell-time').textContent = n.created_at_human || '';

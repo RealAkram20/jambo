@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
+use Modules\Notifications\app\Models\NotificationSetting;
 
 /**
  * User-facing notification endpoints:
@@ -41,9 +42,23 @@ class NotificationController extends Controller
             ->paginate(20)
             ->withQueryString();
 
+        // Settings tab: load the global switches keyed by notification
+        // key so the blade can look up current state per-row without a
+        // query per row.
+        $settingRows = NotificationSetting::all()->keyBy('key');
+        $definitions = NotificationSetting::definitions();
+
+        $validTabs = ['inbox', 'settings', 'broadcast'];
+        $activeTab = in_array($request->query('tab'), $validTabs, true)
+            ? $request->query('tab')
+            : 'inbox';
+
         return view('notifications::index', [
             'notifications' => $notifications,
-            'unreadCount' => $user->unreadNotifications()->count(),
+            'unreadCount'   => $user->unreadNotifications()->count(),
+            'definitions'   => $definitions,
+            'settingRows'   => $settingRows,
+            'activeTab'     => $activeTab,
         ]);
     }
 
@@ -61,6 +76,7 @@ class NotificationController extends Controller
                     'title' => $data['title'] ?? 'Notification',
                     'message' => $data['message'] ?? '',
                     'icon' => $data['icon'] ?? 'ph-bell',
+                    'image' => $data['image'] ?? null,
                     'colour' => $data['colour'] ?? 'primary',
                     'action_url' => $data['action_url'] ?? null,
                     'created_at_human' => $notification->created_at?->diffForHumans(),

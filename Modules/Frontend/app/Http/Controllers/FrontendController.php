@@ -896,7 +896,7 @@ class FrontendController extends Controller
             'body'  => 'required|string|min:3|max:4000',
         ]);
 
-        Review::updateOrCreate(
+        $review = Review::updateOrCreate(
             [
                 'user_id'         => auth()->id(),
                 'reviewable_type' => $content->getMorphClass(),
@@ -909,6 +909,18 @@ class FrontendController extends Controller
                 'is_published' => true,
             ],
         );
+
+        // Only notify on genuinely new reviews (updateOrCreate returns
+        // the same row for edits). wasRecentlyCreated is the canonical
+        // Eloquent flag for "this was an INSERT, not an UPDATE".
+        if ($review->wasRecentlyCreated) {
+            event(new \Modules\Notifications\app\Events\NewReviewPosted(
+                $review->id,
+                auth()->user()->username,
+                $content->title,
+                (int) $data['stars'],
+            ));
+        }
     }
 
     private function deleteOwnReview(Movie|Show $content): void
@@ -930,7 +942,7 @@ class FrontendController extends Controller
             'parent_id' => 'nullable|integer|exists:comments,id',
         ]);
 
-        Comment::create([
+        $comment = Comment::create([
             'user_id'          => auth()->id(),
             'commentable_type' => $episode->getMorphClass(),
             'commentable_id'   => $episode->id,
@@ -938,6 +950,17 @@ class FrontendController extends Controller
             'body'             => $data['body'],
             'is_approved'      => true,
         ]);
+
+        $contentTitle = $episode->season?->show?->title
+            ? "{$episode->season->show->title} — {$episode->title}"
+            : ($episode->title ?? 'episode');
+
+        event(new \Modules\Notifications\app\Events\NewCommentPosted(
+            $comment->id,
+            auth()->user()->username,
+            $contentTitle,
+            $data['body'],
+        ));
 
         return back()->with('success', 'Comment posted.');
     }

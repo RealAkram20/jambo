@@ -37,6 +37,8 @@ class AccountDeactivationController extends Controller
 
         $user->forceFill(['deactivated_at' => now()])->save();
 
+        event(new \Modules\Notifications\app\Events\AccountDeactivated($user, 'user_requested'));
+
         Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

@@ -54,6 +54,13 @@ class EpisodeController extends Controller
             'published_at' => $data['published_at'] ?? null,
         ]);
 
+        if ($episode->published_at) {
+            event(new \Modules\Notifications\app\Events\EpisodeAdded(
+                $show->title, $season->number, $episode->number,
+                $episode->title, $show->slug, $episode->still_url ?? $show->poster_url,
+            ));
+        }
+
         return redirect()
             ->route('admin.series.seasons.episodes.edit', [$show, $season, $episode])
             ->with('success', "Episode {$episode->number} added.");

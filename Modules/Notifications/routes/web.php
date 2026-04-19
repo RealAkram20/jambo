@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Notifications\app\Http\Controllers\Admin\NotificationSettingsController;
 use Modules\Notifications\app\Http\Controllers\NotificationController;
 
 /*
@@ -35,4 +36,28 @@ Route::middleware('auth')
             ->name('push.subscribe');
         Route::post('/push/unsubscribe', [NotificationController::class, 'unsubscribePush'])
             ->name('push.unsubscribe');
+    });
+
+// Admin-only: bulk update for the global notification switches shown
+// inside the Settings tab of /notifications. The GET render stays on
+// NotificationController@index so the Inbox + Settings tabs share one
+// page and one URL.
+Route::middleware(['auth', 'role:admin'])
+    ->prefix('admin/notifications')
+    ->name('admin.notifications.')
+    ->group(function () {
+        Route::put('/settings', [NotificationSettingsController::class, 'update'])
+            ->name('settings.update');
+
+        // Fire a one-off test notification through a single channel so
+        // the admin can sanity-check each transport. Channel must be
+        // "system" | "push" | "email".
+        Route::post('/settings/test/{channel}', [NotificationSettingsController::class, 'testChannel'])
+            ->whereIn('channel', ['system', 'push', 'email'])
+            ->name('settings.test');
+
+        // Admin broadcast form submission — fans out an
+        // AdminBroadcastNotification to the selected audience.
+        Route::post('/broadcast', [NotificationSettingsController::class, 'sendBroadcast'])
+            ->name('broadcast.send');
     });

@@ -101,6 +101,12 @@ class ShowController extends Controller
             return $show;
         });
 
+        if ($show->status === 'published') {
+            event(new \Modules\Notifications\app\Events\ShowAdded(
+                $show->id, $show->title, $show->slug, $show->poster_url,
+            ));
+        }
+
         return redirect()
             ->route('admin.series.edit', $show)
             ->with('success', "Show \"{$show->title}\" created.");
@@ -136,8 +142,10 @@ class ShowController extends Controller
 
     public function update(UpdateShowRequest $request, Show $show): RedirectResponse
     {
-        DB::transaction(function () use ($request, $show) {
+        $justPublished = false;
+        DB::transaction(function () use ($request, $show, &$justPublished) {
             $data = $request->validated();
+            $oldStatus = $show->status;
 
             $show->fill([
                 'title' => $data['title'],
@@ -166,7 +174,15 @@ class ShowController extends Controller
             $show->save();
 
             $this->syncRelationships($show, $data);
+
+            $justPublished = $oldStatus !== 'published' && $show->status === 'published';
         });
+
+        if ($justPublished) {
+            event(new \Modules\Notifications\app\Events\ShowAdded(
+                $show->id, $show->title, $show->slug, $show->poster_url,
+            ));
+        }
 
         return redirect()
             ->route('admin.series.edit', $show)

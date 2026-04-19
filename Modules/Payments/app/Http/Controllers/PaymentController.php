@@ -77,6 +77,8 @@ class PaymentController extends Controller
                 ]);
             });
 
+            event(new \Modules\Notifications\app\Events\OrderPlaced($order));
+
             $billingAddress = $this->buildBillingAddress($user);
             $callbackUrl = $this->callbackUrl('payment.callback');
             $cancellationUrl = $this->callbackUrl('payment.complete', ['result' => 'cancelled', 'ref' => $merchantRef]);
@@ -236,6 +238,11 @@ class PaymentController extends Controller
 
             if ($normalised === PaymentOrder::STATUS_COMPLETED) {
                 $this->dispatchActivation($fresh, $source);
+            } elseif ($normalised === PaymentOrder::STATUS_FAILED) {
+                event(new \Modules\Notifications\app\Events\PaymentFailed(
+                    $fresh,
+                    $status['description'] ?? $status['payment_status_description'] ?? null,
+                ));
             }
 
             return $normalised;

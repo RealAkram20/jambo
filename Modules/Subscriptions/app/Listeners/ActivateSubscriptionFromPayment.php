@@ -81,6 +81,10 @@ class ActivateSubscriptionFromPayment
                     'status' => UserSubscription::STATUS_CANCELLED,
                     'cancelled_at' => $now,
                 ]);
+
+                if ($current->user) {
+                    event(new \Modules\Notifications\app\Events\SubscriptionCancelled($current->user));
+                }
             }
 
             $sub = UserSubscription::create([
@@ -92,6 +96,14 @@ class ActivateSubscriptionFromPayment
                 'status' => UserSubscription::STATUS_ACTIVE,
                 'auto_renew' => false,
             ]);
+
+            if ($sub->user) {
+                event(new \Modules\Notifications\app\Events\SubscriptionActivated(
+                    $sub->user,
+                    $tier->name ?? 'Jambo premium',
+                    $sub->ends_at->toDateString(),
+                ));
+            }
 
             Log::info('[subscriptions] activated via payment', [
                 'user_subscription_id' => $sub->id,

@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Minishlink\WebPush\VAPID;
 
 class SettingController extends Controller
 {
@@ -138,6 +140,66 @@ class SettingController extends Controller
         }
 
         return back()->with('smtp_status', "Test email sent to {$admin->email}. Check your inbox (and spam folder).");
+    }
+
+    /**
+     * Save VAPID credentials (public, private, subject) to the settings
+     * table. The private key is Crypt-encrypted at rest. AppServiceProvider
+     * overrides config('webpush.*') from these values at boot, so the
+     * change takes effect on the next request with no .env edit.
+     *
+     * Pass an empty private key to keep the existing one (same pattern
+     * the mail SMTP form uses).
+     */
+    public function updateVapid(Request $request)
+    {
+        $data = $request->validate([
+            'vapid_public_key'  => ['required', 'string', 'max:255'],
+            'vapid_private_key' => ['nullable', 'string', 'max:255'],
+            'vapid_subject'     => ['required', 'string', 'max:255', 'regex:/^(mailto:|https?:\/\/)/i'],
+        ], [
+            'vapid_subject.regex' => 'Subject must start with mailto: or https://',
+        ]);
+
+        Setting::set('webpush_vapid_public_key', trim($data['vapid_public_key']));
+        Setting::set('webpush_vapid_subject',    trim($data['vapid_subject']));
+
+        if (!empty($data['vapid_private_key'])) {
+            Setting::set('webpush_vapid_private_key', Crypt::encryptString(trim($data['vapid_private_key'])));
+        }
+
+        Setting::flushCache();
+
+        return redirect()->route('admin.settings.index')
+            ->with('status_vapid', 'VAPID credentials saved. New keys are active immediately.');
+    }
+
+    /**
+     * Generate a fresh VAPID keypair server-side. Requires an openssl
+     * build with EC curve support (prime256v1). On XAMPP/Windows boxes
+     * without the right openssl.cnf this throws — the flash explains the
+     * fallback (paste keys generated elsewhere via `php artisan webpush:vapid`).
+     */
+    public function generateVapid(Request $request)
+    {
+        try {
+            $pair = VAPID::createVapidKeys();
+        } catch (\Throwable $e) {
+            Log::warning('[settings] VAPID generation failed', ['error' => $e->getMessage()]);
+            return back()->with('vapid_error',
+                'Could not generate keys on this server (' . $e->getMessage() . '). Paste a keypair generated elsewhere instead.');
+        }
+
+        Setting::set('webpush_vapid_public_key',  $pair['publicKey']);
+        Setting::set('webpush_vapid_private_key', Crypt::encryptString($pair['privateKey']));
+        if (empty(Setting::get('webpush_vapid_subject'))) {
+            Setting::set('webpush_vapid_subject', 'mailto:admin@example.com');
+        }
+
+        Setting::flushCache();
+
+        return redirect()->route('admin.settings.index')
+            ->with('status_vapid', 'New VAPID keypair generated. Existing push subscriptions must re-subscribe.');
     }
 
     /**
