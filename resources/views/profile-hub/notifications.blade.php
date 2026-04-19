@@ -213,6 +213,10 @@
     <script>
     (function () {
         const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        // Build URLs through the Laravel helper so they include the app
+        // base path (e.g. /Jambo/). Bare "/notifications/..." would
+        // resolve against the origin root and 404 on subdir installs.
+        const notifBase = @json(url('/notifications'));
 
         async function post(url, method) {
             return fetch(url, {
@@ -290,7 +294,7 @@
                 if (!row) return;
                 const id = row.dataset.id;
                 btn.disabled = true;
-                await postAndSync('/notifications/' + id + '/read');
+                await postAndSync(notifBase + '/' + id + '/read');
                 row.classList.remove('is-unread');
                 btn.remove();
             });
@@ -304,7 +308,7 @@
                 if (!row) return;
                 const id = row.dataset.id;
                 btn.disabled = true;
-                await postAndSync('/notifications/' + id, 'DELETE');
+                await postAndSync(notifBase + '/' + id, 'DELETE');
                 row.style.transition = 'opacity .2s, transform .2s';
                 row.style.opacity = '0';
                 row.style.transform = 'translateX(8px)';
