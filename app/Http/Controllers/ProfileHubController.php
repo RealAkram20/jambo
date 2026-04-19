@@ -201,9 +201,13 @@ class ProfileHubController extends Controller
             ->pluck('watchable')
             ->filter();
 
+        // Eager-load seasons_count so cards can surface "N seasons"
+        // without an N+1 query per show.
         $shows = WatchlistItem::where('user_id', $user->id)
             ->where('watchable_type', (new Show)->getMorphClass())
-            ->with('watchable.genres')
+            ->with(['watchable' => function ($q) {
+                $q->with('genres')->withCount('seasons');
+            }])
             ->latest('added_at')
             ->get()
             ->pluck('watchable')

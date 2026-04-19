@@ -1058,6 +1058,57 @@ class FrontendController extends Controller
     }
 
     /**
+     * Watchlist entry point for a series: resolve to the episode the
+     * user should land on, then redirect to /episode/{id} so the real
+     * episode player takes over (prev/next across seasons, autoplay,
+     * comments, etc.).
+     *
+     * Resolution order:
+     *   1. The most-recently-watched incomplete episode of this show
+     *      (so the user resumes exactly where they left off).
+     *   2. The first published episode of the first published season
+     *      (so a fresh click on a never-watched show still plays).
+     */
+    public function watchlistSeriesPlay(string $slug)
+    {
+        $show = Show::where('slug', $slug)->first();
+        if (!$show) {
+            return redirect()->route('frontend.watchlist_detail')
+                ->with('info', 'That series is no longer available.');
+        }
+
+        $episodeClass = (new Episode)->getMorphClass();
+
+        $resume = WatchHistoryItem::where('user_id', auth()->id())
+            ->where('watchable_type', $episodeClass)
+            ->where('completed', false)
+            ->whereIn('watchable_id', function ($q) use ($show) {
+                $q->select('episodes.id')
+                    ->from('episodes')
+                    ->join('seasons', 'seasons.id', '=', 'episodes.season_id')
+                    ->where('seasons.show_id', $show->id);
+            })
+            ->orderByDesc('watched_at')
+            ->first();
+
+        if ($resume) {
+            return redirect()->route('frontend.episode', $resume->watchable_id);
+        }
+
+        $firstEpisode = Episode::whereHas('season', fn ($q) => $q->where('show_id', $show->id))
+            ->orderBy('season_id')
+            ->orderBy('number')
+            ->first();
+
+        if (!$firstEpisode) {
+            return redirect()->route('frontend.series_detail', $show->slug)
+                ->with('info', 'This series has no episodes yet.');
+        }
+
+        return redirect()->route('frontend.episode', $firstEpisode->id);
+    }
+
+    /**
      * JSON player-data for a movie in the watchlist queue. Used by
      * the in-place fullscreen swap on `/watchlist/{slug}` — clicking
      * prev/next (or autoplay on end) while fullscreen fetches this

@@ -87,6 +87,12 @@ Route::group([], function () {
         ->middleware('auth')
         ->where('slug', '[A-Za-z0-9-]+')
         ->name('frontend.watchlist_play');
+    // Series entry point from the watchlist: resolves to the
+    // resume-or-first episode, then redirects to /episode/{id}.
+    Route::get('/watchlist/series/{slug}', [FrontendController::class, 'watchlistSeriesPlay'])
+        ->middleware('auth')
+        ->where('slug', '[A-Za-z0-9-]+')
+        ->name('frontend.watchlist_series_play');
     // Back-compat for any bookmarked URLs from the previous scheme.
     Route::redirect('/watchlist-detail', '/watchlist', 301);
     Route::get('/watchlist-detail/play/{id}', function ($id) {

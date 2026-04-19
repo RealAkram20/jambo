@@ -5,6 +5,7 @@
     $cardTitle = $cardTitle ?? '';
     $movietime = $movietime ?? null;
     $cardLang = $cardLang ?? 'English';
+    $cardYear = $cardYear ?? null;
     $productPremium = $productPremium ?? false;
     $isCardStyle2 = $isCardStyle2 ?? false;
     $addlist = $addlist ?? false;
@@ -120,7 +121,13 @@
           <h5 class="iq-title text-capitalize">
             <a href="{{ $cardPath }}">{{ $cardTitle }}</a>
           </h5>
-          <div class="d-flex align-items-center gap-3">
+          <div class="d-flex align-items-center gap-3 flex-wrap">
+            @if ($cardYear)
+            <div class="d-flex align-items-center gap-1">
+              <i class="ph ph-calendar-blank font-size-12"></i>
+              <small class="font-size-12">{{ $cardYear }}</small>
+            </div>
+            @endif
             @if ($movietime)
             <div class="d-flex align-items-center gap-1">
               <i class="ph ph-clock font-size-12"></i>
