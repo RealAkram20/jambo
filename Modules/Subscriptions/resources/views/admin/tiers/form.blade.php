@@ -128,6 +128,20 @@
                 <div class="form-text">Higher access levels unlock more content. Movies with a <code>tier_required</code> match against this.</div>
                 @error('access_level') <div class="invalid-feedback">{{ $message }}</div> @enderror
 
+                <div class="mt-3">
+                    <label for="max_concurrent_streams" class="form-label">Max concurrent streams</label>
+                    <input type="number" min="0" max="20"
+                        class="form-control @error('max_concurrent_streams') is-invalid @enderror"
+                        id="max_concurrent_streams" name="max_concurrent_streams"
+                        value="{{ old('max_concurrent_streams', $tier->max_concurrent_streams) }}"
+                        placeholder="Leave blank for unlimited">
+                    <div class="form-text">
+                        How many devices can stream <strong>premium-gated</strong> content at the same time.
+                        Blank = unlimited. Free/ad-supported content never counts against this limit.
+                    </div>
+                    @error('max_concurrent_streams') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                </div>
+
                 <div class="form-check mt-4">
                     <input type="checkbox" class="form-check-input" id="is_active" name="is_active" value="1"
                         @checked(old('is_active', $tier->is_active ?? true))>

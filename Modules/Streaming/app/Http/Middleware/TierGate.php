@@ -6,6 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Movie;
+use Modules\Streaming\app\Models\WatchHistoryItem;
 use Modules\Subscriptions\app\Models\SubscriptionTier;
 use Modules\Subscriptions\app\Models\UserSubscription;
 use Symfony\Component\HttpFoundation\Response;
@@ -65,11 +66,24 @@ class TierGate
 
         $userLevel = $activeSub?->tier?->access_level ?? SubscriptionTier::ACCESS_FREE;
 
-        if ($userLevel >= $requiredTier->access_level) {
-            return $next($request);
+        if ($userLevel < $requiredTier->access_level) {
+            abort(403, "This requires a {$requiredTier->name} subscription.");
         }
 
-        abort(403, "This requires a {$requiredTier->name} subscription.");
+        // Concurrency gate — premium-gated content only. The user's
+        // own tier (activeSub->tier) sets the cap; if it's null the
+        // tier has no cap and we skip. We count OTHER devices so the
+        // current session still plays (no self-kick).
+        $cap = $activeSub?->tier?->max_concurrent_streams;
+        if ($cap !== null && $cap > 0) {
+            $currentSession = $request->session()->getId();
+            $otherActive    = WatchHistoryItem::activeStreamCount($user->id, $currentSession);
+            if ($otherActive >= $cap) {
+                return redirect()->route('streams.limit');
+            }
+        }
+
+        return $next($request);
     }
 
     private function resolveContent(Request $request): Movie|Episode|null

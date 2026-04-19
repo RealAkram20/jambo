@@ -23,6 +23,7 @@ class SubscriptionTierSeeder extends Seeder
                 'currency' => 'KES',
                 'billing_period' => SubscriptionTier::PERIOD_MONTHLY,
                 'access_level' => SubscriptionTier::ACCESS_FREE,
+                'max_concurrent_streams' => null, // free-tier content has no stream cap
                 'features' => [
                     'Limited catalog',
                     'Ads supported',
@@ -41,6 +42,7 @@ class SubscriptionTierSeeder extends Seeder
                 'currency' => 'KES',
                 'billing_period' => SubscriptionTier::PERIOD_DAILY,
                 'access_level' => SubscriptionTier::ACCESS_BASIC,
+                'max_concurrent_streams' => 1,
                 'features' => [
                     'Full catalog for 24 hours',
                     'HD quality',
@@ -59,6 +61,7 @@ class SubscriptionTierSeeder extends Seeder
                 'currency' => 'KES',
                 'billing_period' => SubscriptionTier::PERIOD_WEEKLY,
                 'access_level' => SubscriptionTier::ACCESS_BASIC,
+                'max_concurrent_streams' => 2,
                 'features' => [
                     'Full catalog',
                     'Ad-free',
@@ -78,6 +81,7 @@ class SubscriptionTierSeeder extends Seeder
                 'currency' => 'KES',
                 'billing_period' => SubscriptionTier::PERIOD_MONTHLY,
                 'access_level' => SubscriptionTier::ACCESS_BASIC,
+                'max_concurrent_streams' => 2,
                 'features' => [
                     'Full catalog',
                     'Ad-free',
@@ -95,6 +99,7 @@ class SubscriptionTierSeeder extends Seeder
                 'currency' => 'KES',
                 'billing_period' => SubscriptionTier::PERIOD_MONTHLY,
                 'access_level' => SubscriptionTier::ACCESS_PREMIUM,
+                'max_concurrent_streams' => 4,
                 'features' => [
                     'Everything in Basic',
                     '4K Ultra HD',
@@ -115,6 +120,7 @@ class SubscriptionTierSeeder extends Seeder
                 'currency' => 'KES',
                 'billing_period' => SubscriptionTier::PERIOD_YEARLY,
                 'access_level' => SubscriptionTier::ACCESS_BASIC,
+                'max_concurrent_streams' => 2,
                 'features' => [
                     'Full catalog',
                     'Ad-free',
@@ -133,6 +139,7 @@ class SubscriptionTierSeeder extends Seeder
                 'currency' => 'KES',
                 'billing_period' => SubscriptionTier::PERIOD_YEARLY,
                 'access_level' => SubscriptionTier::ACCESS_PREMIUM,
+                'max_concurrent_streams' => 4,
                 'features' => [
                     'Everything in Premium Monthly',
                     '2 months free vs monthly plan',

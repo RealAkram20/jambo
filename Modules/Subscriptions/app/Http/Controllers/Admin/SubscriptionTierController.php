@@ -115,6 +115,7 @@ class SubscriptionTierController extends Controller
             'currency' => 'required|string|size:3',
             'billing_period' => 'required|in:' . implode(',', SubscriptionTier::PERIODS),
             'access_level' => 'required|integer|in:0,1,2,3',
+            'max_concurrent_streams' => 'nullable|integer|min:0|max:20',
             'features' => 'nullable|string',
             'is_active' => 'sometimes|boolean',
             'sort_order' => 'required|integer|min:0',

@@ -22,6 +22,13 @@ use Modules\Streaming\app\Http\Controllers\StreamProxyController;
 */
 
 Route::middleware(['auth'])->group(function () {
+    // Stream concurrency block screen — landed on when tier_gate or
+    // FrontendController detects the user is over their tier's
+    // max_concurrent_streams. Not gated by tier_gate (that's what
+    // sent us here).
+    Route::get('/streams/limit', [StreamingController::class, 'streamLimit'])
+        ->name('streams.limit');
+
     // Bare fullscreen player. Moved off /watch/* so the rich /watch/{slug}
     // route (in the Frontend module) can live at the short canonical URL.
     Route::get('/player/movie/{movie:slug}', [StreamingController::class, 'watchMovie'])

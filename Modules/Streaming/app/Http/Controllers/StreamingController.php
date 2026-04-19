@@ -9,6 +9,7 @@ use Illuminate\View\View;
 use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Movie;
 use Modules\Streaming\app\Models\WatchHistoryItem;
+use Modules\Subscriptions\app\Models\UserSubscription;
 
 /**
  * Player + watch-history endpoints.
@@ -67,6 +68,33 @@ class StreamingController extends Controller
     }
 
     /**
+     * Stream concurrency block screen. Shown when a user tries to
+     * start a premium stream while their other devices are already
+     * playing and they've hit their tier's max_concurrent_streams.
+     */
+    public function streamLimit(Request $request): View
+    {
+        $user = $request->user();
+
+        $activeSub = UserSubscription::with('tier')
+            ->where('user_id', $user->id)
+            ->current()
+            ->orderByDesc('ends_at')
+            ->first();
+
+        $cap = $activeSub?->tier?->max_concurrent_streams;
+
+        $currentSession = $request->session()->getId();
+        $others = WatchHistoryItem::activeStreamCount($user->id, $currentSession);
+
+        return view('streaming::stream-limit', [
+            'tier'    => $activeSub?->tier,
+            'cap'     => $cap,
+            'others'  => $others,
+        ]);
+    }
+
+    /**
      * Player heartbeat. Expected payload:
      *   { payable_type: "movie"|"episode", payable_id: 42,
      *     position: 123, duration: 5400 }
@@ -99,6 +127,7 @@ class StreamingController extends Controller
             item: $model,
             position: (int) $data['position'],
             duration: isset($data['duration']) ? (int) $data['duration'] : null,
+            sessionId: $request->session()->getId(),
         );
 
         return response()->json([

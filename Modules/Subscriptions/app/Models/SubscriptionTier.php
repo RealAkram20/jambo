@@ -33,6 +33,7 @@ class SubscriptionTier extends Model
         'currency',
         'billing_period',
         'access_level',
+        'max_concurrent_streams',
         'features',
         'is_active',
         'sort_order',
@@ -42,6 +43,7 @@ class SubscriptionTier extends Model
         'price' => 'decimal:2',
         'features' => 'array',
         'is_active' => 'bool',
+        'max_concurrent_streams' => 'int',
     ];
 
     public const ACCESS_FREE = 0;

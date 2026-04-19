@@ -32,11 +32,14 @@ class WatchHistoryItem extends Model
         'duration_seconds',
         'completed',
         'watched_at',
+        'session_id',
+        'last_beat_at',
     ];
 
     protected $casts = [
         'completed' => 'bool',
         'watched_at' => 'datetime',
+        'last_beat_at' => 'datetime',
     ];
 
     /**
@@ -44,6 +47,14 @@ class WatchHistoryItem extends Model
      * rolling etc. — users rarely sit through the literal last frame.
      */
     public const COMPLETION_TOLERANCE_SECONDS = 10;
+
+    /**
+     * A row with a last_beat_at newer than this is counted as an
+     * "active stream" for concurrency gating. Tuned to ~2× the
+     * player's heartbeat cadence so a single dropped beat doesn't
+     * kick a real user off.
+     */
+    public const STREAM_IDLE_SECONDS = 90;
 
     public function user(): BelongsTo
     {
@@ -80,7 +91,7 @@ class WatchHistoryItem extends Model
      * heartbeats only update position, so the counter can't be inflated
      * by re-opening the page.
      */
-    public static function record(int $userId, Model $item, int $position, ?int $duration = null): self
+    public static function record(int $userId, Model $item, int $position, ?int $duration = null, ?string $sessionId = null): self
     {
         $completed = $duration !== null && $position >= ($duration - self::COMPLETION_TOLERANCE_SECONDS);
 
@@ -95,6 +106,8 @@ class WatchHistoryItem extends Model
                 'duration_seconds' => $duration,
                 'completed' => $completed,
                 'watched_at' => now(),
+                'session_id' => $sessionId,
+                'last_beat_at' => now(),
             ],
         );
 
@@ -105,6 +118,39 @@ class WatchHistoryItem extends Model
         self::backfillRuntime($item, $duration);
 
         return $history;
+    }
+
+    /**
+     * Count the user's currently-active streams on premium content.
+     * "Active" = last heartbeat within STREAM_IDLE_SECONDS and
+     * incomplete. Filtered to items whose content is tier-gated, so
+     * free/basic content never blocks a higher-priced seat.
+     *
+     * Optionally excludes a session id — call with the current session
+     * when asking "how many OTHER devices are streaming right now".
+     */
+    public static function activeStreamCount(int $userId, ?string $excludeSessionId = null): int
+    {
+        $q = static::query()
+            ->where('user_id', $userId)
+            ->where('last_beat_at', '>', now()->subSeconds(self::STREAM_IDLE_SECONDS))
+            ->where('completed', false)
+            ->whereHasMorph(
+                'watchable',
+                [
+                    \Modules\Content\app\Models\Movie::class,
+                    \Modules\Content\app\Models\Episode::class,
+                ],
+                fn ($mq) => $mq->whereNotNull('tier_required')
+            );
+
+        if ($excludeSessionId !== null) {
+            $q->where(function ($q) use ($excludeSessionId) {
+                $q->whereNull('session_id')->orWhere('session_id', '!=', $excludeSessionId);
+            });
+        }
+
+        return $q->distinct('session_id')->count('session_id');
     }
 
     /**

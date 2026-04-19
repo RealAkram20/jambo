@@ -428,6 +428,10 @@ class FrontendController extends Controller
                 ->with('info', "A subscription is required to watch \"{$movie->title}\".");
         }
 
+        if ($this->concurrencyExceeded($movie)) {
+            return redirect()->route('streams.limit');
+        }
+
         $recommended = Movie::published()
             ->where('id', '!=', $movie->id)
             ->inRandomOrder()
@@ -514,6 +518,42 @@ class FrontendController extends Controller
         return $userLevel >= $requiredTier->access_level;
     }
 
+    /**
+     * True when starting to play premium-gated `$content` on this
+     * device would exceed the user's tier's max_concurrent_streams.
+     * Free/ungated content and admins bypass; free-tier users bypass
+     * too (they can't play premium content at all, so tier_gate blocks
+     * them earlier with a 403).
+     *
+     * Only counts OTHER devices' active streams — the current session
+     * doesn't count against itself.
+     */
+    private function concurrencyExceeded(Movie|Episode $content): bool
+    {
+        if (!$content->tier_required) {
+            return false;
+        }
+
+        $user = auth()->user();
+        if (!$user || $user->hasRole('admin')) {
+            return false;
+        }
+
+        $activeSub = UserSubscription::with('tier')
+            ->where('user_id', $user->id)
+            ->current()
+            ->orderByDesc('ends_at')
+            ->first();
+
+        $cap = $activeSub?->tier?->max_concurrent_streams;
+        if ($cap === null || $cap <= 0) {
+            return false;
+        }
+
+        $others = WatchHistoryItem::activeStreamCount($user->id, session()->getId());
+        return $others >= $cap;
+    }
+
     public function tvshow_detail(?string $slug = null)
     {
         $show = $slug
@@ -588,6 +628,10 @@ class FrontendController extends Controller
         if (!$canWatch) {
             return redirect()->route('frontend.pricing-page')
                 ->with('info', "A subscription is required to watch episodes of \"{$show->title}\".");
+        }
+
+        if ($this->concurrencyExceeded($episode)) {
+            return redirect()->route('streams.limit');
         }
 
         // Next episode: try the next number in the same season; fall
@@ -999,6 +1043,10 @@ class FrontendController extends Controller
         if (!$this->userCanWatch($watchable)) {
             return redirect()->route('frontend.pricing-page')
                 ->with('info', "A subscription is required to watch \"{$watchable->title}\".");
+        }
+
+        if ($this->concurrencyExceeded($watchable)) {
+            return redirect()->route('streams.limit');
         }
 
         $source = $watchable->streamSource();
