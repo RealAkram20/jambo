@@ -1,4 +1,4 @@
-@include('profile-hub._layout', ['pageTitle' => 'Security', 'user' => $user, 'activeTab' => $activeTab])
+@extends('profile-hub._layout', ['pageTitle' => 'Security', 'user' => $user, 'activeTab' => $activeTab])
 
 @section('hub-content')
     {{-- Password ================================================== --}}

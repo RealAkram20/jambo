@@ -1,4 +1,4 @@
-@include('profile-hub._layout', ['pageTitle' => 'Membership', 'user' => $user, 'activeTab' => $activeTab])
+@extends('profile-hub._layout', ['pageTitle' => 'Membership', 'user' => $user, 'activeTab' => $activeTab])
 
 @section('hub-content')
     {{-- Current plan summary --}}
