@@ -18,43 +18,36 @@ class SettingController extends Controller
         return view('admin.settings.index');
     }
 
-    public function update(Request $request)
+    /**
+     * Update only the General card fields (app name + meta description).
+     * Per-section saves so an admin editing General isn't blocked by a
+     * validation error elsewhere on the page.
+     */
+    public function updateGeneral(Request $request)
     {
         $data = $request->validate([
             'app_name'         => ['required', 'string', 'max:120'],
             'meta_description' => ['nullable', 'string', 'max:500'],
-            'logo'             => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp,svg', 'max:2048'],
-            'favicon'          => ['nullable', 'image', 'mimes:png,ico,x-icon,svg', 'max:512'],
-            'preloader'        => ['nullable', 'mimes:gif,png,jpg,jpeg,webp,svg', 'max:2048'],
-            'logo_url'         => ['nullable', 'string', 'max:1000'],
-            'favicon_url'      => ['nullable', 'string', 'max:1000'],
-            'preloader_url'    => ['nullable', 'string', 'max:1000'],
-            // SMTP
-            'mail_host'         => ['nullable', 'string', 'max:255'],
-            'mail_port'         => ['nullable', 'integer', 'min:1', 'max:65535'],
-            'mail_username'     => ['nullable', 'string', 'max:255'],
-            'mail_password'     => ['nullable', 'string', 'max:255'],
-            'mail_encryption'   => ['nullable', 'in:tls,ssl,none'],
-            'mail_from_address' => ['nullable', 'email', 'max:255'],
-            'mail_from_name'    => ['nullable', 'string', 'max:255'],
         ]);
 
         Setting::set('app_name', $data['app_name']);
         Setting::set('meta_description', $data['meta_description'] ?? '');
+        Setting::flushCache();
 
-        // SMTP — store non-secret fields in cleartext, encrypt the
-        // password. An empty password field means "keep the existing
-        // one" so admins can re-save this form without re-entering it.
-        Setting::set('mail_host', $data['mail_host'] ?? '');
-        Setting::set('mail_port', (string) ($data['mail_port'] ?? ''));
-        Setting::set('mail_username', $data['mail_username'] ?? '');
-        Setting::set('mail_encryption', $data['mail_encryption'] ?? '');
-        Setting::set('mail_from_address', $data['mail_from_address'] ?? '');
-        Setting::set('mail_from_name', $data['mail_from_name'] ?? '');
+        return redirect()->route('admin.settings.index')
+            ->with('status_general', 'General settings saved.');
+    }
 
-        if (!empty($data['mail_password'])) {
-            Setting::set('mail_password', Crypt::encryptString($data['mail_password']));
-        }
+    public function updateBranding(Request $request)
+    {
+        $request->validate([
+            'logo'          => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp,svg', 'max:2048'],
+            'favicon'       => ['nullable', 'image', 'mimes:png,ico,x-icon,svg', 'max:512'],
+            'preloader'     => ['nullable', 'mimes:gif,png,jpg,jpeg,webp,svg', 'max:2048'],
+            'logo_url'      => ['nullable', 'string', 'max:1000'],
+            'favicon_url'   => ['nullable', 'string', 'max:1000'],
+            'preloader_url' => ['nullable', 'string', 'max:1000'],
+        ]);
 
         foreach ($this->fileFields as $field) {
             if ($request->hasFile($field)) {
@@ -81,7 +74,39 @@ class SettingController extends Controller
         Setting::flushCache();
 
         return redirect()->route('admin.settings.index')
-            ->with('status', __('messages.setting_save') ?? 'Settings updated.');
+            ->with('status_branding', 'Branding saved.');
+    }
+
+    public function updateSmtp(Request $request)
+    {
+        $data = $request->validate([
+            'mail_host'         => ['nullable', 'string', 'max:255'],
+            'mail_port'         => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'mail_username'     => ['nullable', 'string', 'max:255'],
+            'mail_password'     => ['nullable', 'string', 'max:255'],
+            'mail_encryption'   => ['nullable', 'in:tls,ssl,none'],
+            'mail_from_address' => ['nullable', 'email', 'max:255'],
+            'mail_from_name'    => ['nullable', 'string', 'max:255'],
+        ]);
+
+        Setting::set('mail_host', $data['mail_host'] ?? '');
+        Setting::set('mail_port', (string) ($data['mail_port'] ?? ''));
+        Setting::set('mail_username', $data['mail_username'] ?? '');
+        Setting::set('mail_encryption', $data['mail_encryption'] ?? '');
+        Setting::set('mail_from_address', $data['mail_from_address'] ?? '');
+        Setting::set('mail_from_name', $data['mail_from_name'] ?? '');
+
+        // Blank password = keep existing; non-blank = re-encrypt and
+        // overwrite. Admins can re-save any other field without
+        // re-entering the SMTP password.
+        if (!empty($data['mail_password'])) {
+            Setting::set('mail_password', Crypt::encryptString($data['mail_password']));
+        }
+
+        Setting::flushCache();
+
+        return redirect()->route('admin.settings.index')
+            ->with('status_smtp', 'SMTP settings saved.');
     }
 
     /**

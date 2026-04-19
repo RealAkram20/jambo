@@ -6,6 +6,8 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Modules\Payments\app\Models\PaymentOrder;
+use NotificationChannels\WebPush\WebPushChannel;
+use NotificationChannels\WebPush\WebPushMessage;
 
 /**
  * Fired when the Payments module's `payment.completed` event lands.
@@ -37,6 +39,18 @@ class PaymentReceivedNotification extends Notification
 
         if (($notifiable->email_notifications_enabled ?? true) && !empty($notifiable->email)) {
             $channels[] = 'mail';
+        }
+
+        // Push only fires when (a) the user opted in, (b) they have at
+        // least one push subscription registered, and (c) VAPID keys
+        // are configured on this deployment.
+        if (
+            ($notifiable->push_notifications_enabled ?? false)
+            && method_exists($notifiable, 'pushSubscriptions')
+            && $notifiable->pushSubscriptions()->exists()
+            && config('webpush.vapid.public_key')
+        ) {
+            $channels[] = WebPushChannel::class;
         }
 
         return $channels ?: ['database'];
@@ -89,5 +103,24 @@ class PaymentReceivedNotification extends Notification
         }
 
         return $mail;
+    }
+
+    public function toWebPush($notifiable, $notification): WebPushMessage
+    {
+        $amount = sprintf('%s %s', $this->order->currency, number_format((float) $this->order->amount, 2));
+        $isBuyer = $this->order->user_id === ($notifiable->id ?? null);
+
+        return (new WebPushMessage())
+            ->title($isBuyer ? 'Payment received' : 'New payment on Jambo')
+            ->icon(url('/favicon.ico'))
+            ->body($isBuyer
+                ? "Your payment of {$amount} was received. Reference {$this->order->merchant_reference}."
+                : "A new payment of {$amount} landed (ref {$this->order->merchant_reference}).")
+            ->action('View', 'view')
+            ->data([
+                'url' => $isBuyer
+                    ? route('payment.complete', ['ref' => $this->order->merchant_reference])
+                    : url('/admin/payments'),
+            ]);
     }
 }

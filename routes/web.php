@@ -123,13 +123,16 @@ Route::group(['as' => 'backend.', 'middleware' => ['auth', 'role:admin']], funct
     Route::resource('permission', PermissionController::class);
     Route::resource('role', RoleController::class);
 });
-// Admin: System Settings (branding + SMTP)
+// Admin: System Settings (per-section saves so errors in one card
+// don't block saving another)
 Route::middleware(['auth', 'role:admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
         Route::get('settings', [AdminSettingController::class, 'index'])->name('settings.index');
-        Route::post('settings', [AdminSettingController::class, 'update'])->name('settings.update');
+        Route::post('settings/general', [AdminSettingController::class, 'updateGeneral'])->name('settings.general');
+        Route::post('settings/branding', [AdminSettingController::class, 'updateBranding'])->name('settings.branding');
+        Route::post('settings/smtp', [AdminSettingController::class, 'updateSmtp'])->name('settings.smtp');
         Route::post('settings/smtp-test', [AdminSettingController::class, 'sendTestEmail'])->name('settings.smtp-test');
     });
 

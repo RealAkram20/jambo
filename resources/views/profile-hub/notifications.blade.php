@@ -140,19 +140,16 @@
                         <i class="ph ph-device-mobile"></i>
                     </div>
                     <div class="flex-grow-1">
-                        <div class="fw-semibold">
-                            Push
-                            <span class="badge bg-secondary-subtle text-secondary-emphasis ms-1" style="font-size:10px;">Coming soon</span>
-                        </div>
+                        <div class="fw-semibold">Push</div>
                         <div class="text-muted small">
-                            Browser push alerts. Requires allowing notifications from this site.
+                            Browser push alerts. Your browser will ask for permission the first time you enable this.
                         </div>
+                        <div id="jambo-push-status" class="small mt-1"></div>
                     </div>
                     <div class="form-check form-switch m-0">
                         <input type="checkbox" class="form-check-input" role="switch"
                                id="pref-push" name="push" value="1"
-                               @checked($user->push_notifications_enabled)
-                               disabled>
+                               @checked($user->push_notifications_enabled)>
                     </div>
                 </label>
             </div>
@@ -264,6 +261,118 @@
                 setTimeout(() => row.remove(), 200);
             });
         });
+
+        /* -----------------------------------------------------------
+         * Browser push: register service worker + subscribe/unsubscribe
+         * -----------------------------------------------------------
+         * The `Push` switch drives the browser subscription directly,
+         * independent of the form submit. Flipping the switch on asks
+         * the browser for permission, subscribes, and posts the
+         * subscription to the server; flipping it off revokes the
+         * subscription on both ends. The form submit still saves the
+         * in_app + email flags.
+         */
+        (function () {
+            const pushInput = document.getElementById('pref-push');
+            const statusEl  = document.getElementById('jambo-push-status');
+            if (!pushInput) return;
+
+            const supported = 'serviceWorker' in navigator
+                && 'PushManager' in window
+                && 'Notification' in window;
+
+            if (!supported) {
+                pushInput.disabled = true;
+                pushInput.checked = false;
+                statusEl.innerHTML = '<span class="text-muted">Your browser does not support push notifications.</span>';
+                return;
+            }
+
+            const vapidPublic = @json(config('webpush.vapid.public_key'));
+            if (!vapidPublic) {
+                pushInput.disabled = true;
+                pushInput.checked = false;
+                statusEl.innerHTML = '<span class="text-muted">Push is not configured on this server yet.</span>';
+                return;
+            }
+
+            function urlBase64ToUint8Array(base64String) {
+                const padding = '='.repeat((4 - base64String.length % 4) % 4);
+                const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+                const raw = atob(base64);
+                const out = new Uint8Array(raw.length);
+                for (let i = 0; i < raw.length; ++i) out[i] = raw.charCodeAt(i);
+                return out;
+            }
+
+            async function registerSW() {
+                const existing = await navigator.serviceWorker.getRegistration('/sw.js');
+                return existing || navigator.serviceWorker.register('/sw.js');
+            }
+
+            async function subscribe() {
+                if (Notification.permission === 'denied') {
+                    throw new Error('Notifications are blocked in your browser settings.');
+                }
+                const reg = await registerSW();
+                const sub = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(vapidPublic),
+                });
+                const payload = sub.toJSON();
+                const res = await fetch('{{ route('notifications.push.subscribe') }}', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                });
+                if (!res.ok) throw new Error('Server rejected subscription.');
+            }
+
+            async function unsubscribe() {
+                const reg = await registerSW();
+                const sub = await reg.pushManager.getSubscription();
+                if (sub) {
+                    const endpoint = sub.endpoint;
+                    await sub.unsubscribe();
+                    await fetch('{{ route('notifications.push.unsubscribe') }}', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrf,
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({ endpoint: endpoint }),
+                    });
+                }
+            }
+
+            pushInput.addEventListener('change', async (e) => {
+                statusEl.textContent = '';
+                pushInput.disabled = true;
+                try {
+                    if (e.target.checked) {
+                        await subscribe();
+                        statusEl.innerHTML = '<span class="text-success">Push enabled on this device.</span>';
+                    } else {
+                        await unsubscribe();
+                        statusEl.innerHTML = '<span class="text-muted">Push disabled on this device.</span>';
+                    }
+                } catch (err) {
+                    pushInput.checked = !e.target.checked;
+                    statusEl.innerHTML = '<span class="text-danger">' + (err.message || 'Could not change push state.') + '</span>';
+                } finally {
+                    pushInput.disabled = false;
+                }
+            });
+        })();
     })();
     </script>
 @endsection

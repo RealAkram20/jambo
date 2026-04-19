@@ -27,4 +27,12 @@ Route::middleware('auth')
         // non-production environments.
         Route::post('/test-dispatch', [NotificationController::class, 'testDispatch'])
             ->name('test-dispatch');
+
+        // Browser push subscribe / unsubscribe. Called from the
+        // profile notifications tab after the client asks the browser
+        // for a push subscription.
+        Route::post('/push/subscribe', [NotificationController::class, 'subscribePush'])
+            ->name('push.subscribe');
+        Route::post('/push/unsubscribe', [NotificationController::class, 'unsubscribePush'])
+            ->name('push.unsubscribe');
     });

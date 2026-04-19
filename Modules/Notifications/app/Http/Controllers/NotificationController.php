@@ -135,4 +135,53 @@ class NotificationController extends Controller
 
         return back()->with('success', 'Test notification dispatched.');
     }
+
+    /**
+     * Register a browser push subscription for the current user. The
+     * client calls this after getting a PushSubscription from the
+     * service worker's PushManager.subscribe().
+     */
+    public function subscribePush(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'endpoint'    => ['required', 'string'],
+            'keys.auth'   => ['required', 'string'],
+            'keys.p256dh' => ['required', 'string'],
+            'expiration_time' => ['nullable'],
+        ]);
+
+        $request->user()->updatePushSubscription(
+            $data['endpoint'],
+            $data['keys']['p256dh'],
+            $data['keys']['auth'],
+            null,
+        );
+
+        // Auto-enable the user-level opt-in on first subscribe so the
+        // switch in the profile tab reflects reality immediately.
+        if (!$request->user()->push_notifications_enabled) {
+            $request->user()->forceFill(['push_notifications_enabled' => true])->save();
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Drop a push subscription by endpoint. The client sends the
+     * endpoint from the PushSubscription it just unsubscribed.
+     */
+    public function unsubscribePush(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'endpoint' => ['required', 'string'],
+        ]);
+
+        $request->user()->deletePushSubscription($data['endpoint']);
+
+        if (!$request->user()->pushSubscriptions()->exists()) {
+            $request->user()->forceFill(['push_notifications_enabled' => false])->save();
+        }
+
+        return response()->json(['ok' => true]);
+    }
 }

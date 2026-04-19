@@ -5,25 +5,28 @@
 @section('content')
     <div class="row">
         <div class="col-12">
-            @if (session('status'))
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    {{ session('status') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            @endif
-
-            <form action="{{ route('admin.settings.update') }}" method="POST" enctype="multipart/form-data">
+            {{-- General ============================================ --}}
+            <form action="{{ route('admin.settings.general') }}" method="POST">
                 @csrf
 
-                {{-- General --}}
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <div>
                             <h4 class="card-title mb-0">General</h4>
                             <small class="text-secondary">Application identity and SEO</small>
                         </div>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="ph ph-check me-1"></i> Save general
+                        </button>
                     </div>
                     <div class="card-body">
+                        @if (session('status_general'))
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                {{ session('status_general') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        @endif
+
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label" for="app_name">
@@ -49,14 +52,30 @@
                         </div>
                     </div>
                 </div>
+            </form>
 
-                {{-- Branding --}}
+            {{-- Branding =========================================== --}}
+            <form action="{{ route('admin.settings.branding') }}" method="POST" enctype="multipart/form-data">
+                @csrf
+
                 <div class="card mt-4">
-                    <div class="card-header">
-                        <h4 class="card-title mb-0">Branding</h4>
-                        <small class="text-secondary">Logo, favicon and preloader</small>
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="card-title mb-0">Branding</h4>
+                            <small class="text-secondary">Logo, favicon and preloader</small>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="ph ph-check me-1"></i> Save branding
+                        </button>
                     </div>
                     <div class="card-body">
+                        @if (session('status_branding'))
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                {{ session('status_branding') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        @endif
+
                         <div class="row g-4">
                             @php
                                 $fields = [
@@ -131,17 +150,32 @@
                         </div>
                     </div>
                 </div>
+            </form>
 
-                {{-- Email (SMTP) --}}
+            {{-- SMTP =============================================== --}}
+            <form action="{{ route('admin.settings.smtp') }}" method="POST">
+                @csrf
+
                 <div class="card mt-4">
-                    <div class="card-header">
-                        <h4 class="card-title mb-0">Email (SMTP)</h4>
-                        <small class="text-secondary">
-                            Outgoing mail server used for user notifications, receipts, and password resets.
-                            Leave the password blank when re-saving other fields to keep the existing password.
-                        </small>
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="card-title mb-0">Email (SMTP)</h4>
+                            <small class="text-secondary">
+                                Outgoing mail server used for user notifications, receipts, and password resets.
+                                Leave the password blank when re-saving other fields to keep the existing password.
+                            </small>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="ph ph-check me-1"></i> Save SMTP
+                        </button>
                     </div>
                     <div class="card-body">
+                        @if (session('status_smtp'))
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                <i class="ph ph-check-circle me-1"></i> {{ session('status_smtp') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        @endif
                         @if (session('smtp_status'))
                             <div class="alert alert-success alert-dismissible fade show" role="alert">
                                 <i class="ph ph-check-circle me-1"></i> {{ session('smtp_status') }}
@@ -224,21 +258,15 @@
                             </small>
                             <button type="submit"
                                     formaction="{{ route('admin.settings.smtp-test') }}"
-                                    formmethod="POST"
                                     class="btn btn-outline-primary btn-sm">
                                 <i class="ph ph-paper-plane-tilt me-1"></i> Send test email
                             </button>
                         </div>
                     </div>
                 </div>
-
-                <div class="d-flex justify-content-end mt-4 mb-5 gap-2">
-                    <a href="{{ route('dashboard') }}" class="btn btn-secondary">Cancel</a>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="ph ph-check me-1"></i> Save Settings
-                    </button>
-                </div>
             </form>
+
+            <div class="mb-5"></div>
         </div>
     </div>
 
