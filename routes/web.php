@@ -185,4 +185,14 @@ Route::middleware('auth')->group(function () {
         [\App\Http\Controllers\ProfileHubController::class, 'watchlist'])
         ->where('username', $usernamePattern)
         ->name('profile.watchlist');
+
+    Route::get('/{username}/notifications',
+        [\App\Http\Controllers\ProfileHubController::class, 'notifications'])
+        ->where('username', $usernamePattern)
+        ->name('profile.notifications');
+
+    Route::put('/{username}/notifications/preferences',
+        [\App\Http\Controllers\ProfileHubController::class, 'updateNotificationPrefs'])
+        ->where('username', $usernamePattern)
+        ->name('profile.notifications.prefs');
 });

@@ -187,6 +187,44 @@ class ProfileHubController extends Controller
     }
 
     /* ---------------------------------------------------------------
+     | Tab: Notifications (inbox + per-channel preferences)
+     | --------------------------------------------------------------- */
+    public function notifications(Request $request, string $username)
+    {
+        $user = $this->resolveOwn($request, $username);
+
+        $notifications = $user->notifications()->paginate(20)->withQueryString();
+
+        return view('profile-hub.notifications', [
+            'user'          => $user,
+            'activeTab'     => 'notifications',
+            'notifications' => $notifications,
+            'unreadCount'   => $user->unreadNotifications()->count(),
+        ]);
+    }
+
+    /**
+     * Persist the three per-channel opt-in flags on the user row. Each
+     * flag is read by Notification classes' via() method to decide
+     * whether to send on that channel. No channel-per-notification
+     * granularity yet — keep it simple until users ask for it.
+     */
+    public function updateNotificationPrefs(Request $request, string $username)
+    {
+        $user = $this->resolveOwn($request, $username);
+
+        $user->forceFill([
+            'in_app_notifications_enabled' => $request->boolean('in_app'),
+            'email_notifications_enabled'  => $request->boolean('email'),
+            'push_notifications_enabled'   => $request->boolean('push'),
+        ])->save();
+
+        return redirect()
+            ->route('profile.notifications', ['username' => $user->username])
+            ->with('status', 'Notification preferences saved.');
+    }
+
+    /* ---------------------------------------------------------------
      | Tab: Watchlist
      | --------------------------------------------------------------- */
     public function watchlist(Request $request, string $username)

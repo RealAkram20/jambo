@@ -24,16 +24,26 @@ use Illuminate\View\View;
  */
 class NotificationController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request)
     {
-        $notifications = $request->user()
-            ->notifications()
+        $user = $request->user();
+
+        // Admins land on the dashboard-styled index. Regular users get
+        // their inbox inside the profile hub so the chrome matches the
+        // rest of the site (see feedback_admin_vs_user_separation).
+        if (!$user->hasRole('admin')) {
+            return redirect()->route('profile.notifications', [
+                'username' => $user->username,
+            ]);
+        }
+
+        $notifications = $user->notifications()
             ->paginate(20)
             ->withQueryString();
 
         return view('notifications::index', [
             'notifications' => $notifications,
-            'unreadCount' => $request->user()->unreadNotifications()->count(),
+            'unreadCount' => $user->unreadNotifications()->count(),
         ]);
     }
 
