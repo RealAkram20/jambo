@@ -42,8 +42,22 @@
                     $jamboNotifUnread = auth()->check()
                         ? auth()->user()->unreadNotifications()->count()
                         : 0;
+
+                    // Guests -> login. Admins -> admin index. Regular
+                    // users go straight to the profile hub's
+                    // Notifications tab so the sidebar highlights it
+                    // without an extra redirect.
+                    if (!auth()->check()) {
+                        $jamboBellUrl = route('login');
+                    } elseif (auth()->user()->hasRole('admin')) {
+                        $jamboBellUrl = route('notifications.index');
+                    } else {
+                        $jamboBellUrl = route('profile.notifications', [
+                            'username' => auth()->user()->username,
+                        ]);
+                    }
                 @endphp
-                <a href="{{ auth()->check() ? route('notifications.index') : route('login') }}"
+                <a href="{{ $jamboBellUrl }}"
                    class="jambo-header__icon position-relative" title="Notifications">
                     <i class="ph {{ $jamboNotifUnread > 0 ? 'ph-fill ph-bell' : 'ph-bell' }}"></i>
                     @if ($jamboNotifUnread > 0)
