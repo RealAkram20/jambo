@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Services\TwoFactorAuthentication;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Modules\Content\app\Models\Movie;
 use Modules\Content\app\Models\Show;
 use Modules\Payments\app\Models\PaymentOrder;
@@ -184,6 +186,101 @@ class ProfileHubController extends Controller
             'activeTab' => 'billing',
             'order'     => $order,
         ]);
+    }
+
+    /* ---------------------------------------------------------------
+     | Tab: Devices (active sessions across browsers / devices)
+     | --------------------------------------------------------------- */
+    public function devices(Request $request, string $username)
+    {
+        $user = $this->resolveOwn($request, $username);
+
+        $currentId = $request->session()->getId();
+
+        $rows = DB::table('sessions')
+            ->where('user_id', $user->id)
+            ->orderByDesc('last_activity')
+            ->get();
+
+        $sessions = $rows->map(function ($s) use ($currentId) {
+            return [
+                'id'            => $s->id,
+                'is_current'    => hash_equals($currentId, $s->id),
+                'ip_address'    => $s->ip_address ?? '—',
+                'last_activity' => $s->last_activity ? Carbon::createFromTimestamp($s->last_activity) : null,
+                'agent'         => $this->parseUserAgent($s->user_agent ?? ''),
+            ];
+        });
+
+        return view('profile-hub.devices', [
+            'user'      => $user,
+            'activeTab' => 'devices',
+            'sessions'  => $sessions,
+        ]);
+    }
+
+    public function logoutDevice(Request $request, string $username, string $sessionId)
+    {
+        $user = $this->resolveOwn($request, $username);
+
+        if (hash_equals($request->session()->getId(), $sessionId)) {
+            return redirect()->route('profile.devices', ['username' => $user->username])
+                ->with('status', 'To sign out of this device, use the Sign out link in the menu.');
+        }
+
+        DB::table('sessions')
+            ->where('user_id', $user->id)
+            ->where('id', $sessionId)
+            ->delete();
+
+        return redirect()->route('profile.devices', ['username' => $user->username])
+            ->with('status', 'That device has been signed out.');
+    }
+
+    public function logoutOtherDevices(Request $request, string $username)
+    {
+        $user = $this->resolveOwn($request, $username);
+        $currentId = $request->session()->getId();
+
+        $count = DB::table('sessions')
+            ->where('user_id', $user->id)
+            ->where('id', '!=', $currentId)
+            ->delete();
+
+        return redirect()->route('profile.devices', ['username' => $user->username])
+            ->with('status', $count > 0
+                ? "Signed out of {$count} other " . \Illuminate\Support\Str::plural('device', $count) . '.'
+                : 'No other devices were signed in.');
+    }
+
+    /**
+     * Minimal browser / OS / device classifier. Not a full UA database —
+     * it hits the common cases so users can recognise which row is
+     * which without adding a composer dependency.
+     */
+    private function parseUserAgent(string $ua): array
+    {
+        $browser = 'Unknown browser';
+        $os      = 'Unknown OS';
+        $icon    = 'ph-globe';
+
+        if (preg_match('/Edg\/([\d.]+)/i', $ua, $m))                { $browser = 'Microsoft Edge'; }
+        elseif (preg_match('/OPR\/([\d.]+)/i', $ua, $m))            { $browser = 'Opera'; }
+        elseif (preg_match('/Chrome\/([\d.]+)/i', $ua, $m))         { $browser = 'Chrome'; }
+        elseif (preg_match('/Firefox\/([\d.]+)/i', $ua, $m))        { $browser = 'Firefox'; }
+        elseif (preg_match('/Version\/[\d.]+.*Safari/i', $ua))      { $browser = 'Safari'; }
+        elseif (stripos($ua, 'curl') !== false)                     { $browser = 'curl'; }
+        elseif (stripos($ua, 'PostmanRuntime') !== false)           { $browser = 'Postman'; }
+
+        // iPhone/iPad UA strings contain "like Mac OS X", so test iOS
+        // first, otherwise we mis-label them as macOS.
+        if (preg_match('/iPhone|iPad|iPod/i', $ua))                 { $os = 'iOS'; $icon = 'ph-device-mobile'; }
+        elseif (preg_match('/Android ([\d.]+)/i', $ua, $m))         { $os = 'Android'; $icon = 'ph-device-mobile'; }
+        elseif (preg_match('/Windows NT ([\d.]+)/i', $ua, $m))      { $os = 'Windows'; $icon = 'ph-desktop'; }
+        elseif (stripos($ua, 'Mac OS X') !== false)                 { $os = 'macOS'; $icon = 'ph-desktop'; }
+        elseif (stripos($ua, 'Linux') !== false)                    { $os = 'Linux'; $icon = 'ph-desktop'; }
+
+        return ['browser' => $browser, 'os' => $os, 'icon' => $icon, 'raw' => $ua];
     }
 
     /* ---------------------------------------------------------------

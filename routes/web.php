@@ -199,4 +199,20 @@ Route::middleware('auth')->group(function () {
         [\App\Http\Controllers\ProfileHubController::class, 'updateNotificationPrefs'])
         ->where('username', $usernamePattern)
         ->name('profile.notifications.prefs');
+
+    // Devices — list + per-device logout + logout-all-others.
+    Route::get('/{username}/devices',
+        [\App\Http\Controllers\ProfileHubController::class, 'devices'])
+        ->where('username', $usernamePattern)
+        ->name('profile.devices');
+
+    Route::delete('/{username}/devices/{session_id}',
+        [\App\Http\Controllers\ProfileHubController::class, 'logoutDevice'])
+        ->where('username', $usernamePattern)
+        ->name('profile.devices.destroy');
+
+    Route::post('/{username}/devices/logout-others',
+        [\App\Http\Controllers\ProfileHubController::class, 'logoutOtherDevices'])
+        ->where('username', $usernamePattern)
+        ->name('profile.devices.logout-others');
 });
