@@ -12,13 +12,14 @@
     $cast = $show->cast->filter(fn ($p) => ($p->pivot->role ?? null) === 'actor');
     $crew = $show->cast->filter(fn ($p) => in_array(($p->pivot->role ?? null), ['director', 'writer', 'producer']));
 
+    $seasons = $show->seasons->sortBy('number');
+
     // First episode of the show — the "Watch / Play now" hero button jumps
     // straight here so viewers don't have to click season-1-episode-1
     // manually after landing on the detail page.
-    $firstSeason   = $seasons->sortBy('number')->first();
-    $firstEpisode  = $firstSeason?->episodes->sortBy('number')->first();
-    $firstEpUrl    = $firstEpisode ? $firstEpisode->frontendUrl($show) : '#';
-    $seasons = $show->seasons->sortBy('number');
+    $firstSeason  = $seasons->first();
+    $firstEpisode = $firstSeason?->episodes->sortBy('number')->first();
+    $firstEpUrl   = $firstEpisode ? $firstEpisode->frontendUrl($show) : '#';
 @endphp
 
 @section('content')
