@@ -67,21 +67,39 @@
             });
         }
 
-        // Read the Files Gallery selection from the iframe. Same origin, so we
-        // can call the frame's global `ye.selected()` directly — that's Files
-        // Gallery's internal grid-state API. If it ever changes, the try/catch
-        // falls through to an empty array so the modal doesn't throw.
+        // Read the Files Gallery selection by scanning the iframe's DOM for
+        // .files-a anchors marked with [data-selected]. FG's `ye.selected()`
+        // function is closure-local — not reachable from outside — so DOM
+        // scanning is the most portable way to read selection state. In
+        // picker mode, custom.js intercepts clicks and stamps data-selected
+        // directly; in non-picker mode this still works because FG itself
+        // toggles the same attribute when files are picked.
         function readIframeSelection() {
             const frame = document.getElementById('jamboMediaPickerFrame');
-            if (!frame || !frame.contentWindow) return [];
+            if (!frame || !frame.contentDocument) return [];
             try {
-                const fg = frame.contentWindow;
-                if (fg.ye && typeof fg.ye.selected === 'function') {
-                    const items = fg.ye.selected();
-                    return Array.isArray(items) ? items : [];
-                }
-            } catch (_) { /* iframe still loading or cross-origin guard */ }
-            return [];
+                const doc = frame.contentDocument;
+                const nodes = doc.querySelectorAll('.files-a[data-selected]');
+                return Array.from(nodes).map(function (el) {
+                    const path = el.dataset.path || '';
+                    const href = el.getAttribute('href') || '';
+                    const basename = path.split('/').pop() || el.getAttribute('title') || '';
+                    const extMatch = basename.match(/\.([a-z0-9]+)$/i);
+                    const isFolder =
+                        (el.classList && (el.classList.contains('folder') || el.classList.contains('dir'))) ||
+                        el.dataset.is_dir === 'true' ||
+                        el.dataset.is_dir === '1';
+                    return {
+                        path: path,
+                        basename: basename,
+                        ext: extMatch ? extMatch[1].toLowerCase() : '',
+                        url_path: href,
+                        is_dir: isFolder,
+                    };
+                });
+            } catch (_) {
+                return [];
+            }
         }
 
         // Normalise the accept list from the form field. Empty list = accept any file.

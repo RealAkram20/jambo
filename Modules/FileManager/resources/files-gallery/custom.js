@@ -186,24 +186,79 @@
     document.querySelectorAll('.pswp').forEach(function (el) {
       el.classList.remove('pswp--open', 'pswp--animate', 'pswp--animated-in');
       killMediaIn(el);
-      // Detach from layout entirely — stronger than CSS alone, since FG may
-      // re-apply inline styles when it thinks the lightbox is opening.
       el.style.display = 'none';
     });
-    // Some legacy preview modals live under #modal_preview — nuke too.
     var legacy = document.getElementById('modal_preview');
     if (legacy) killMediaIn(legacy);
   }
 
-  // Poll briefly during FG boot; catches the moment pswp mounts/opens.
+  // Primary defence: intercept every file-anchor click at the capture phase,
+  // BEFORE Files Gallery's own click listener fires. FG delegates clicks off
+  // document in the bubble phase, so a capture-phase listener on the window
+  // (highest possible spot in event flow) gets there first. preventDefault +
+  // stopImmediatePropagation stops both the <a href="..."> navigation AND
+  // FG's preview-open logic — click becomes pure selection, nothing else.
+  function handleFileClick(e) {
+    var a = e.target && e.target.closest ? e.target.closest('.files-a') : null;
+    if (!a) return;
+
+    // Folders must still navigate — only files should be hijacked.
+    // FG marks folder anchors with `dir` in their class list or `data-is_dir`.
+    var isFolder =
+      (a.classList && (a.classList.contains('folder') || a.classList.contains('dir'))) ||
+      a.dataset.is_dir === 'true' ||
+      a.dataset.is_dir === '1';
+    if (isFolder) return;
+
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    e.stopPropagation();
+
+    // Emulate FG's selection visually: single-select — clear others first.
+    document.querySelectorAll('.files-a[data-selected]').forEach(function (other) {
+      if (other !== a) delete other.dataset.selected;
+    });
+    a.dataset.selected = '1';
+
+    // Expose the pick to the parent modal via a DOM signal it can read without
+    // needing access to FG's closure-local `ye` object.
+    try {
+      document.documentElement.dataset.jamboLastPick = a.dataset.path || a.getAttribute('href') || '';
+    } catch (_) {}
+  }
+
+  // window > document > body — window capture is earliest possible.
+  window.addEventListener('click', handleFileClick, true);
+  document.addEventListener('click', handleFileClick, true);
+
+  // Same for mousedown, in case FG wires preview on mousedown for performance.
+  window.addEventListener('mousedown', handleFileClick, true);
+  document.addEventListener('mousedown', handleFileClick, true);
+
+  // Also block keyboard activation (Space/Enter on focused file anchor).
+  window.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var target = e.target;
+    if (target && target.closest && target.closest('.files-a')) {
+      var a = target.closest('.files-a');
+      var isFolder =
+        (a.classList && (a.classList.contains('folder') || a.classList.contains('dir'))) ||
+        a.dataset.is_dir === 'true';
+      if (!isFolder) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        handleFileClick({ target: a, preventDefault: function(){}, stopImmediatePropagation: function(){}, stopPropagation: function(){} });
+      }
+    }
+  }, true);
+
+  // Poll during FG boot to catch any pswp the CSS missed.
   var pollTimer = setInterval(closePswpIfOpen, 120);
   setTimeout(function () { clearInterval(pollTimer); }, 8000);
 
-  // Watchdog for any future pswp open / stray media injection.
   new MutationObserver(function (mutations) {
     for (var i = 0; i < mutations.length; i++) {
       var m = mutations[i];
-      // Class/attribute flipped (pswp--open appearing, popup-open on body)
       if (m.type === 'attributes') {
         var t = m.target;
         if (t && t.classList) {
@@ -218,10 +273,6 @@
         if (n.nodeType !== 1) continue;
         if (n.classList && n.classList.contains('pswp')) {
           closePswpIfOpen();
-          continue;
-        }
-        if (n.id === 'modal_preview') {
-          killMediaIn(n);
           continue;
         }
         if (n.tagName === 'VIDEO' || n.tagName === 'AUDIO') {
