@@ -86,9 +86,9 @@
                                                         </a>
                                                     </div>
                                                     <div class="image-details">
-                                                        <h6 class="mb-1 text-capitalize">
+                                                        <h6 class="mb-1 text-capitalize line-count-1">
                                                             <a href="{{ $ep->frontendUrl($item) }}">
-                                                                {{ __('streamEpisode.episode') ?? 'Episode' }} {{ $ep->number }}
+                                                                {{ $ep->title ?: (__('streamEpisode.episode_number', ['n' => $ep->number]) ?: 'Episode ' . $ep->number) }}
                                                             </a>
                                                         </h6>
                                                         <div class="episode-time d-flex align-items-center gap-1 mt-2">
