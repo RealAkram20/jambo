@@ -198,17 +198,36 @@
   // (highest possible spot in event flow) gets there first. preventDefault +
   // stopImmediatePropagation stops both the <a href="..."> navigation AND
   // FG's preview-open logic — click becomes pure selection, nothing else.
-  // FG's file-grid template is `<a class="files-a files-a-${type}">` where
-  // `type` is "dir" for folders and "img", "audio", "svg", "url", "loaded"
-  // or similar for files. Folder anchors therefore carry the class
-  // `files-a-dir` — we MUST let those pass through so FG's own handler
-  // can navigate into the directory.
+  // FG's file-grid anchor template produces the same base class for both
+  // folders AND files (`files-a files-a-svg` for anything that falls back
+  // to an SVG icon — which includes folders). There's no `files-a-dir`
+  // suffix, so class-based detection alone can't tell them apart. The
+  // reliable differentiator is the path: folders have no file extension.
+  //
+  // Sidebar tree links (`.menu-a`) are always folders.
+  // Explicit `data-is_dir="1"` wins when FG's code (or ours) sets it.
+  // Otherwise: look at the basename. An extension like ".mp4" / ".webp"
+  // means file; its absence means folder.
   function isFolderAnchor(a) {
     if (!a || !a.classList) return false;
-    if (a.classList.contains('files-a-dir')) return true;
-    // Fallbacks for older FG builds or the folder tree in the sidebar.
-    if (a.classList.contains('folder') || a.classList.contains('menu-a')) return true;
+    if (a.classList.contains('menu-a')) return true;
+    if (a.classList.contains('folder')) return true;
     if (a.dataset && (a.dataset.is_dir === 'true' || a.dataset.is_dir === '1')) return true;
+
+    var path = (a.dataset && a.dataset.path) || '';
+    if (path) {
+      var basename = path.split('/').pop() || '';
+      // No extension → folder. `.gitignore`-style dotfiles also match
+      // this pattern but they're files, not folders — the .ext regex
+      // requires 1-8 trailing alphanumerics AFTER a dot so a bare
+      // `.gitignore` (all-extension) would still be treated as a file.
+      return !/\.[a-zA-Z0-9]{1,8}$/.test(basename);
+    }
+
+    // No data-path — last-resort: inspect the href for folder-style URLs.
+    var href = a.getAttribute('href') || '';
+    if (href.indexOf('?path=') !== -1) return true;
+    if (href.slice(-1) === '/') return true;
     return false;
   }
 
