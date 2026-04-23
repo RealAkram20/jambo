@@ -188,4 +188,6 @@ return [
         // 'Example' => App\Facades\Example::class,
     ])->toArray(),
 
+    'avatar_base_path' => env('AVATAR_BASE_PATH', '/images/avatars/'),
+
 ];

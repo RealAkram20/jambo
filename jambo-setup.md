@@ -182,10 +182,16 @@ http://localhost/jambo/public/dashboard
 
 **Login credentials (from the demo seeder):**
 
-| Role  | Email                 | Password |
-|-------|-----------------------|----------|
-| Admin | admin@example.com     | password |
-| User  | user@example.com      | password |
+| Role  | Email                       | Password  |
+|-------|-----------------------------|-----------|
+| Admin | admin@demo.com              | 12345678  |
+| User  | john.richards@hotmail.com   | 12345678  |
+
+Admin and John Richards are deterministic accounts. If `IS_FAKE_DATA=true`
+you also get 30 factory-generated users with random emails — `php artisan tinker`
+and `User::where('first_name', '!=', 'Admin')->inRandomOrder()->first()->email` will
+pick one out. All users share the password `12345678` only for the deterministic
+accounts; factory users get factory-random hashes and cannot be logged into directly.
 
 ---
 
