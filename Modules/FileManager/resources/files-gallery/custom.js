@@ -63,3 +63,70 @@
     // Silent — if Uppy's API changes, just leave the default limit in place.
   }
 })();
+
+/**
+ * Picker mode: when Files Gallery is iframed from a Jambo admin form
+ * (URL carries ?picker=1), clicking a file should ONLY select it — not
+ * open Files Gallery's preview/video-player overlay. Three layers of
+ * defense so no code path can open the overlay:
+ *
+ *   1. CSS — #modal_preview is display:none + pointer-events:none.
+ *      Any <video>/<audio> inside is removed from layout so autoplay
+ *      can't start unintentionally.
+ *
+ *   2. JS override — replace window.ae.preview() with a no-op as soon as
+ *      Files Gallery boots. This is FG's internal "open preview" entry
+ *      point; neutering it stops the modal from being populated at all.
+ *
+ *   3. MutationObserver safety net — if anything slips past 1+2 and the
+ *      preview element becomes visible anyway, immediately pause+detach
+ *      its media and re-hide it.
+ */
+(function () {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+  var params = new URLSearchParams(window.location.search || '');
+  if (params.get('picker') !== '1') return;
+
+  document.documentElement.classList.add('jambo-picker-mode');
+
+  var style = document.createElement('style');
+  style.textContent =
+    '#modal_preview { display: none !important; pointer-events: none !important; visibility: hidden !important; }' +
+    '#modal_preview video, #modal_preview audio, #modal_preview iframe { display: none !important; }' +
+    'html.jambo-picker-mode #modal_preview.modal-pos-active,' +
+    'html.jambo-picker-mode .modal-container { display: none !important; }';
+  (document.head || document.documentElement).appendChild(style);
+
+  (function waitForAe(attempts) {
+    attempts = attempts || 0;
+    if (attempts > 80) return;
+    if (!window.ae || typeof window.ae.preview !== 'function') {
+      setTimeout(function () { waitForAe(attempts + 1); }, 100);
+      return;
+    }
+    try { window.ae.preview = function () { /* picker-mode no-op */ }; } catch (_) {}
+  })();
+
+  function killMediaIn(node) {
+    if (!node || !node.querySelectorAll) return;
+    node.querySelectorAll('video, audio').forEach(function (media) {
+      try {
+        media.pause();
+        media.removeAttribute('src');
+        media.load();
+      } catch (_) {}
+    });
+  }
+
+  new MutationObserver(function () {
+    var m = document.getElementById('modal_preview');
+    if (!m) return;
+    var cs = window.getComputedStyle(m);
+    if (cs.display !== 'none' || m.classList.contains('modal-pos-active')) {
+      killMediaIn(m);
+      m.style.display = 'none';
+    }
+  }).observe(document.documentElement, {
+    attributes: true, subtree: true, attributeFilter: ['class', 'style']
+  });
+})();

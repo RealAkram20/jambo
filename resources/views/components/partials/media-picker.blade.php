@@ -36,14 +36,14 @@
             <div class="modal-footer justify-content-between align-items-center">
                 <div id="jamboMediaPickerStatus" class="small text-secondary flex-grow-1 me-3"
                     style="min-height:1.5em;">
-                    <i class="ph ph-info"></i> Click a file inside the gallery, then press <strong>Use selected file</strong>.
+                    <i class="ph ph-info"></i> Click a file in the gallery, then press <strong>Select</strong>.
                 </div>
                 <div class="d-flex gap-2 flex-shrink-0">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
                         Cancel
                     </button>
                     <button type="button" class="btn btn-primary" id="jamboMediaPickerSelect" disabled>
-                        <i class="ph ph-check-circle me-1"></i> Use selected file
+                        <i class="ph ph-check-circle me-1"></i> Select
                     </button>
                 </div>
             </div>
@@ -92,7 +92,7 @@
             const count = items.length;
             btn.disabled = count === 0;
             if (count === 0) {
-                status.innerHTML = '<i class="ph ph-info"></i> Click a file inside the gallery, then press <strong>Use selected file</strong>.';
+                status.innerHTML = '<i class="ph ph-info"></i> Click a file in the gallery, then press <strong>Select</strong>.';
                 return;
             }
             const first = items[0];
@@ -145,6 +145,20 @@
                 const btn = document.getElementById('jamboMediaPickerSelect');
                 if (btn) btn.disabled = true;
             });
+
+            // Hide the loading spinner the moment the iframe finishes loading,
+            // regardless of any postMessage protocol. The iframe's `load` event
+            // fires once the Files Gallery document has fully rendered, which
+            // is a far more reliable ready signal than waiting on a custom
+            // message FG may never send.
+            const initialFrame = document.getElementById('jamboMediaPickerFrame');
+            if (initialFrame) {
+                initialFrame.addEventListener('load', function () {
+                    if (initialFrame.src === 'about:blank' || !initialFrame.src) return;
+                    const loading = document.getElementById('jamboMediaPickerLoading');
+                    if (loading) loading.style.display = 'none';
+                });
+            }
 
             const selectBtn = document.getElementById('jamboMediaPickerSelect');
             if (selectBtn) {
