@@ -120,37 +120,55 @@
 
   // Strip every Files Gallery UI control that distracts from the one job the
   // picker has: browse folders, click a file, confirm in the parent modal.
-  // The list below is deliberately specific (by id / class) rather than broad
-  // so a future FG version that renames something fails visibly (we notice
-  // a stray control) rather than silently over-hiding.
+  //
+  // Critical lesson: Files Gallery's actual file-preview layer is a
+  // PhotoSwipe lightbox at `.pswp` (classes like `pswp--open`), NOT
+  // `#modal_preview`. `#modal_preview` is an unrelated code/text viewer
+  // that `pswp` ignores. When the admin clicks a file FG calls
+  // `pswp.open(...)` which toggles `.pswp--open` on the lightbox root
+  // and `.popup-open` on `<body>`. Everything below needs to address
+  // the real `.pswp` tree, not the legacy `#modal_preview` shell.
   var style = document.createElement('style');
   style.textContent = [
-    // 1. Preview / playback paths
-    '#modal_preview, .modal-container { display: none !important; visibility: hidden !important; pointer-events: none !important; }',
+    // 1. The actual preview lightbox (PhotoSwipe). Hiding .pswp kills the
+    //    whole image/video/panorama/audio viewer chain — nothing visible,
+    //    nothing interactive, no media to autoplay.
+    '.pswp, .pswp--open { display: none !important; visibility: hidden !important; pointer-events: none !important; }',
+    '.pswp video, .pswp audio, .pswp iframe, .pswp .pswp__video { display: none !important; }',
+
+    // 2. When pswp is open FG locks body scroll with `.popup-open`. Keep
+    //    scroll unlocked so the sidebar stays usable even if any part of
+    //    the lightbox flashes on-screen before we remove it.
+    'body.popup-open { overflow: auto !important; }',
+
+    // 3. Every popup UI overlay pswp mounts — filename, exif, location,
+    //    description, keywords, panorama/video UI.
+    '.popup-title, .popup-basename, .popup-date, .popup-description,' +
+      ' .popup-exif, .popup-image-meta, .popup-keywords, .popup-location,' +
+      ' .popup-owner, .popup-pano-placeholder, .popup-counter-separator,' +
+      ' .popup-ui-pano, .popup-ui-video, .popup-video { display: none !important; }',
+
+    // 4. Legacy code/text preview modal — kept hidden for safety.
+    '#modal_preview { display: none !important; visibility: hidden !important; pointer-events: none !important; }',
     '#modal_preview video, #modal_preview audio, #modal_preview iframe { display: none !important; }',
     '#audioplayer, [class*="audioplayer"] { display: none !important; }',
 
-    // 2. The file-details popover with maximize/fullscreen/more — the main
-    //    source of confusion: admins click maximize thinking it means "select",
-    //    FG plays the file instead. Parent modal owns the selection workflow.
+    // 5. File-details popover in topbar (maximize/fullscreen/more button).
     '#topbar-info { display: none !important; }',
 
-    // 3. FG\'s own selection-action bar (bulk delete/zip/move). In picker mode
-    //    the admin selects exactly one file and confirms with our Select.
+    // 6. FG\'s own selection-action bar (bulk delete/zip/move).
     '.topbar-select, .buttons-selected, #select-mode-button { display: none !important; }',
 
-    // 4. Top-right chrome — fullscreen toggle, theme switcher, language menu,
-    //    user settings. All irrelevant when the iframe is embedded.
+    // 7. Top-right chrome — fullscreen toggle, theme, language, user settings.
     '#topbar-fullscreen, #change-theme, #change-lang, #user-settings { display: none !important; }',
 
-    // 5. Right-click context menu (rename / delete / properties).
+    // 8. Right-click context menu.
     '#contextmenu { display: none !important; }',
 
-    // 6. Per-tile play overlay on video thumbnails — visible cue that click
-    //    "plays". In picker mode click only selects.
+    // 9. Per-tile play overlay that signals "click plays this".
     '.play { display: none !important; }',
 
-    // 7. FG notifications strip (status toasts for ops we don\'t expose here).
+    // 10. FG operation notifications.
     '#files-notifications { display: none !important; }',
   ].join('\n');
   (document.head || document.documentElement).appendChild(style);
@@ -162,27 +180,48 @@
     });
   }
 
-  function destroyPreviewNode() {
-    var m = document.getElementById('modal_preview');
-    if (!m) return false;
-    killMediaIn(m);
-    if (m.parentNode) m.parentNode.removeChild(m);
-    return true;
+  function closePswpIfOpen() {
+    var body = document.body;
+    if (body && body.classList) body.classList.remove('popup-open');
+    document.querySelectorAll('.pswp').forEach(function (el) {
+      el.classList.remove('pswp--open', 'pswp--animate', 'pswp--animated-in');
+      killMediaIn(el);
+      // Detach from layout entirely — stronger than CSS alone, since FG may
+      // re-apply inline styles when it thinks the lightbox is opening.
+      el.style.display = 'none';
+    });
+    // Some legacy preview modals live under #modal_preview — nuke too.
+    var legacy = document.getElementById('modal_preview');
+    if (legacy) killMediaIn(legacy);
   }
 
-  // Poll briefly during FG boot — the element is created after files.js runs.
-  var pollTimer = setInterval(function () { destroyPreviewNode(); }, 120);
+  // Poll briefly during FG boot; catches the moment pswp mounts/opens.
+  var pollTimer = setInterval(closePswpIfOpen, 120);
   setTimeout(function () { clearInterval(pollTimer); }, 8000);
 
-  // Watchdog for any future re-creation + stray media.
+  // Watchdog for any future pswp open / stray media injection.
   new MutationObserver(function (mutations) {
     for (var i = 0; i < mutations.length; i++) {
       var m = mutations[i];
-      for (var j = 0; j < m.addedNodes.length; j++) {
+      // Class/attribute flipped (pswp--open appearing, popup-open on body)
+      if (m.type === 'attributes') {
+        var t = m.target;
+        if (t && t.classList) {
+          if (t.classList.contains('pswp--open') || t.classList.contains('popup-open')) {
+            closePswpIfOpen();
+            continue;
+          }
+        }
+      }
+      for (var j = 0; j < (m.addedNodes || []).length; j++) {
         var n = m.addedNodes[j];
         if (n.nodeType !== 1) continue;
+        if (n.classList && n.classList.contains('pswp')) {
+          closePswpIfOpen();
+          continue;
+        }
         if (n.id === 'modal_preview') {
-          destroyPreviewNode();
+          killMediaIn(n);
           continue;
         }
         if (n.tagName === 'VIDEO' || n.tagName === 'AUDIO') {
@@ -190,10 +229,15 @@
           continue;
         }
         if (n.querySelector) {
-          if (n.querySelector('#modal_preview')) destroyPreviewNode();
           killMediaIn(n);
+          if (n.querySelector('.pswp')) closePswpIfOpen();
         }
       }
     }
-  }).observe(document.documentElement, { childList: true, subtree: true });
+  }).observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['class']
+  });
 })();
