@@ -29,6 +29,7 @@ class UserTableSeeder extends Seeder
         $admin = User::create([
             'first_name' => 'Admin',
             'last_name' => 'Demo',
+            'username' => 'jamboadmin',
             'email' => 'admin@demo.com',
             'password' => \Hash::make('12345678'),
             'email_verified_at' => Carbon::now(),
@@ -40,6 +41,7 @@ class UserTableSeeder extends Seeder
             [
             'first_name' => 'John',
             'last_name' => 'Richards',
+            'username' => 'johnrichards',
             'email' => 'john.richards@hotmail.com',
             'password' => \Hash::make('12345678'),
             'email_verified_at' => Carbon::now(),
