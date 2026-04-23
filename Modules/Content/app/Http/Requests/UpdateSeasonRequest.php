@@ -6,11 +6,8 @@ class UpdateSeasonRequest extends StoreSeasonRequest
 {
     public function rules(): array
     {
-        // A season's parent show is set at creation and can't change
-        // on update, so we drop show_id from the ruleset entirely.
-        $rules = parent::rules();
-        unset($rules['show_id']);
-
-        return $rules;
+        // Parent show is route-bound and not a form field — StoreSeasonRequest
+        // now drops show_id too, so this just inherits the parent rules as-is.
+        return parent::rules();
     }
 }

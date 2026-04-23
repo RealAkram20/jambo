@@ -14,8 +14,13 @@ class StoreEpisodeRequest extends FormRequest
 
     public function rules(): array
     {
+        // season_id is intentionally NOT validated here. The route is
+        // doubly nested — `/admin/series/{show}/seasons/{season}/episodes`
+        // — so EpisodeController receives the parent Season via route
+        // model binding and uses $season->episodes()->create() to set the
+        // foreign key automatically. No form input submits season_id, so
+        // requiring it here would simply block every form save.
         return [
-            'season_id' => 'required|integer|exists:seasons,id',
             'number' => 'required|integer|min:1',
             'title' => 'required|string|max:255',
             'synopsis' => 'nullable|string|max:5000',
