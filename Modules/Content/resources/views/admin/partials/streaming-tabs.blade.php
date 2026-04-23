@@ -16,8 +16,18 @@
     elseif ($savedUrl)      $savedSource = 'url';
     else                    $savedSource = null;
 
+    // `video_local` is validated as regex:/^\// — path only, no scheme.
+    // If the stored value happens to be a full URL (older save, manual
+    // paste from the file manager's "copy link", etc.), strip the
+    // scheme+host down to just the path portion. Otherwise a form
+    // submit on the Dropbox / URL tab would fail validation on the
+    // inactive-but-still-present hidden video_local field.
+    $videoLocalInitial = $savedIsLocal
+        ? (parse_url($savedUrl, PHP_URL_PATH) ?: $savedUrl)
+        : '';
+
     $videoUrlOld    = old('video_url',    $savedIsLocal ? '' : $savedUrl);
-    $videoLocalOld  = old('video_local',  $savedIsLocal ? $savedUrl : '');
+    $videoLocalOld  = old('video_local',  $videoLocalInitial);
     $dropboxOld     = old('dropbox_path', $savedDropbox);
     $videoSourceOld = old('video_source', $savedSource ?? 'url');
 

@@ -27,12 +27,33 @@
 
         function setSource(key) { sourceInput.value = key; paint(key); }
 
+        // Clear values from the inactive tabs so stale data can't break
+        // validation on submit. Each tab's field has its own regex and
+        // a leftover full-URL in video_local, or a local path left in
+        // video_url after switching sources, would fail validation even
+        // though the user isn't using that tab. video_source tracks
+        // which tab is authoritative; everything else should be empty.
+        function clearInactiveFields(activeTab) {
+            const urlInput     = document.getElementById('video_url');
+            const localInput   = document.getElementById('video_local');
+            const dropboxInput = document.getElementById('dropbox_path');
+            if (activeTab !== 'url' && urlInput)         urlInput.value = '';
+            if (activeTab !== 'local' && localInput) {
+                localInput.value = '';
+                localInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            if (activeTab !== 'dropbox' && dropboxInput) dropboxInput.value = '';
+        }
+
         document.querySelectorAll('#streamingTabs [data-bs-toggle="tab"]').forEach(function (btn) {
             btn.addEventListener('shown.bs.tab', function () {
                 const target = btn.getAttribute('data-bs-target');
-                if (target === '#pane-stream-url')     setSource('url');
-                else if (target === '#pane-stream-local')   setSource('local');
-                else if (target === '#pane-stream-dropbox') setSource('dropbox');
+                let tabKey = 'url';
+                if (target === '#pane-stream-url')          tabKey = 'url';
+                else if (target === '#pane-stream-local')   tabKey = 'local';
+                else if (target === '#pane-stream-dropbox') tabKey = 'dropbox';
+                setSource(tabKey);
+                clearInactiveFields(tabKey);
             });
         });
 
