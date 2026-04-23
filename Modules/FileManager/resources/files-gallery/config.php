@@ -59,6 +59,14 @@ return [
     'cache' => true,
     'clean_cache_interval' => 7,
 
+    // Bump this string whenever you change `root`, `root_url_path`, include/
+    // exclude patterns, or anything else that would rewrite file URLs. It's
+    // hashed into Files Gallery's server-side cache keys AND into `dirs_hash`
+    // which namespaces the browser's localStorage directory cache — so
+    // changing this value forces every client to re-fetch fresh data instead
+    // of serving stale URLs from the previous config.
+    'cache_key' => 'jambo-gallery-v1',
+
     // Skip Files Gallery's own login. The iframe sits inside /admin/file-manager
     // which is already gated by Jambo's web auth + role:admin middleware.
     // On a public host, set these so a direct hit on /storage/media/index.php

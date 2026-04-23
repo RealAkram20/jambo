@@ -39,6 +39,34 @@
 })();
 
 /**
+ * One-time localStorage invalidation after we change anything that rewrites
+ * file URLs (root, root_url_path, include/exclude patterns). Files Gallery
+ * caches directory listings in `files:dir:*` / `files:menu:*` keys that bake
+ * the URLs from the response when they were cached, so a server-side config
+ * change alone doesn't reach clients that already have stale data.
+ *
+ * Bump the version marker string every time you make a URL-shape change.
+ * Each browser clears its cache exactly once per new marker, then the flag
+ * persists so we don't wipe again on every load.
+ */
+(function () {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  var MARKER = 'jambo:fg-cache-cleared:gallery-v1';
+  try {
+    if (localStorage.getItem(MARKER)) return;
+    Object.keys(localStorage).forEach(function (key) {
+      if (key.indexOf('files:dir:') === 0 || key.indexOf('files:menu:') === 0) {
+        localStorage.removeItem(key);
+      }
+    });
+    localStorage.setItem(MARKER, String(Date.now()));
+  } catch (e) {
+    // Storage unavailable — next page load gets cache-busted server-side anyway
+    // via the bumped `cache_key` in config.php.
+  }
+})();
+
+/**
  * Bump Uppy's concurrent XHR upload limit to 20 (Files Gallery default is 5).
  *
  * Uppy is instantiated by files.js inside Y.uppy. We poll briefly until the
