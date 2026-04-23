@@ -55,12 +55,16 @@
     (function () {
         if (window.JamboMediaPicker) return;
 
+        @php
+            // App base path (e.g. "/Jambo" on XAMPP, "" on a domain-root
+            // VPS deploy, "/something" on a subdir install). Used to strip
+            // the machine-specific prefix off picked URLs so the stored
+            // form value stays app-relative and portable across environments.
+            $jamboAppBase = rtrim(parse_url(rtrim(url('/'), '/'), PHP_URL_PATH) ?? '', '/');
+        @endphp
+
         const FM_BASE = @json(url('storage/media/index.php'));
-        // App base path (e.g. "/Jambo" on XAMPP, "" on a domain-root VPS
-        // deploy, "/something" on a subdir install). Used to strip the
-        // Jambo-machine prefix off picked URLs so the stored form value
-        // stays app-relative and portable across environments.
-        const APP_BASE = @json(rtrim(parse_url(rtrim(url('/'), '/'), PHP_URL_PATH) ?? '', '/'));
+        const APP_BASE = @json($jamboAppBase);
         let modalEl = null;
         let modalInstance = null;
         let currentOpts = null;
