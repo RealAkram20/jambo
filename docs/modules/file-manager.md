@@ -5,6 +5,42 @@
 single-file PHP file browser, source-available under MIT.
 **Serves:** a dedicated `storage/app/public/gallery/` folder, iframed into the
 admin panel with Jambo's theme piped through on load.
+**Doubles as a media picker** for admin forms — the Movie / Show / Season /
+Episode create-and-edit pages all reuse the same iframe inside a modal, then
+return the chosen file's URL into the form field via the Select button in the
+modal footer.
+
+## Using the media picker from a form
+
+Any field that needs a file:
+
+```blade
+@include('components.partials.media-picker')  {{-- once per page --}}
+
+<button type="button"
+        data-media-browse="poster_url"
+        data-media-accept="jpg,png,webp"
+        data-media-preview-target="poster_url"
+        class="btn btn-primary">
+    <i class="ph ph-folder-open"></i> Browse
+</button>
+```
+
+The shared script at
+`Modules/Content/resources/views/admin/partials/media-picker-script.blade.php`
+delegates every `[data-media-browse]` click into
+`window.JamboMediaPicker.open({ target, accept, preview })`. The modal opens
+with the gallery iframe, the admin picks a file, clicks **Use selected file**,
+and the chosen URL lands in the `<input id="poster_url">` + any linked
+preview img. Cancel closes without touching the field.
+
+**Reading the iframe selection:** Files Gallery exposes its grid state as
+`window.ye.selected()` (array of `{ path, url_path, basename, ext, is_dir }`).
+The picker polls that once every 400ms while the modal is open, updates the
+footer status line live, and enables the Select button only when a non-folder
+is highlighted. The resolved URL prefers `url_path` (direct, via the storage
+symlink); if that's unavailable it falls back to Files Gallery's PHP proxy
+endpoint `?action=file&file=...`.
 
 ## Why we vendor it
 

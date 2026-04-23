@@ -33,11 +33,19 @@
                 <iframe id="jamboMediaPickerFrame" title="File Manager"
                     style="width:100%; height:100%; border:0; display:block;"></iframe>
             </div>
-            <div class="modal-footer justify-content-between">
-                <small class="text-secondary">
-                    <i class="ph ph-info"></i> Upload new files from inside the manager, then click to select.
-                </small>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <div class="modal-footer justify-content-between align-items-center">
+                <div id="jamboMediaPickerStatus" class="small text-secondary flex-grow-1 me-3"
+                    style="min-height:1.5em;">
+                    <i class="ph ph-info"></i> Click a file inside the gallery, then press <strong>Use selected file</strong>.
+                </div>
+                <div class="d-flex gap-2 flex-shrink-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" id="jamboMediaPickerSelect" disabled>
+                        <i class="ph ph-check-circle me-1"></i> Use selected file
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -51,17 +59,107 @@
         let modalEl = null;
         let modalInstance = null;
         let currentOpts = null;
+        let pollHandle = null;
+
+        function escapeHtml(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        }
+
+        // Read the Files Gallery selection from the iframe. Same origin, so we
+        // can call the frame's global `ye.selected()` directly — that's Files
+        // Gallery's internal grid-state API. If it ever changes, the try/catch
+        // falls through to an empty array so the modal doesn't throw.
+        function readIframeSelection() {
+            const frame = document.getElementById('jamboMediaPickerFrame');
+            if (!frame || !frame.contentWindow) return [];
+            try {
+                const fg = frame.contentWindow;
+                if (fg.ye && typeof fg.ye.selected === 'function') {
+                    const items = fg.ye.selected();
+                    return Array.isArray(items) ? items : [];
+                }
+            } catch (_) { /* iframe still loading or cross-origin guard */ }
+            return [];
+        }
+
+        function refreshPickerStatus() {
+            const btn = document.getElementById('jamboMediaPickerSelect');
+            const status = document.getElementById('jamboMediaPickerStatus');
+            if (!btn || !status) return;
+            const items = readIframeSelection().filter(it => it && !it.is_dir);
+            const count = items.length;
+            btn.disabled = count === 0;
+            if (count === 0) {
+                status.innerHTML = '<i class="ph ph-info"></i> Click a file inside the gallery, then press <strong>Use selected file</strong>.';
+                return;
+            }
+            const first = items[0];
+            const name = escapeHtml(first.basename || first.name || 'selected file');
+            status.innerHTML = count === 1
+                ? '<i class="ph ph-check-circle text-success"></i> Ready to use: <strong>' + name + '</strong>'
+                : '<i class="ph ph-check-circle text-success"></i> ' + count + ' selected — <strong>' + name + '</strong> will be used';
+        }
+
+        function startPolling() {
+            stopPolling();
+            refreshPickerStatus();
+            pollHandle = setInterval(refreshPickerStatus, 400);
+        }
+
+        function stopPolling() {
+            if (pollHandle) clearInterval(pollHandle);
+            pollHandle = null;
+        }
+
+        // Resolve an absolute URL for the chosen file. Files Gallery returns
+        // `url_path` as root-relative (e.g. `/Jambo/storage/gallery/foo.mp4`)
+        // when the file is inside the public symlink. When it's not, we fall
+        // back to Files Gallery's own PHP proxy endpoint.
+        function resolveSelectedUrl(item) {
+            const frame = document.getElementById('jamboMediaPickerFrame');
+            const fg = frame && frame.contentWindow;
+            const origin = (fg && fg.location && fg.location.origin) || window.location.origin;
+            if (item.url_path) {
+                return /^https?:/i.test(item.url_path) ? item.url_path : origin + item.url_path;
+            }
+            if (item.path && fg && fg.location) {
+                return origin + fg.location.pathname + '?action=file&file=' + encodeURIComponent(item.path);
+            }
+            return '';
+        }
 
         function ensureModal() {
             if (modalEl) return;
             modalEl = document.getElementById('jamboMediaPickerModal');
             if (!modalEl) return;
             modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+            modalEl.addEventListener('shown.bs.modal', startPolling);
             modalEl.addEventListener('hidden.bs.modal', () => {
+                stopPolling();
                 const frame = document.getElementById('jamboMediaPickerFrame');
                 if (frame) frame.src = 'about:blank';
                 currentOpts = null;
+                const btn = document.getElementById('jamboMediaPickerSelect');
+                if (btn) btn.disabled = true;
             });
+
+            const selectBtn = document.getElementById('jamboMediaPickerSelect');
+            if (selectBtn) {
+                selectBtn.addEventListener('click', function () {
+                    const items = readIframeSelection().filter(it => it && !it.is_dir);
+                    if (!items.length) return;
+                    const item = items[0];
+                    const url = resolveSelectedUrl(item);
+                    if (!url) return;
+                    applySelection(url, {
+                        filename: item.basename || '',
+                        ext: item.ext || '',
+                    });
+                });
+            }
         }
 
         function applySelection(url, meta) {
