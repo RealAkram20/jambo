@@ -98,7 +98,7 @@ Options we set, and why. Full reference at <https://www.files.gallery/docs/confi
 | `load_files_proxy_php`          | `false`       | Gallery is under the public symlink — direct URLs, no PHP proxy  |
 | `allow_all`                     | `true`        | Shortcut: grants 14 standard ops (upload/delete/rename/…)        |
 | `allow_tests`                   | `false`       | Hide the diagnostics page from admins                            |
-| `upload_max_filesize`           | `524288000`   | 500 MB per file ceiling (PHP's ini limits still apply)           |
+| `upload_max_filesize`           | `4294967296`  | 4 GB per file ceiling (PHP's ini limits still apply)             |
 | `upload_allowed_file_types`     | `''`          | Allow any file type; admin is already auth-gated                 |
 | `image_resize_use_imagemagick`  | `true`        | Better downscaling than GD for large posters                     |
 | `menu_enabled`                  | `true`        | Sidebar folder tree                                              |
@@ -184,14 +184,59 @@ Local Storage → `/storage` → delete all keys → reload the admin page.
 `storage/app/public/gallery/` exists but is empty (aside from the README).
 That's expected on fresh install — drop some files in.
 
-**Uploads over ~2 MB fail silently**
-PHP defaults. Edit `php.ini`:
-```ini
-upload_max_filesize = 500M
-post_max_size       = 500M
-memory_limit        = 512M
+## Upload limits
+
+The file manager is tuned for **4 GB per file, 20 concurrent uploads**.
+Three layers enforce this — all three must line up or the smallest wins.
+
+**1. Files Gallery** (handled in our source `config.php`):
+
+```php
+'upload_max_filesize' => 4294967296,  // 4 GB in bytes
 ```
-Restart Apache / PHP-FPM.
+
+**2. Uppy concurrency** (handled in our source `custom.js`):
+
+```js
+Y.uppy.getPlugin('XHRUpload').setOptions({ limit: 20 });
+```
+
+**3. PHP** (you edit `php.ini` — not committable, server-specific):
+
+```ini
+upload_max_filesize = 4G
+post_max_size       = 4G
+max_file_uploads    = 20
+memory_limit        = 512M
+max_execution_time  = 0
+max_input_time      = -1
+```
+
+After changing `php.ini`, restart Apache (XAMPP Control Panel: Stop, then Start
+on Apache). On a VPS with PHP-FPM: `systemctl restart php8.2-fpm` (or your
+version), followed by `systemctl reload apache2` / `nginx`.
+
+### Apache / Nginx body-size limits
+
+If Apache has `LimitRequestBody` configured anywhere, raise it or remove it.
+On Nginx, set `client_max_body_size 4G;` at the `http`, `server`, or
+`location` level. Hostinger's default Nginx upload limit is typically 128 MB —
+you'll need to raise it via the hosting control panel or by adding the
+directive in a `.htaccess` (Apache) or vhost (Nginx).
+
+### Memory consideration for 4 GB uploads
+
+XHRUpload sends each file as a single HTTP POST — not chunked. A 4 GB upload
+is one 4 GB request body. If the connection drops mid-upload, the whole file
+restarts from zero. For production video ingestion, consider wiring Uppy's
+Tus plugin (resumable chunked uploads) instead. Tus requires a Tus server
+endpoint, which Files Gallery doesn't ship — would be a small Laravel
+controller to add.
+
+## Troubleshooting uploads
+
+**"Uploads over ~40 MB fail silently"**
+Your `php.ini` still has default limits. See the ini block above.
 
 **ImageMagick not detected — posters render slowly**
 FG falls back to PHP GD (which works but is slower and lower-quality). Enable

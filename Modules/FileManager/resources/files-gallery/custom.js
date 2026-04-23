@@ -37,3 +37,29 @@
     // Private browsing or storage quota exceeded — allow the nag to show.
   }
 })();
+
+/**
+ * Bump Uppy's concurrent XHR upload limit to 20 (Files Gallery default is 5).
+ *
+ * Uppy is instantiated by files.js inside Y.uppy. We poll briefly until the
+ * XHRUpload plugin is registered, then call setOptions({ limit: 20 }). If
+ * Files Gallery ever exposes this as a PHP config option, this block becomes
+ * redundant — delete it.
+ */
+(function waitForUppy(attempts) {
+  attempts = attempts || 0;
+  if (attempts > 60) return; // give up after ~6 seconds
+  var uppy = window.Y && window.Y.uppy;
+  if (!uppy || typeof uppy.getPlugin !== 'function') {
+    setTimeout(function () { waitForUppy(attempts + 1); }, 100);
+    return;
+  }
+  try {
+    var xhr = uppy.getPlugin('XHRUpload');
+    if (xhr && typeof xhr.setOptions === 'function') {
+      xhr.setOptions({ limit: 20 });
+    }
+  } catch (e) {
+    // Silent — if Uppy's API changes, just leave the default limit in place.
+  }
+})();

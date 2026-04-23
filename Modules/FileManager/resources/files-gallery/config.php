@@ -25,9 +25,11 @@ return [
     // server config details that admins don't need day-to-day.
     'allow_tests' => false,
 
-    // Cap per-file upload at 500 MB. PHP's upload_max_filesize / post_max_size
-    // still apply — check php.ini if that kicks in first.
-    'upload_max_filesize' => 524288000,
+    // Cap per-file upload at 4 GB. PHP's upload_max_filesize / post_max_size
+    // still apply — raise them in php.ini (upload_max_filesize=4G, post_max_size=4G,
+    // max_execution_time=600, max_input_time=600, memory_limit=512M) or this
+    // ceiling is silently lowered to whatever PHP permits.
+    'upload_max_filesize' => 4294967296,
 
     // Let admins upload any file type (the module route is already role:admin
     // gated). Tighten to e.g. 'image/*, video/*, .pdf' for stricter envs.
