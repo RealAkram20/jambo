@@ -3,7 +3,7 @@
 return [
 
 
-    "customer@stremit" => "customer@streamit.com",
+    "customer@stremit" => "support@jambofilms.com",
     "customer_services" => "customer services",
     "quick_links" => "Quick Links",
     "movies_to_watch" => "Movies to watch",

@@ -2,7 +2,7 @@
 
 return [
 
-    'what_is_streamit' => 'What is streamit?',
+    'what_is_streamit' => 'What is Jambo?',
     'will_account' => 'Will my account work outside my country?',
     'video_issue' => 'I am facing video playback issues. What do I do?',
     'manage_notification' => 'How can I manage notifications?',

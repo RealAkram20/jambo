@@ -28,7 +28,7 @@ return [
     "data_desc2" => "Data transfers may occur between servers located in different countries to provide seamless streaming experiences and improve service quality.",
     "data_desc3" => "Jambo adheres to data protection regulations and implements appropriate safeguards to ensure the security and privacy of user data during global transfers and processing.",
     "we_will_be" => "We will be back with new and professional Ideas",
-    "waht_personal" => "What Personal Information About Users Does streamit Collect?",
+    "waht_personal" => "What Personal Information About Users Does Jambo Collect?",
     "cookies_web" => "Cookies and Web Beacons",
     "third_party" => "Third Party Payment Gateway – Financial Information",
     "desc4" => "Lorem ipsum dolor sit amet, consectetur adipiscing elit. In quis nisl dignissim, placerat diam ac, egestas ante. Morbi varius quis orci feugiat hendrerit. Morbi ullamcorper consequat justo, in posuere nisi efficitur sed. Vestibulum semper dolor id arcu finibus volutpat. Integer condimentum ex tellus, ac finibus metus sodales in. Proin blandit congue ipsum ac dapibus. Integer blandit eros elit, vel luctus tellus finibus in. Aliquam non urna ut leo vestibulum mattis ac nec dolor. Nulla libero mauris, dapibus non aliquet viverra, elementum eget lorem",

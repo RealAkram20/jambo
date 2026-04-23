@@ -5,16 +5,16 @@
 </div>
 <div class="logo-hotstar">
     <a class="navbar-brand text-primary" href="">
-        <img class="img-fluid logo" src="{{asset('frontend/images/logo-hotstar.webp')}}" loading="lazy" alt="streamit" />
+        <img class="img-fluid logo" src="{{asset('frontend/images/logo-hotstar.webp')}}" loading="lazy" alt="Jambo" />
     </a>
 </div>
 <div class="logo-prime">
     <a class="navbar-brand text-primary" href="">
-        <img class="img-fluid logo" src="{{asset('frontend/images/logo-prime.webp')}} " loading="lazy" alt="streamit" />
+        <img class="img-fluid logo" src="{{asset('frontend/images/logo-prime.webp')}} " loading="lazy" alt="Jambo" />
     </a>
 </div>
 <div class="logo-hulu">
     <a class="navbar-brand text-primary" href="">
-        <img class="img-fluid logo" src="{{asset('frontend/images/logo-hulu.webp')}} " loading="lazy" alt="streamit" />
+        <img class="img-fluid logo" src="{{asset('frontend/images/logo-hulu.webp')}} " loading="lazy" alt="Jambo" />
     </a>
 </div>

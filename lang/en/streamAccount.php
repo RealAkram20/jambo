@@ -7,7 +7,7 @@ return [
     "arlene" => "arlene",
     "best_deals" => "Subscribe to Our Best Deals",
     "billing_address" => "Billing Address",
-    "customer@stremit" => "customer@streamit.com",
+    "customer@stremit" => "support@jambofilms.com",
     "customer_services" => "customer services",
     "customer_support" => "Customer Support",
     "city_region" => "City / Region",
