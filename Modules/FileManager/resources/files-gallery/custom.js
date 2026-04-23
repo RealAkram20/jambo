@@ -95,20 +95,21 @@
 /**
  * Picker mode: when Files Gallery is iframed from a Jambo admin form
  * (URL carries ?picker=1), clicking a file should ONLY select it — not
- * open Files Gallery's preview/video-player overlay. Three layers of
- * defense so no code path can open the overlay:
+ * open Files Gallery's preview / video-player overlay.
  *
- *   1. CSS — #modal_preview is display:none + pointer-events:none.
- *      Any <video>/<audio> inside is removed from layout so autoplay
- *      can't start unintentionally.
+ * Files Gallery's internal preview function lives on a closure-local `ae`
+ * object, NOT `window.ae`, so we can't override the method directly. The
+ * DOM-level fix is to destroy the `#modal_preview` container entirely —
+ * FG's preview path tries to populate that element; with it gone the
+ * populate step silently no-ops (FG's code guards its own querySelectors).
  *
- *   2. JS override — replace window.ae.preview() with a no-op as soon as
- *      Files Gallery boots. This is FG's internal "open preview" entry
- *      point; neutering it stops the modal from being populated at all.
- *
- *   3. MutationObserver safety net — if anything slips past 1+2 and the
- *      preview element becomes visible anyway, immediately pause+detach
- *      its media and re-hide it.
+ * Four layers:
+ *   1. CSS — belt + braces `display:none` on #modal_preview, any strays.
+ *   2. DOM removal — delete #modal_preview as soon as FG mounts it.
+ *   3. MutationObserver — re-remove it on any re-creation.
+ *   4. Media killer — any <video>/<audio> added anywhere is immediately
+ *      paused and detached. Defence against FG rendering media outside
+ *      the main preview container.
  */
 (function () {
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
@@ -119,42 +120,51 @@
 
   var style = document.createElement('style');
   style.textContent =
-    '#modal_preview { display: none !important; pointer-events: none !important; visibility: hidden !important; }' +
-    '#modal_preview video, #modal_preview audio, #modal_preview iframe { display: none !important; }' +
-    'html.jambo-picker-mode #modal_preview.modal-pos-active,' +
-    'html.jambo-picker-mode .modal-container { display: none !important; }';
+    '#modal_preview, .modal-container, [id^="modal_"]:not(.toast):not(.toastify) {' +
+    '  display: none !important; pointer-events: none !important; visibility: hidden !important;' +
+    '}' +
+    '#modal_preview video, #modal_preview audio, #modal_preview iframe { display: none !important; }';
   (document.head || document.documentElement).appendChild(style);
-
-  (function waitForAe(attempts) {
-    attempts = attempts || 0;
-    if (attempts > 80) return;
-    if (!window.ae || typeof window.ae.preview !== 'function') {
-      setTimeout(function () { waitForAe(attempts + 1); }, 100);
-      return;
-    }
-    try { window.ae.preview = function () { /* picker-mode no-op */ }; } catch (_) {}
-  })();
 
   function killMediaIn(node) {
     if (!node || !node.querySelectorAll) return;
     node.querySelectorAll('video, audio').forEach(function (media) {
-      try {
-        media.pause();
-        media.removeAttribute('src');
-        media.load();
-      } catch (_) {}
+      try { media.pause(); media.removeAttribute('src'); media.load(); } catch (_) {}
     });
   }
 
-  new MutationObserver(function () {
+  function destroyPreviewNode() {
     var m = document.getElementById('modal_preview');
-    if (!m) return;
-    var cs = window.getComputedStyle(m);
-    if (cs.display !== 'none' || m.classList.contains('modal-pos-active')) {
-      killMediaIn(m);
-      m.style.display = 'none';
+    if (!m) return false;
+    killMediaIn(m);
+    if (m.parentNode) m.parentNode.removeChild(m);
+    return true;
+  }
+
+  // Poll briefly during FG boot — the element is created after files.js runs.
+  var pollTimer = setInterval(function () { destroyPreviewNode(); }, 120);
+  setTimeout(function () { clearInterval(pollTimer); }, 8000);
+
+  // Watchdog for any future re-creation + stray media.
+  new MutationObserver(function (mutations) {
+    for (var i = 0; i < mutations.length; i++) {
+      var m = mutations[i];
+      for (var j = 0; j < m.addedNodes.length; j++) {
+        var n = m.addedNodes[j];
+        if (n.nodeType !== 1) continue;
+        if (n.id === 'modal_preview') {
+          destroyPreviewNode();
+          continue;
+        }
+        if (n.tagName === 'VIDEO' || n.tagName === 'AUDIO') {
+          try { n.pause(); n.removeAttribute('src'); n.load(); } catch (_) {}
+          continue;
+        }
+        if (n.querySelector) {
+          if (n.querySelector('#modal_preview')) destroyPreviewNode();
+          killMediaIn(n);
+        }
+      }
     }
-  }).observe(document.documentElement, {
-    attributes: true, subtree: true, attributeFilter: ['class', 'style']
-  });
+  }).observe(document.documentElement, { childList: true, subtree: true });
 })();

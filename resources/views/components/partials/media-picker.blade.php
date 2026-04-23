@@ -84,19 +84,48 @@
             return [];
         }
 
+        // Normalise the accept list from the form field. Empty list = accept any file.
+        function normalisedAccept() {
+            if (!currentOpts || !Array.isArray(currentOpts.accept)) return [];
+            return currentOpts.accept
+                .map(e => String(e).toLowerCase().replace(/^\./, '').trim())
+                .filter(Boolean);
+        }
+
+        function isAcceptable(item) {
+            const accept = normalisedAccept();
+            if (!accept.length) return true; // no restriction → any file ok
+            const ext = String(item.ext || '').toLowerCase().replace(/^\./, '');
+            return accept.indexOf(ext) !== -1;
+        }
+
         function refreshPickerStatus() {
             const btn = document.getElementById('jamboMediaPickerSelect');
             const status = document.getElementById('jamboMediaPickerStatus');
             if (!btn || !status) return;
             const items = readIframeSelection().filter(it => it && !it.is_dir);
             const count = items.length;
-            btn.disabled = count === 0;
+
             if (count === 0) {
+                btn.disabled = true;
                 status.innerHTML = '<i class="ph ph-info"></i> Click a file in the gallery, then press <strong>Select</strong>.';
                 return;
             }
+
             const first = items[0];
             const name = escapeHtml(first.basename || first.name || 'selected file');
+            const accept = normalisedAccept();
+
+            if (!isAcceptable(first)) {
+                btn.disabled = true;
+                const allowed = accept.length ? accept.join(', ').toUpperCase() : '';
+                status.innerHTML = '<i class="ph ph-warning-circle text-warning"></i> ' +
+                    '<strong>' + name + '</strong> isn\'t a supported type' +
+                    (allowed ? '. Allowed: <span class="text-uppercase">' + escapeHtml(allowed) + '</span>' : '.');
+                return;
+            }
+
+            btn.disabled = false;
             status.innerHTML = count === 1
                 ? '<i class="ph ph-check-circle text-success"></i> Ready to use: <strong>' + name + '</strong>'
                 : '<i class="ph ph-check-circle text-success"></i> ' + count + ' selected — <strong>' + name + '</strong> will be used';
@@ -166,6 +195,7 @@
                     const items = readIframeSelection().filter(it => it && !it.is_dir);
                     if (!items.length) return;
                     const item = items[0];
+                    if (!isAcceptable(item)) return; // safety re-check in case polling lagged
                     const url = resolveSelectedUrl(item);
                     if (!url) return;
                     applySelection(url, {
