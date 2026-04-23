@@ -37,7 +37,9 @@ class FileManagerServiceProvider extends ServiceProvider
      */
     protected function registerCommands(): void
     {
-        // $this->commands([]);
+        $this->commands([
+            \Modules\FileManager\app\Console\Commands\InstallFilesGalleryCommand::class,
+        ]);
     }
 
     /**
