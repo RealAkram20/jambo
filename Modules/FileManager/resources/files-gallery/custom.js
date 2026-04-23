@@ -198,17 +198,26 @@
   // (highest possible spot in event flow) gets there first. preventDefault +
   // stopImmediatePropagation stops both the <a href="..."> navigation AND
   // FG's preview-open logic — click becomes pure selection, nothing else.
+  // FG's file-grid template is `<a class="files-a files-a-${type}">` where
+  // `type` is "dir" for folders and "img", "audio", "svg", "url", "loaded"
+  // or similar for files. Folder anchors therefore carry the class
+  // `files-a-dir` — we MUST let those pass through so FG's own handler
+  // can navigate into the directory.
+  function isFolderAnchor(a) {
+    if (!a || !a.classList) return false;
+    if (a.classList.contains('files-a-dir')) return true;
+    // Fallbacks for older FG builds or the folder tree in the sidebar.
+    if (a.classList.contains('folder') || a.classList.contains('menu-a')) return true;
+    if (a.dataset && (a.dataset.is_dir === 'true' || a.dataset.is_dir === '1')) return true;
+    return false;
+  }
+
   function handleFileClick(e) {
-    var a = e.target && e.target.closest ? e.target.closest('.files-a') : null;
+    var a = e.target && e.target.closest ? e.target.closest('.files-a, .menu-a') : null;
     if (!a) return;
 
-    // Folders must still navigate — only files should be hijacked.
-    // FG marks folder anchors with `dir` in their class list or `data-is_dir`.
-    var isFolder =
-      (a.classList && (a.classList.contains('folder') || a.classList.contains('dir'))) ||
-      a.dataset.is_dir === 'true' ||
-      a.dataset.is_dir === '1';
-    if (isFolder) return;
+    // Folders / menu links must still navigate.
+    if (isFolderAnchor(a)) return;
 
     e.preventDefault();
     e.stopImmediatePropagation();
@@ -241,13 +250,15 @@
     var target = e.target;
     if (target && target.closest && target.closest('.files-a')) {
       var a = target.closest('.files-a');
-      var isFolder =
-        (a.classList && (a.classList.contains('folder') || a.classList.contains('dir'))) ||
-        a.dataset.is_dir === 'true';
-      if (!isFolder) {
+      if (!isFolderAnchor(a)) {
         e.preventDefault();
         e.stopImmediatePropagation();
-        handleFileClick({ target: a, preventDefault: function(){}, stopImmediatePropagation: function(){}, stopPropagation: function(){} });
+        handleFileClick({
+          target: a,
+          preventDefault: function () {},
+          stopImmediatePropagation: function () {},
+          stopPropagation: function () {},
+        });
       }
     }
   }, true);
