@@ -68,6 +68,28 @@ class Episode extends Model
         );
     }
 
+    /**
+     * Public watch URL for this episode:
+     * `/episode/<show-slug>/s<season-number>/ep<episode-number>`.
+     *
+     * Eager-loads `season.show` on the fly if the relationship isn't
+     * already in memory so callers in loops don't N+1 themselves. Pass a
+     * pre-loaded Show via $showOverride when the episode was fetched from
+     * a scope that doesn't hydrate season.show (e.g. watchlist cards).
+     */
+    public function frontendUrl(?Show $showOverride = null): string
+    {
+        $show = $showOverride
+            ?? $this->season?->show
+            ?? $this->loadMissing('season.show')->season->show;
+
+        return route('frontend.episode', [
+            'show' => $show->slug,
+            'season' => $this->season->number,
+            'episode' => $this->number,
+        ]);
+    }
+
     public function ratings(): MorphMany
     {
         return $this->morphMany(Rating::class, 'ratable');

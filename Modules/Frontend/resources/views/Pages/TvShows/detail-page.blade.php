@@ -11,6 +11,13 @@
     $trailer = $show->trailer_url;
     $cast = $show->cast->filter(fn ($p) => ($p->pivot->role ?? null) === 'actor');
     $crew = $show->cast->filter(fn ($p) => in_array(($p->pivot->role ?? null), ['director', 'writer', 'producer']));
+
+    // First episode of the show — the "Watch / Play now" hero button jumps
+    // straight here so viewers don't have to click season-1-episode-1
+    // manually after landing on the detail page.
+    $firstSeason   = $seasons->sortBy('number')->first();
+    $firstEpisode  = $firstSeason?->episodes->sortBy('number')->first();
+    $firstEpUrl    = $firstEpisode ? $firstEpisode->frontendUrl($show) : '#';
     $seasons = $show->seasons->sortBy('number');
 @endphp
 
@@ -61,7 +68,7 @@
                         'movieViews' => number_format($show->views_count) . ' ' . __('streamTag.views'),
                         'imdbRating' => $show->rating ?: '—',
                         'movieLanguage' => 'english',
-                        'videoUrl' => route('frontend.episode'),
+                        'videoUrl' => $firstEpUrl,
                         'movieDescription' => $show->synopsis,
                         'movieGenres' => $show->genres->pluck('name')->all(),
                         'watchableType' => 'show',
@@ -102,7 +109,7 @@
                                             @foreach ($season->episodes->sortBy('number') as $ep)
                                                 <div class="swiper-slide">
                                                     @include('frontend::components.cards.episode-card', [
-                                                        'episodePath' => route('frontend.episode'),
+                                                        'episodePath' => $ep->frontendUrl($show),
                                                         'showImg' => $ep->still_url ?: 'media/episode/s1e1-the-buddha.webp',
                                                         'id' => $ep->id,
                                                         'episodeNumber' => 'S' . str_pad($season->number, 2, '0', STR_PAD_LEFT) . 'E' . str_pad($ep->number, 2, '0', STR_PAD_LEFT),

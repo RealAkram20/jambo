@@ -81,13 +81,13 @@
                                                 @endphp
                                                 <li class="d-flex align-items-center gap-3">
                                                     <div class="image-box flex-shrink-0">
-                                                        <a href="{{ route('frontend.episode', $ep->id) }}">
+                                                        <a href="{{ $ep->frontendUrl($item) }}">
                                                             <img src="{{ $epSrc }}" alt="{{ $ep->title }}" class="img-fluid rounded">
                                                         </a>
                                                     </div>
                                                     <div class="image-details">
                                                         <h6 class="mb-1 text-capitalize">
-                                                            <a href="{{ route('frontend.episode', $ep->id) }}">
+                                                            <a href="{{ $ep->frontendUrl($item) }}">
                                                                 {{ __('streamEpisode.episode') ?? 'Episode' }} {{ $ep->number }}
                                                             </a>
                                                         </h6>

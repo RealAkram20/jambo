@@ -44,7 +44,7 @@
             // Movies open the pretty /watchlist/{slug} queue player.
             $detailUrl = match ($kind) {
                 'show'    => route('frontend.series_detail', $watchable->slug),
-                'episode' => route('frontend.episode', $watchable->id),
+                'episode' => $watchable->frontendUrl(),
                 default   => route('frontend.watchlist_play', $watchable->slug),
             };
         @endphp

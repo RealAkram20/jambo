@@ -14,8 +14,8 @@
             . 'E' . str_pad($ep->number, 2, '0', STR_PAD_LEFT)
             . ' — ' . $ep->title;
     };
-    $prevEpUrl   = $previousEpisode ? route('frontend.episode', $previousEpisode->id) : null;
-    $nextEpUrl   = $nextEpisode     ? route('frontend.episode', $nextEpisode->id)     : null;
+    $prevEpUrl   = $previousEpisode ? $previousEpisode->frontendUrl() : null;
+    $nextEpUrl   = $nextEpisode     ? $nextEpisode->frontendUrl()     : null;
     $prevEpLabel = $epLabel($previousEpisode);
     $nextEpLabel = $epLabel($nextEpisode);
 @endphp
@@ -138,7 +138,7 @@
                                         @foreach ($sEpisodes as $ep)
                                             <div class="swiper-slide {{ $ep->id === $episode->id ? 'is-playing' : '' }}">
                                                 @include('frontend::components.cards.episode-card', [
-                                                    'episodePath' => route('frontend.episode', $ep->id),
+                                                    'episodePath' => $ep->frontendUrl($show),
                                                     'showImg' => $ep->still_url ?: 'media/episode/s1e1-the-buddha.webp',
                                                     'id' => $ep->id,
                                                     'episodeNumber' => 'S' . str_pad($s->number, 2, '0', STR_PAD_LEFT) . 'E' . str_pad($ep->number, 2, '0', STR_PAD_LEFT),
@@ -264,9 +264,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     // id is what the heartbeat writes against.
     let payableId = {{ Js::from($episode->id) }};
     let nextEpisodeId = {{ Js::from($nextEpisode ? $nextEpisode->id : null) }};
-    let nextEpisodeUrl = {{ Js::from($nextEpisode ? route('frontend.episode', $nextEpisode->id) : null) }};
+    let nextEpisodeUrl = {{ Js::from($nextEpisode ? $nextEpisode->frontendUrl() : null) }};
     let prevEpisodeId = {{ Js::from($previousEpisode ? $previousEpisode->id : null) }};
-    let prevEpisodeUrl = {{ Js::from($previousEpisode ? route('frontend.episode', $previousEpisode->id) : null) }};
+    let prevEpisodeUrl = {{ Js::from($previousEpisode ? $previousEpisode->frontendUrl() : null) }};
 
     // Guests don't have watch history — skip the heartbeat loop.
     const isAuthed = {{ auth()->check() ? 'true' : 'false' }};

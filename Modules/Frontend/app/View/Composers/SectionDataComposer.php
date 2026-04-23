@@ -368,7 +368,7 @@ class SectionDataComposer
             'subtitle'        => $ep . ' · ' . $e->title,
             'progressPercent' => $h->progressPercent(),
             'minutesLeft'     => $this->minutesLeft($h, $e->runtime_minutes),
-            'watchLink'       => route('frontend.episode', $e->id),
+            'watchLink'       => $e->frontendUrl($show),
             // For shows, remove-by-show_id wipes every episode's history,
             // otherwise a kept row would re-surface the show card on the
             // next render (composer dedupes by show).

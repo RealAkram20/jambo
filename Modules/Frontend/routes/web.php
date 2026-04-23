@@ -43,7 +43,19 @@ Route::group([], function () {
             : redirect()->route('frontend.series', [], 301);
     });
     // Same guest-friendly logic as /watch.
-    Route::get('/episode/{slug?}', [FrontendController::class, 'episode'])->name('frontend.episode');
+    // Pretty episode URL: /episode/<show-slug>/s<season-number>/ep<episode-number>.
+    // The show segment matches any slug; season and episode are constrained
+    // to digits via the 's' / 'ep' prefixes in the URL + numeric wheres.
+    Route::get('/episode/{show}/s{season}/ep{episode}', [FrontendController::class, 'episode'])
+        ->where('season', '\d+')
+        ->where('episode', '\d+')
+        ->name('frontend.episode');
+
+    // Legacy fallback: old numeric-id URLs redirect into the pretty form so
+    // any links shared before the rename keep working.
+    Route::get('/episode/{id}', [FrontendController::class, 'episodeLegacyRedirect'])
+        ->where('id', '\d+')
+        ->name('frontend.episode_legacy');
     Route::get('/api/v1/episodes/{episode}/player-data', [FrontendController::class, 'episodePlayerData'])
         ->middleware('auth')
         ->name('frontend.episode_player_data');
@@ -111,7 +123,7 @@ Route::group([], function () {
             return redirect()->route('frontend.watchlist_play', $w->slug, 301);
         }
         if ($w instanceof \Modules\Content\app\Models\Episode) {
-            return redirect()->route('frontend.episode', $w->id, 301);
+            return redirect($w->frontendUrl(), 301);
         }
         return redirect()->route('frontend.watchlist_detail');
     })->middleware('auth');

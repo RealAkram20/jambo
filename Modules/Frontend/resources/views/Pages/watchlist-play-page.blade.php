@@ -49,7 +49,7 @@
                                             // movies to the pretty /watchlist/{slug} queue player.
                                             $rowUrl = match (true) {
                                                 $isShow    => route('frontend.series_detail', $w->slug),
-                                                $isEpisode => route('frontend.episode', $w->id),
+                                                $isEpisode => $w->frontendUrl(),
                                                 default    => route('frontend.watchlist_play', $w->slug),
                                             };
 

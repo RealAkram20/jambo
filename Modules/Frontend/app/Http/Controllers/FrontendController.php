@@ -613,18 +613,33 @@ class FrontendController extends Controller
         return [$reviews, $stats, $myReview];
     }
 
-    public function episode(?string $slug = null)
+    /**
+     * Legacy numeric-id episode URL → 301 to the pretty form.
+     * Preserves old bookmarks and any links minted before the route rename.
+     */
+    public function episodeLegacyRedirect(int $id)
     {
-        $episode = null;
-        if ($slug) {
-            $episode = Episode::where('id', $slug)->first();
-        }
-        if (! $episode) {
-            $episode = Episode::published()->first() ?? Episode::first();
-        }
+        $ep = Episode::with('season.show')->find($id);
+        abort_unless($ep && $ep->season && $ep->season->show, 404);
+        return redirect($ep->frontendUrl(), 301);
+    }
 
-        abort_unless($episode, 404);
-        $episode->load(['season.show.genres', 'season.show.cast', 'season.show.seasons.episodes']);
+    public function episode(string $show, int $season, int $episode)
+    {
+        // Match (show slug, season number, episode number) → one episode row.
+        // Fails to 404 if any segment doesn't resolve, so hand-crafted URLs
+        // with a typo'd slug or deleted episode return a proper not-found
+        // rather than silently serving whatever Episode::first() found.
+        $episodeModel = Episode::whereHas('season', function ($q) use ($season, $show) {
+                $q->where('number', $season)
+                  ->whereHas('show', fn ($s) => $s->where('slug', $show));
+            })
+            ->where('number', $episode)
+            ->first();
+
+        abort_unless($episodeModel, 404);
+        $episodeModel->load(['season.show.genres', 'season.show.cast', 'season.show.seasons.episodes']);
+        $episode = $episodeModel; // rest of the method reads $episode
         $show = $episode->season->show;
 
         $source = $episode->streamSource();
@@ -796,7 +811,7 @@ class FrontendController extends Controller
 
         return response()->json([
             'id'              => $episode->id,
-            'detailUrl'       => route('frontend.episode', $episode->id),
+            'detailUrl'       => $episode->frontendUrl(),
             'title'           => $label($episode),
             'showTitle'       => $show->title,
             'videoUrl'        => $source['url'] ?? null,
@@ -805,12 +820,12 @@ class FrontendController extends Controller
             'resumePosition'  => $resume,
             'nextEpisode'     => $next ? [
                 'id'        => $next->id,
-                'url'       => route('frontend.episode', $next->id),
+                'url'       => $next->frontendUrl(),
                 'label'     => $label($next),
             ] : null,
             'previousEpisode' => $prev ? [
                 'id'        => $prev->id,
-                'url'       => route('frontend.episode', $prev->id),
+                'url'       => $prev->frontendUrl(),
                 'label'     => $label($prev),
             ] : null,
         ]);
@@ -1171,7 +1186,10 @@ class FrontendController extends Controller
             ->first();
 
         if ($resume) {
-            return redirect()->route('frontend.episode', $resume->watchable_id);
+            $resumeEp = Episode::with('season.show')->find($resume->watchable_id);
+            if ($resumeEp) {
+                return redirect($resumeEp->frontendUrl());
+            }
         }
 
         $firstEpisode = Episode::whereHas('season', fn ($q) => $q->where('show_id', $show->id))
@@ -1184,7 +1202,7 @@ class FrontendController extends Controller
                 ->with('info', 'This series has no episodes yet.');
         }
 
-        return redirect()->route('frontend.episode', $firstEpisode->id);
+        return redirect($firstEpisode->frontendUrl($show));
     }
 
     /**
