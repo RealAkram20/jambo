@@ -43,6 +43,7 @@
     <div class="overflow-hidden">
         @include('frontend::components.sections.continue-watching', ['value' => '6', 'sectionPaddingClass' => true])
         @include('frontend::components.sections.top-ten-block')
+        @include('frontend::components.sections.top-ten-tvshow')
         @include('frontend::components.sections.only-on-streamit')
         @include('frontend::components.sections.fresh-picks-just-for-you')
         @include('frontend::components.sections.upcomming', ['viewAllBtn' => true])

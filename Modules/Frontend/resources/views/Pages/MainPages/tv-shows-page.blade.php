@@ -39,6 +39,15 @@
          overflow is handled at the body level in custom.css. --}}
     <div class="container-fluid pb-5 mb-4 px-2 px-md-3">
         <div>
+            {{-- Top 10 Series — scoring algorithm and data are shared
+                 with Top 10 Movies on the home page. SectionDataComposer
+                 auto-populates $topShows with the same cold-start →
+                 weighted blend used for movies (views + completions +
+                 watchlist + ratings + reviews + editor_boost). --}}
+            <div class="overflow-hidden mb-4">
+                @include('frontend::components.sections.top-ten-tvshow')
+            </div>
+
             {{-- VJ carousels for series: each row is one VJ (narrator /
                  translator). Mirrors the /movie page layout — first 5
                  server-rendered, the rest fetched via Load More so the
