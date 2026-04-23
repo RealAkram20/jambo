@@ -55,16 +55,7 @@
     (function () {
         if (window.JamboMediaPicker) return;
 
-        @php
-            // App base path (e.g. "/Jambo" on XAMPP, "" on a domain-root
-            // VPS deploy, "/something" on a subdir install). Used to strip
-            // the machine-specific prefix off picked URLs so the stored
-            // form value stays app-relative and portable across environments.
-            $jamboAppBase = rtrim(parse_url(rtrim(url('/'), '/'), PHP_URL_PATH) ?? '', '/');
-        @endphp
-
         const FM_BASE = @json(url('storage/media/index.php'));
-        const APP_BASE = @json($jamboAppBase);
         let modalEl = null;
         let modalInstance = null;
         let currentOpts = null;
@@ -169,49 +160,39 @@
             pollHandle = null;
         }
 
-        // Resolve the chosen file to an **app-relative path** starting with
-        // `/`. That's the format Jambo's form validators expect:
-        //   video_local   regex:/^\//                  (strict: no http://)
-        //   poster_url,
-        //   backdrop_url,
-        //   video_url,
-        //   trailer_url   regex:/^(https?:\/\/|\/)/    (accepts both, but
-        //                                               app-relative is
-        //                                               portable across
-        //                                               localhost / jambo.test
-        //                                               / production)
+        // Resolve the chosen file to a **domain-root-relative path** starting
+        // with `/` — e.g. `/Jambo/storage/gallery/Movies/foo.mp4` on XAMPP or
+        // `/storage/gallery/Movies/foo.mp4` on a domain-root VPS. That's the
+        // value Jambo's form validators want (regex /^\// on video_local,
+        // regex /^(https?:\/\/|\/)/ on poster_url etc.) AND what the player
+        // can feed straight into `<video src="...">` without any url() /
+        // asset() wrapping.
         //
         // Files Gallery's anchors use relative hrefs like
         // `../gallery/Movies/foo.mp4`. We resolve those against the iframe's
-        // own location to get an absolute URL's pathname, then strip the app
-        // base (`/Jambo` on XAMPP, `""` on a domain-root deploy).
+        // own location to get the absolute URL's pathname — which, because
+        // the iframe itself lives under the app (e.g. /Jambo/storage/media/
+        // on XAMPP), naturally includes whatever app prefix is in play.
+        // Same code path works on every deploy without hardcoding a base.
         function resolveSelectedUrl(item) {
             const frame = document.getElementById('jamboMediaPickerFrame');
             const fg = frame && frame.contentWindow;
             const base = (fg && fg.location && fg.location.href) || window.location.href;
 
-            let pathname = '';
             if (item.url_path) {
                 try {
-                    pathname = new URL(item.url_path, base).pathname;
+                    return new URL(item.url_path, base).pathname;
                 } catch (_) {
-                    pathname = item.url_path.replace(/^https?:\/\/[^\/]+/i, '');
+                    return item.url_path.replace(/^https?:\/\/[^\/]+/i, '');
                 }
-            } else if (item.path && fg && fg.location) {
-                // Fallback: PHP proxy. Stays under the iframe's pathname so
-                // stripping APP_BASE still works.
-                const proxy = fg.location.pathname + '?action=file&file=' + encodeURIComponent(item.path);
-                pathname = proxy;
             }
-
-            if (!pathname) return '';
-
-            // Strip the app base prefix so the stored value is portable.
-            if (APP_BASE && pathname.indexOf(APP_BASE + '/') === 0) {
-                pathname = pathname.slice(APP_BASE.length);
+            if (item.path && fg && fg.location) {
+                // Fallback: route through Files Gallery's PHP proxy for files
+                // outside the public symlink. The pathname already carries
+                // the app prefix.
+                return fg.location.pathname + '?action=file&file=' + encodeURIComponent(item.path);
             }
-            // Preserve any query string (needed for the PHP proxy fallback).
-            return pathname;
+            return '';
         }
 
         function ensureModal() {
