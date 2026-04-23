@@ -68,6 +68,46 @@ if (! function_exists('setting')) {
     }
 }
 
+if (! function_exists('media_url')) {
+    /**
+     * Resolve a media URL for posters, backdrops, stills, thumbnails, etc.
+     *
+     * Handles three storage conventions Jambo now has to juggle:
+     *
+     *   1. Full URLs  (`https://picsum.photos/…`, `https://dropbox.com/…`)
+     *      — return as-is.
+     *   2. App-absolute paths (`/Jambo/storage/gallery/…` on XAMPP,
+     *      `/storage/gallery/…` on a domain-root deploy) — return as-is.
+     *      The browser resolves a leading `/` against the current origin,
+     *      which is exactly what the picker produces. Wrapping with
+     *      `asset()` or `url()` here would double-prefix `/Jambo` and
+     *      break the URL.
+     *   3. Legacy bare filenames (`media/gameofhero.webp` — from the
+     *      Streamit template era when values were relative to
+     *      `public/frontend/images/`) — fall back to asset().
+     *
+     * When the value is null/empty, optionally resolves a fallback the
+     * same way so callers can pass `media_url($item->poster_url,
+     * 'media/gameofhero.webp')` and get sensible behaviour across all
+     * three conventions without repeating the check at every call site.
+     */
+    function media_url(?string $value, ?string $fallback = null, string $legacyDir = 'frontend/images'): string
+    {
+        if (!empty($value)) {
+            // Already a resolvable URL — full (http://…) or app-absolute (/…).
+            if (preg_match('#^(https?://|/)#i', $value)) {
+                return $value;
+            }
+            // Legacy: filename relative to public/frontend/images.
+            return asset(trim($legacyDir, '/') . '/' . ltrim($value, '/'));
+        }
+        if ($fallback !== null) {
+            return media_url($fallback, null, $legacyDir);
+        }
+        return '';
+    }
+}
+
 if (! function_exists('branding_asset')) {
     /**
      * Resolve a branding asset URL (logo, favicon, preloader).

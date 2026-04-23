@@ -1,7 +1,5 @@
 @php
-    $castSrc = \Illuminate\Support\Str::startsWith($castImg, ['http://', 'https://'])
-        ? $castImg
-        : asset('frontend/images/cast/' . $castImg);
+    $castSrc = media_url($castImg, null, 'frontend/images/cast');
 @endphp
 <div class="iq-cast position-relative">
     <div class="cast-images position-relative">

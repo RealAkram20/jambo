@@ -6,9 +6,7 @@
      * $item  Movie (with genres loaded)
      */
     $thumbImg = $item->backdrop_url ?: $item->poster_url;
-    $thumbSrc = $thumbImg && \Illuminate\Support\Str::startsWith($thumbImg, ['http://', 'https://'])
-        ? $thumbImg
-        : ($thumbImg ? asset('frontend/images/' . $thumbImg) : asset('frontend/images/media/the-first-of-us.webp'));
+    $thumbSrc = media_url($thumbImg, 'media/the-first-of-us.webp');
 
     $runtime = $item->runtime_minutes
         ? floor($item->runtime_minutes / 60) . 'hr : ' . ($item->runtime_minutes % 60) . 'm'

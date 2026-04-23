@@ -1,8 +1,6 @@
 @php
     $productPremium = $productPremium ?? false;
-    $topTenSrc = \Illuminate\Support\Str::startsWith($imagePath, ['http://', 'https://'])
-        ? $imagePath
-        : asset('frontend/images/media/' . $imagePath);
+    $topTenSrc = media_url($imagePath, null, 'frontend/images/media');
 @endphp
 <div class="iq-top-ten-block position-relative">
     <div class="block-image position-relative">

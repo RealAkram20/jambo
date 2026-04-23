@@ -10,9 +10,7 @@
 
     // Background: backdrop → poster fallback → template default
     $bg = $item->backdrop_url ?: $item->poster_url;
-    $bgSrc = $bg && \Illuminate\Support\Str::startsWith($bg, ['http://', 'https://'])
-        ? $bg
-        : ($bg ? asset('frontend/images/' . $bg) : asset('frontend/images/media/gameofhero.webp'));
+    $bgSrc = media_url($bg, 'media/gameofhero.webp');
 
     // Detail URL
     $detailUrl = $isShow

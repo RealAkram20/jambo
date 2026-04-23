@@ -7,9 +7,7 @@
 @php
     $fullName = trim(($person->first_name ?? '') . ' ' . ($person->last_name ?? ''));
     $photo = $person->photo_url;
-    $photoSrc = $photo && \Illuminate\Support\Str::startsWith($photo, ['http://', 'https://'])
-        ? $photo
-        : ($photo ? asset('frontend/images/cast/' . $photo) : asset('frontend/images/cast/charles-melton.webp'));
+    $photoSrc = media_url($photo, 'charles-melton.webp', 'frontend/images/cast');
 @endphp
 
 @section('content')

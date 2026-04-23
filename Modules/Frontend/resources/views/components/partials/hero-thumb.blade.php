@@ -6,9 +6,7 @@
      */
     $isShow = $item->_isShow ?? false;
     $thumbImg = $item->poster_url;
-    $thumbSrc = $thumbImg && \Illuminate\Support\Str::startsWith($thumbImg, ['http://', 'https://'])
-        ? $thumbImg
-        : ($thumbImg ? asset('frontend/images/' . $thumbImg) : asset('frontend/images/media/gameofhero-portrait.webp'));
+    $thumbSrc = media_url($thumbImg, 'media/gameofhero-portrait.webp');
 
     if ($isShow) {
         $meta = $item->seasons->count() . ' ' . __('streamEpisode.season');

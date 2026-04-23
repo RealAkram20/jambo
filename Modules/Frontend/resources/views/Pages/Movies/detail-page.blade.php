@@ -2,9 +2,7 @@
 
 @php
     $backdrop = $movie->backdrop_url ?: $movie->poster_url;
-    $posterSrc = $backdrop && \Illuminate\Support\Str::startsWith($backdrop, ['http://', 'https://'])
-        ? $backdrop
-        : ($backdrop ? asset('frontend/images/' . $backdrop) : asset('frontend/images/media/gameofhero.webp'));
+    $posterSrc = media_url($backdrop, 'media/gameofhero.webp');
     $trailer = $movie->trailer_url;
     $cast = $movie->cast->filter(fn ($p) => ($p->pivot->role ?? null) === 'actor');
     $crew = $movie->cast->filter(fn ($p) => in_array(($p->pivot->role ?? null), ['director', 'writer', 'producer']));

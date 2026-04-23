@@ -1,7 +1,5 @@
 @php
-    $ggSrc = \Illuminate\Support\Str::startsWith($image, ['http://', 'https://'])
-        ? $image
-        : asset('frontend/images/' . $image);
+    $ggSrc = media_url($image);
 @endphp
 <div class="iq-card-geners position-relative card-hover-style-two">
     <div class="img-box position-relative">

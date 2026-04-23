@@ -7,9 +7,7 @@
 
 @php
     $backdrop = $show->backdrop_url ?: $show->poster_url;
-    $posterSrc = $backdrop && \Illuminate\Support\Str::startsWith($backdrop, ['http://', 'https://'])
-        ? $backdrop
-        : ($backdrop ? asset('frontend/images/' . $backdrop) : asset('frontend/images/media/vikings.webp'));
+    $posterSrc = media_url($backdrop, 'media/vikings.webp');
     $trailer = $show->trailer_url;
     $cast = $show->cast->filter(fn ($p) => ($p->pivot->role ?? null) === 'actor');
     $crew = $show->cast->filter(fn ($p) => in_array(($p->pivot->role ?? null), ['director', 'writer', 'producer']));

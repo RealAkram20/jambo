@@ -21,9 +21,7 @@
                                 @foreach ($trending as $item)
                                     @php
                                         $thumb = $item->backdrop_url ?: $item->poster_url;
-                                        $thumbSrc = $thumb && \Illuminate\Support\Str::startsWith($thumb, ['http://', 'https://'])
-                                            ? $thumb
-                                            : ($thumb ? asset('frontend/images/' . $thumb) : asset('frontend/images/media/rabbit.webp'));
+                                        $thumbSrc = media_url($thumb, 'media/rabbit.webp');
                                     @endphp
                                     <li class="swiper-slide">
                                         <a href="{{ route('frontend.movie_detail', $item->slug) }}" tabindex="0">
@@ -41,9 +39,7 @@
                                 @foreach ($trending as $item)
                                     @php
                                         $big = $item->backdrop_url ?: $item->poster_url;
-                                        $bigSrc = $big && \Illuminate\Support\Str::startsWith($big, ['http://', 'https://'])
-                                            ? $big
-                                            : ($big ? asset('frontend/images/' . $big) : asset('frontend/images/media/rabbit.webp'));
+                                        $bigSrc = media_url($big, 'media/rabbit.webp');
                                     @endphp
                                     <li class="swiper-slide slider-big-img-6">
                                         <div class="shows-img position-relative">

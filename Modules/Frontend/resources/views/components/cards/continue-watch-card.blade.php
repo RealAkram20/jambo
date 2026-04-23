@@ -3,10 +3,18 @@
     // relative storage paths (e.g. "media/episode/foo.webp"). Falls
     // back to bundled placeholder art when the content record has
     // nothing set.
-    $cwImg = $imagePath ?? 'gameofhero.webp';
-    $cwSrc = \Illuminate\Support\Str::startsWith($cwImg, ['http://', 'https://'])
-        ? $cwImg
-        : asset('frontend/images/' . (\Illuminate\Support\Str::startsWith($cwImg, 'media/') ? '' : 'media/') . $cwImg);
+    // Accepts absolute URLs, app-absolute paths (from the picker), or
+    // bare legacy filenames relative to public/frontend/images/media/.
+    $cwImg = $imagePath ?? 'media/gameofhero.webp';
+    $cwSrc = media_url(
+        $cwImg,
+        'media/gameofhero.webp',
+        // Legacy shim: values saved as just "foo.webp" (no "media/" prefix)
+        // historically landed in frontend/images/media/. Preserve that.
+        \Illuminate\Support\Str::startsWith($cwImg, ['http://', 'https://', '/', 'media/'])
+            ? 'frontend/images'
+            : 'frontend/images/media'
+    );
     $cwLink = $watchLink ?? '#';
     $cwProgress = $progressValue ?? '0%';
     $cwLeft = $dataLeftTime ?? 0;

@@ -9,9 +9,7 @@
      *   $rank   int, 1-based position in the Top 10
      */
     $bg = $item->backdrop_url ?: $item->poster_url;
-    $bgSrc = $bg && \Illuminate\Support\Str::startsWith($bg, ['http://', 'https://'])
-        ? $bg
-        : ($bg ? asset('frontend/images/' . $bg) : asset('frontend/images/media/pirates-ofdayones-orignal.webp'));
+    $bgSrc = media_url($bg, 'media/pirates-ofdayones-orignal.webp');
 
     $detailUrl = route('frontend.series_detail', $item->slug);
     $releaseLabel = ($item->published_at ?? $item->created_at)?->format('F Y') ?? '';
@@ -79,9 +77,7 @@
                                             @foreach ($season->episodes->sortBy('number')->take(4) as $ep)
                                                 @php
                                                     $epImg = $ep->still_url;
-                                                    $epSrc = $epImg && \Illuminate\Support\Str::startsWith($epImg, ['http://', 'https://'])
-                                                        ? $epImg
-                                                        : ($epImg ? asset('frontend/images/' . $epImg) : asset('frontend/images/media/episode/s1e1-the-buddha.webp'));
+                                                    $epSrc = media_url($epImg, 'media/episode/s1e1-the-buddha.webp');
                                                 @endphp
                                                 <li class="d-flex align-items-center gap-3">
                                                     <div class="image-box flex-shrink-0">

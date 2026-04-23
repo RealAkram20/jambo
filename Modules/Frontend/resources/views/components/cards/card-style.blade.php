@@ -13,9 +13,7 @@
     $cardGenres = $cardGenres ?? null;
     $watchableType = $watchableType ?? null;
     $watchableId = $watchableId ?? null;
-    $imgSrc = \Illuminate\Support\Str::startsWith($cardImage, ['http://', 'https://'])
-        ? $cardImage
-        : asset('frontend/images/' . $cardImage);
+    $imgSrc = media_url($cardImage);
 
     // Lookup the "in watchlist" state from the per-request index
     // shared by SectionDataComposer. Guests always see "+".

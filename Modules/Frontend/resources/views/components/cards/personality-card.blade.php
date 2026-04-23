@@ -1,7 +1,5 @@
 @php
-    $castSrc = \Illuminate\Support\Str::startsWith($castImage, ['http://', 'https://'])
-        ? $castImage
-        : asset('frontend/images/cast/' . $castImage);
+    $castSrc = media_url($castImage, null, 'frontend/images/cast');
     $castLink = $castLink ?? route('frontend.cast_details');
 @endphp
 <a href="{{ $castLink }}">

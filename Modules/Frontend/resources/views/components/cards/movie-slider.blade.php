@@ -1,7 +1,5 @@
 @php
-    $sliderImg = \Illuminate\Support\Str::startsWith($imagePath, ['http://', 'https://'])
-        ? $imagePath
-        : asset('frontend/images/' . $imagePath);
+    $sliderImg = media_url($imagePath);
 @endphp
 <div class="swiper-slide {{ $movieCard }} p-0">
     <div class="movie-banner-image" style="background-image: url('{{ $sliderImg }}');">
