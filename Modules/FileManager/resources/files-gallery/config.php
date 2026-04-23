@@ -12,6 +12,16 @@ return [
     // source videos and HLS streams. Served publicly at /storage/gallery/<path>.
     'root' => '../gallery',
 
+    // Force Files Gallery to emit file URLs relative to its own index.php
+    // URL (/…/storage/media/index.php), so '../gallery/foo.jpg' resolves to
+    // /…/storage/gallery/foo.jpg in the browser — which then hits Laravel's
+    // public/storage symlink cleanly. Without this override, FG computes
+    // URLs from the physical path (/…/storage/app/public/gallery/foo.jpg),
+    // which our root .htaccess sends through Laravel's front controller →
+    // 404 on every preview. Relative URLs are host-agnostic, so the same
+    // value works on localhost, jambo.test, and the production VPS.
+    'root_url_path' => '../gallery',
+
     // Not needed: the gallery folder lives inside the public symlink so files
     // resolve to direct URLs. Keep this off for speed (no PHP-streaming overhead).
     'load_files_proxy_php' => false,
