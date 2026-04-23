@@ -118,12 +118,41 @@
 
   document.documentElement.classList.add('jambo-picker-mode');
 
+  // Strip every Files Gallery UI control that distracts from the one job the
+  // picker has: browse folders, click a file, confirm in the parent modal.
+  // The list below is deliberately specific (by id / class) rather than broad
+  // so a future FG version that renames something fails visibly (we notice
+  // a stray control) rather than silently over-hiding.
   var style = document.createElement('style');
-  style.textContent =
-    '#modal_preview, .modal-container, [id^="modal_"]:not(.toast):not(.toastify) {' +
-    '  display: none !important; pointer-events: none !important; visibility: hidden !important;' +
-    '}' +
-    '#modal_preview video, #modal_preview audio, #modal_preview iframe { display: none !important; }';
+  style.textContent = [
+    // 1. Preview / playback paths
+    '#modal_preview, .modal-container { display: none !important; visibility: hidden !important; pointer-events: none !important; }',
+    '#modal_preview video, #modal_preview audio, #modal_preview iframe { display: none !important; }',
+    '#audioplayer, [class*="audioplayer"] { display: none !important; }',
+
+    // 2. The file-details popover with maximize/fullscreen/more — the main
+    //    source of confusion: admins click maximize thinking it means "select",
+    //    FG plays the file instead. Parent modal owns the selection workflow.
+    '#topbar-info { display: none !important; }',
+
+    // 3. FG\'s own selection-action bar (bulk delete/zip/move). In picker mode
+    //    the admin selects exactly one file and confirms with our Select.
+    '.topbar-select, .buttons-selected, #select-mode-button { display: none !important; }',
+
+    // 4. Top-right chrome — fullscreen toggle, theme switcher, language menu,
+    //    user settings. All irrelevant when the iframe is embedded.
+    '#topbar-fullscreen, #change-theme, #change-lang, #user-settings { display: none !important; }',
+
+    // 5. Right-click context menu (rename / delete / properties).
+    '#contextmenu { display: none !important; }',
+
+    // 6. Per-tile play overlay on video thumbnails — visible cue that click
+    //    "plays". In picker mode click only selects.
+    '.play { display: none !important; }',
+
+    // 7. FG notifications strip (status toasts for ops we don\'t expose here).
+    '#files-notifications { display: none !important; }',
+  ].join('\n');
   (document.head || document.documentElement).appendChild(style);
 
   function killMediaIn(node) {
