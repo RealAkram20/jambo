@@ -45,7 +45,7 @@ class ReservedUsername implements ValidationRule
 
         // Extra pages
         'about-us', 'contact-us', 'faq_page', 'privacy-policy',
-        'terms-and-policy', 'comming-soon', 'pricing-page',
+        'terms-and-policy', 'comming-soon', 'pricing', 'pricing-page',
         'error-page1', 'error-page2',
 
         // Notifications + system

@@ -169,7 +169,12 @@ Route::group([], function () {
     Route::get('/privacy-policy', [FrontendController::class, 'privacy'])->name('frontend.privacy-policy');
     Route::get('/terms-and-policy', [FrontendController::class, 'terms_and_policy'])->name('frontend.terms-and-policy');
     Route::get('/comming-soon', [FrontendController::class, 'comming_soon_page'])->name('frontend.comming-soon');
-    Route::get('/pricing-page', [FrontendController::class, 'pricing_page'])->name('frontend.pricing-page');
+    // Pricing lives at /pricing. Route name kept as `frontend.pricing-page`
+    // so the ~13 callsites that reference it don't need touching; the old
+    // `/pricing-page` URL 301s into the new shorter form for any
+    // bookmarks / external links that point at it.
+    Route::get('/pricing', [FrontendController::class, 'pricing_page'])->name('frontend.pricing-page');
+    Route::redirect('/pricing-page', '/pricing', 301);
     Route::get('/error-page1', [FrontendController::class, 'error_page1'])->name('frontend.error_page1');
     Route::get('/error-page2', [FrontendController::class, 'error_page2'])->name('frontend.error_page2');
 
