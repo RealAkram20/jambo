@@ -11,7 +11,7 @@
                     @include('frontend::components.cards.personality-card', [
                         'castImage' => $person->photo_url ?: 'olivia-foster.webp',
                         'castTitle' => trim(($person->first_name ?? '') . ' ' . ($person->last_name ?? '')),
-                        'castCategory' => $person->known_for ?: __('favouritePersonalities.actor'),
+                        'castCategory' => null,
                         'castLink' => route('frontend.cast_details', $person->slug),
                     ])
                 </li>

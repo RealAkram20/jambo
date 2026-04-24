@@ -60,6 +60,7 @@ class Show extends Model
 
     public const STATUS_DRAFT = 'draft';
     public const STATUS_PUBLISHED = 'published';
+    public const STATUS_UPCOMING = 'upcoming';
 
     public function categories(): BelongsToMany
     {
@@ -117,6 +118,16 @@ class Show extends Model
         return $q->where('status', self::STATUS_PUBLISHED)
             ->whereNotNull('published_at')
             ->where('published_at', '<=', now());
+    }
+
+    /**
+     * Announced / scheduled series — visible in the Upcoming rail only.
+     * `published_at` here is the intended release date (may be null if
+     * the admin hasn't picked one yet).
+     */
+    public function scopeUpcoming(Builder $q): Builder
+    {
+        return $q->where('status', self::STATUS_UPCOMING);
     }
 
     protected static function newFactory(): ShowFactory

@@ -10,6 +10,8 @@
         <a href="{{ $castLink }}"
             class="font-size-14 text-decoration-none cast-title text-capitalize">{{ $castTitle }}</a>
     </h6>
-    <a href="{{ $castLink }}"
-        class="font-size-12 fw-semibold text-decoration-none text-capitalize text-body">{{ $castCategory }}&nbsp;&nbsp;{{ $otherCastCategory ?? '' }}</a>
+    @if (!empty($castCategory))
+        <a href="{{ $castLink }}"
+            class="font-size-12 fw-semibold text-decoration-none text-capitalize text-body">{{ $castCategory }}&nbsp;&nbsp;{{ $otherCastCategory ?? '' }}</a>
+    @endif
 </div>

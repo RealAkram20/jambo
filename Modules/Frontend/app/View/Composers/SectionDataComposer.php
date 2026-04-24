@@ -10,6 +10,7 @@ use Modules\Content\app\Models\Genre;
 use Modules\Content\app\Models\Movie;
 use Modules\Content\app\Models\Person;
 use Modules\Content\app\Models\Show;
+use Modules\Frontend\app\Services\TopPicksRecommender;
 use Modules\Streaming\app\Models\WatchHistoryItem;
 use Modules\Streaming\app\Models\WatchlistItem;
 
@@ -89,16 +90,19 @@ class SectionDataComposer
             // Movies
             'latestMovies'   => $movieBase()->orderByDesc('published_at')->take(10)->get(),
             'popularMovies'  => $movieBase()->orderByDesc('views_count')->take(10)->get(),
-            'topMovies'      => $this->topPicks(Movie::class, 10),
-            'upcomingMovies' => $movieBase()->where('published_at', '>', now())->orderBy('published_at')->take(10)->get(),
-            'recommendedMovies' => $movieBase()->inRandomOrder()->take(10)->get(),
+            'topMovies'      => app(TopPicksRecommender::class)->globalTopPicks(Movie::class, 10),
+            // Upcoming — driven by the STATUS_UPCOMING flag, not a future
+            // published_at (the old query was unsatisfiable because the
+            // published() scope already forces published_at <= now).
+            'upcomingMovies' => app(TopPicksRecommender::class)->upcoming(auth()->id(), 10),
+            'recommendedMovies' => app(TopPicksRecommender::class)->smartShuffle(auth()->id(), 10),
             'specialsMovies' => $movieBase()->orderByDesc('published_at')->take(10)->get(),
-            'freshMovies'    => $movieBase()->inRandomOrder()->take(10)->get(),
+            'freshMovies'    => app(TopPicksRecommender::class)->freshPicks(auth()->id(), 10),
 
             // Shows
             'latestShows'    => $showBase()->orderByDesc('published_at')->take(10)->get(),
             'popularShows'   => $showBase()->orderByDesc('views_count')->take(10)->get(),
-            'topShows'       => $this->topPicks(Show::class, 10),
+            'topShows'       => app(TopPicksRecommender::class)->globalTopPicks(Show::class, 10),
             'recommendedShows' => $showBase()->inRandomOrder()->take(10)->get(),
             'internationalShows' => $showBase()->inRandomOrder()->take(10)->get(),
 
@@ -114,13 +118,11 @@ class SectionDataComposer
                 ->take(5)
                 ->get(),
 
-            // Tab slider — Top 10 Series of the Day (shows + all seasons + episodes)
-            'tabSeries' => Show::published()
-                ->with(['seasons.episodes'])
-                ->orderByDesc('views_count')
-                ->orderByDesc('published_at')
-                ->take(10)
-                ->get(),
+            // Tab slider — Top 10 Series of the Day: ranked by distinct 24h
+            // viewers, cached on a per-date key so the shelf is stable within
+            // the day and flips at midnight. Falls back to all-time popularity
+            // when daily activity is thin. See TopPicksRecommender.
+            'tabSeries' => app(TopPicksRecommender::class)->topSeriesOfTheDay(10),
 
             // Only on Streamit — premium/exclusive (movies with tier_required set)
             'exclusiveMovies' => Movie::published()
@@ -130,12 +132,10 @@ class SectionDataComposer
                 ->take(8)
                 ->get(),
 
-            // Top Picks — separate from topMovies, curated-feel random draw
-            'topPicks' => Movie::published()
-                ->with('genres')
-                ->inRandomOrder()
-                ->take(8)
-                ->get(),
+            // Top Picks — personalised per viewer. Warm users get a genre/cast
+            // affinity ranking; cold users and guests fall back to the global
+            // weighted blend. See docs/plans/top-picks-personalization.md.
+            'topPicks' => $this->resolveTopPicks(8),
 
             // Home Genres rail — genres with poster fallback via picsum seed
             'homeGenres' => Genre::withCount(['movies', 'shows'])
@@ -287,74 +287,22 @@ class SectionDataComposer
     }
 
     /**
-     * Weighted "Top Picks" ranking for the Top 10 row — blends
-     * popularity, quality (completion rate), editorial sentiment,
-     * recency, and an admin-set boost into a single SQL-side score.
-     *
-     * Signals & weights (tuned for a small catalog; raise/lower the
-     * multipliers without breaking anything):
-     *   + 1.0 × views_count                      popularity
-     *   + 3.0 × completed_count                  quality (people finished it)
-     *   + 0.5 × watchlist_count                  wish-to-watch
-     *   + 2.0 × AVG(user stars)                  sentiment (0..10 contribution)
-     *   + 0.5 × published_review_count           buzz
-     *   - 0.01 × days_since_published            mild recency decay
-     *   + 100 × editor_boost                     editorial override
-     *
-     * Cold-start: when the platform has fewer than COLD_START_MIN
-     * completions across all titles of this kind, the algorithm
-     * would rank noise — so fall back to "most-viewed + newest".
-     *
-     * @param class-string<Movie|Show> $modelClass
+     * Route the Top Picks shelf through the personal recommender.
+     * Rollout flag lets us fall back to the old random draw live if
+     * the algorithm ships with a bug — flip without a redeploy.
      */
-    private const COLD_START_MIN = 20;
-
-    private function topPicks(string $modelClass, int $limit = 10)
+    private function resolveTopPicks(int $limit): Collection
     {
-        $completionsTotal = \DB::table('watch_history')
-            ->where('watchable_type', $modelClass)
-            ->where('completed', true)
-            ->count();
-
-        $base = $modelClass::published()->with('genres');
-
-        if ($completionsTotal < self::COLD_START_MIN) {
-            // Editor boost wins even during cold-start — admins pinning
-            // a title should work on day one, not only after the
-            // organic-signal threshold is reached.
-            return $base
-                ->orderByDesc('editor_boost')
-                ->orderByDesc('views_count')
-                ->orderByDesc('published_at')
-                ->take($limit)
-                ->get();
+        if (!config('frontend.recommendations.enabled', true)) {
+            return Movie::published()->with('genres')->inRandomOrder()->take($limit)->get();
         }
 
-        $table = (new $modelClass)->getTable();
+        $recommender = app(TopPicksRecommender::class);
+        $uid = auth()->id();
 
-        // Morph columns differ per table — watch_history/watchlist use
-        // `watchable_*`, ratings uses `ratable_*`, reviews uses
-        // `reviewable_*`. Parameterised so the same SQL fits both
-        // Movie and Show callers.
-        return $base
-            ->select($table . '.*')
-            ->selectRaw("(
-                1.0 * {$table}.views_count
-                + 3.0 * COALESCE((SELECT COUNT(*) FROM watch_history
-                        WHERE watchable_type = ? AND watchable_id = {$table}.id AND completed = 1), 0)
-                + 0.5 * COALESCE((SELECT COUNT(*) FROM watchlist_items
-                        WHERE watchable_type = ? AND watchable_id = {$table}.id), 0)
-                + 2.0 * COALESCE((SELECT AVG(stars) FROM ratings
-                        WHERE ratable_type = ? AND ratable_id = {$table}.id), 0)
-                + 0.5 * COALESCE((SELECT COUNT(*) FROM reviews
-                        WHERE reviewable_type = ? AND reviewable_id = {$table}.id AND is_published = 1), 0)
-                - 0.01 * COALESCE(DATEDIFF(NOW(), {$table}.published_at), 0)
-                + 100 * COALESCE({$table}.editor_boost, 0)
-            ) AS top_pick_score", [$modelClass, $modelClass, $modelClass, $modelClass])
-            ->orderByDesc('top_pick_score')
-            ->orderByDesc('views_count')   // stable tiebreaker
-            ->take($limit)
-            ->get();
+        return $uid
+            ? $recommender->forUser($uid, $limit)
+            : $recommender->forGuest($limit);
     }
 
     private function buildEpisodeCard(WatchHistoryItem $h, Episode $e): object

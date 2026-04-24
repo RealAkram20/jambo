@@ -5,8 +5,12 @@ namespace Modules\Frontend\app\Providers;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use Modules\Content\app\Models\Rating;
+use Modules\Frontend\app\Observers\PersonalisationCacheObserver;
 use Modules\Frontend\app\View\Composers\HeaderComposer;
 use Modules\Frontend\app\View\Composers\SectionDataComposer;
+use Modules\Streaming\app\Models\WatchHistoryItem;
+use Modules\Streaming\app\Models\WatchlistItem;
 
 class FrontendServiceProvider extends ServiceProvider
 {
@@ -26,6 +30,20 @@ class FrontendServiceProvider extends ServiceProvider
         $this->registerViews();
         $this->loadMigrationsFrom(module_path($this->moduleName, 'database/migrations'));
         $this->registerViewComposers();
+        $this->registerPersonalisationObservers();
+    }
+
+    /**
+     * Writes to any of the recommender's signal tables invalidate that
+     * user's Top Picks cache. Attached here so the rest of the app doesn't
+     * have to know about the cache — saving a Rating or WatchlistItem
+     * transparently refreshes the shelf.
+     */
+    protected function registerPersonalisationObservers(): void
+    {
+        WatchHistoryItem::observe(PersonalisationCacheObserver::class);
+        Rating::observe(PersonalisationCacheObserver::class);
+        WatchlistItem::observe(PersonalisationCacheObserver::class);
     }
 
     /**

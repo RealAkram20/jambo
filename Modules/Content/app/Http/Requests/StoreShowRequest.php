@@ -23,7 +23,7 @@ class StoreShowRequest extends FormRequest
             'backdrop_url' => ['nullable', 'string', 'max:500', 'regex:/^(https?:\/\/|\/)/'],
             'trailer_url' => ['nullable', 'string', 'max:500', 'regex:/^(https?:\/\/|\/)/'],
             'tier_required' => 'nullable|string|max:50',
-            'status' => 'required|in:draft,published',
+            'status' => 'required|in:draft,published,upcoming',
 
             'genre_ids' => 'nullable|array',
             'genre_ids.*' => 'integer|exists:genres,id',

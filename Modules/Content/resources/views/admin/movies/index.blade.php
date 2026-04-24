@@ -11,6 +11,7 @@
                         <p class="text-muted mb-0" style="font-size:13px;">
                             {{ $statusCounts['all'] }} total
                             · {{ $statusCounts['published'] }} published
+                            · {{ $statusCounts['upcoming'] }} upcoming
                             · {{ $statusCounts['draft'] }} drafts
                         </p>
                     </div>
@@ -34,6 +35,7 @@
                             <select name="status" class="form-select">
                                 <option value="">All</option>
                                 <option value="published" @selected($statusFilter === 'published')>Published</option>
+                                <option value="upcoming" @selected($statusFilter === 'upcoming')>Upcoming</option>
                                 <option value="draft" @selected($statusFilter === 'draft')>Draft</option>
                             </select>
                         </div>
@@ -93,6 +95,8 @@
                                         <td>
                                             @if ($movie->status === 'published')
                                                 <span class="badge bg-success">Published</span>
+                                            @elseif ($movie->status === 'upcoming')
+                                                <span class="badge bg-info">Upcoming</span>
                                             @else
                                                 <span class="badge bg-warning">Draft</span>
                                             @endif

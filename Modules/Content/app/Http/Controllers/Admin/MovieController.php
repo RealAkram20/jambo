@@ -59,6 +59,7 @@ class MovieController extends Controller
             'statusCounts' => [
                 'all' => Movie::count(),
                 'draft' => Movie::where('status', 'draft')->count(),
+                'upcoming' => Movie::where('status', 'upcoming')->count(),
                 'published' => Movie::where('status', 'published')->count(),
             ],
         ]);

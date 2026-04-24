@@ -20,6 +20,8 @@ Route::group([], function () {
     Route::get('/home', [FrontendController::class, 'index'])->name('frontend.index');
     Route::get('/search', [FrontendController::class, 'search'])->name('frontend.search');
     Route::get('/movie', [FrontendController::class, 'movie'])->name('frontend.movie');
+    Route::get('/upcoming', [FrontendController::class, 'upcomingPage'])->name('frontend.upcoming');
+    Route::get('/upcoming/load-more', [FrontendController::class, 'upcomingLoadMore'])->name('frontend.upcoming_load_more');
     Route::get('/movie/more-vjs', [FrontendController::class, 'moreVjsForMoviesPage'])->name('frontend.movie_more_vjs');
     Route::get('/vj/{slug}', [FrontendController::class, 'vjDetail'])->name('frontend.vj_detail');
     Route::get('/vj/{slug}/more', [FrontendController::class, 'vjGenreLoadMore'])->name('frontend.vj_genre_more');

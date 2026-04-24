@@ -18,6 +18,7 @@ use Modules\Content\app\Models\Review;
 use Modules\Payments\app\Models\PaymentOrder;
 use Modules\Subscriptions\app\Models\SubscriptionTier;
 use Modules\Subscriptions\app\Models\UserSubscription;
+use Modules\Frontend\app\Services\TopPicksRecommender;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -128,6 +129,49 @@ class FrontendController extends Controller
         $vjsTotal = Vj::whereHas('movies', fn ($q) => $q->published())->count();
 
         return view('frontend::Pages.MainPages.movies-page', compact('featuredMovies', 'vjs', 'vjsTotal'));
+    }
+
+    /**
+     * Dedicated listing for upcoming titles (movies + shows combined).
+     * Initial render shows the first page; "Load More" pulls the rest
+     * via the AJAX endpoint below.
+     */
+    public function upcomingPage(): \Illuminate\Contracts\View\View
+    {
+        $pageSize = 20;
+        $listing = app(TopPicksRecommender::class)->upcomingListing(0, $pageSize);
+
+        // Hero mirrors the /movie banner — top 3 soonest releases
+        // drawn from the listing we already fetched so we don't hit
+        // the DB twice. Banner hides itself when the catalog is empty.
+        $featured = $listing['items']->take(3);
+
+        return view('frontend::Pages.MainPages.upcoming-page', [
+            'items' => $listing['items'],
+            'total' => $listing['total'],
+            'hasMore' => $listing['hasMore'],
+            'pageSize' => $pageSize,
+            'featured' => $featured,
+        ]);
+    }
+
+    /**
+     * AJAX endpoint — returns the next slice of upcoming cards as
+     * rendered HTML plus an X-Has-More header so the client knows
+     * when to hide the Load More button.
+     */
+    public function upcomingLoadMore(Request $request): \Illuminate\Http\Response
+    {
+        $offset = max(0, (int) $request->query('offset', 0));
+        $limit = min(50, max(1, (int) $request->query('limit', 20)));
+
+        $listing = app(TopPicksRecommender::class)->upcomingListing($offset, $limit);
+
+        $html = view('frontend::components.partials.upcoming-cards', [
+            'items' => $listing['items'],
+        ])->render();
+
+        return response($html)->header('X-Has-More', $listing['hasMore'] ? '1' : '0');
     }
 
     /**

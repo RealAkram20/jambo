@@ -99,6 +99,7 @@
                     <label for="status" class="form-label">Status</label>
                     <select name="status" id="status" class="form-select">
                         <option value="draft" @selected(old('status', $show->status ?: 'draft') === 'draft')>Draft</option>
+                        <option value="upcoming" @selected(old('status', $show->status) === 'upcoming')>Upcoming</option>
                         <option value="published" @selected(old('status', $show->status) === 'published')>Published</option>
                     </select>
                 </div>

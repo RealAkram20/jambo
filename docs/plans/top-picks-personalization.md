@@ -1,10 +1,11 @@
 # Top Picks for You — Personalized Recommendations
 
-**Status:** design spec, not yet implemented
+**Status:** implemented (2026-04-24)
 **Owner:** Frontend module
-**Current behaviour:** `inRandomOrder()->take(8)` — literally a random draw
-**Goal:** replace with a signal-driven personal algorithm that actually
-reflects what each viewer has watched, rated, and saved
+**Shipped behaviour:** signal-driven personal algorithm — `TopPicksRecommender`
+at `Modules/Frontend/app/Services/TopPicksRecommender.php`
+**Goal:** replace the random draw with a ranking that reflects what each
+viewer has watched, rated, and saved
 
 ## Why this exists
 

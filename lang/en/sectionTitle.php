@@ -33,6 +33,7 @@ return [
     "quick_links" => "Quick Links",
     "recommended" => "Recommended",
     "recommended_for_you" => "Recommended for You",
+    "smart_shuffle" => "Smart Shuffle",
     "recommended_movie" => "Recommended Movies",
     "related_movies" => "Related Movies",
     "related_products" => "Related Products",

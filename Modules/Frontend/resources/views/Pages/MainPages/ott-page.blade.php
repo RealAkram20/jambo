@@ -66,7 +66,7 @@
         @include('frontend::components.sections.geners')
 
         @include('frontend::components.sections.recommended', [
-        'recommended' => __('sectionTitle.recommended_for_you'), 'viewAllBtn' => true,
+        'recommended' => __('sectionTitle.smart_shuffle'), 'viewAllBtn' => true,
         ])
 
         @include('frontend::components.sections.top-pict')

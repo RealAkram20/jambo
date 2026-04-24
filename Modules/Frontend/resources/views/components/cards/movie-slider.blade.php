@@ -1,5 +1,9 @@
 @php
     $sliderImg = media_url($imagePath);
+    // Optional override so callers like the Upcoming hero can swap
+    // "Play Now" for a context-appropriate label without a second
+    // partial. Existing callers that don't pass one get the default.
+    $buttonLabel = $buttonLabel ?? __('streamButtons.play_now');
 @endphp
 <div class="swiper-slide {{ $movieCard }} p-0">
     <div class="movie-banner-image" style="background-image: url('{{ $sliderImg }}');">
@@ -92,7 +96,7 @@
                     </div>
                     <a href="{{ $buttonUrl }}" class="btn btn-primary position-relative rounded-3">
                         <div class="d-flex align-items-center gap-2">
-                            <span class="button-text">{{ __('streamButtons.play_now') }}</span>
+                            <span class="button-text">{{ $buttonLabel }}</span>
                             <i class="ph-fill ph-play"></i>
                         </div>
                     </a>

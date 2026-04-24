@@ -49,7 +49,7 @@ class ReservedUsername implements ValidationRule
         'error-page1', 'error-page2',
 
         // Notifications + system
-        'notifications', 'view-all',
+        'notifications', 'view-all', 'upcoming',
 
         // Short reserved words worth blocking so we don't paint
         // ourselves into a corner later

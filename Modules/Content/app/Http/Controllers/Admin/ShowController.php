@@ -55,6 +55,7 @@ class ShowController extends Controller
             'statusCounts' => [
                 'all' => Show::count(),
                 'draft' => Show::where('status', 'draft')->count(),
+                'upcoming' => Show::where('status', 'upcoming')->count(),
                 'published' => Show::where('status', 'published')->count(),
             ],
         ]);

@@ -32,7 +32,7 @@ class StoreMovieRequest extends FormRequest
             // object storage and passing a URL, not through PHP.
             'video_file' => 'nullable|file|mimetypes:video/mp4,video/webm,video/quicktime,video/x-matroska|max:2097152',
             'tier_required' => 'nullable|string|max:50',
-            'status' => 'required|in:draft,published',
+            'status' => 'required|in:draft,published,upcoming',
 
             'genre_ids' => 'nullable|array',
             'genre_ids.*' => 'integer|exists:genres,id',

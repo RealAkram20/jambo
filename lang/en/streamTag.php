@@ -71,6 +71,11 @@ return [
     'view' => 'View',
     'views' => 'Views',
 
+    // Listing / empty-state copy
+    'no_upcoming' => 'No upcoming titles announced yet. Check back soon.',
+    'no_results' => 'Nothing here yet.',
+    'release_tbd' => 'Release date TBD',
+
     // Months
     'january' => 'January',
     'february' => 'February',
