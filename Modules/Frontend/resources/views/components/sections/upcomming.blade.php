@@ -16,7 +16,9 @@
         $upcIsShow = false;
         $t = __('sectionTitle.upcoming_title');
         $upcTitle = $t === 'sectionTitle.upcoming_title' ? 'Upcoming' : $t;
-        $upcHref = route('frontend.movie');
+        // Dedicated listing page now exists; old code routed to /movie
+        // because there was nowhere upcoming-specific to send people.
+        $upcHref = route('frontend.upcoming');
         $upcFallback = 'media/rabbit-portrait.webp';
     }
 @endphp

@@ -132,6 +132,14 @@ Route::group([], function () {
     Route::get('/view-all', [FrontendController::class, 'view_all'])->name('frontend.view_all');
 
     //Genres pages
+    // NOTE: /geners/{slug}/vjs, /series-vjs and their more endpoints
+    // must be registered before /geners/{slug?} so Laravel matches
+    // them as their own handlers rather than falling through to the
+    // single-genre view.
+    Route::get('/geners/{slug}/vjs', [FrontendController::class, 'genreVjs'])->name('frontend.genre_vjs');
+    Route::get('/geners/{slug}/vjs/more', [FrontendController::class, 'genreVjsLoadMore'])->name('frontend.genre_vjs_more');
+    Route::get('/geners/{slug}/series-vjs', [FrontendController::class, 'genreVjsShows'])->name('frontend.genre_vjs_shows');
+    Route::get('/geners/{slug}/series-vjs/more', [FrontendController::class, 'genreVjsShowsLoadMore'])->name('frontend.genre_vjs_shows_more');
     Route::get('/geners/{slug?}', [FrontendController::class, 'genres'])->name('frontend.genres');
     Route::get('/all-genres', [FrontendController::class, 'all_genres'])->name('frontend.all-genres');
 

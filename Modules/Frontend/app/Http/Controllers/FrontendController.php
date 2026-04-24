@@ -217,6 +217,170 @@ class FrontendController extends Controller
     }
 
     /**
+     * Genre-scoped variant of topVjsForPage(). Same ordering rule
+     * ("most productive VJ first") but both the inclusion check and
+     * the eager-loaded movies are filtered to the given genre so
+     * each carousel contains only titles from that genre.
+     */
+    private function topVjsForGenre(int $genreId, int $offset, int $limit)
+    {
+        $inGenre = fn ($q) => $q->published()
+            ->whereHas('genres', fn ($gq) => $gq->where('genres.id', $genreId));
+
+        return Vj::whereHas('movies', $inGenre)
+            ->withCount(['movies as movies_count' => $inGenre])
+            ->with(['movies' => function ($q) use ($inGenre) {
+                $inGenre($q);
+                $q->with('genres')->orderByDesc('published_at')->limit(10);
+            }])
+            ->orderByDesc('movies_count')
+            ->orderBy('id')
+            ->skip($offset)
+            ->take($limit)
+            ->get();
+    }
+
+    /**
+     * Shows/series twin of topVjsForGenre(). Orders VJs by how many
+     * shows they have in the genre, and eager-loads only those shows.
+     */
+    private function topVjsForShowsByGenre(int $genreId, int $offset, int $limit)
+    {
+        $inGenre = fn ($q) => $q->published()
+            ->whereHas('genres', fn ($gq) => $gq->where('genres.id', $genreId));
+
+        return Vj::whereHas('shows', $inGenre)
+            ->withCount(['shows as shows_count' => $inGenre])
+            ->with(['shows' => function ($q) use ($inGenre) {
+                $inGenre($q);
+                $q->with('genres')->orderByDesc('published_at')->limit(10);
+            }])
+            ->orderByDesc('shows_count')
+            ->orderBy('id')
+            ->skip($offset)
+            ->take($limit)
+            ->get();
+    }
+
+    /**
+     * /geners/{slug}/vjs — genre-scoped VJ view for movies. Mirrors
+     * /movie: banner of 3 featured titles + VJ carousels filtered to
+     * this genre, each VJ's carousel showing their most-recent titles
+     * in the genre only. Load More pulls additional VJs via AJAX.
+     */
+    public function genreVjs(string $slug): \Illuminate\Contracts\View\View
+    {
+        $genre = Genre::where('slug', $slug)->firstOrFail();
+
+        $featured = Movie::published()
+            ->whereHas('genres', fn ($q) => $q->where('genres.id', $genre->id))
+            ->orderByDesc('published_at')
+            ->take(3)
+            ->get();
+
+        $vjs = $this->topVjsForGenre($genre->id, 0, 5);
+        $vjsTotal = Vj::whereHas('movies', fn ($q) => $q->published()
+                ->whereHas('genres', fn ($gq) => $gq->where('genres.id', $genre->id)))
+            ->count();
+
+        return view('frontend::Pages.geners-vjs-page', [
+            'genre' => $genre,
+            'featured' => $featured,
+            'vjs' => $vjs,
+            'vjsTotal' => $vjsTotal,
+            'contentKind' => 'movie',
+        ]);
+    }
+
+    /**
+     * AJAX twin of genreVjs() — returns rendered VJ-carousel HTML
+     * for the next page plus an X-Has-More header.
+     */
+    public function genreVjsLoadMore(string $slug, Request $request): \Illuminate\Http\Response
+    {
+        $genre = Genre::where('slug', $slug)->firstOrFail();
+        $offset = max(0, (int) $request->query('offset', 0));
+        $limit  = min(10, max(1, (int) $request->query('limit', 5)));
+
+        $vjs = $this->topVjsForGenre($genre->id, $offset, $limit);
+
+        $total = Vj::whereHas('movies', fn ($q) => $q->published()
+                ->whereHas('genres', fn ($gq) => $gq->where('genres.id', $genre->id)))
+            ->count();
+        $hasMore = ($offset + $vjs->count()) < $total;
+
+        $html = '';
+        foreach ($vjs as $vj) {
+            $html .= view('frontend::components.sections.vj-carousel', [
+                'vj' => $vj,
+                'items' => $vj->movies,
+                'contentKind' => 'movie',
+            ])->render();
+        }
+
+        return response($html)->header('X-Has-More', $hasMore ? '1' : '0');
+    }
+
+    /**
+     * Shows/series twin of genreVjs(). Same page layout, but scoped
+     * to series: hero drawn from shows in the genre, VJ carousels
+     * show each VJ's shows in the genre (not their movies).
+     */
+    public function genreVjsShows(string $slug): \Illuminate\Contracts\View\View
+    {
+        $genre = Genre::where('slug', $slug)->firstOrFail();
+
+        $featured = Show::published()
+            ->whereHas('genres', fn ($q) => $q->where('genres.id', $genre->id))
+            ->with(['seasons'])
+            ->orderByDesc('published_at')
+            ->take(3)
+            ->get();
+
+        $vjs = $this->topVjsForShowsByGenre($genre->id, 0, 5);
+        $vjsTotal = Vj::whereHas('shows', fn ($q) => $q->published()
+                ->whereHas('genres', fn ($gq) => $gq->where('genres.id', $genre->id)))
+            ->count();
+
+        return view('frontend::Pages.geners-vjs-page', [
+            'genre' => $genre,
+            'featured' => $featured,
+            'vjs' => $vjs,
+            'vjsTotal' => $vjsTotal,
+            'contentKind' => 'show',
+        ]);
+    }
+
+    /**
+     * AJAX twin of genreVjsShows() — returns rendered VJ-carousel
+     * HTML for the next page plus an X-Has-More header.
+     */
+    public function genreVjsShowsLoadMore(string $slug, Request $request): \Illuminate\Http\Response
+    {
+        $genre = Genre::where('slug', $slug)->firstOrFail();
+        $offset = max(0, (int) $request->query('offset', 0));
+        $limit  = min(10, max(1, (int) $request->query('limit', 5)));
+
+        $vjs = $this->topVjsForShowsByGenre($genre->id, $offset, $limit);
+
+        $total = Vj::whereHas('shows', fn ($q) => $q->published()
+                ->whereHas('genres', fn ($gq) => $gq->where('genres.id', $genre->id)))
+            ->count();
+        $hasMore = ($offset + $vjs->count()) < $total;
+
+        $html = '';
+        foreach ($vjs as $vj) {
+            $html .= view('frontend::components.sections.vj-carousel', [
+                'vj' => $vj,
+                'items' => $vj->shows,
+                'contentKind' => 'show',
+            ])->render();
+        }
+
+        return response($html)->header('X-Has-More', $hasMore ? '1' : '0');
+    }
+
+    /**
      * Shows-side twin of topVjsForPage(). Keeps the two endpoints
      * (/series initial render and /series/more-vjs) in lockstep on
      * ordering.
@@ -1348,11 +1512,50 @@ class FrontendController extends Controller
             $genre = Genre::where('slug', $slug)->firstOrFail();
             $movies = $genre->movies()->published()->with('genres')->get();
             $shows = $genre->shows()->published()->with('genres')->get();
-            return view('frontend::Pages.geners-page', compact('genre', 'movies', 'shows'));
+            $featured = $this->featuredForGenre($genre->id);
+            return view('frontend::Pages.geners-page', compact('genre', 'movies', 'shows', 'featured'));
         }
 
         $genres = Genre::withCount(['movies', 'shows'])->orderBy('name')->get();
         return view('frontend::Pages.geners-page', compact('genres'));
+    }
+
+    /**
+     * Up to 3 movies + 3 shows in the given genre, interleaved (movie,
+     * show, movie, show, …) for the hero carousel. Mirrors the
+     * mixed-hero pattern SectionDataComposer::buildHero() uses on the
+     * home page so the visual rhythm is consistent. Each item is
+     * tagged `_isShow` so the blade can pick the right detail route
+     * and relations without a separate instance check.
+     */
+    private function featuredForGenre(int $genreId)
+    {
+        $inGenre = fn ($q) => $q->where('genres.id', $genreId);
+
+        $movies = Movie::published()
+            ->whereHas('genres', $inGenre)
+            ->with('genres')
+            ->orderByDesc('published_at')
+            ->take(3)
+            ->get()
+            ->each(fn ($m) => $m->_isShow = false);
+
+        $shows = Show::published()
+            ->whereHas('genres', $inGenre)
+            ->with(['genres', 'seasons'])
+            ->orderByDesc('published_at')
+            ->take(3)
+            ->get()
+            ->each(fn ($s) => $s->_isShow = true);
+
+        $items = collect();
+        $max = max($movies->count(), $shows->count());
+        for ($i = 0; $i < $max; $i++) {
+            if (isset($movies[$i])) $items->push($movies[$i]);
+            if (isset($shows[$i]))  $items->push($shows[$i]);
+        }
+
+        return $items;
     }
 
     /* ---------------------------------------------------------------

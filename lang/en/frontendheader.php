@@ -6,6 +6,7 @@ return [
     'main_home' => 'Main Home',
     'ott_home' => 'OTT Home',
     'movie' => 'Movie',
+    'movies' => 'Movies',
     'tv_show' => 'Series',
     'tvshow' => 'Series',
     'episode' => 'Episode',
