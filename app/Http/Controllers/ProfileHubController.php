@@ -81,6 +81,11 @@ class ProfileHubController extends Controller
                 'required', 'email', 'max:255',
                 'unique:users,email,' . $user->id,
             ],
+            // Optional. Used as the prefill on PesaPal's hosted
+            // checkout so mobile-money users don't have to retype.
+            // Accept any printable chars so users can format with
+            // spaces / dashes — we strip formatting before sending.
+            'phone' => ['nullable', 'string', 'max:32'],
         ]);
 
         $emailChanged = strcasecmp($data['email'], $user->email) !== 0;
@@ -90,6 +95,7 @@ class ProfileHubController extends Controller
             'last_name'  => $data['last_name'],
             'username'   => $data['username'],
             'email'      => strtolower($data['email']),
+            'phone'      => $data['phone'] !== null ? trim($data['phone']) : null,
         ]);
 
         // Email change → force re-verification.

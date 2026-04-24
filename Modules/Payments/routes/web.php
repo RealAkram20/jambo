@@ -21,6 +21,13 @@ Route::post('payment/create-order', [PaymentController::class, 'createOrder'])
     ->middleware(['auth'])
     ->name('payment.create-order');
 
+// Polled by the iframe modal on the pricing page. Scoped to the
+// current user so one viewer can't observe another's payment status.
+Route::get('payment/status/{ref}', [PaymentController::class, 'status'])
+    ->middleware(['auth'])
+    ->where('ref', '[A-Za-z0-9\-]+')
+    ->name('payment.status');
+
 Route::get('payment/callback', [PaymentController::class, 'callback'])
     ->name('payment.callback');
 

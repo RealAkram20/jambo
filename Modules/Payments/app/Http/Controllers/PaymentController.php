@@ -40,40 +40,79 @@ class PaymentController extends Controller
     /* createOrder                                                          */
     /* -------------------------------------------------------------------- */
 
-    public function createOrder(Request $request): JsonResponse
+    public function createOrder(Request $request)
     {
+        // Two call styles supported:
+        //   1. subscription_tier_id / tier_slug — pricing page flow. We
+        //      resolve the tier, copy amount + currency off the tier so
+        //      the UI can't lie about the price, and set payable_* to
+        //      SubscriptionTier so ActivateSubscriptionFromPayment fires
+        //      when the gateway confirms payment.
+        //   2. amount / description — legacy/direct call for one-off
+        //      payments (rentals, merch). payable_* optional.
         $data = $request->validate([
-            'amount' => 'required|numeric|min:1',
+            'subscription_tier_id' => 'nullable|integer|exists:subscription_tiers,id',
+            'tier_slug' => 'nullable|string|max:100|exists:subscription_tiers,slug',
+            'amount' => 'nullable|numeric|min:1',
             'currency' => 'nullable|string|size:3',
-            'description' => 'required|string|max:100',
+            'description' => 'nullable|string|max:100',
             'payable_type' => 'nullable|string|max:100',
             'payable_id' => 'nullable|integer',
             'metadata' => 'nullable|array',
         ]);
 
         if (!$this->gateway->isConfigured()) {
-            return response()->json([
-                'ok' => false,
-                'error' => 'Payments are not configured. Please contact support.',
-            ], 503);
+            return $this->createOrderFailure(
+                $request,
+                'Payments are not configured. Please contact support.',
+                503,
+            );
         }
 
         $user = $request->user();
-        $currency = $data['currency'] ?? config('payments.currency', 'KES');
+        $tier = $this->resolveTier($data);
+
+        if ($tier) {
+            $amount = (float) $tier->price;
+            $currency = $tier->currency ?: config('payments.currency', 'UGX');
+            $description = "Jambo — {$tier->name}";
+            $payableType = \Modules\Subscriptions\app\Models\SubscriptionTier::class;
+            $payableId = $tier->id;
+            $metadata = array_merge($data['metadata'] ?? [], [
+                'tier_slug' => $tier->slug,
+                'tier_name' => $tier->name,
+                'billing_period' => $tier->billing_period,
+            ]);
+        } else {
+            if (empty($data['amount']) || empty($data['description'])) {
+                return $this->createOrderFailure(
+                    $request,
+                    'Amount and description are required for non-tier payments.',
+                    422,
+                );
+            }
+            $amount = (float) $data['amount'];
+            $currency = $data['currency'] ?? config('payments.currency', 'UGX');
+            $description = $data['description'];
+            $payableType = $data['payable_type'] ?? null;
+            $payableId = $data['payable_id'] ?? null;
+            $metadata = $data['metadata'] ?? null;
+        }
+
         $merchantRef = $this->buildMerchantReference($user->id);
 
         try {
-            $order = DB::transaction(function () use ($user, $data, $currency, $merchantRef) {
+            $order = DB::transaction(function () use ($user, $amount, $currency, $merchantRef, $payableType, $payableId, $metadata) {
                 return PaymentOrder::create([
                     'user_id' => $user->id,
-                    'payable_type' => $data['payable_type'] ?? null,
-                    'payable_id' => $data['payable_id'] ?? null,
+                    'payable_type' => $payableType,
+                    'payable_id' => $payableId,
                     'merchant_reference' => $merchantRef,
-                    'amount' => $data['amount'],
+                    'amount' => $amount,
                     'currency' => $currency,
                     'status' => PaymentOrder::STATUS_PENDING,
                     'payment_gateway' => $this->gateway->slug(),
-                    'metadata' => $data['metadata'] ?? null,
+                    'metadata' => $metadata,
                 ]);
             });
 
@@ -85,9 +124,9 @@ class PaymentController extends Controller
 
             $response = $this->gateway->submitOrder(
                 merchantReference: $merchantRef,
-                amount: (float) $data['amount'],
+                amount: $amount,
                 currency: $currency,
-                description: $data['description'],
+                description: $description,
                 callbackUrl: $callbackUrl,
                 billingAddress: $billingAddress,
                 cancellationUrl: $cancellationUrl,
@@ -98,11 +137,17 @@ class PaymentController extends Controller
                 'raw_response' => $response['raw'] ?? null,
             ]);
 
-            return response()->json([
-                'ok' => true,
-                'redirect_url' => $response['redirect_url'],
-                'merchant_reference' => $merchantRef,
-            ]);
+            // Form posts (pricing page) redirect straight to the hosted
+            // checkout; XHR / JSON callers get the URL to follow themselves.
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'ok' => true,
+                    'redirect_url' => $response['redirect_url'],
+                    'merchant_reference' => $merchantRef,
+                ]);
+            }
+
+            return redirect()->away($response['redirect_url']);
         } catch (Throwable $e) {
             Log::error('[payments] createOrder failed', [
                 'user_id' => $user->id,
@@ -114,11 +159,38 @@ class PaymentController extends Controller
                 $order->update(['status' => PaymentOrder::STATUS_FAILED]);
             }
 
-            return response()->json([
-                'ok' => false,
-                'error' => 'Could not start payment. Please try again.',
-            ], 500);
+            return $this->createOrderFailure(
+                $request,
+                'Could not start payment. Please try again.',
+                500,
+            );
         }
+    }
+
+    private function resolveTier(array $data): ?\Modules\Subscriptions\app\Models\SubscriptionTier
+    {
+        if (!empty($data['subscription_tier_id'])) {
+            return \Modules\Subscriptions\app\Models\SubscriptionTier::where('id', $data['subscription_tier_id'])
+                ->where('is_active', true)
+                ->first();
+        }
+        if (!empty($data['tier_slug'])) {
+            return \Modules\Subscriptions\app\Models\SubscriptionTier::where('slug', $data['tier_slug'])
+                ->where('is_active', true)
+                ->first();
+        }
+        return null;
+    }
+
+    private function createOrderFailure(Request $request, string $message, int $status)
+    {
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json(['ok' => false, 'error' => $message], $status);
+        }
+
+        return redirect()
+            ->route('frontend.pricing-page')
+            ->with('error', $message);
     }
 
     /* -------------------------------------------------------------------- */
@@ -199,6 +271,35 @@ class PaymentController extends Controller
             'result' => $result,
             'order' => $order,
             'message' => $request->query('message'),
+        ]);
+    }
+
+    /**
+     * JSON status endpoint polled by the iframe modal on the pricing
+     * page. Scoped to the signed-in user so one viewer can't snoop on
+     * another's payment. Returns:
+     *
+     *   { status: 'pending' | 'completed' | 'failed' | 'cancelled',
+     *     ref: string }
+     *
+     * The modal uses the status transition to close itself and redirect
+     * to the complete page with the right result. We don't leak the raw
+     * gateway payload — that's admin-only information.
+     */
+    public function status(Request $request, string $ref): JsonResponse
+    {
+        $order = PaymentOrder::where('merchant_reference', $ref)
+            ->where('user_id', $request->user()->id)
+            ->first();
+
+        if (!$order) {
+            return response()->json(['ok' => false, 'error' => 'Order not found.'], 404);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'ref' => $order->merchant_reference,
+            'status' => $order->status,
         ]);
     }
 
@@ -323,7 +424,10 @@ class PaymentController extends Controller
             'email_address' => $email,
             'first_name' => $first ?: 'Customer',
             'last_name' => $last ?: 'Jambo',
-            'country_code' => 'KE',
+            // Uganda — the platform's home market. PesaPal validates this
+            // as ISO 3166-1 alpha-2. If you open up to other markets
+            // later, collect it on the user profile and pass it through.
+            'country_code' => setting('payments.billing_country_code', 'UG'),
             'phone_number' => $user->phone ?? null,
         ];
     }

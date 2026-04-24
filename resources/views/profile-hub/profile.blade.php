@@ -53,6 +53,15 @@
                         <small class="text-warning"><i class="ph ph-warning-circle"></i> Not verified</small>
                     @endif
                 </div>
+                <div class="col-md-6 mt-3">
+                    <label class="form-label small text-muted">Phone <span class="text-muted">(optional)</span></label>
+                    <input type="tel" name="phone" class="form-control form-control-sm"
+                           value="{{ old('phone', $user->phone) }}"
+                           placeholder="+256 700 123 456"
+                           maxlength="32"
+                           autocomplete="tel">
+                    <small class="text-muted">Used to prefill payments with M-Pesa, MTN MoMo, Airtel Money.</small>
+                </div>
             </div>
 
             <div class="mt-3 d-flex gap-2">

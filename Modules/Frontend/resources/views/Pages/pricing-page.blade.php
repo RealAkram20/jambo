@@ -19,6 +19,13 @@
 @section('content')
     <div class="section-padding">
         <div class="container">
+            {{-- Surface server-side errors from the payment flow (gateway
+                 misconfigured, tier inactive, etc.). Same look as the
+                 rest of the site's flash messages. --}}
+            @if (session('error'))
+                <div class="alert alert-danger mb-4 text-center">{{ session('error') }}</div>
+            @endif
+
             <div class="row">
                 @forelse ($tiers as $tier)
                     @php
@@ -69,10 +76,43 @@
                                 </div>
                                 <div class="pricing-plan-footer">
                                     <div class="iq-button">
-                                        <a href="{{ route('frontend.membership-level') }}?tier={{ $tier->slug }}"
-                                            class="btn btn-primary fw-semibold rounded-3">
-                                            {{ __('streamShop.checkout') ?? 'Get started' }}
-                                        </a>
+                                        @php
+                                            // Free tiers have no checkout flow — CTA becomes
+                                            // "Get Started" and drops users onto the homepage
+                                            // so they can browse. Paid tiers POST to the
+                                            // payment gateway directly.
+                                            $isFree = (float) $tier->price <= 0;
+                                        @endphp
+
+                                        @if ($isFree)
+                                            <a href="{{ route('frontend.ott') }}"
+                                                class="btn btn-primary fw-semibold rounded-3 w-100">
+                                                {{ __('streamShop.get_started') }}
+                                            </a>
+                                        @elseif (!auth()->check())
+                                            {{-- Guests: send them to login with an `intended`
+                                                 that bounces back to /pricing so they land on
+                                                 the same tier after signing in. --}}
+                                            <a href="{{ route('login') }}?redirect={{ urlencode(route('frontend.pricing-page')) }}"
+                                                class="btn btn-primary fw-semibold rounded-3 w-100">
+                                                {{ __('streamShop.checkout') }}
+                                            </a>
+                                        @else
+                                            {{-- Tier metadata on data-* attrs so the modal header
+                                                 can show "Complete your payment — Premium Monthly
+                                                 (UGX 30,000)" without a second server request. --}}
+                                            <form method="POST" action="{{ route('payment.create-order') }}"
+                                                  class="jambo-subscribe-form m-0"
+                                                  data-tier-name="{{ $tier->name }}"
+                                                  data-tier-price="{{ $tier->currency }} {{ number_format((float) $tier->price, 0) }} / {{ $tier->periodLabel() }}">
+                                                @csrf
+                                                <input type="hidden" name="subscription_tier_id" value="{{ $tier->id }}">
+                                                <button type="submit" class="btn btn-primary fw-semibold rounded-3 w-100 jambo-subscribe-btn">
+                                                    <span class="label">{{ __('streamShop.checkout') }}</span>
+                                                    <span class="spinner spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
+                                                </button>
+                                            </form>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -90,4 +130,12 @@
     {{-- Mobile Footer --}}
     @include('frontend::components.widgets.mobile-footer')
     {{-- Mobile Footer End --}}
+
+    {{-- Iframe checkout modal. Intercepts every Subscribe form on this
+         page, POSTs to /payment/create-order via fetch, and hosts
+         PesaPal's redirect_url inside a dark-themed dialog with X-only
+         dismissal. See the partial for the full UX rules. --}}
+    @auth
+        @include('frontend::components.partials.payment-modal')
+    @endauth
 @endsection

@@ -8,7 +8,13 @@ use Modules\Subscriptions\app\Models\SubscriptionTier;
 /**
  * Seeds seven starter tiers covering every billing cadence Jambo
  * supports (daily / weekly / monthly / yearly) across three access
- * levels. Re-runnable — uses firstOrCreate keyed on slug.
+ * levels. Prices in UGX, appropriate for the Ugandan market.
+ *
+ * Uses `updateOrCreate` keyed on slug so re-running the seeder
+ * refreshes prices / features on existing rows rather than skipping
+ * them. Admins who've edited a tier through the admin UI can still
+ * re-run this safely — their changes will be overwritten to the
+ * canonical values, which is the correct seeder semantics.
  */
 class SubscriptionTierSeeder extends Seeder
 {
@@ -19,11 +25,11 @@ class SubscriptionTierSeeder extends Seeder
                 'slug' => 'free',
                 'name' => 'Free',
                 'description' => 'Get a taste of Jambo at no cost.',
-                'price' => 0.00,
-                'currency' => 'KES',
+                'price' => 0,
+                'currency' => 'UGX',
                 'billing_period' => SubscriptionTier::PERIOD_MONTHLY,
                 'access_level' => SubscriptionTier::ACCESS_FREE,
-                'max_concurrent_streams' => null, // free-tier content has no stream cap
+                'max_concurrent_streams' => null,
                 'features' => [
                     'Limited catalog',
                     'Ads supported',
@@ -33,13 +39,13 @@ class SubscriptionTierSeeder extends Seeder
                 'sort_order' => 10,
             ],
 
-            // Daily pass — quick try-before-you-buy option
+            // Daily pass — quick try-before-you-buy. ~$0.40 USD.
             [
                 'slug' => 'day-pass',
                 'name' => 'Day Pass',
                 'description' => '24-hour full access. No subscription, no renewal.',
-                'price' => 49.00,
-                'currency' => 'KES',
+                'price' => 1500,
+                'currency' => 'UGX',
                 'billing_period' => SubscriptionTier::PERIOD_DAILY,
                 'access_level' => SubscriptionTier::ACCESS_BASIC,
                 'max_concurrent_streams' => 1,
@@ -52,13 +58,13 @@ class SubscriptionTierSeeder extends Seeder
                 'sort_order' => 15,
             ],
 
-            // Weekly
+            // Weekly basic — ~$1.60 USD.
             [
                 'slug' => 'weekly-basic',
                 'name' => 'Weekly Basic',
                 'description' => 'Full catalog, seven days at a time.',
-                'price' => 199.00,
-                'currency' => 'KES',
+                'price' => 6000,
+                'currency' => 'UGX',
                 'billing_period' => SubscriptionTier::PERIOD_WEEKLY,
                 'access_level' => SubscriptionTier::ACCESS_BASIC,
                 'max_concurrent_streams' => 2,
@@ -72,13 +78,13 @@ class SubscriptionTierSeeder extends Seeder
                 'sort_order' => 18,
             ],
 
-            // Monthly tiers
+            // Basic monthly — ~$4 USD. Anchor price for the platform.
             [
                 'slug' => 'basic',
                 'name' => 'Basic Monthly',
                 'description' => 'Full Jambo catalog without ads.',
-                'price' => 499.00,
-                'currency' => 'KES',
+                'price' => 15000,
+                'currency' => 'UGX',
                 'billing_period' => SubscriptionTier::PERIOD_MONTHLY,
                 'access_level' => SubscriptionTier::ACCESS_BASIC,
                 'max_concurrent_streams' => 2,
@@ -91,12 +97,14 @@ class SubscriptionTierSeeder extends Seeder
                 'is_active' => true,
                 'sort_order' => 20,
             ],
+
+            // Premium monthly — ~$8 USD. 4K + more streams.
             [
                 'slug' => 'premium',
                 'name' => 'Premium Monthly',
                 'description' => 'The complete Jambo experience in 4K.',
-                'price' => 999.00,
-                'currency' => 'KES',
+                'price' => 30000,
+                'currency' => 'UGX',
                 'billing_period' => SubscriptionTier::PERIOD_MONTHLY,
                 'access_level' => SubscriptionTier::ACCESS_PREMIUM,
                 'max_concurrent_streams' => 4,
@@ -111,13 +119,13 @@ class SubscriptionTierSeeder extends Seeder
                 'sort_order' => 30,
             ],
 
-            // Yearly tiers — save vs monthly
+            // Basic yearly — two months free vs monthly (15000 × 10 = 150000).
             [
                 'slug' => 'basic-yearly',
                 'name' => 'Basic Yearly',
                 'description' => 'Save two months when you pay yearly.',
-                'price' => 4990.00,
-                'currency' => 'KES',
+                'price' => 150000,
+                'currency' => 'UGX',
                 'billing_period' => SubscriptionTier::PERIOD_YEARLY,
                 'access_level' => SubscriptionTier::ACCESS_BASIC,
                 'max_concurrent_streams' => 2,
@@ -131,12 +139,14 @@ class SubscriptionTierSeeder extends Seeder
                 'is_active' => true,
                 'sort_order' => 22,
             ],
+
+            // Premium yearly — same saving math.
             [
                 'slug' => 'premium-yearly',
                 'name' => 'Premium Yearly',
                 'description' => 'Save two months on the premium tier.',
-                'price' => 9990.00,
-                'currency' => 'KES',
+                'price' => 300000,
+                'currency' => 'UGX',
                 'billing_period' => SubscriptionTier::PERIOD_YEARLY,
                 'access_level' => SubscriptionTier::ACCESS_PREMIUM,
                 'max_concurrent_streams' => 4,
@@ -150,7 +160,7 @@ class SubscriptionTierSeeder extends Seeder
         ];
 
         foreach ($tiers as $tier) {
-            SubscriptionTier::firstOrCreate(
+            SubscriptionTier::updateOrCreate(
                 ['slug' => $tier['slug']],
                 $tier
             );
