@@ -90,6 +90,27 @@
     <!-- SwiperSlider Script -->
     <script src="{{ asset('dashboard/vendor/swiperSlider/swiper-bundle.min.js') }}"></script>
     <script src="{{ asset('dashboard/js/plugins/swiper-slider.js') }}" defer></script>
+
+    {{-- Global password-reveal toggle. Any `[data-password-toggle]`
+         button flips the visibility of the input that shares its
+         parent (same pattern Bootstrap input-group produces). The
+         <x-password-input> component emits this attribute, but the
+         handler also works on hand-rolled markup. --}}
+    <script>
+    (function () {
+        document.addEventListener('click', function (e) {
+            var btn = e.target.closest('[data-password-toggle]');
+            if (!btn) return;
+            var input = btn.parentElement && btn.parentElement.querySelector('input');
+            if (!input) return;
+            var isText = input.type === 'text';
+            input.type = isText ? 'password' : 'text';
+            var icon = btn.querySelector('i');
+            if (icon) icon.className = isText ? 'ph ph-eye-slash' : 'ph ph-eye';
+            btn.setAttribute('aria-label', isText ? 'Show password' : 'Hide password');
+        });
+    })();
+    </script>
 </body>
 
 </html>

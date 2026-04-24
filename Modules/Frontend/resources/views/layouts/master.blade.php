@@ -183,4 +183,23 @@
         });
     })();
     </script>
+
+    {{-- Password-reveal toggle (mirrors the admin layout). Any button
+         tagged [data-password-toggle] flips the sibling input between
+         "password" and "text" types. --}}
+    <script>
+    (function () {
+        document.addEventListener('click', function (e) {
+            var btn = e.target.closest('[data-password-toggle]');
+            if (!btn) return;
+            var input = btn.parentElement && btn.parentElement.querySelector('input');
+            if (!input) return;
+            var isText = input.type === 'text';
+            input.type = isText ? 'password' : 'text';
+            var icon = btn.querySelector('i');
+            if (icon) icon.className = isText ? 'ph ph-eye-slash' : 'ph ph-eye';
+            btn.setAttribute('aria-label', isText ? 'Show password' : 'Hide password');
+        });
+    })();
+    </script>
 </body>

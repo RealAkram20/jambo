@@ -60,7 +60,11 @@
 
                         <div class="form-row mt-3">
                             <label class="form-label" for="pesapal_consumer_secret">Consumer secret</label>
-                            <input type="password" class="form-control" id="pesapal_consumer_secret" name="pesapal_consumer_secret" placeholder="{{ $values['pesapal_consumer_secret_set'] ? '•••••• (leave blank to keep current)' : 'Enter secret' }}" autocomplete="new-password">
+                            <x-password-input
+                                name="pesapal_consumer_secret"
+                                placeholder="{{ $values['pesapal_consumer_secret_set'] ? '•••••• (leave blank to keep current)' : 'Enter secret' }}"
+                                autocomplete="new-password"
+                            />
                             <div class="form-text">Stored encrypted. Leave blank to keep the current secret unchanged.</div>
                         </div>
 

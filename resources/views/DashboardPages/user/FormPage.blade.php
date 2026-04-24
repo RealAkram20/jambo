@@ -99,21 +99,27 @@
                     <div class="card-body">
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label class="form-label">
+                                <label class="form-label" for="password">
                                     Password
                                     @if (!$isEdit) <span class="text-danger">*</span> @endif
                                 </label>
-                                <input type="password" name="password" class="form-control"
-                                    autocomplete="new-password" @required(!$isEdit)
-                                    placeholder="{{ $isEdit ? 'Leave blank to keep current' : '' }}">
+                                <x-password-input
+                                    name="password"
+                                    autocomplete="new-password"
+                                    :required="!$isEdit"
+                                    placeholder="{{ $isEdit ? 'Leave blank to keep current' : '' }}"
+                                />
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">
+                                <label class="form-label" for="password_confirmation">
                                     Confirm password
                                     @if (!$isEdit) <span class="text-danger">*</span> @endif
                                 </label>
-                                <input type="password" name="password_confirmation" class="form-control"
-                                    autocomplete="new-password" @required(!$isEdit)>
+                                <x-password-input
+                                    name="password_confirmation"
+                                    autocomplete="new-password"
+                                    :required="!$isEdit"
+                                />
                             </div>
                         </div>
                     </div>

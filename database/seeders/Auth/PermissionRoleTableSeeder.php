@@ -39,39 +39,25 @@ class PermissionRoleTableSeeder extends Seeder
                 }
             }
         }
-        // Assign Permissions to Roles
-        $admin->givePermissionTo(Permission::get());
-        $user->givePermissionTo([
-            'view_rating',
-            'add_rating',
-            'edit_rating',
-            'delete_rating',
-            'view_comments',
-            'add_comments',
-            'edit_comments',
-            'delete_comments',
-            'view_users',
-            'add_users',
-            'edit_users',
-            'delete_users',
-            'view_movies',
-            'add_movies',
-            'edit_movies',
-            'delete_movies',
-            'view_shows',
-            'add_shows',
-            'edit_shows',
-            'delete_shows',
-            'view_seasons',
-            'add_seasons',
-            'edit_seasons',
-            'delete_seasons',
-            'view_episodes',
-            'add_episodes',
-            'edit_episodes',
-            'delete_episodes',
-              ]);
-
+        // Assign Permissions to Roles.
+        //
+        // Admin gets everything — the admin area is gated by the
+        // role:admin middleware first and then by fine-grained
+        // @can() checks inside views (e.g. @can('view_users') on
+        // the sidebar Users link).
+        //
+        // The `user` role is the default signup role for regular
+        // viewers. Admin-area permissions (add_movies, delete_users,
+        // etc.) aren't meaningful for them — the admin area is
+        // fully gated by role:admin. Giving every signed-up user
+        // all 28 admin permissions was a seeding bug that made the
+        // RBAC checks meaningless for any hand-rolled "Moderator"
+        // role an admin might create later.
+        //
+        // Re-syncing on every seed run so old installs with the
+        // previous too-permissive `user` grants get cleaned up.
+        $admin->syncPermissions(Permission::get());
+        $user->syncPermissions([]);
 
         Schema::enableForeignKeyConstraints();
     }

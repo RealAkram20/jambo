@@ -22,19 +22,16 @@
         <form method="POST" action="{{ route('password.update') }}" class="row g-3">
             @csrf @method('PUT')
             <div class="col-md-4">
-                <label class="form-label small text-muted">Current password</label>
-                <input type="password" name="current_password" class="form-control form-control-sm"
-                       autocomplete="current-password" required>
+                <label class="form-label small text-muted" for="current_password">Current password</label>
+                <x-password-input name="current_password" size="sm" autocomplete="current-password" required />
             </div>
             <div class="col-md-4">
-                <label class="form-label small text-muted">New password</label>
-                <input type="password" name="password" class="form-control form-control-sm"
-                       autocomplete="new-password" required>
+                <label class="form-label small text-muted" for="password">New password</label>
+                <x-password-input name="password" size="sm" autocomplete="new-password" required />
             </div>
             <div class="col-md-4">
-                <label class="form-label small text-muted">Confirm new password</label>
-                <input type="password" name="password_confirmation" class="form-control form-control-sm"
-                       autocomplete="new-password" required>
+                <label class="form-label small text-muted" for="password_confirmation">Confirm new password</label>
+                <x-password-input name="password_confirmation" size="sm" autocomplete="new-password" required />
             </div>
             <div class="col-12">
                 <button type="submit" class="btn btn-primary btn-sm">Update password</button>
@@ -156,9 +153,8 @@
 
             <div class="row g-3 mb-3">
                 <div class="col-md-6">
-                    <label class="form-label small text-muted">Confirm your password</label>
-                    <input type="password" name="password" class="form-control form-control-sm"
-                           autocomplete="current-password" required>
+                    <label class="form-label small text-muted" for="password">Confirm your password</label>
+                    <x-password-input name="password" size="sm" autocomplete="current-password" required />
                 </div>
                 <div class="col-md-6 d-flex align-items-end">
                     <label class="form-check d-flex align-items-center gap-2 m-0 small">

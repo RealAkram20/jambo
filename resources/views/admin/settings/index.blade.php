@@ -217,11 +217,13 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label" for="mail_password">Password</label>
-                                <input type="password" name="mail_password" id="mail_password"
-                                    class="form-control @error('mail_password') is-invalid @enderror"
+                                <x-password-input
+                                    name="mail_password"
                                     placeholder="{{ setting('mail_password') ? '•••••••• (leave blank to keep current)' : 'SMTP password or app-specific password' }}"
-                                    autocomplete="new-password">
-                                @error('mail_password')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                    autocomplete="new-password"
+                                    class="@error('mail_password') is-invalid @enderror"
+                                />
+                                @error('mail_password')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label" for="mail_encryption">Encryption</label>
@@ -339,13 +341,15 @@
                                         <span class="text-danger">*</span>
                                     @endif
                                 </label>
-                                <input type="password" name="vapid_private_key" id="vapid_private_key"
-                                    class="form-control font-monospace @error('vapid_private_key') is-invalid @enderror"
-                                    style="font-size:12px;"
+                                <x-password-input
+                                    name="vapid_private_key"
                                     placeholder="{{ $privateStored ? '•••••••••••••••••••••••• (leave blank to keep existing)' : 'paste the 43-char base64url private key' }}"
                                     autocomplete="new-password"
-                                    {{ $privateStored ? '' : 'required' }}>
-                                @error('vapid_private_key')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                    :required="!$privateStored"
+                                    class="font-monospace @error('vapid_private_key') is-invalid @enderror"
+                                    style="font-size:12px;"
+                                />
+                                @error('vapid_private_key')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                                 <small class="text-secondary" style="font-size:11px;">
                                     Stored encrypted at rest (Laravel Crypt). Never leaves the server after save.
                                 </small>

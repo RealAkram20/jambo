@@ -8,30 +8,19 @@ use Spatie\Permission\Models\Role;
 
 class RolePermission extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function __construct()
-    {
-        // Page Title
-        $this->module_title = 'Permission';
-
-        // module name
-        $this->module_name = 'permission';
-    }
+    // Declared to silence PHP 8.2 dynamic-property deprecation.
+    protected string $module_title = 'Access control';
+    protected string $module_name = 'permission';
 
     public function index()
     {
-        $module_title = $this->module_title;
-        // $module_name = $this->module_name;
-        $roles = Role::get();
-        $modules = config('constant.MODULES');
-        $permissions = Permission::get();
-        $module_action = 'List';
-
-        return view('permission-role.permissions' ,compact('roles', 'permissions', 'module_title', 'module_action', 'modules'));
+        return view('permission-role.permissions', [
+            'module_title' => $this->module_title,
+            'module_action' => 'List',
+            'roles' => Role::orderBy('is_fixed', 'desc')->orderBy('name')->get(),
+            'modules' => config('constant.MODULES'),
+            'permissions' => Permission::get(),
+        ]);
     }
 
     public function store(Request $request, Role $role_id)

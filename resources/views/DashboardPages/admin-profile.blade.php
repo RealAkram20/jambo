@@ -143,19 +143,16 @@
 
                         <div class="row g-3">
                             <div class="col-12">
-                                <label class="form-label">Current password <span class="text-danger">*</span></label>
-                                <input type="password" name="current_password" class="form-control"
-                                    autocomplete="current-password" required>
+                                <label class="form-label" for="current_password">Current password <span class="text-danger">*</span></label>
+                                <x-password-input name="current_password" autocomplete="current-password" required />
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">New password <span class="text-danger">*</span></label>
-                                <input type="password" name="password" class="form-control"
-                                    autocomplete="new-password" required>
+                                <label class="form-label" for="password">New password <span class="text-danger">*</span></label>
+                                <x-password-input name="password" autocomplete="new-password" required />
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Confirm new password <span class="text-danger">*</span></label>
-                                <input type="password" name="password_confirmation" class="form-control"
-                                    autocomplete="new-password" required>
+                                <label class="form-label" for="password_confirmation">Confirm new password <span class="text-danger">*</span></label>
+                                <x-password-input name="password_confirmation" autocomplete="new-password" required />
                             </div>
                         </div>
 

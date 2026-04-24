@@ -136,7 +136,16 @@
 
         .jambo-field__toggle {
             position: absolute;
-            top: 30px;
+            /* Bottom-anchored vertical centering — the input is always
+               the last block in the field and 44px tall, so bottom:13px
+               keeps the ~18px icon perfectly centered on the input no
+               matter how tall the label above ends up rendering (label
+               font-size, padding, or extra hint text can grow without
+               knocking the icon off-centre). The previous `top: 30px`
+               was a magic number tuned for one specific label height
+               and visibly drifted on any variant. */
+            top: auto;
+            bottom: 13px;
             right: 0.85rem;
             color: #9aa0aa;
             cursor: pointer;
@@ -145,6 +154,9 @@
             padding: 0;
             font-size: 1.1rem;
             line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .jambo-field__toggle:hover { color: #fff; }
