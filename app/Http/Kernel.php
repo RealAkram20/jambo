@@ -37,6 +37,11 @@ class Kernel extends HttpKernel
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            // Account-level device cap. Runs AFTER StartSession (needs
+            // session to identify the user) and AFTER SubstituteBindings
+            // (needs route names for its skip list). Self-short-circuits
+            // for guests, admins, the picker, AJAX / API requests.
+            \Modules\Streaming\app\Http\Middleware\EnforceDeviceLimit::class,
         ],
 
         'api' => [

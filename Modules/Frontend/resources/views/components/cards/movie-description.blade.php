@@ -110,12 +110,46 @@
 <div class="d-flex align-items-center flex-wrap gap-3 gap-md-4 my-5">
     @if(empty($isNotstartWatching))
         <div class="iq-play-button iq-button">
-            @if(!empty($subscribeToWatch))
+            @php
+                $isUpcoming = !empty($isUpcoming);
+                // An upcoming title has no stream yet — neither "Start
+                // watching" nor "Subscribe to watch" apply. Show a
+                // disabled "Coming soon" pill with the release date (or
+                // "date TBA" when the admin hasn't set `published_at`).
+                //
+                // Component is used from both movie + TV show detail
+                // pages, so only $movie OR $show is defined at any time
+                // — probe both before giving up on a release label.
+                $releaseLabel = null;
+                if ($isUpcoming) {
+                    $releaseDate = (isset($movie) && $movie->published_at) ? $movie->published_at : null;
+                    if (!$releaseDate && isset($show) && $show->published_at) {
+                        $releaseDate = $show->published_at;
+                    }
+                    if ($releaseDate instanceof \DateTimeInterface) {
+                        $releaseLabel = $releaseDate->format('M j, Y');
+                    }
+                }
+            @endphp
+            @if($isUpcoming)
+                <button type="button" disabled
+                    class="btn btn-outline-primary w-100 rounded d-flex align-items-center justify-content-center gap-2 lh-1"
+                    style="cursor: not-allowed; opacity: 0.85;"
+                    aria-label="Coming soon">
+                    <i class="ph-fill ph-calendar-check fs-6"></i>
+                    <span>
+                        {{ __('streamTag.coming_soon') !== 'streamTag.coming_soon' ? __('streamTag.coming_soon') : 'Coming soon' }}
+                        @if ($releaseLabel)
+                            <span class="opacity-75">· {{ $releaseLabel }}</span>
+                        @endif
+                    </span>
+                </button>
+            @elseif(!empty($subscribeToWatch))
                 <a href="{{ route('frontend.pricing-page') }}" class="btn btn-primary w-100 rounded d-flex align-items-center justify-content-center gap-2 lh-1">
                     <i class="ph-fill ph-crown fs-6"></i>
                     <span>{{__('streamButtons.subscribe_watch')}}</span>
                 </a>
-            @else 
+            @else
                 <a href="{{ $videoUrl }}" class="btn btn-primary w-100 rounded d-flex align-items-center justify-content-center gap-2 lh-1">
                     <i class="ph-fill ph-play"></i>
                     <span>{{__('streamButtons.start_watching')}}</span>

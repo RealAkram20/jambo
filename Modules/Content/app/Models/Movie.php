@@ -128,6 +128,27 @@ class Movie extends Model
         return $q->where('status', self::STATUS_UPCOMING);
     }
 
+    /**
+     * Titles whose detail page is publicly reachable: anything that is
+     * Published OR flagged Upcoming. The detail page for upcoming
+     * titles shows release info / a "Coming soon" state instead of a
+     * Watch button, but the page itself must load (users click "Upcoming"
+     * cards from the home rail and expect to land *somewhere*).
+     *
+     * The streaming endpoints (player, stream URL) stay on `published()`
+     * — you can't watch what hasn't been released.
+     */
+    public function scopeDetailVisible(Builder $q): Builder
+    {
+        return $q->where(function ($outer) {
+            $outer->where(function ($pub) {
+                $pub->where('status', self::STATUS_PUBLISHED)
+                    ->whereNotNull('published_at')
+                    ->where('published_at', '<=', now());
+            })->orWhere('status', self::STATUS_UPCOMING);
+        });
+    }
+
     protected static function newFactory(): MovieFactory
     {
         return MovieFactory::new();

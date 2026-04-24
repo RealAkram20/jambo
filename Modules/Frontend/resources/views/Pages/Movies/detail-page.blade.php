@@ -59,6 +59,7 @@
                     'movieDescription' => $movie->synopsis,
                     'movieGenres' => $movie->genres->pluck('name')->all(),
                     'subscribeToWatch' => ! $canWatch,
+                    'isUpcoming' => $isUpcoming ?? false,
                     'watchableType' => 'movie',
                     'watchableId'   => $movie->id,
                 ])
@@ -162,10 +163,21 @@
 </div>
 
 @include('frontend::components.widgets.details-description-modal', [
-    'movieName' => $movie->title,
-    'year' => $movie->year ?: '',
-    'views' => number_format($movie->views_count) . __('frontendplaylist.views'),
-    'ratingCount' => $movie->rating ?: '',
+    'movieName'     => $movie->title,
+    'description'   => $movie->synopsis,
+    'year'          => $movie->year ?: ($movie->published_at?->format('Y') ?: null),
+    'views'         => number_format($movie->views_count) . ' ' . __('streamTag.views'),
+    'movieDuration' => $movie->runtime_minutes
+        ? floor($movie->runtime_minutes / 60) . 'hr : ' . ($movie->runtime_minutes % 60) . 'mins'
+        : null,
+    'ratingCount'   => $movie->rating ?: null,
+    'genres'        => $movie->genres->pluck('name')->all(),
+    'tags'          => $movie->relationLoaded('tags') ? $movie->tags->pluck('name')->all() : [],
+    'cast'          => $cast,
+    'crew'          => $crew,
+    'releaseLabel'  => ($isUpcoming ?? false) && $movie->published_at
+        ? $movie->published_at->format('M j, Y')
+        : null,
 ])
 
 {{-- Reviews & ratings --}}

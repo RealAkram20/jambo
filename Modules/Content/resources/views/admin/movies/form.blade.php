@@ -100,14 +100,45 @@
             <div class="card-body">
                 <div class="mb-3">
                     <label for="status" class="form-label">Status</label>
-                    <select name="status" id="status" class="form-select">
+                    <select name="status" id="status" class="form-select" data-jambo-status>
                         <option value="draft" @selected(old('status', $movie->status ?: 'draft') === 'draft')>Draft</option>
                         <option value="upcoming" @selected(old('status', $movie->status) === 'upcoming')>Upcoming</option>
                         <option value="published" @selected(old('status', $movie->status) === 'published')>Published</option>
                     </select>
                 </div>
+
+                {{-- Release / publish date. Hidden for drafts; label
+                     flips between "Release date" (upcoming) and
+                     "Published at" (published). Stored on
+                     movies.published_at — see MovieController::update.
+                     `datetime-local` gives a native date+time picker,
+                     formatted Y-m-d\TH:i so Laravel's date validator
+                     accepts it. --}}
+                <div class="mb-3" data-jambo-release-wrap
+                     @if (old('status', $movie->status ?: 'draft') === 'draft') style="display:none;" @endif>
+                    <label for="published_at" class="form-label" data-jambo-release-label>
+                        {{ old('status', $movie->status) === 'upcoming' ? 'Release date' : 'Published at' }}
+                    </label>
+                    <input type="datetime-local" name="published_at" id="published_at"
+                           class="form-control"
+                           value="{{ old('published_at', $movie->published_at?->format('Y-m-d\TH:i')) }}">
+                    <div class="form-text" data-jambo-release-hint>
+                        @if (old('status', $movie->status) === 'upcoming')
+                            Scheduled release date. Surfaced on the detail page and the home "Upcoming" slider.
+                        @else
+                            When this title went live. Leave blank to auto-stamp on save.
+                        @endif
+                    </div>
+                </div>
+
                 @if ($movie->exists && $movie->published_at)
-                    <div class="text-muted" style="font-size:12px;">Published {{ $movie->published_at->diffForHumans() }}</div>
+                    <div class="text-muted" style="font-size:12px;">
+                        @if ($movie->status === 'upcoming')
+                            Releases {{ $movie->published_at->format('M j, Y') }} ({{ $movie->published_at->diffForHumans() }})
+                        @else
+                            Published {{ $movie->published_at->diffForHumans() }}
+                        @endif
+                    </div>
                 @endif
             </div>
         </div>
@@ -201,6 +232,34 @@
     document.getElementById('cast-rows').addEventListener('click', function (e) {
         if (e.target.closest('.remove-cast')) e.target.closest('.cast-row').remove();
     });
+
+    // Release-date field: label + visibility track the status select.
+    //   draft      → hidden (meaningless for unpublished titles)
+    //   upcoming   → "Release date" (scheduled)
+    //   published  → "Published at" (actual)
+    const statusSel = document.querySelector('[data-jambo-status]');
+    const wrap = document.querySelector('[data-jambo-release-wrap]');
+    const label = document.querySelector('[data-jambo-release-label]');
+    const hint = document.querySelector('[data-jambo-release-hint]');
+    if (statusSel && wrap && label && hint) {
+        const apply = () => {
+            const s = statusSel.value;
+            if (s === 'draft') {
+                wrap.style.display = 'none';
+            } else {
+                wrap.style.display = '';
+                if (s === 'upcoming') {
+                    label.textContent = 'Release date';
+                    hint.textContent = 'Scheduled release date. Surfaced on the detail page and the home "Upcoming" slider.';
+                } else {
+                    label.textContent = 'Published at';
+                    hint.textContent = 'When this title went live. Leave blank to auto-stamp on save.';
+                }
+            }
+        };
+        statusSel.addEventListener('change', apply);
+        apply();
+    }
 })();
 </script>
 @include('content::admin.partials.media-picker-script')

@@ -82,10 +82,20 @@ class FrontendController extends Controller
             ->take(12)
             ->get();
 
+        // Strict upcoming feed (movies + shows mixed, soonest-first).
+        // Passes through even when empty — the section partial hides
+        // itself so we don't render a slider with no content or, worse,
+        // fall back to published titles (which was the prior bug: the
+        // "Upcoming" slider silently served $latestMovies when no titles
+        // had status=upcoming).
+        $upcomingItems = app(TopPicksRecommender::class)
+            ->upcomingListing(0, 12)['items'];
+
         return view('frontend::Pages.MainPages.index-page', compact(
             'featuredMovies',
             'latestMovies',
             'popularShows',
+            'upcomingItems',
         ));
     }
 
@@ -108,10 +118,14 @@ class FrontendController extends Controller
             ->take(12)
             ->get();
 
+        $upcomingItems = app(TopPicksRecommender::class)
+            ->upcomingListing(0, 12)['items'];
+
         return view('frontend::Pages.MainPages.ott-page', compact(
             'featuredMovies',
             'latestMovies',
             'popularShows',
+            'upcomingItems',
         ));
     }
 
@@ -596,8 +610,11 @@ class FrontendController extends Controller
     //deatil pages
     public function movie_detail(?string $slug = null)
     {
+        // `detailVisible` (published ∪ upcoming) so clicks from the
+        // Upcoming rail on the home page land here instead of 404ing.
+        // Watch + stream endpoints still gate on published().
         $movie = $slug
-            ? Movie::where('slug', $slug)->published()->with(['genres', 'tags', 'categories', 'cast'])->firstOrFail()
+            ? Movie::where('slug', $slug)->detailVisible()->with(['genres', 'tags', 'categories', 'cast'])->firstOrFail()
             : Movie::published()->with(['genres', 'tags', 'categories', 'cast'])->orderByDesc('published_at')->firstOrFail();
 
         $recommended = Movie::published()
@@ -606,11 +623,21 @@ class FrontendController extends Controller
             ->take(6)
             ->get();
 
-        $source = $movie->streamSource();
-        $canWatch = $this->userCanWatch($movie);
+        $isUpcoming = $movie->status === Movie::STATUS_UPCOMING;
+
+        // Upcoming titles have no stream source yet and shouldn't render
+        // a Watch CTA regardless of the user's subscription. Hard-force
+        // both instead of threading a new `isUpcoming` branch through
+        // the existing `canWatch` / `source` flow.
+        $source   = $isUpcoming ? null  : $movie->streamSource();
+        $canWatch = $isUpcoming ? false : $this->userCanWatch($movie);
+
         [$reviews, $reviewStats, $myReview] = $this->loadReviewData($movie);
 
-        return view('frontend::Pages.Movies.detail-page', compact('movie', 'recommended', 'source', 'canWatch', 'reviews', 'reviewStats', 'myReview'));
+        return view('frontend::Pages.Movies.detail-page', compact(
+            'movie', 'recommended', 'source', 'canWatch', 'isUpcoming',
+            'reviews', 'reviewStats', 'myReview'
+        ));
     }
 
     /**
@@ -624,9 +651,22 @@ class FrontendController extends Controller
      */
     public function movie_watch(?string $slug = null)
     {
+        // Widen the lookup to `detailVisible` (published ∪ upcoming) so
+        // an upcoming title returns a clean redirect to the detail page
+        // instead of 404ing. Watching an upcoming movie is nonsensical
+        // (there's nothing to stream yet), so we bounce to detail with
+        // a flash instead of trying to render the player.
         $movie = $slug
-            ? Movie::where('slug', $slug)->published()->with(['genres', 'tags', 'categories', 'cast'])->firstOrFail()
+            ? Movie::where('slug', $slug)->detailVisible()->with(['genres', 'tags', 'categories', 'cast'])->firstOrFail()
             : Movie::published()->with(['genres', 'tags', 'categories', 'cast'])->orderByDesc('published_at')->firstOrFail();
+
+        if ($movie->status === Movie::STATUS_UPCOMING) {
+            $when = $movie->published_at?->format('M j, Y');
+            $msg = $when
+                ? "\"{$movie->title}\" is coming soon — check back on {$when}."
+                : "\"{$movie->title}\" is coming soon.";
+            return redirect()->route('frontend.movie_detail', $movie->slug)->with('info', $msg);
+        }
 
         $source = $movie->streamSource();
         $canWatch = $this->userCanWatch($movie);
@@ -763,14 +803,18 @@ class FrontendController extends Controller
             return false;
         }
 
-        $others = WatchHistoryItem::activeStreamCount($user->id, session()->getId());
+        $others = \Modules\Streaming\app\Models\ActiveStream::activeCount($user->id, session()->getId());
         return $others >= $cap;
     }
 
     public function tvshow_detail(?string $slug = null)
     {
+        // `detailVisible` (published ∪ upcoming) so upcoming series
+        // detail pages load for Upcoming-rail clicks. Episodes stay
+        // unwatchable for upcoming series (no source), same rationale
+        // as Movie::detail.
         $show = $slug
-            ? Show::where('slug', $slug)->published()
+            ? Show::where('slug', $slug)->detailVisible()
                 ->with(['genres', 'tags', 'categories', 'cast', 'seasons.episodes'])
                 ->firstOrFail()
             : Show::published()
@@ -784,9 +828,13 @@ class FrontendController extends Controller
             ->take(6)
             ->get();
 
+        $isUpcoming = $show->status === Show::STATUS_UPCOMING;
+
         [$reviews, $reviewStats, $myReview] = $this->loadReviewData($show);
 
-        return view('frontend::Pages.TvShows.detail-page', compact('show', 'recommended', 'reviews', 'reviewStats', 'myReview'));
+        return view('frontend::Pages.TvShows.detail-page', compact(
+            'show', 'recommended', 'isUpcoming', 'reviews', 'reviewStats', 'myReview'
+        ));
     }
 
     /**
@@ -849,6 +897,17 @@ class FrontendController extends Controller
         $episodeModel->load(['season.show.genres', 'season.show.cast', 'season.show.seasons.episodes']);
         $episode = $episodeModel; // rest of the method reads $episode
         $show = $episode->season->show;
+
+        // Upcoming series: episodes aren't streamable yet. Bounce to
+        // the series detail page with a flash instead of trying to
+        // render a player pointing at nothing.
+        if ($show->status === Show::STATUS_UPCOMING) {
+            $when = $show->published_at?->format('M j, Y');
+            $msg = $when
+                ? "\"{$show->title}\" is coming soon — check back on {$when}."
+                : "\"{$show->title}\" is coming soon.";
+            return redirect()->route('frontend.series_detail', $show->slug)->with('info', $msg);
+        }
 
         $source = $episode->streamSource();
         $canWatch = $this->userCanWatch($episode);
@@ -1284,6 +1343,18 @@ class FrontendController extends Controller
                 ->with('info', 'That movie is no longer available.');
         }
 
+        // If an admin flipped the movie to upcoming after the user
+        // added it to their watchlist, the queue item still resolves
+        // but there's nothing to stream. Bounce to the detail page
+        // with a release-date note instead of a dead player.
+        if ($movie->status === Movie::STATUS_UPCOMING) {
+            $when = $movie->published_at?->format('M j, Y');
+            $msg = $when
+                ? "\"{$movie->title}\" is coming soon — check back on {$when}."
+                : "\"{$movie->title}\" is coming soon.";
+            return redirect()->route('frontend.movie_detail', $movie->slug)->with('info', $msg);
+        }
+
         $watchable = $movie;
 
         // The matching watchlist row (if any) gives us the "current"
@@ -1377,6 +1448,18 @@ class FrontendController extends Controller
         if (!$show) {
             return redirect()->route('frontend.watchlist_detail')
                 ->with('info', 'That series is no longer available.');
+        }
+
+        // Upcoming series: episodes aren't streamable yet. Same pattern
+        // as watchlistPlay — bounce to the detail page so the user sees
+        // the release date instead of a 404 resolving to a missing
+        // episode.
+        if ($show->status === Show::STATUS_UPCOMING) {
+            $when = $show->published_at?->format('M j, Y');
+            $msg = $when
+                ? "\"{$show->title}\" is coming soon — check back on {$when}."
+                : "\"{$show->title}\" is coming soon.";
+            return redirect()->route('frontend.series_detail', $show->slug)->with('info', $msg);
         }
 
         $episodeClass = (new Episode)->getMorphClass();

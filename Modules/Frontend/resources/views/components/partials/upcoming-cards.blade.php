@@ -15,29 +15,29 @@
         $kind = $item->_kind ?? 'movie';
         $fallbackImg = $kind === 'show' ? 'media/vikings-portrait.webp' : 'media/rabbit-portrait.webp';
 
-        // Display the release date when the admin set one; otherwise
-        // signal that a date is TBD so upcoming cards always carry
-        // context a user can read.
+        // Release date → ribbon label on the card poster. "TBA" when
+        // the admin hasn't scheduled one yet, so the card still
+        // communicates "upcoming" rather than sitting dateless.
         $releaseLabel = $item->published_at
             ? $item->published_at->format('M j, Y')
-            : __('streamTag.release_tbd') ?? 'Release date TBD';
+            : 'TBA';
 
-        // Upcoming detail pages aren't wired yet — the existing
-        // movie_detail / series_detail controllers filter by the
-        // `published` scope, so linking through would 404. Keep the
-        // card non-clicking for now; when detail pages are ready
-        // this becomes a simple route() call.
-        $cardPath = '#';
+        // Detail pages now accept upcoming titles (Movie/Show
+        // scopeDetailVisible) and show a "Coming soon" CTA instead of
+        // the Watch button, so the card can link through normally.
+        $cardPath = $kind === 'show'
+            ? route('frontend.series_detail', $item->slug)
+            : route('frontend.movie_detail', $item->slug);
     @endphp
     <div class="col">
         @include('frontend::components.cards.card-style', [
             'cardImage' => $item->poster_url ?: $fallbackImg,
             'cardTitle' => $item->title,
             'cardPath' => $cardPath,
-            'movietime' => $releaseLabel,
             'cardLang' => $item->year ? (string) $item->year : 'Coming soon',
             'cardGenres' => $item->relationLoaded('genres') ? $item->genres->take(2)->pluck('name')->all() : null,
             'productPremium' => (bool) $item->tier_required,
+            'upcomingRelease' => $releaseLabel,
             'watchableType' => $kind,
             'watchableId' => $item->id,
             'isnotlangCard' => !$item->year,

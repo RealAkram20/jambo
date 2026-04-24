@@ -18,7 +18,7 @@
             <a href="{{ $backUrl }}" class="btn btn-outline-light">{{ $backLabel }}</a>
         </div>
     @else
-        <div class="w-100" style="max-width: 1280px;">
+        <div class="w-100 position-relative" style="max-width: 1280px;">
             <video
                 id="jambo-player"
                 class="video-js vjs-default-skin vjs-big-play-centered vjs-fluid"
@@ -28,9 +28,19 @@
                 @if ($poster) poster="{{ $poster }}" @endif
                 data-resume="{{ $resumePosition }}">
             </video>
+
         </div>
     @endif
 </div>
+
+{{-- Shared kick overlay (Sign in / Home CTAs, full session-kill
+     semantic). Heartbeat loop below passes each response to the
+     exposed window.jamboHandleHeartbeatResponse — on 409 the server
+     has already destroyed this browser's session and the overlay
+     just explains + offers a clean sign-in. --}}
+@if ($source)
+    @include('frontend::components.partials.jambo-kick-overlay')
+@endif
 
 @if ($source)
 <script src="https://vjs.zencdn.net/8.21.1/video.min.js"></script>
@@ -100,11 +110,13 @@
         duration = player.duration() || null;
     });
 
+    let heartbeatTimer = null;
+
     async function sendHeartbeat() {
-        if (!isAuthed) return;
+        if (!isAuthed || window.jamboKicked) return;
         if (lastPosition <= 0) return;
         try {
-            await fetch(heartbeatUrl, {
+            const res = await fetch(heartbeatUrl, {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: {
@@ -119,6 +131,19 @@
                     duration: duration ? Math.floor(duration) : null,
                 }),
             });
+            // Shared handler pauses every player on the page + raises
+            // the overlay when the server replies 409 terminated. By
+            // the time it returns true the server has already killed
+            // this browser's session cookie, so no further heartbeats
+            // are useful.
+            const handled = await window.jamboHandleHeartbeatResponse?.(res);
+            if (handled) {
+                try { player.pause(); } catch (e) {}
+                if (heartbeatTimer) {
+                    clearInterval(heartbeatTimer);
+                    heartbeatTimer = null;
+                }
+            }
         } catch (e) {
             console.debug('[watch] heartbeat failed', e);
         }
@@ -127,7 +152,7 @@
     if (isAuthed) {
         player.on('pause', sendHeartbeat);
         player.on('ended', sendHeartbeat);
-        setInterval(sendHeartbeat, HEARTBEAT_MS);
+        heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_MS);
         window.addEventListener('pagehide', sendHeartbeat);
     }
 })();

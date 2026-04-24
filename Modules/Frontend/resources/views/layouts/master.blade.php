@@ -47,6 +47,29 @@
             @include('frontend::components.breadcrumb-widget')
         @endif
 
+        {{-- Site-wide flash banner. `info` is used for soft redirects
+             (e.g. trying to watch an upcoming movie bounces to detail
+             with a "coming soon" note); `error` for hard failures.
+             Sticky-dismissible toast-ish alert at the top of content
+             so any redirect-with-flash surfaces consistently without
+             every page wiring its own alert block. --}}
+        @if (session('info'))
+            <div class="container mt-3">
+                <div class="alert alert-info alert-dismissible fade show text-center mb-0" role="alert">
+                    {{ session('info') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            </div>
+        @endif
+        @if (session('error'))
+            <div class="container mt-3">
+                <div class="alert alert-danger alert-dismissible fade show text-center mb-0" role="alert">
+                    {{ session('error') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            </div>
+        @endif
+
         @yield('content')
     </main>
 

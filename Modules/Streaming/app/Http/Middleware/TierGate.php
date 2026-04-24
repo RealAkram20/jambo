@@ -6,7 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Movie;
-use Modules\Streaming\app\Models\WatchHistoryItem;
+use Modules\Streaming\app\Models\ActiveStream;
 use Modules\Subscriptions\app\Models\SubscriptionTier;
 use Modules\Subscriptions\app\Models\UserSubscription;
 use Symfony\Component\HttpFoundation\Response;
@@ -84,8 +84,13 @@ class TierGate
         $cap = $activeSub?->tier?->max_concurrent_streams;
         if ($cap !== null && $cap > 0) {
             $currentSession = $request->session()->getId();
-            $otherActive    = WatchHistoryItem::activeStreamCount($user->id, $currentSession);
+            $otherActive    = ActiveStream::activeCount($user->id, $currentSession);
             if ($otherActive >= $cap) {
+                // Stash the URL they were trying to reach so the picker
+                // can render a "Continue watching X" button after the
+                // user disconnects one of their other devices. Reads
+                // back via redirect()->intended() in StreamingController.
+                $request->session()->put('url.intended', $request->fullUrl());
                 return redirect()->route('streams.limit');
             }
         }

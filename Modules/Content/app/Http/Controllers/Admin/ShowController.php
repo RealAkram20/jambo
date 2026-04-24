@@ -94,7 +94,12 @@ class ShowController extends Controller
                 'trailer_url' => $data['trailer_url'] ?? null,
                 'tier_required' => $data['tier_required'] ?? null,
                 'status' => $data['status'] ?? 'draft',
-                'published_at' => ($data['status'] ?? 'draft') === 'published' ? now() : null,
+                // Release / publish date — see MovieController for
+                // rationale. User-supplied value wins; otherwise we
+                // stamp now() on a published status, null otherwise.
+                'published_at' => ! empty($data['published_at'])
+                    ? $data['published_at']
+                    : (($data['status'] ?? 'draft') === 'published' ? now() : null),
             ]);
 
             $this->syncRelationships($show, $data);
@@ -164,7 +169,15 @@ class ShowController extends Controller
                 $show->slug = $this->uniqueSlug($data['title'], $show->id);
             }
 
-            // Status transitions: draft → published stamps published_at.
+            // Explicit release / publish date from the form wins over
+            // the auto-stamp. array_key_exists so clearing the field
+            // nulls the column.
+            if (array_key_exists('published_at', $data)) {
+                $show->published_at = $data['published_at'] ?: null;
+            }
+
+            // Status transitions: draft → published stamps published_at
+            // when the admin didn't supply their own date.
             if (($data['status'] ?? $show->status) !== $show->status) {
                 $show->status = $data['status'];
                 if ($data['status'] === 'published' && !$show->published_at) {

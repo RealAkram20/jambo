@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Services\TwoFactorAuthentication;
+use App\Support\UserAgent;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -214,7 +215,7 @@ class ProfileHubController extends Controller
                 'is_current'    => hash_equals($currentId, $s->id),
                 'ip_address'    => $s->ip_address ?? '—',
                 'last_activity' => $s->last_activity ? Carbon::createFromTimestamp($s->last_activity) : null,
-                'agent'         => $this->parseUserAgent($s->user_agent ?? ''),
+                'agent'         => UserAgent::parse($s->user_agent ?? ''),
             ];
         });
 
@@ -259,35 +260,6 @@ class ProfileHubController extends Controller
                 : 'No other devices were signed in.');
     }
 
-    /**
-     * Minimal browser / OS / device classifier. Not a full UA database —
-     * it hits the common cases so users can recognise which row is
-     * which without adding a composer dependency.
-     */
-    private function parseUserAgent(string $ua): array
-    {
-        $browser = 'Unknown browser';
-        $os      = 'Unknown OS';
-        $icon    = 'ph-globe';
-
-        if (preg_match('/Edg\/([\d.]+)/i', $ua, $m))                { $browser = 'Microsoft Edge'; }
-        elseif (preg_match('/OPR\/([\d.]+)/i', $ua, $m))            { $browser = 'Opera'; }
-        elseif (preg_match('/Chrome\/([\d.]+)/i', $ua, $m))         { $browser = 'Chrome'; }
-        elseif (preg_match('/Firefox\/([\d.]+)/i', $ua, $m))        { $browser = 'Firefox'; }
-        elseif (preg_match('/Version\/[\d.]+.*Safari/i', $ua))      { $browser = 'Safari'; }
-        elseif (stripos($ua, 'curl') !== false)                     { $browser = 'curl'; }
-        elseif (stripos($ua, 'PostmanRuntime') !== false)           { $browser = 'Postman'; }
-
-        // iPhone/iPad UA strings contain "like Mac OS X", so test iOS
-        // first, otherwise we mis-label them as macOS.
-        if (preg_match('/iPhone|iPad|iPod/i', $ua))                 { $os = 'iOS'; $icon = 'ph-device-mobile'; }
-        elseif (preg_match('/Android ([\d.]+)/i', $ua, $m))         { $os = 'Android'; $icon = 'ph-device-mobile'; }
-        elseif (preg_match('/Windows NT ([\d.]+)/i', $ua, $m))      { $os = 'Windows'; $icon = 'ph-desktop'; }
-        elseif (stripos($ua, 'Mac OS X') !== false)                 { $os = 'macOS'; $icon = 'ph-desktop'; }
-        elseif (stripos($ua, 'Linux') !== false)                    { $os = 'Linux'; $icon = 'ph-desktop'; }
-
-        return ['browser' => $browser, 'os' => $os, 'icon' => $icon, 'raw' => $ua];
-    }
 
     /* ---------------------------------------------------------------
      | Tab: Notifications (inbox + per-channel preferences)

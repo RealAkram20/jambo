@@ -240,10 +240,13 @@
             duration = Number.isFinite(video.duration) ? video.duration : null;
         });
 
+        let heartbeatTimer = null;
+
         async function sendHeartbeat() {
+            if (window.jamboKicked) return;
             if (lastPosition <= 0) return;
             try {
-                await fetch(heartbeatUrl, {
+                const res = await fetch(heartbeatUrl, {
                     method: 'POST',
                     credentials: 'same-origin',
                     headers: {
@@ -259,11 +262,16 @@
                         duration: duration ? Math.floor(duration) : null,
                     }),
                 });
+                const handled = await window.jamboHandleHeartbeatResponse?.(res);
+                if (handled && heartbeatTimer) {
+                    clearInterval(heartbeatTimer);
+                    heartbeatTimer = null;
+                }
             } catch (e) { console.debug('[watchlist-play] heartbeat failed', e); }
         }
         video.addEventListener('pause', sendHeartbeat);
         video.addEventListener('ended', sendHeartbeat);
-        setInterval(sendHeartbeat, 15000);
+        heartbeatTimer = setInterval(sendHeartbeat, 15000);
         window.addEventListener('pagehide', sendHeartbeat);
 
         // ---- Mini-mode on scroll -------------------------------------
@@ -516,4 +524,9 @@
         });
     })();
     </script>
+
+{{-- Device-limit kick overlay. Heartbeat above passes every fetch
+     response through the shared handler; on a 409 the overlay
+     takes over and subsequent beats short-circuit. --}}
+@include('frontend::components.partials.jambo-kick-overlay')
 @endsection

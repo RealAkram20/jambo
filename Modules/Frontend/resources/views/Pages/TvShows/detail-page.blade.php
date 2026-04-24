@@ -72,6 +72,7 @@
                         'videoUrl' => $firstEpUrl,
                         'movieDescription' => $show->synopsis,
                         'movieGenres' => $show->genres->pluck('name')->all(),
+                        'isUpcoming' => $isUpcoming ?? false,
                         'watchableType' => 'show',
                         'watchableId'   => $show->id,
                     ])
@@ -219,6 +220,22 @@
             @endif
         </div>
     </div>
+
+    @include('frontend::components.widgets.details-description-modal', [
+        'movieName'     => $show->title,
+        'description'   => $show->synopsis,
+        'year'          => $show->year ?: ($show->published_at?->format('Y') ?: null),
+        'views'         => number_format($show->views_count) . ' ' . __('streamTag.views'),
+        'movieDuration' => $seasons->count() . ' ' . __('streamEpisode.season') . ($seasons->count() > 1 ? 's' : ''),
+        'ratingCount'   => $show->rating ?: null,
+        'genres'        => $show->genres->pluck('name')->all(),
+        'tags'          => $show->relationLoaded('tags') ? $show->tags->pluck('name')->all() : [],
+        'cast'          => $cast,
+        'crew'          => $crew,
+        'releaseLabel'  => ($isUpcoming ?? false) && $show->published_at
+            ? $show->published_at->format('M j, Y')
+            : null,
+    ])
 
     {{-- Reviews & ratings --}}
     @include('frontend::components.partials.reviews-block', [

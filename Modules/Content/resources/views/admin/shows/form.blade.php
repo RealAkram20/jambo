@@ -97,14 +97,42 @@
             <div class="card-body">
                 <div class="mb-3">
                     <label for="status" class="form-label">Status</label>
-                    <select name="status" id="status" class="form-select">
+                    <select name="status" id="status" class="form-select" data-jambo-status>
                         <option value="draft" @selected(old('status', $show->status ?: 'draft') === 'draft')>Draft</option>
                         <option value="upcoming" @selected(old('status', $show->status) === 'upcoming')>Upcoming</option>
                         <option value="published" @selected(old('status', $show->status) === 'published')>Published</option>
                     </select>
                 </div>
+
+                {{-- Release / publish date — same pattern as the movie
+                     form. Hidden for drafts; label flips between
+                     "Release date" and "Published at" depending on
+                     status. Stored on shows.published_at. --}}
+                <div class="mb-3" data-jambo-release-wrap
+                     @if (old('status', $show->status ?: 'draft') === 'draft') style="display:none;" @endif>
+                    <label for="published_at" class="form-label" data-jambo-release-label>
+                        {{ old('status', $show->status) === 'upcoming' ? 'Release date' : 'Published at' }}
+                    </label>
+                    <input type="datetime-local" name="published_at" id="published_at"
+                           class="form-control"
+                           value="{{ old('published_at', $show->published_at?->format('Y-m-d\TH:i')) }}">
+                    <div class="form-text" data-jambo-release-hint>
+                        @if (old('status', $show->status) === 'upcoming')
+                            Scheduled release date. Surfaced on the detail page and the home "Upcoming" slider.
+                        @else
+                            When this series went live. Leave blank to auto-stamp on save.
+                        @endif
+                    </div>
+                </div>
+
                 @if ($show->exists && $show->published_at)
-                    <div class="text-muted" style="font-size:12px;">Published {{ $show->published_at->diffForHumans() }}</div>
+                    <div class="text-muted" style="font-size:12px;">
+                        @if ($show->status === 'upcoming')
+                            Releases {{ $show->published_at->format('M j, Y') }} ({{ $show->published_at->diffForHumans() }})
+                        @else
+                            Published {{ $show->published_at->diffForHumans() }}
+                        @endif
+                    </div>
                 @endif
             </div>
         </div>
@@ -203,6 +231,31 @@
             e.target.closest('.cast-row').remove();
         }
     });
+
+    // Release-date field visibility + label tracking the status select.
+    const statusSel = document.querySelector('[data-jambo-status]');
+    const wrap = document.querySelector('[data-jambo-release-wrap]');
+    const label = document.querySelector('[data-jambo-release-label]');
+    const hint = document.querySelector('[data-jambo-release-hint]');
+    if (statusSel && wrap && label && hint) {
+        const apply = () => {
+            const s = statusSel.value;
+            if (s === 'draft') {
+                wrap.style.display = 'none';
+            } else {
+                wrap.style.display = '';
+                if (s === 'upcoming') {
+                    label.textContent = 'Release date';
+                    hint.textContent = 'Scheduled release date. Surfaced on the detail page and the home "Upcoming" slider.';
+                } else {
+                    label.textContent = 'Published at';
+                    hint.textContent = 'When this series went live. Leave blank to auto-stamp on save.';
+                }
+            }
+        };
+        statusSel.addEventListener('change', apply);
+        apply();
+    }
 })();
 </script>
 @include('content::admin.partials.media-picker-script')

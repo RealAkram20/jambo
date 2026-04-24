@@ -130,6 +130,23 @@ class Show extends Model
         return $q->where('status', self::STATUS_UPCOMING);
     }
 
+    /**
+     * Series whose detail page is publicly reachable: Published OR
+     * Upcoming. See Movie::scopeDetailVisible for rationale — the
+     * page must load for upcoming rail clicks, but streaming still
+     * gates on `published()`.
+     */
+    public function scopeDetailVisible(Builder $q): Builder
+    {
+        return $q->where(function ($outer) {
+            $outer->where(function ($pub) {
+                $pub->where('status', self::STATUS_PUBLISHED)
+                    ->whereNotNull('published_at')
+                    ->where('published_at', '<=', now());
+            })->orWhere('status', self::STATUS_UPCOMING);
+        });
+    }
+
     protected static function newFactory(): ShowFactory
     {
         return ShowFactory::new();

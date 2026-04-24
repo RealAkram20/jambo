@@ -21,6 +21,13 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
+        // ->change() requires doctrine/dbal on SQLite, which we don't
+        // ship. The in-memory test DB has no rows to protect, so a
+        // no-op on sqlite is safe.
+        if (Schema::getConnection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
         Schema::table('subscription_tiers', function (Blueprint $t) {
             $t->string('currency', 8)->default('UGX')->change();
         });
@@ -28,6 +35,10 @@ return new class extends Migration {
 
     public function down(): void
     {
+        if (Schema::getConnection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
         Schema::table('subscription_tiers', function (Blueprint $t) {
             $t->string('currency', 8)->default('KES')->change();
         });

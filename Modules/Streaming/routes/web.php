@@ -32,6 +32,24 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/streams/limit', [StreamingController::class, 'streamLimit'])
         ->name('streams.limit');
 
+    // Device picker actions.
+    //   • boot   — terminate one of your other active sessions
+    //              ({sessionId} is the Laravel session ID; scoped to
+    //              rows owned by the authed user in the controller)
+    //   • reclaim — kicked device clears its own terminated_at and
+    //               re-runs the cap check (overlay "Take back here")
+    //   • continue — used by the picker's "Continue watching" button;
+    //                redirects to the URL TierGate stashed
+    Route::post('/streams/boot/{sessionId}', [StreamingController::class, 'bootSession'])
+        ->where('sessionId', '[A-Za-z0-9]{20,64}')
+        ->name('streams.boot');
+
+    Route::post('/streams/reclaim', [StreamingController::class, 'reclaimStream'])
+        ->name('streams.reclaim');
+
+    Route::get('/streams/continue', [StreamingController::class, 'continueStream'])
+        ->name('streams.continue');
+
     Route::post('/api/v1/streaming/heartbeat', [StreamingController::class, 'heartbeat'])
         ->name('streaming.heartbeat');
 });

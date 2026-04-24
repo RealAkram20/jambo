@@ -34,12 +34,14 @@ class WatchHistoryItem extends Model
         'watched_at',
         'session_id',
         'last_beat_at',
+        'terminated_at',
     ];
 
     protected $casts = [
         'completed' => 'bool',
         'watched_at' => 'datetime',
         'last_beat_at' => 'datetime',
+        'terminated_at' => 'datetime',
     ];
 
     /**
@@ -120,38 +122,14 @@ class WatchHistoryItem extends Model
         return $history;
     }
 
-    /**
-     * Count the user's currently-active streams on premium content.
-     * "Active" = last heartbeat within STREAM_IDLE_SECONDS and
-     * incomplete. Filtered to items whose content is tier-gated, so
-     * free/basic content never blocks a higher-priced seat.
-     *
-     * Optionally excludes a session id — call with the current session
-     * when asking "how many OTHER devices are streaming right now".
-     */
-    public static function activeStreamCount(int $userId, ?string $excludeSessionId = null): int
-    {
-        $q = static::query()
-            ->where('user_id', $userId)
-            ->where('last_beat_at', '>', now()->subSeconds(self::STREAM_IDLE_SECONDS))
-            ->where('completed', false)
-            ->whereHasMorph(
-                'watchable',
-                [
-                    \Modules\Content\app\Models\Movie::class,
-                    \Modules\Content\app\Models\Episode::class,
-                ],
-                fn ($mq) => $mq->whereNotNull('tier_required')
-            );
-
-        if ($excludeSessionId !== null) {
-            $q->where(function ($q) use ($excludeSessionId) {
-                $q->whereNull('session_id')->orWhere('session_id', '!=', $excludeSessionId);
-            });
-        }
-
-        return $q->distinct('session_id')->count('session_id');
-    }
+    // Concurrent-stream tracking lives on the `active_streams` table
+    // and `Modules\Streaming\app\Models\ActiveStream` now — see that
+    // model for activeCount / activeFor / terminateSession / reviveSession.
+    // watch_history stays the source of truth for resume position,
+    // view counts, and long-term history. The `session_id` /
+    // `last_beat_at` / `terminated_at` columns here are legacy and
+    // ignored by the concurrency flow; they're kept around so the
+    // migration down-path doesn't destroy existing rows.
 
     /**
      * Opportunistically populate `runtime_minutes` on the content

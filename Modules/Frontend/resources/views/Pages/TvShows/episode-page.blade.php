@@ -282,11 +282,14 @@ document.addEventListener('DOMContentLoaded', async function () {
         duration = Number.isFinite(video.duration) ? video.duration : null;
     });
 
+    let heartbeatTimer = null;
+
     async function sendHeartbeat() {
         if (!isAuthed) return;
+        if (window.jamboKicked) return;
         if (lastPosition <= 0) return;
         try {
-            await fetch(heartbeatUrl, {
+            const res = await fetch(heartbeatUrl, {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: {
@@ -302,11 +305,16 @@ document.addEventListener('DOMContentLoaded', async function () {
                     duration: duration ? Math.floor(duration) : null,
                 }),
             });
+            const handled = await window.jamboHandleHeartbeatResponse?.(res);
+            if (handled && heartbeatTimer) {
+                clearInterval(heartbeatTimer);
+                heartbeatTimer = null;
+            }
         } catch (e) { console.debug('[watch] heartbeat failed', e); }
     }
     if (isAuthed) {
         video.addEventListener('pause', sendHeartbeat);
-        setInterval(sendHeartbeat, 15000);
+        heartbeatTimer = setInterval(sendHeartbeat, 15000);
         window.addEventListener('pagehide', sendHeartbeat);
     }
 
@@ -472,5 +480,28 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 });
 </script>
+@endif
+
+{{-- "Read more" details sheet for the Read more link inside
+     movie-description. Composed from episode + parent show so
+     the modal reflects the specific episode you're watching. --}}
+@include('frontend::components.widgets.details-description-modal', [
+    'movieName'     => $headline,
+    'description'   => $episode->synopsis ?: $show->synopsis,
+    'year'          => $episode->published_at?->format('Y') ?: ($show->year ?? null),
+    'views'         => number_format($show->views_count ?? 0) . ' ' . __('streamTag.views'),
+    'movieDuration' => $episode->runtime_minutes ? $episode->runtime_minutes . ' min' : null,
+    'ratingCount'   => null, // episodes don't carry an IMDb rating of their own
+    'genres'        => $show->genres->pluck('name')->all(),
+    'tags'          => $show->relationLoaded('tags') ? $show->tags->pluck('name')->all() : [],
+    'cast'          => $show->cast->filter(fn ($p) => ($p->pivot->role ?? null) === 'actor'),
+    'crew'          => $show->cast->filter(fn ($p) => in_array(($p->pivot->role ?? null), ['director', 'writer', 'producer'])),
+])
+
+{{-- Device-limit kick overlay (see partial for what it does). Only
+     included when a source exists — there's no heartbeat loop on a
+     non-streamable episode page to signal a kick. --}}
+@if ($source)
+    @include('frontend::components.partials.jambo-kick-overlay')
 @endif
 @endsection

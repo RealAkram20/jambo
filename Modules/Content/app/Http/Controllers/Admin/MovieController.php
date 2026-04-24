@@ -100,7 +100,14 @@ class MovieController extends Controller
                 'video_url_low' => trim($data['video_url_low'] ?? '') ?: null,
                 'tier_required' => $data['tier_required'] ?? null,
                 'status' => $data['status'] ?? 'draft',
-                'published_at' => ($data['status'] ?? 'draft') === 'published' ? now() : null,
+                // Release / publish date — admin may set one for an
+                // upcoming title (to surface "Releases Mar 15" in the
+                // UI) or a published one (to backdate). When nothing
+                // is provided, we stamp now() iff status=published so
+                // the public listing can order by it.
+                'published_at' => ! empty($data['published_at'])
+                    ? $data['published_at']
+                    : (($data['status'] ?? 'draft') === 'published' ? now() : null),
             ]);
 
             $this->syncRelationships($movie, $data);
@@ -173,7 +180,17 @@ class MovieController extends Controller
                 $movie->slug = $this->uniqueSlug($data['title'], $movie->id);
             }
 
-            // Status transitions: draft → published stamps published_at.
+            // Explicit release / publish date from the form. `array_key_exists`
+            // rather than `isset` so an admin clearing the date field
+            // (empty value) actually nulls the column. Applied BEFORE
+            // the status-transition auto-stamp so a user-supplied value
+            // always wins.
+            if (array_key_exists('published_at', $data)) {
+                $movie->published_at = $data['published_at'] ?: null;
+            }
+
+            // Status transitions: draft → published stamps published_at
+            // when the admin didn't supply their own date.
             $oldStatus = $movie->status;
             if (($data['status'] ?? $movie->status) !== $movie->status) {
                 $movie->status = $data['status'];

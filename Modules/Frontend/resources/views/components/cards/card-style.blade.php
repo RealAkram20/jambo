@@ -13,6 +13,12 @@
     $cardGenres = $cardGenres ?? null;
     $watchableType = $watchableType ?? null;
     $watchableId = $watchableId ?? null;
+    // Upcoming-specific affordances. When `$upcomingRelease` is set
+    // the card shows a "Releases <date>" ribbon on the poster and
+    // swaps the "Play now" CTA for a "View details" link — playback
+    // isn't available yet, so routing users through the detail page
+    // is the correct path.
+    $upcomingRelease = $upcomingRelease ?? null;
     $imgSrc = media_url($cardImage);
 
     // Lookup the "in watchlist" state from the per-request index
@@ -168,10 +174,26 @@
           </button>
         @endif
         <div class="iq-play-button iq-button">
-          <a href="{{ $cardPath }}" class="btn btn-primary w-100">{{__('streamButtons.play_now')}}</a>
+          @if ($upcomingRelease)
+            <a href="{{ $cardPath }}" class="btn btn-outline-primary w-100 d-flex align-items-center justify-content-center gap-1">
+              <i class="ph ph-calendar-check"></i>
+              <span>{{ __('streamButtons.view_details') !== 'streamButtons.view_details' ? __('streamButtons.view_details') : 'View details' }}</span>
+            </a>
+          @else
+            <a href="{{ $cardPath }}" class="btn btn-primary w-100">{{__('streamButtons.play_now')}}</a>
+          @endif
         </div>
       </div>
     </div>
+    @if ($upcomingRelease)
+    {{-- Release-date ribbon — top-left, so it can coexist with the
+         Premium crown in the top-right. Muted blue to avoid shouting. --}}
+    <div class="position-absolute top-0 start-0 z-1 m-2 px-2 py-1 d-inline-flex align-items-center gap-1 rounded-pill"
+         style="background: rgba(var(--bs-primary-rgb), 0.9); color: #fff; font-size: 0.72rem; font-weight: 500; letter-spacing: 0.02em;">
+      <i class="ph ph-calendar-check"></i>
+      <span>{{ $upcomingRelease }}</span>
+    </div>
+    @endif
     @if ($productPremium)
     <div class="position-absolute z-1 premium-product d-flex align-items-center justify-content-center"
       data-bs-toggle="tooltip" data-bs-placement="top" aria-label="Premium" data-bs-original-title="{{__('streamPricing.premium')}}">

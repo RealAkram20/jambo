@@ -108,4 +108,37 @@ class SubscriptionTier extends Model
             default => $this->billing_period,
         };
     }
+
+    /**
+     * Suggest the cheapest active tier that supports more concurrent
+     * streams than `$currentMaxStreams`. Used by the device-limit
+     * picker's "Upgrade to X" CTA so the user sees a concrete step
+     * up ("Basic (1) → Standard (2)") instead of a generic "view
+     * plans" link.
+     *
+     *   • currentMaxStreams === null → caller is already on an
+     *     unlimited tier, so there's nothing to upgrade to; returns
+     *     null and the UI falls back to generic pricing page.
+     *   • A tier with max_concurrent_streams IS NULL counts as
+     *     "unlimited" and ranks last. `orderByRaw` keeps finite
+     *     values before the null so we suggest the smallest bump
+     *     first.
+     */
+    public static function nextTierUpFrom(?int $currentMaxStreams): ?self
+    {
+        if ($currentMaxStreams === null) {
+            return null;
+        }
+
+        return static::query()
+            ->where('is_active', true)
+            ->where(function ($q) use ($currentMaxStreams) {
+                $q->whereNull('max_concurrent_streams')
+                  ->orWhere('max_concurrent_streams', '>', $currentMaxStreams);
+            })
+            ->orderByRaw('CASE WHEN max_concurrent_streams IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('max_concurrent_streams')
+            ->orderBy('price')
+            ->first();
+    }
 }

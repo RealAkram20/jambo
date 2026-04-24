@@ -20,6 +20,12 @@
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
+        <!-- Strip the /Jambo subdirectory from APP_URL during tests.
+             Apache's .htaccess rewrites /Jambo/... → / in production,
+             but the test HTTP kernel has no such rewrite, so routes
+             registered as `streams/limit` wouldn't match requests
+             against `/Jambo/streams/limit`. -->
+        <env name="APP_URL" value="http://localhost"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="CACHE_DRIVER" value="array"/>
         <!-- Isolate tests from the dev MySQL — RefreshDatabase calls migrate:fresh
@@ -28,7 +34,12 @@
         <env name="DB_DATABASE" value=":memory:"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
-        <env name="SESSION_DRIVER" value="array"/>
+        <!-- `array` resets the session on every request, which breaks
+             tests that capture session()->getId() in setup and then
+             reference it in a follow-up HTTP call (device-limit tests
+             need this to simulate "the same browser" across requests).
+             `file` persists inside the single test runner lifecycle. -->
+        <env name="SESSION_DRIVER" value="file"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
     </php>
 </phpunit>

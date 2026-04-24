@@ -14,26 +14,35 @@
         ->first()
         ?->id
         ?? $tiers->sortByDesc('access_level')->first()?->id;
+
+    /**
+     * Query-param highlight. The device-limit picker appends
+     * ?highlight=<slug> when suggesting an upgrade; we match the slug
+     * here so the matching card gets the attention-pulse class on
+     * first paint and is the scroll anchor for the JS at the bottom
+     * of the page.
+     */
+    $pulseSlug = request()->query('highlight');
 @endphp
 
 @section('content')
     <div class="section-padding">
         <div class="container">
-            {{-- Surface server-side errors from the payment flow (gateway
-                 misconfigured, tier inactive, etc.). Same look as the
-                 rest of the site's flash messages. --}}
-            @if (session('error'))
-                <div class="alert alert-danger mb-4 text-center">{{ session('error') }}</div>
-            @endif
+            {{-- Flash messages (error / info) are now rendered by the
+                 frontend master layout, so the page body doesn't need
+                 its own alert block. --}}
 
             <div class="row">
                 @forelse ($tiers as $tier)
                     @php
                         $isHighlighted = $tier->id === $highlightedId;
+                        $isPulsed = $pulseSlug && $pulseSlug === $tier->slug;
                         $features = is_array($tier->features) ? $tier->features : [];
                     @endphp
                     <div class="col-xl-4 col-md-6 mb-3 mb-lg-0">
-                        <div class="pricing-plan-wrapper">
+                        <div class="pricing-plan-wrapper @if ($isPulsed) jambo-tier-pulse @endif"
+                             id="tier-{{ $tier->slug }}"
+                             data-tier-slug="{{ $tier->slug }}">
                             @if ($isHighlighted)
                                 <div class="pricing-plan-discount bg-primary p-2 text-center">
                                     <span class="text-white">{{ __('streamTag.most_popular') ?? 'Most popular' }}</span>
@@ -138,4 +147,39 @@
     @auth
         @include('frontend::components.partials.payment-modal')
     @endauth
+
+    @if ($pulseSlug)
+        {{-- Attention pulse + auto-scroll for ?highlight=<slug>. Only
+             emits when the query param is present so regular pricing
+             visits are unchanged. Three short pulses then settles —
+             enough to catch the eye without being a loop animation.
+             Honors prefers-reduced-motion by disabling the keyframe. --}}
+        <style>
+            @keyframes jambo-tier-pulse-kf {
+                0%   { box-shadow: 0 0 0 0 rgba(var(--bs-primary-rgb), 0.55); }
+                70%  { box-shadow: 0 0 0 16px rgba(var(--bs-primary-rgb), 0); }
+                100% { box-shadow: 0 0 0 0 rgba(var(--bs-primary-rgb), 0); }
+            }
+
+            .jambo-tier-pulse {
+                border-radius: 12px;
+                animation: jambo-tier-pulse-kf 1.4s ease-out 3;
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+                .jambo-tier-pulse { animation: none; }
+            }
+        </style>
+
+        <script>
+            (function () {
+                var target = document.getElementById('tier-{{ $pulseSlug }}');
+                if (!target) return;
+                // Defer one frame so layout settles before we measure.
+                requestAnimationFrame(function () {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                });
+            })();
+        </script>
+    @endif
 @endsection

@@ -24,6 +24,7 @@ class StoreShowRequest extends FormRequest
             'trailer_url' => ['nullable', 'string', 'max:500', 'regex:/^(https?:\/\/|\/)/'],
             'tier_required' => 'nullable|string|max:50',
             'status' => 'required|in:draft,published,upcoming',
+            'published_at' => 'nullable|date',
 
             'genre_ids' => 'nullable|array',
             'genre_ids.*' => 'integer|exists:genres,id',

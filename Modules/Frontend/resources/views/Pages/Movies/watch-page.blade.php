@@ -187,11 +187,14 @@ document.addEventListener('DOMContentLoaded', async function () {
         duration = Number.isFinite(video.duration) ? video.duration : null;
     });
 
+    let heartbeatTimer = null;
+
     async function sendHeartbeat() {
         if (!isAuthed) return;
+        if (window.jamboKicked) return; // short-circuit once kicked
         if (lastPosition <= 0) return;
         try {
-            await fetch(heartbeatUrl, {
+            const res = await fetch(heartbeatUrl, {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: {
@@ -207,12 +210,21 @@ document.addEventListener('DOMContentLoaded', async function () {
                     duration: duration ? Math.floor(duration) : null,
                 }),
             });
+            // 409 = another device took over. The shared handler
+            // (defined by jambo-kick-overlay partial) pauses every
+            // player on the page and raises the overlay. Stop the
+            // interval so we don't keep pinging after kick.
+            const handled = await window.jamboHandleHeartbeatResponse?.(res);
+            if (handled && heartbeatTimer) {
+                clearInterval(heartbeatTimer);
+                heartbeatTimer = null;
+            }
         } catch (e) { console.debug('[watch] heartbeat failed', e); }
     }
     if (isAuthed) {
         video.addEventListener('pause', sendHeartbeat);
         video.addEventListener('ended', sendHeartbeat);
-        setInterval(sendHeartbeat, 15000);
+        heartbeatTimer = setInterval(sendHeartbeat, 15000);
         window.addEventListener('pagehide', sendHeartbeat);
     }
 
@@ -264,5 +276,11 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 });
 </script>
+
+{{-- Shared kick overlay + heartbeat response handler. Defines
+     window.jamboHandleHeartbeatResponse() which the heartbeat loop
+     above calls after every fetch — on 409 terminated the overlay
+     takes over and subsequent heartbeats skip. --}}
+@include('frontend::components.partials.jambo-kick-overlay')
 @endif
 @endsection

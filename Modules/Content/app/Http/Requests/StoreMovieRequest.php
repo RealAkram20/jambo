@@ -33,6 +33,13 @@ class StoreMovieRequest extends FormRequest
             'video_file' => 'nullable|file|mimetypes:video/mp4,video/webm,video/quicktime,video/x-matroska|max:2097152',
             'tier_required' => 'nullable|string|max:50',
             'status' => 'required|in:draft,published,upcoming',
+            // Optional release / publish date.
+            //   • upcoming → scheduled release date shown on the detail
+            //     page, home Upcoming slider, and watch-blocked flash.
+            //   • published → the "went live" timestamp; if omitted the
+            //     controller stamps now() on the status=published
+            //     transition.
+            'published_at' => 'nullable|date',
 
             'genre_ids' => 'nullable|array',
             'genre_ids.*' => 'integer|exists:genres,id',
