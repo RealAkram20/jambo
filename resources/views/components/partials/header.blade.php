@@ -162,8 +162,6 @@
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profile-setting">
                         <li><a class="dropdown-item"
                                 href="{{ route('dashboard.profile') }}">{{ __('header.profile') }}</a></li>
-                        <li><a class="dropdown-item"
-                                href="{{ route('dashboard.privacy') }}">{{ __('header.privacy_setting') }}</a></li>
                         <li>
                             <hr class="dropdown-divider">
                         </li>

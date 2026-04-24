@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Setting;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Schema;
@@ -23,6 +24,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // The entire app uses Bootstrap 5 (admin via the Streamit
+        // template, frontend via the same template's public theme).
+        // Laravel's default pagination renderer is Tailwind since v9,
+        // which ships inline SVG arrows sized with Tailwind utility
+        // classes that don't exist here — the result is enormous
+        // unconstrained chevrons. Switching the default to Bootstrap-5
+        // markup makes every `->links()` call render as a proper
+        // `.pagination .page-item .page-link` list the Streamit CSS
+        // already styles correctly.
+        Paginator::useBootstrapFive();
+
         $this->overrideMailConfigFromSettings();
         $this->overrideWebPushConfigFromSettings();
     }

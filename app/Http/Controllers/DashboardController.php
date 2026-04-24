@@ -103,11 +103,10 @@ class DashboardController extends Controller
         return view('DashboardPages.CommentPage', compact('title', 'comments', 'filter'));
     }
 
-    public function user(Request $request)
-    {
-        $title = __('dashboard.user_list');
-        return view('DashboardPages.user.ListPage', compact('title'));
-    }
+    // The /user-list index has moved to App\Http\Controllers\Admin\UserController
+    // so it can serve real data + CRUD. The route name
+    // `dashboard.user-list` is unchanged so the sidebar link keeps
+    // working.
 
     public function movieList(Request $request)
     {

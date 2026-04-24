@@ -50,4 +50,17 @@ Route::middleware(['auth', 'role:admin'])
         Route::get('/', [PaymentSettingsController::class, 'index'])->name('index');
         Route::post('/', [PaymentSettingsController::class, 'update'])->name('update');
         Route::post('register-ipn', [PaymentSettingsController::class, 'registerIpn'])->name('register-ipn');
+
+        // Orders: list + manual create + per-order view + editable
+        // fields + reconcile (re-poll gateway) + delete with guards.
+        //
+        // `orders/create` must be registered before `orders/{order}`
+        // so Laravel doesn't treat "create" as a model key.
+        Route::get('orders', [PaymentSettingsController::class, 'orders'])->name('orders');
+        Route::get('orders/create', [PaymentSettingsController::class, 'createOrderForm'])->name('orders.create');
+        Route::post('orders', [PaymentSettingsController::class, 'storeOrder'])->name('orders.store');
+        Route::get('orders/{order}', [PaymentSettingsController::class, 'showOrder'])->name('orders.show');
+        Route::patch('orders/{order}', [PaymentSettingsController::class, 'updateOrder'])->name('orders.update');
+        Route::delete('orders/{order}', [PaymentSettingsController::class, 'destroyOrder'])->name('orders.destroy');
+        Route::post('orders/{order}/reconcile', [PaymentSettingsController::class, 'reconcileOrder'])->name('orders.reconcile');
     });

@@ -5,6 +5,8 @@ use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\RolePermission;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\Admin\SettingController as AdminSettingController;
+use App\Http\Controllers\Admin\UserController as AdminUserController;
+use App\Http\Controllers\Admin\AdminProfileController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -36,7 +38,18 @@ Route::group(['as' => 'dashboard.', 'middleware' => ['auth', 'role:admin']], fun
     // Route::get('static-app', [DashboardController::class, 'index'])->name('home');
     Route::get('rating', [DashboardController::class, 'rating'])->name('rating');
     Route::get('comment', [DashboardController::class, 'comment'])->name('comment');
-    Route::get('user-list', [DashboardController::class, 'user'])->name('user-list');
+    // User admin — full CRUD. Kept under `/user-list` with the
+    // `dashboard.user-list` name so the sidebar link already points
+    // at the right place. The create / store / edit / update /
+    // destroy siblings are explicit rather than Route::resource
+    // because we want the reserved-word /user-list/create to stay
+    // routable on top of the index URL.
+    Route::get('user-list', [AdminUserController::class, 'index'])->name('user-list');
+    Route::get('user-list/create', [AdminUserController::class, 'create'])->name('user-list.create');
+    Route::post('user-list', [AdminUserController::class, 'store'])->name('user-list.store');
+    Route::get('user-list/{user}/edit', [AdminUserController::class, 'edit'])->name('user-list.edit');
+    Route::patch('user-list/{user}', [AdminUserController::class, 'update'])->name('user-list.update');
+    Route::delete('user-list/{user}', [AdminUserController::class, 'destroy'])->name('user-list.destroy');
     Route::get('movie-list', [DashboardController::class, 'movieList'])->name('movie-list');
     Route::get('movie-genres', [DashboardController::class, 'movieGenres'])->name('movie-genres');
     Route::get('vjs', [DashboardController::class, 'vjs'])->name('vjs');
@@ -112,8 +125,13 @@ Route::group(['as' => 'dashboard.', 'middleware' => ['auth', 'role:admin']], fun
     Route::get('ph-bold', [DashboardController::class, 'phbold'])->name('ph-bold');
     Route::get('ph-fill', [DashboardController::class, 'phfill'])->name('ph-fill');
 
-    Route::get('profile', [DashboardController::class, 'profile'])->name('profile');
-    Route::get('privacy', [DashboardController::class, 'privacy'])->name('privacy');
+    // Admin's own profile — the avatar-dropdown "Profile" link lands
+    // here. Full CRUD for login details + session management.
+    Route::get('profile', [AdminProfileController::class, 'index'])->name('profile');
+    Route::patch('profile', [AdminProfileController::class, 'updateProfile'])->name('profile.update');
+    Route::put('profile/password', [AdminProfileController::class, 'updatePassword'])->name('profile.password');
+    Route::post('profile/sessions/logout-others', [AdminProfileController::class, 'logoutOtherSessions'])->name('profile.sessions.logout-others');
+    Route::delete('profile/sessions/{session_id}', [AdminProfileController::class, 'logoutSession'])->name('profile.sessions.destroy');
 });
 Route::group(['as' => 'backend.', 'middleware' => ['auth', 'role:admin']], function () {
     Route::get('permission-role', [RolePermission::class, 'index'])->name('permission-role')->middleware('password.confirm');

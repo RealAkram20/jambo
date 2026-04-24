@@ -229,6 +229,68 @@
         </ul>
     </li>
 
+    {{-- Payments group — Settings, Orders, and Pricing (tiers) all live
+         under one parent so the top-level sidebar stays compact. Route
+         guards on each child so modules that aren't loaded don't
+         surface a dead link. Whole group hides if payments isn't
+         configured at all. --}}
+    @if (Route::has('admin.payments.index') || Route::has('admin.subscription-tiers.index'))
+        <li class="nav-item">
+            <a class="nav-link {{ request()->routeIs('admin.payments.*') || request()->routeIs('admin.subscription-tiers.*') ? 'active' : '' }}"
+                data-bs-toggle="collapse" href="#sidebar-payments" role="button" aria-expanded="false"
+                aria-controls="sidebar-payments">
+                <i class="icon" data-bs-toggle="tooltip" title="Payments" data-bs-placement="right"
+                    aria-label="Payments" data-bs-original-title="Payments">
+                    <i class="ph ph-credit-card fs-4"></i>
+                </i>
+                <span class="item-name">Payments</span>
+                <i class="right-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" class="icon-18" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </i>
+            </a>
+            <ul class="sub-nav collapse {{ request()->routeIs('admin.payments.*') || request()->routeIs('admin.subscription-tiers.*') ? 'show' : '' }}"
+                id="sidebar-payments" data-bs-parent="#sidebar-menu">
+                @if (Route::has('admin.payments.index'))
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('admin.payments.index') || request()->routeIs('admin.payments.update') || request()->routeIs('admin.payments.register-ipn') ? 'active' : '' }}"
+                            href="{{ route('admin.payments.index') }}">
+                            <i class="icon" data-bs-toggle="tooltip" title="Payment settings" data-bs-placement="right"
+                                aria-label="Payment settings" data-bs-original-title="Payment settings">
+                                <i class="ph ph-gear fs-5"></i>
+                            </i>
+                            <span class="item-name">Settings</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('admin.payments.orders') ? 'active' : '' }}"
+                            href="{{ route('admin.payments.orders') }}">
+                            <i class="icon" data-bs-toggle="tooltip" title="Payment orders" data-bs-placement="right"
+                                aria-label="Payment orders" data-bs-original-title="Payment orders">
+                                <i class="ph ph-receipt fs-5"></i>
+                            </i>
+                            <span class="item-name">Orders</span>
+                        </a>
+                    </li>
+                @endif
+                @if (Route::has('admin.subscription-tiers.index'))
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('admin.subscription-tiers.*') ? 'active' : '' }}"
+                            href="{{ route('admin.subscription-tiers.index') }}">
+                            <i class="icon" data-bs-toggle="tooltip" title="Pricing" data-bs-placement="right"
+                                aria-label="Pricing" data-bs-original-title="Pricing">
+                                <i class="ph ph-wallet fs-5"></i>
+                            </i>
+                            <span class="item-name">{{ __('sidebar.pricing') }}</span>
+                        </a>
+                    </li>
+                @endif
+            </ul>
+        </li>
+    @endif
+
     <li class="nav-item">
         <a class="nav-link {{ activeRoute(route('dashboard.review')) }}" href="{{ route('dashboard.review') }}">
             <i class="icon" data-bs-toggle="tooltip" title="Review" data-bs-placement="right" aria-label="Review"
@@ -238,590 +300,19 @@
             <span class="item-name">{{ __('sidebar.review') }}</span>
         </a>
     </li>
-    @if (Route::has('admin.subscription-tiers.index'))
-    <li class="nav-item">
-        <a class="nav-link {{ request()->routeIs('admin.subscription-tiers.*') ? 'active' : '' }}"
-            href="{{ route('admin.subscription-tiers.index') }}">
-            <i class="icon" data-bs-toggle="tooltip" title="Pricing" data-bs-placement="right"
-                aria-label="Pricing" data-bs-original-title="Pricing">
-                <i class="ph ph-wallet fs-5"></i>
-            </i>
-            <span class="item-name">{{ __('sidebar.pricing') }}</span>
-        </a>
-    </li>
-    @endif
 
-    <li class="nav-item">
-        <a class="nav-link" data-bs-toggle="collapse" href="#sidebar-auth" role="button" aria-expanded="false"
-            aria-controls="sidebar-auth">
-            <i class="icon" data-bs-toggle="tooltip" title="Authentication" data-bs-placement="right"
-                aria-label="Authentication" data-bs-original-title="Authentication">
-                <i class="ph ph-shield-check fs-5"></i>
-            </i>
-            <span class="item-name">{{ __('sidebar.authentication') }}</span>
-            <i class="right-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" class="icon-18" fill="none"
-                    viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-            </i>
-        </a>
-        <ul class="sub-nav collapse" id="sidebar-auth" data-bs-parent="#sidebar-menu">
-            <li class="nav-item">
-                <a class="nav-link" href="{{ route('dashboard.login') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Login" data-bs-placement="right"
-                        aria-label="Login" data-bs-original-title="Login">
-                        <i class="ph ph-sign-in fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.login') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="{{ route('dashboard.register') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Register" data-bs-placement="right"
-                        aria-label="Register" data-bs-original-title="Register">
-                        <i class="ph ph-trademark-registered fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.register') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="{{ route('dashboard.reset-password') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Recover Password" data-bs-placement="right"
-                        aria-label="Recover Password" data-bs-original-title="Recover Password">
-                        <i class="ph ph-voicemail fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.recover_password') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="{{ route('dashboard.verify-email') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Confirm Mail" data-bs-placement="right"
-                        aria-label="Confirm Mail" data-bs-original-title="Confirm Mail">
-                        <i class="ph ph-file fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.confirm_mail') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ route('dashboard.TwoFactor') }}" href="{{ route('dashboard.TwoFactor') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Two Factor Authentication"
-                        data-bs-placement="right" aria-label="Two Factor Authentication"
-                        data-bs-original-title="Two Factor Authentication">
-                        <i class="ph ph-fingerprint fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.two_factor_authentication') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ route('dashboard.AccountDeactivated') }}"
-                    href="{{ route('dashboard.AccountDeactivated') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Account Deactivate" data-bs-placement="right"
-                        aria-label="Account Deactivate" data-bs-original-title="Account Deactivate">
-                        <i class="ph ph-user-circle-minus fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.account_deactivated') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="{{ route('dashboard.lock-screen') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Lock Screen" data-bs-placement="right"
-                        aria-label="Lock Screen" data-bs-original-title="Lock Screen">
-                        <i class="ph ph-lock fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.lock_screen') }}</span>
-                </a>
-            </li>
-        </ul>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link" data-bs-toggle="collapse" href="#utilities-error" role="button" aria-expanded="false"
-            aria-controls="utilities-error">
-            <i class="icon" data-bs-toggle="tooltip" title="Utilities" data-bs-placement="right"
-                aria-label="Utilities" data-bs-original-title="Utilities">
-                <i class="ph-fill ph-note fs-4"></i>
-            </i>
-            <span class="item-name">{{ __('sidebar.utilities') }}</span>
-            <i class="right-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" class="icon-18" fill="none"
-                    viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-            </i>
-        </a>
-        <ul class="sub-nav collapse" id="utilities-error" data-bs-parent="#sidebar-menu">
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.error-404')) }}"
-                    href="{{ route('dashboard.error-404') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Error 404" data-bs-placement="right"
-                        aria-label="Error 404" data-bs-original-title="Error 404">
-                        <i class="ph ph-warning-circle fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.error_404') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.error-500')) }}"
-                    href="{{ route('dashboard.error-500') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Error 500" data-bs-placement="right"
-                        aria-label="Error 500" data-bs-original-title="Error 500">
-                        <i class="ph ph-warning-circle fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.error_500') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.maintenance')) }}"
-                    href="{{ route('dashboard.maintenance') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Maintenance" data-bs-placement="right"
-                        aria-label="Maintenance" data-bs-original-title="Maintenance">
-                        <i class="ph ph-archive fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.maintenance') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.coming-soon')) }}"
-                    href="{{ route('dashboard.coming-soon') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Coming Soon" data-bs-placement="right"
-                        aria-label="Coming Soon" data-bs-original-title="Coming Soon">
-                        <i class="ph ph-clock fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.coming_soon') }}</span>
-                </a>
-            </li>
-        </ul>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link {{ activeRoute(route('dashboard.blank-page')) }} "
-            href="{{ route('dashboard.blank-page') }}">
-            <i class="icon" data-bs-toggle="tooltip" title="Blank Page" data-bs-placement="right"
-                aria-label="Blank Page" data-bs-original-title="Blank Page">
-                <i class="ph ph-note fs-5"></i>
-            </i>
-            <span class="item-name">{{ __('sidebar.blank_page') }}</span>
-        </a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link" data-bs-toggle="collapse" href="#ui" role="button" aria-expanded="false"
-            aria-controls="utilities-error">
-            <i class="icon" data-bs-toggle="tooltip" title="UI Elements" data-bs-placement="right"
-                aria-label="UI Elements" data-bs-original-title="UI Elements">
-                <i class="ph ph-briefcase fs-4"></i>
-            </i>
-            <span class="item-name">{{ __('sidebar.ui_elements') }}</span>
-            <i class="right-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-            </i>
-        </a>
-        <ul class="sub-nav collapse" id="ui" data-parent="#sidebar-menu">
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.avatars')) }}"
-                    href="{{ route('dashboard.avatars') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Avatars" data-bs-placement="right"
-                        aria-label="Avatars" data-bs-original-title="Avatars">
-                        <i class="ph ph-user fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.avatars') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.alerts')) }}"
-                    href="{{ route('dashboard.alerts') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Alerts" data-bs-placement="right"
-                        aria-label="Alerts" data-bs-original-title="Alerts">
-                        <i class="ph ph-bell fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.alerts') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.badge')) }}"
-                    href="{{ route('dashboard.badge') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Badges" data-bs-placement="right"
-                        aria-label="Badges" data-bs-original-title="Badges">
-                        <i class="ph-duotone ph-shield-check fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.badge') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.breadcrumb')) }}"
-                    href="{{ route('dashboard.breadcrumb') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Breadcrumb" data-bs-placement="right"
-                        aria-label="Breadcrumb" data-bs-original-title="Breadcrumb">
-                        <i class="ph ph-list fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.bread_crumb') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.buttons')) }}"
-                    href="{{ route('dashboard.buttons') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Buttons" data-bs-placement="right"
-                        aria-label="Buttons" data-bs-original-title="Buttons">
-                        <i class="ph-duotone ph-device-tablet-camera fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.buttons') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.buttonsgroup')) }}"
-                    href="{{ route('dashboard.buttonsgroup') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Button Group" data-bs-placement="right"
-                        aria-label="Button Group" data-bs-original-title="Button Group">
-                        <i class="ph ph-rows fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.buttons_group') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.offcanvas')) }}"
-                    href="{{ route('dashboard.offcanvas') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Offcanvas" data-bs-placement="right"
-                        aria-label="Offcanvas" data-bs-original-title="Offcanvas">
-                        <i class="ph ph-corners-out fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.offcanvas') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.colors')) }}"
-                    href="{{ route('dashboard.colors') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Colors" data-bs-placement="right"
-                        aria-label="Colors" data-bs-original-title="Colors">
-                        <i class="ph ph-palette fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.colors') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.cards')) }}"
-                    href="{{ route('dashboard.cards') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Cards" data-bs-placement="right"
-                        aria-label="Cards" data-bs-original-title="Cards">
-                        <i class="ph ph-identification-card fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.cards') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.carousel')) }}"
-                    href="{{ route('dashboard.carousel') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Carousel" data-bs-placement="right"
-                        aria-label="Carousel" data-bs-original-title="Carousel">
-                        <i class="ph-duotone ph-film-strip fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.carousel') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.grid')) }}"
-                    href="{{ route('dashboard.grid') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Grid" data-bs-placement="right"
-                        aria-label="Grid" data-bs-original-title="Grid">
-                        <i class="ph ph-grid-four fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.grid') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.images')) }}"
-                    href="{{ route('dashboard.images') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Images" data-bs-placement="right"
-                        aria-label="Images" data-bs-original-title="Images">
-                        <i class="ph ph-image fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.images') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.listgroup')) }}"
-                    href="{{ route('dashboard.listgroup') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="List Group" data-bs-placement="right"
-                        aria-label="List Group" data-bs-original-title="List Group">
-                        <i class="ph ph-list-checks fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.list_group') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.modal')) }}"
-                    href="{{ route('dashboard.modal') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Modal" data-bs-placement="right"
-                        aria-label="Modal" data-bs-original-title="Modal">
-                        <i class="ph ph-square-split-horizontal fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.modal') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.notificationss')) }}"
-                    href="{{ route('dashboard.notificationss') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Notifications" data-bs-placement="right"
-                        aria-label="Notifications" data-bs-original-title="Notifications">
-                        <i class="ph ph-bell fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.notifications') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.pagination')) }}"
-                    href="{{ route('dashboard.pagination') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Pagination" data-bs-placement="right"
-                        aria-label="Pagination" data-bs-original-title="Pagination">
-                        <i class="ph ph-dots-three-outline fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.pagination') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.popovers')) }}"
-                    href="{{ route('dashboard.popovers') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Popovers" data-bs-placement="right"
-                        aria-label="Popovers" data-bs-original-title="Popovers">
-                        <i class="ph ph-eraser fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.popovers') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.typography')) }}"
-                    href="{{ route('dashboard.typography') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Typography" data-bs-placement="right"
-                        aria-label="Typography" data-bs-original-title="Typography">
-                        <i class="ph ph-keyboard fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.typography') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.tabs')) }}"
-                    href="{{ route('dashboard.tabs') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Tabs" data-bs-placement="right"
-                        aria-label="Tabs" data-bs-original-title="Tabs">
-                        <i class="ph ph-stack fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.tabs') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.tooltips')) }}"
-                    href="{{ route('dashboard.tooltips') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Tooltips" data-bs-placement="right"
-                        aria-label="Tooltips" data-bs-original-title="Tooltips">
-                        <i class="ph ph-magnet fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.tooltips') }}</span>
-                </a>
-            </li>
-        </ul>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link" data-bs-toggle="collapse" href="#sidebar-widget" role="button" aria-expanded="false"
-            aria-controls="sidebar-widget">
-            <i class="icon" data-bs-toggle="tooltip" title="Widgets" data-bs-placement="right"
-                aria-label="Widgets" data-bs-original-title="Widgets">
-                <i class="ph ph-browser fs-4"></i>
-            </i>
-            <span class="item-name">{{ __('sidebar.widgets') }}</span>
-            <i class="right-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" class="icon-18" fill="none"
-                    viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-            </i>
-        </a>
-        <ul class="sub-nav collapse" id="sidebar-widget" data-bs-parent="#sidebar-menu">
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.widget-basic')) }}"
-                    href="{{ route('dashboard.widget-basic') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Widget Basic" data-bs-placement="right"
-                        aria-label="Widget Basic" data-bs-original-title="Widget Basic">
-                        <i class="ph ph-chart-bar fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.widgets_basic') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.widget-chart')) }}"
-                    href="{{ route('dashboard.widget-chart') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Widget Chart" data-bs-placement="right"
-                        aria-label="Widget Chart" data-bs-original-title="Widget Chart">
-                        <i class="ph ph-chart-line fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.widgets_chart') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.widget-card')) }}"
-                    href="{{ route('dashboard.widget-card') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Widget Card" data-bs-placement="right"
-                        aria-label="Widget Card" data-bs-original-title="Widget Card">
-                        <i class="ph ph-browsers fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.widgets_card') }}</span>
-                </a>
-            </li>
-        </ul>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link" data-bs-toggle="collapse" href="#sidebar-form" role="button" aria-expanded="false"
-            aria-controls="sidebar-form">
-            <i class="icon" data-bs-toggle="tooltip" title="Form" data-bs-placement="right" aria-label="Form"
-                data-bs-original-title="Form">
-                <i class="ph ph-note fs-4"></i>
-            </i>
-            <span class="item-name">{{ __('sidebar.form') }}</span>
-            <i class="right-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" class="icon-18" fill="none"
-                    viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-            </i>
-        </a>
-        <ul class="sub-nav collapse" id="sidebar-form" data-bs-parent="#sidebar-menu">
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.elements')) }}"
-                    href="{{ route('dashboard.elements') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Elements" data-bs-placement="right"
-                        aria-label="Elements" data-bs-original-title="Elements">
-                        <i class="ph ph-book fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.elements') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.wizard')) }}"
-                    href="{{ route('dashboard.wizard') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Wizard" data-bs-placement="right"
-                        aria-label="Wizard" data-bs-original-title="Wizard">
-                        <i class="ph ph-magic-wand fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.wizard') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.validation')) }}"
-                    href="{{ route('dashboard.validation') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Validation" data-bs-placement="right"
-                        aria-label="Validation" data-bs-original-title="Validation">
-                        <i class="ph ph-note-pencil fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.validation') }}</span>
-                </a>
-            </li>
-        </ul>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link" data-bs-toggle="collapse" href="#sidebar-table" role="button" aria-expanded="false"
-            aria-controls="sidebar-table">
-            <i class="icon" data-bs-toggle="tooltip" title="Table" data-bs-placement="right" aria-label="Table"
-                data-bs-original-title="Table">
-                <i class="ph-fill ph-table fs-4"></i>
-            </i>
-            <span class="item-name">{{ __('sidebar.table') }}</span>
-            <i class="right-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" class="icon-18" fill="none"
-                    viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-            </i>
-        </a>
-        <ul class="sub-nav collapse" id="sidebar-table" data-bs-parent="#sidebar-menu">
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.bootstrap')) }}"
-                    href="{{ route('dashboard.bootstrap') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Bootstrap Table" data-bs-placement="right"
-                        aria-label="Bootstrap Table" data-bs-original-title="Bootstrap Table">
-                        <i class="fa-brands fa-bootstrap"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.bootstrap_table') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.table-data')) }}"
-                    href="{{ route('dashboard.table-data') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Datatable" data-bs-placement="right"
-                        aria-label="Datatable" data-bs-original-title="Datatable">
-                        <i class="ph ph-table fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.data_table') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.border')) }}"
-                    href="{{ route('dashboard.border') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Bordered Table" data-bs-placement="right"
-                        aria-label="Bordered Table" data-bs-original-title="Bordered Table">
-                        <i class="ph ph-table fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.bordered_table') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.fixed-table')) }}"
-                    href="{{ route('dashboard.fixed-table') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Fancy Table" data-bs-placement="right"
-                        aria-label="Fancy Tabl" data-bs-original-title="Fancy Tabl">
-                        <i class="ph ph-grid-nine fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.fixed_table') }}</span>
-                </a>
-            </li>
-        </ul>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link" data-bs-toggle="collapse" href="#sidebar-icons" role="button" aria-expanded="false"
-            aria-controls="sidebar-icons">
-            <i class="icon" data-bs-toggle="tooltip" title="Table" data-bs-placement="right" aria-label="Table"
-                data-bs-original-title="Table">
-                <i class="ph-fill ph-table fs-4"></i>
-            </i>
-            <span class="item-name">{{ __('sidebar.icons') }}</span>
-            <i class="right-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" class="icon-18" fill="none"
-                    viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-            </i>
-        </a>
-        <ul class="sub-nav collapse" id="sidebar-icons" data-bs-parent="#sidebar-menu">
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.ph-regular')) }}"
-                    href="{{ route('dashboard.ph-regular') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Ph Regular" data-bs-placement="right"
-                        aria-label="Ph Regular" data-bs-original-title="Ph Regular">
-                        <i class="ph ph-currency-rub fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.ph-regular') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.ph-bold')) }}"
-                    href="{{ route('dashboard.ph-bold') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Ph Bold" data-bs-placement="right"
-                        aria-label="Ph Bold" data-bs-original-title="Ph Bold">
-                        <i class="ph-bold ph-currency-rub fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.ph-bold') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.ph-fill')) }}"
-                    href="{{ route('dashboard.ph-fill') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Ph Fill" data-bs-placement="right"
-                        aria-label="Ph Fill" data-bs-original-title="Ph Fill">
-                        <i class="ph-fill ph-currency-rub fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.ph-fill') }}</span>
-                </a>
-            </li>
-        </ul>
-    </li>
+    {{--
+        Template-demo groups removed for admin cleanup — Authentication,
+        Utilities (error-404/500, maintenance, coming-soon), Blank Page,
+        UI Elements, Widget, Form, Table, and Icons. These were sidebar
+        showcase items that ship with the Streamit template but point
+        at routes in DashboardController that render static UI demos
+        with dummy data — not real admin features. Real admin flows
+        (auth, account management, 2FA) live on the user-side profile
+        hub; the error / maintenance pages are served by the framework
+        when the conditions that trigger them hit.
+    --}}
+
     <li class="nav-item">
         <a class="nav-link {{ activeRoute(route('backend.permission-role')) }}"
             href="{{ route('backend.permission-role') }}">
@@ -856,18 +347,7 @@
             </a>
         </li>
     @endif
-    @if (Route::has('admin.payments.index'))
-        <li class="nav-item">
-            <a class="nav-link {{ request()->routeIs('admin.payments.*') ? 'active' : '' }}"
-                href="{{ route('admin.payments.index') }}">
-                <i class="icon" title="Payments" data-bs-toggle="tooltip" data-bs-placement="right"
-                    aria-label="Payments" data-bs-original-title="Payments">
-                    <i class="ph ph-credit-card fs-4"></i>
-                </i>
-                <span class="item-name">Payments</span>
-            </a>
-        </li>
-    @endif
+    {{-- Payments lives in its own grouped submenu above Review now. --}}
     @if (Route::has('admin.file-manager.index'))
         <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('admin.file-manager.*') ? 'active' : '' }}"

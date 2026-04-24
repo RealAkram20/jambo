@@ -32,7 +32,7 @@ class PaymentFailedNotification extends ChannelGatedNotification
             'image'        => null,
             'action_url'   => $isBuyer
                 ? route('payment.complete', ['ref' => $this->order->merchant_reference])
-                : url('/admin/payments'),
+                : route('admin.payments.orders.show', $this->order),
             'action_label' => $isBuyer ? 'Try again' : 'Open in admin',
             'order_id'     => $this->order->id,
             'reference'    => $this->order->merchant_reference,

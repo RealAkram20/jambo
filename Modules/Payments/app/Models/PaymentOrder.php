@@ -30,6 +30,21 @@ class PaymentOrder extends Model
 
     protected $table = 'payment_orders';
 
+    /**
+     * URL-slug for route-model binding. Using the human-readable
+     * merchant_reference (e.g. JAM-7-OZIAS76U4Y, MAN-42-ABCDEF01)
+     * instead of the numeric id makes admin URLs like
+     * `/admin/payments/orders/JAM-7-OZIAS76U4Y` self-describing and
+     * matches what the rest of the payment flow already uses as the
+     * canonical identifier (callback URLs, IPN webhooks, notification
+     * messages, complete page `?ref=` query). `merchant_reference`
+     * is unique per migration, so this is safe as a route key.
+     */
+    public function getRouteKeyName(): string
+    {
+        return 'merchant_reference';
+    }
+
     protected $fillable = [
         'user_id',
         'payable_type',

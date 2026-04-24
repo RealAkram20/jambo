@@ -31,6 +31,15 @@ class PaymentReceivedNotification extends ChannelGatedNotification
 
     public function toDatabase($notifiable): array
     {
+        // Buyers land on their user-facing receipt; admins (and any
+        // other non-buyer recipient) land on the admin order detail
+        // page so they can reconcile / edit / delete without having
+        // to open the orders list and search for the reference.
+        $isBuyer = $this->order->user_id === ($notifiable->id ?? null);
+        $actionUrl = $isBuyer
+            ? route('payment.complete', ['ref' => $this->order->merchant_reference])
+            : route('admin.payments.orders.show', $this->order);
+
         return [
             'title' => 'Payment received',
             'message' => sprintf(
@@ -41,7 +50,7 @@ class PaymentReceivedNotification extends ChannelGatedNotification
             ),
             'icon' => 'ph-credit-card',
             'colour' => 'success',
-            'action_url' => route('payment.complete', ['ref' => $this->order->merchant_reference]),
+            'action_url' => $actionUrl,
             'order_id' => $this->order->id,
             'merchant_reference' => $this->order->merchant_reference,
             'amount' => (float) $this->order->amount,
@@ -72,7 +81,9 @@ class PaymentReceivedNotification extends ChannelGatedNotification
             $mail->action('View receipt', route('payment.complete', ['ref' => $this->order->merchant_reference]));
             $mail->line('If anything looks off, just reply to this email.');
         } else {
-            $mail->action('Open in admin', url('/admin/payments'));
+            // Admins jump straight to the specific order page, not
+            // the settings/orders list.
+            $mail->action('Open in admin', route('admin.payments.orders.show', $this->order));
         }
 
         return $mail;
@@ -93,7 +104,7 @@ class PaymentReceivedNotification extends ChannelGatedNotification
             ->data([
                 'url' => $isBuyer
                     ? route('payment.complete', ['ref' => $this->order->merchant_reference])
-                    : url('/admin/payments'),
+                    : route('admin.payments.orders.show', $this->order),
             ]);
     }
 }

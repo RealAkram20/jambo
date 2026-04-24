@@ -1,341 +1,154 @@
-@extends('layouts.app', ['module_title' => 'User List', 'title' => 'User List', 'active' => 'user-list-mini', 'isSweetalert' => true])
+@extends('layouts.app', ['module_title' => 'Users', 'title' => 'Users', 'active' => 'user-list-mini', 'isSweetalert' => true])
 
 @section('content')
-<div>
+<div class="container-fluid">
     <div class="row">
-        <div class="col-sm-12">
-            <div class="streamit-wraper-table">
-                <div class="card-header d-flex justify-content-between gap-3 flex-wrap align-items-center mb-4">
-                    <h2 class="episode-playlist-title wp-heading-inline">
-                        <span class="position-relative ">
-                            {{__('dashboard.user_list')}} </span>
-                    </h2>
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div>
+                        <h4 class="card-title mb-1">Users</h4>
+                        <p class="text-muted mb-0" style="font-size:13px;">
+                            {{ $totalCount }} total · {{ $adminCount }} admin{{ $adminCount === 1 ? '' : 's' }}
+                        </p>
+                    </div>
+                    <a href="{{ route('dashboard.user-list.create') }}" class="btn btn-primary">
+                        <i class="ph ph-plus me-1"></i> Create user
+                    </a>
                 </div>
-                <div class="table-view table-space">
-                    <table id="seasonTable" class="data-tables table custom-table data-table-one custom-table-height"
-                        role="grid" data-toggle="data-table1">
-                        <thead>
-                            <tr class="ligth">
-                                <th>Profile</th>
-                                <th>Name</th>
-                                <th>Contact</th>
-                                <th>Email</th>
-                                <th>Country</th>
-                                <th>Status</th>
-                                <th>Company</th>
-                                <th>Join Date</th>
-                                <th style="min-width: 100px">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><img class="bg-soft-primary rounded img-fluid avatar-40 me-3"
-                                        src="{{ asset('dashboard/images/user/01.jpg') }}" alt="profile" loading="lazy">
-                                </td>
-                                <td>Anna Sthesia</td>
-                                <td>(760) 756 7568</td>
-                                <td>annasthesia@gmail.com</td>
-                                <td>USA</td>
-                                <td><span class="badge bg-primary">Active</span></td>
-                                <td>Acme Corporation</td>
-                                <td>2019/12/01</td>
-                                <td>
-                                    <div class="flex align-items-center list-user-action">
-                                        <a class="btn btn-sm btn-icon btn-success-subtle rounded" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="Add" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-pencil-simple fs-6"></i>
-                                            </span>
-                                        </a>
-                                        <a class="btn btn-sm btn-icon btn-danger-subtle rounded delete-btn" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="Delete" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-trash-simple fs-6"></i>
-                                            </span>
-                                        </a>
-                                        <a class="btn btn-sm btn-icon btn-info-subtle rounded" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="View" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-eye fs-6"></i>
-                                            </span>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td><img class="bg-soft-primary rounded img-fluid avatar-40 me-3"
-                                        src="{{ asset('dashboard/images/user/02.jpg') }} " alt="profile"
-                                        loading="lazy"></td>
-                                <td>Brock Lee</td>
-                                <td>+62 5689 458 658</td>
-                                <td>brocklee@gmail.com</td>
-                                <td>Indonesia</td>
-                                <td><span class="badge bg-primary">Active</span></td>
-                                <td>Soylent Corp</td>
-                                <td>2019/12/01</td>
-                                <td>
-                                    <div class="flex align-items-center list-user-action">
-                                        <a class="btn btn-sm btn-icon btn-success-subtle rounded" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="Add" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-pencil-simple fs-6"></i>
-                                            </span>
-                                        </a>
-                                        <a class="btn btn-sm btn-icon btn-danger-subtle rounded delete-btn" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="Delete" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-trash-simple fs-6"></i>
-                                            </span>
-                                        </a>
-                                        <a class="btn btn-sm btn-icon btn-info-subtle rounded" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="View" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-eye fs-6"></i>
-                                            </span>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td><img class="bg-soft-primary rounded img-fluid avatar-40 me-3"
-                                        src="{{ asset('dashboard/images/user/03.jpg') }}" alt="profile" loading="lazy">
-                                </td>
-                                <td>Dan Druff</td>
-                                <td>+55 6523 456 856</td>
-                                <td>dandruff@gmail.com</td>
-                                <td>Brazil</td>
-                                <td><span class="badge bg-warning">Pending</span></td>
-                                <td>Umbrella Corporation</td>
-                                <td>2019/12/01</td>
-                                <td>
-                                    <div class="flex align-items-center list-user-action">
-                                        <a class="btn btn-sm btn-icon btn-success-subtle rounded" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="Add" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-pencil-simple fs-6"></i>
-                                            </span>
-                                        </a>
-                                        <a class="btn btn-sm btn-icon btn-danger-subtle rounded delete-btn" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="Delete" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-trash-simple fs-6"></i>
-                                            </span>
-                                        </a>
-                                        <a class="btn btn-sm btn-icon btn-info-subtle rounded" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="View" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-eye fs-6"></i>
-                                            </span>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td><img class="bg-soft-primary rounded img-fluid avatar-40 me-3"
-                                        src="{{ asset('dashboard/images/user/04.jpg') }}" alt="profile" loading="lazy">
-                                </td>
-                                <td>Hans Olo</td>
-                                <td>+91 2586 253 125</td>
-                                <td>hansolo@gmail.com</td>
-                                <td>India</td>
-                                <td><span class="badge bg-danger">Inactive</span></td>
-                                <td>Vehement Capital</td>
-                                <td>2019/12/01</td>
-                                <td>
-                                    <div class="flex align-items-center list-user-action">
-                                        <a class="btn btn-sm btn-icon btn-success-subtle rounded" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="Add" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-pencil-simple fs-6"></i>
-                                            </span>
-                                        </a>
-                                        <a class="btn btn-sm btn-icon btn-danger-subtle rounded delete-btn" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="Delete" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-trash-simple fs-6"></i>
-                                            </span>
-                                        </a>
-                                        <a class="btn btn-sm btn-icon btn-info-subtle rounded" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="View" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-eye fs-6"></i>
-                                            </span>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td><img class="bg-soft-primary rounded img-fluid avatar-40 me-3"
-                                        src="{{ asset('dashboard/images/user/05.jpg') }}" alt="profile"
-                                        loading="lazy"></td>
-                                <td>Lynn Guini</td>
-                                <td>+27 2563 456 589</td>
-                                <td>lynnguini@gmail.com</td>
-                                <td>Africa</td>
-                                <td><span class="badge bg-primary">Active</span></td>
-                                <td>Massive Dynamic</td>
-                                <td>2019/12/01</td>
-                                <td>
-                                    <div class="flex align-items-center list-user-action">
-                                        <a class="btn btn-sm btn-icon btn-success-subtle rounded" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="Add" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-pencil-simple fs-6"></i>
-                                            </span>
-                                        </a>
-                                        <a class="btn btn-sm btn-icon btn-danger-subtle rounded delete-btn" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="Delete" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-trash-simple fs-6"></i>
-                                            </span>
-                                        </a>
-                                        <a class="btn btn-sm btn-icon btn-info-subtle rounded" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="View" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-eye fs-6"></i>
-                                            </span>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td><img class="bg-soft-primary rounded img-fluid avatar-40 me-3"
-                                        src="{{ asset('dashboard/images/user/06.jpg') }}" alt="profile"
-                                        loading="lazy"></td>
-                                <td>Eric Shun</td>
-                                <td>+55 25685 256 589</td>
-                                <td>ericshun@gmail.com</td>
-                                <td>Brazil</td>
-                                <td><span class="badge bg-warning">Pending</span></td>
-                                <td>Globex Corporation</td>
-                                <td>2019/12/01</td>
-                                <td>
-                                    <div class="flex align-items-center list-user-action">
-                                        <a class="btn btn-sm btn-icon btn-success-subtle rounded" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="Add" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-pencil-simple fs-6"></i>
-                                            </span>
-                                        </a>
-                                        <a class="btn btn-sm btn-icon btn-danger-subtle rounded delete-btn" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="Delete" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-trash-simple fs-6"></i>
-                                            </span>
-                                        </a>
-                                        <a class="btn btn-sm btn-icon btn-info-subtle rounded" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="View" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-eye fs-6"></i>
-                                            </span>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td><img class="bg-soft-primary rounded img-fluid avatar-40 me-3"
-                                        src="{{ asset('dashboard/images/user/03.jpg') }}" alt="profile"
-                                        loading="lazy"></td>
-                                <td>aaronottix</td>
-                                <td>(760) 765 2658</td>
-                                <td>budwiser@ymail.com</td>
-                                <td>USA</td>
-                                <td><span class="badge bg-info">Hold</span></td>
-                                <td>Acme Corporation</td>
-                                <td>2019/12/01</td>
-                                <td>
-                                    <div class="flex align-items-center list-user-action">
-                                        <a class="btn btn-sm btn-icon btn-success-subtle rounded" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="Add" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-pencil-simple fs-6"></i>
-                                            </span>
-                                        </a>
-                                        <a class="btn btn-sm btn-icon btn-danger-subtle rounded delete-btn" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="Delete" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-trash-simple fs-6"></i>
-                                            </span>
-                                        </a>
-                                        <a class="btn btn-sm btn-icon btn-info-subtle rounded" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="View" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-eye fs-6"></i>
-                                            </span>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td><img class="bg-soft-primary rounded img-fluid avatar-40 me-3"
-                                        src="{{ asset('dashboard/images/user/05.jpg') }}" alt="profile"
-                                        loading="lazy"></td>
-                                <td>Marge Arita</td>
-                                <td>+27 5625 456 589</td>
-                                <td>margearita@gmail.com</td>
-                                <td>Africa</td>
-                                <td><span class="badge bg-success">Complete</span></td>
-                                <td>Vehement Capital</td>
-                                <td>2019/12/01</td>
-                                <td>
-                                    <div class="flex align-items-center list-user-action">
-                                        <a class="btn btn-sm btn-icon btn-success-subtle rounded" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="Add" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-pencil-simple fs-6"></i>
-                                            </span>
-                                        </a>
-                                        <a class="btn btn-sm btn-icon btn-danger-subtle rounded delete-btn" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="Delete" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-trash-simple fs-6"></i>
-                                            </span>
-                                        </a>
-                                        <a class="btn btn-sm btn-icon btn-info-subtle rounded" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="View" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-eye fs-6"></i>
-                                            </span>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td><img class="bg-soft-primary rounded img-fluid avatar-40 me-3"
-                                        src="{{ asset('dashboard/images/user/02.jpg') }}" alt="profile"
-                                        loading="lazy"></td>
-                                <td>Bill Dabear</td>
-                                <td>+55 2563 456 589</td>
-                                <td>billdabear@gmail.com</td>
-                                <td>Brazil</td>
-                                <td><span class="badge bg-primary">active</span></td>
-                                <td>Massive Dynamic</td>
-                                <td>2019/12/01</td>
-                                <td>
-                                    <div class="flex align-items-center list-user-action">
-                                        <a class="btn btn-sm btn-icon btn-success-subtle rounded" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="Add" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-pencil-simple fs-6"></i>
-                                            </span>
-                                        </a>
-                                        <a class="btn btn-sm btn-icon btn-danger-subtle rounded delete-btn" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="Delete" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-trash-simple fs-6"></i>
-                                            </span>
-                                        </a>
-                                        <a class="btn btn-sm btn-icon btn-info-subtle rounded" data-bs-toggle="tooltip"
-                                            data-placement="top" title="" data-bs-original-title="View" href="javascript:void(0);">
-                                            <span class="btn-inner">
-                                                <i class="ph ph-eye fs-6"></i>
-                                            </span>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+
+                @if (session('success'))
+                    <div class="alert alert-success mx-4 mt-3 mb-0">{{ session('success') }}</div>
+                @endif
+                @if (session('error'))
+                    <div class="alert alert-danger mx-4 mt-3 mb-0">{{ session('error') }}</div>
+                @endif
+
+                <div class="card-body">
+                    <form method="GET" action="{{ route('dashboard.user-list') }}" class="row g-2 align-items-end mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--bs-secondary);">Search</label>
+                            <input type="text" name="q" value="{{ $filters['q'] }}" class="form-control"
+                                placeholder="Name, username, or email…">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--bs-secondary);">Role</label>
+                            <select name="role" class="form-select">
+                                <option value="">Any</option>
+                                @foreach ($roles as $role)
+                                    <option value="{{ $role }}" @selected($filters['role'] === $role)>{{ ucfirst($role) }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--bs-secondary);">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="">All</option>
+                                <option value="active" @selected($filters['status'] === 'active')>Active</option>
+                                <option value="deactivated" @selected($filters['status'] === 'deactivated')>Deactivated</option>
+                            </select>
+                        </div>
+                        <div class="col-md-1 d-flex gap-2">
+                            <button type="submit" class="btn btn-primary flex-fill">Filter</button>
+                        </div>
+                        @if (array_filter($filters))
+                            <div class="col-12">
+                                <a href="{{ route('dashboard.user-list') }}" class="btn btn-ghost btn-sm">
+                                    <i class="ph ph-x me-1"></i> Clear filters
+                                </a>
+                            </div>
+                        @endif
+                    </form>
+
+                    <div class="table-responsive">
+                        <table class="table custom-table align-middle mb-0">
+                            <thead>
+                                <tr class="text-uppercase" style="font-size:11px;letter-spacing:.5px;">
+                                    <th>User</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Roles</th>
+                                    <th>Verified</th>
+                                    <th>Joined</th>
+                                    <th class="text-end" style="width:120px;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($users as $u)
+                                    @php
+                                        $fullName = trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? ''));
+                                        $isDeactivated = $u->deactivated_at !== null;
+                                    @endphp
+                                    <tr class="{{ $isDeactivated ? 'opacity-50' : '' }}">
+                                        <td>
+                                            <div class="fw-semibold">{{ $fullName ?: $u->username }}</div>
+                                            <div class="text-muted" style="font-size:11px;">
+                                                <i class="ph ph-at"></i>{{ $u->username }}
+                                            </div>
+                                        </td>
+                                        <td style="font-size:12px;">{{ $u->email }}</td>
+                                        <td style="font-size:12px;">{{ $u->phone ?: '—' }}</td>
+                                        <td>
+                                            @forelse ($u->roles as $role)
+                                                <span class="badge @class([
+                                                    'bg-primary' => $role->name === 'admin',
+                                                    'bg-secondary' => $role->name !== 'admin',
+                                                ])">{{ $role->name }}</span>
+                                            @empty
+                                                <span class="text-muted" style="font-size:11px;">none</span>
+                                            @endforelse
+                                        </td>
+                                        <td>
+                                            @if ($u->email_verified_at)
+                                                <span class="badge bg-success-subtle text-success-emphasis">
+                                                    <i class="ph ph-check-circle"></i> Verified
+                                                </span>
+                                            @else
+                                                <span class="badge bg-warning-subtle text-warning-emphasis">
+                                                    <i class="ph ph-warning-circle"></i> Pending
+                                                </span>
+                                            @endif
+                                            @if ($isDeactivated)
+                                                <span class="badge bg-danger-subtle text-danger-emphasis ms-1">Deactivated</span>
+                                            @endif
+                                        </td>
+                                        <td style="font-size:12px;color:var(--bs-secondary);">
+                                            {{ $u->created_at?->format('d M Y') }}
+                                        </td>
+                                        <td class="text-end">
+                                            <div class="btn-group" role="group">
+                                                <a href="{{ route('dashboard.user-list.edit', $u) }}"
+                                                    class="btn btn-sm btn-outline-primary" title="Edit">
+                                                    <i class="ph ph-pencil-simple"></i>
+                                                </a>
+                                                <form method="POST" action="{{ route('dashboard.user-list.destroy', $u) }}" class="m-0 d-inline"
+                                                    onsubmit="return confirm('Delete {{ $u->username }}? This cannot be undone.');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"
+                                                        @disabled($u->id === auth()->id())>
+                                                        <i class="ph ph-trash-simple"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="7" class="text-center py-5 text-muted" style="font-size:13px;">
+                                            No users match these filters.
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @if ($users->hasPages())
+                        <div class="d-flex justify-content-center pt-3">
+                            {{ $users->links() }}
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
