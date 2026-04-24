@@ -170,37 +170,134 @@
 
             {{-- ============================================================
                  Two-factor authentication
+
+                 Three states rendered inline so admins never leave the
+                 admin chrome:
+                   • disabled      → Enable button (starts setup)
+                   • pending setup → QR code + manual key + confirm input
+                   • enabled       → recovery codes + regenerate + disable
+
+                 All forms post to `two-factor.enable / confirm /
+                 disable / recovery-codes`. `TwoFactorController`
+                 redirects admins back here after each action.
                  ============================================================ --}}
             <div class="card mb-4">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">Two-factor authentication</h5>
+                    <h5 class="card-title mb-0">
+                        Two-factor authentication
+                        @if ($is2faEnabled)
+                            <span class="badge bg-success-subtle text-success-emphasis ms-2">Enabled</span>
+                        @elseif ($hasPendingSetup)
+                            <span class="badge bg-warning-subtle text-warning-emphasis ms-2">Pending</span>
+                        @else
+                            <span class="badge bg-secondary ms-2">Off</span>
+                        @endif
+                    </h5>
                 </div>
                 <div class="card-body">
-                    <div class="d-flex align-items-start gap-3 flex-wrap">
-                        <i class="ph {{ $is2faEnabled ? 'ph-shield-check' : 'ph-shield-warning' }}"
-                           style="font-size:36px;color:{{ $is2faEnabled ? 'var(--bs-success, #2dd47a)' : 'var(--bs-warning, #f59e0b)' }};"></i>
-                        <div class="flex-grow-1" style="min-width:200px;">
-                            <div class="mb-1">
-                                @if ($is2faEnabled)
-                                    <span class="badge bg-success-subtle text-success-emphasis">Enabled</span>
-                                @else
-                                    <span class="badge bg-warning-subtle text-warning-emphasis">Not set up</span>
-                                @endif
+                    @if (session('status-2fa'))
+                        <div class="alert alert-success mb-3">{{ session('status-2fa') }}</div>
+                    @endif
+
+                    @if (!$is2faEnabled && !$hasPendingSetup)
+                        {{-- State 1: disabled. One-click start. --}}
+                        <div class="d-flex align-items-start gap-3 flex-wrap">
+                            <i class="ph ph-shield-warning" style="font-size:36px;color:var(--bs-warning, #f59e0b);"></i>
+                            <div class="flex-grow-1" style="min-width:200px;">
+                                <p class="mb-0 text-muted" style="font-size:13px;">
+                                    Add an authenticator app as a second step at sign-in.
+                                </p>
                             </div>
-                            <p class="mb-0 text-muted" style="font-size:13px;">
-                                @if ($is2faEnabled)
-                                    Authenticator app required on sign-in. Manage recovery codes or disable from your security page.
-                                @else
-                                    Add an authenticator app to protect the admin account.
-                                @endif
-                            </p>
+                            <form method="POST" action="{{ route('two-factor.enable') }}" class="m-0">
+                                @csrf
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="ph ph-plus-circle me-1"></i> Enable two-factor
+                                </button>
+                            </form>
                         </div>
-                        <a href="{{ route('profile.security', ['username' => $user->username]) }}"
-                            class="btn btn-outline-primary">
-                            <i class="ph ph-key me-1"></i>
-                            {{ $is2faEnabled ? 'Manage' : 'Set up' }}
-                        </a>
-                    </div>
+
+                    @elseif ($hasPendingSetup)
+                        {{-- State 2: pending. QR + manual key + confirm. --}}
+                        <div class="row g-4 align-items-start">
+                            <div class="col-md-5 text-center">
+                                <div class="p-3 bg-white rounded-3 d-inline-block">{!! $qrSvg !!}</div>
+                                <p class="text-muted small mt-2 mb-0">
+                                    Or enter this key manually:<br>
+                                    <code class="text-primary">{{ $manualSecret }}</code>
+                                </p>
+                            </div>
+                            <div class="col-md-7">
+                                <p class="small text-muted mb-3">
+                                    1. Scan the QR with your authenticator app<br>
+                                    2. Enter the 6-digit code it shows to confirm
+                                </p>
+                                @if ($errors->has('code'))
+                                    <div class="alert alert-danger py-2 small mb-2">{{ $errors->first('code') }}</div>
+                                @endif
+                                <form method="POST" action="{{ route('two-factor.confirm') }}" class="d-flex gap-2 align-items-end">
+                                    @csrf
+                                    <div class="flex-grow-1">
+                                        <label class="form-label small text-muted">Code</label>
+                                        <input type="text" name="code" class="form-control"
+                                            inputmode="numeric" maxlength="6" pattern="[0-9]{6}"
+                                            autocomplete="one-time-code" autofocus required
+                                            placeholder="123456">
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Confirm</button>
+                                </form>
+                                <form method="POST" action="{{ route('two-factor.disable') }}" class="mt-2 m-0"
+                                    onsubmit="return confirm('Cancel 2FA setup?');">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="btn btn-link btn-sm text-muted p-0">Cancel setup</button>
+                                </form>
+                            </div>
+                        </div>
+
+                    @else
+                        {{-- State 3: enabled. Recovery codes + disable. --}}
+                        <div class="d-flex align-items-start gap-3 flex-wrap mb-4">
+                            <i class="ph ph-shield-check" style="font-size:36px;color:var(--bs-success, #2dd47a);"></i>
+                            <div class="flex-grow-1" style="min-width:200px;">
+                                <p class="mb-0 text-muted" style="font-size:13px;">
+                                    Authenticator app required on every sign-in.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small text-muted d-block mb-2">Recovery codes</label>
+                            <p class="small text-muted mb-2">
+                                Use one of these if you lose your authenticator. Each code works once.
+                            </p>
+                            @if (!empty($recoveryCodes))
+                                <div class="p-3 rounded"
+                                    style="background:#0b0f17;border:1px solid #1f2738;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;">
+                                    <div class="row g-2">
+                                        @foreach ($recoveryCodes as $code)
+                                            <div class="col-md-6">
+                                                <code>{{ $code }}</code>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+                            <form method="POST" action="{{ route('two-factor.recovery-codes') }}" class="mt-2 m-0"
+                                onsubmit="return confirm('Generate new codes? The old ones will stop working.');">
+                                @csrf
+                                <button type="submit" class="btn btn-outline-secondary btn-sm">
+                                    <i class="ph ph-arrows-clockwise me-1"></i> Regenerate codes
+                                </button>
+                            </form>
+                        </div>
+
+                        <form method="POST" action="{{ route('two-factor.disable') }}" class="pt-3 border-top m-0"
+                            onsubmit="return confirm('Disable two-factor authentication? Your account will be less secure.');">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="btn btn-outline-danger btn-sm">
+                                <i class="ph ph-shield-slash me-1"></i> Disable two-factor
+                            </button>
+                        </form>
+                    @endif
                 </div>
             </div>
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Services\TwoFactorAuthentication;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 /**
@@ -19,6 +20,11 @@ use Illuminate\Http\Request;
  *
  * All endpoints behind auth + password.confirm so a stolen session
  * cookie can't silently disable 2FA.
+ *
+ * Post-action redirect follows the acting user: admins land back on
+ * `dashboard.profile` (admins can't reach the profile hub at all
+ * because `ProfileHubController::resolveOwn()` bounces them to /app),
+ * everyone else lands on the user-side security page.
  */
 class TwoFactorController extends Controller
 {
@@ -27,15 +33,15 @@ class TwoFactorController extends Controller
     }
 
     /** Start setup — generate pending secret + recovery codes. */
-    public function enable(Request $request)
+    public function enable(Request $request): RedirectResponse
     {
         $this->twoFactor->generatePendingSetup($request->user());
-        return redirect()->route('account.security')
-            ->with('status', 'Scan the QR code with your authenticator, then confirm below.');
+        return $this->redirectToSecurity($request)
+            ->with('status-2fa', 'Scan the QR code with your authenticator, then confirm below.');
     }
 
     /** Finalise setup — verify one OTP. */
-    public function confirm(Request $request)
+    public function confirm(Request $request): RedirectResponse
     {
         $data = $request->validate(['code' => 'required|string|size:6']);
 
@@ -43,23 +49,36 @@ class TwoFactorController extends Controller
             return back()->withErrors(['code' => 'That code did not match. Try the next one your app shows.']);
         }
 
-        return redirect()->route('account.security')
-            ->with('status', 'Two-factor authentication is now enabled. Store your recovery codes somewhere safe.');
+        return $this->redirectToSecurity($request)
+            ->with('status-2fa', 'Two-factor authentication is now enabled. Store your recovery codes somewhere safe.');
     }
 
     /** Turn 2FA off — requires password confirmation middleware. */
-    public function disable(Request $request)
+    public function disable(Request $request): RedirectResponse
     {
         $this->twoFactor->disable($request->user());
-        return redirect()->route('account.security')
-            ->with('status', 'Two-factor authentication disabled.');
+        return $this->redirectToSecurity($request)
+            ->with('status-2fa', 'Two-factor authentication disabled.');
     }
 
     /** Issue a new batch of 8 recovery codes. Old codes become invalid. */
-    public function regenerateRecoveryCodes(Request $request)
+    public function regenerateRecoveryCodes(Request $request): RedirectResponse
     {
         $this->twoFactor->regenerateRecoveryCodes($request->user());
-        return redirect()->route('account.security')
-            ->with('status', 'New recovery codes generated. Save them somewhere safe — old ones no longer work.');
+        return $this->redirectToSecurity($request)
+            ->with('status-2fa', 'New recovery codes generated. Save them somewhere safe — old ones no longer work.');
+    }
+
+    /**
+     * Admins return to the admin profile page; everyone else goes to
+     * the user-side security tab. This avoids `account.security` →
+     * `profile.security` → resolveOwn() bouncing admins to /app,
+     * which made the flow look broken from the admin side.
+     */
+    private function redirectToSecurity(Request $request): RedirectResponse
+    {
+        return $request->user()->hasRole('admin')
+            ? redirect()->route('dashboard.profile')
+            : redirect()->route('account.security');
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Rules\ReservedUsername;
+use App\Services\TwoFactorAuthentication;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -29,6 +30,10 @@ use Illuminate\View\View;
  */
 class AdminProfileController extends Controller
 {
+    public function __construct(private readonly TwoFactorAuthentication $twoFactor)
+    {
+    }
+
     public function index(Request $request): View
     {
         $user = $request->user();
@@ -53,11 +58,21 @@ class AdminProfileController extends Controller
             ];
         });
 
+        // 2FA state — pending setup, fully enabled, or off. The view
+        // renders all three paths inline so admins never need to
+        // leave the admin chrome to manage this.
+        $is2faEnabled = $user->hasEnabledTwoFactorAuthentication();
+        $hasPendingSetup = !is_null($user->two_factor_secret) && is_null($user->two_factor_confirmed_at);
+
         return view('DashboardPages.admin-profile', [
             'user' => $user,
             'title' => 'My profile',
             'sessions' => $sessions,
-            'is2faEnabled' => $user->hasEnabledTwoFactorAuthentication(),
+            'is2faEnabled' => $is2faEnabled,
+            'hasPendingSetup' => $hasPendingSetup,
+            'qrSvg' => ($hasPendingSetup || $is2faEnabled) ? $this->twoFactor->qrCodeSvg($user) : null,
+            'manualSecret' => ($hasPendingSetup || $is2faEnabled) ? $this->twoFactor->secretForManualEntry($user) : null,
+            'recoveryCodes' => $is2faEnabled ? $this->twoFactor->getRecoveryCodes($user) : [],
         ]);
     }
 
