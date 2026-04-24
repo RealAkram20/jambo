@@ -15,8 +15,12 @@ use Modules\Content\app\Models\Comment;
 use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Vj;
 use Modules\Payments\app\Models\PaymentOrder;
+use Modules\Streaming\app\Models\WatchHistoryItem;
+use Modules\Subscriptions\app\Models\SubscriptionTier;
 use Modules\Subscriptions\app\Models\UserSubscription;
 use App\Models\User;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -44,12 +48,187 @@ class DashboardController extends Controller
             ->take(6)
             ->get();
 
+        // Live chart data. Everything below comes from the DB, not
+        // chart-custom.js's hardcoded demo arrays.
+        $chartData = [
+            'genres'      => $this->buildTopGenresChart(),
+            'revenue'     => $this->buildMonthlyRevenueChart(12),
+            'newSubs'     => $this->buildNewSubscribersChart(12),
+            'mostWatched' => $this->buildMostWatchedChart(7),
+            'topRated'    => $this->buildTopRatedChart(),
+        ];
+
         return view('DashboardPages.IndexPage1', compact(
             'title',
             'stats',
             'recentReviews',
             'recentPayments',
+            'chartData',
         ));
+    }
+
+    /**
+     * Top 5 genres by movie count for the donut chart. Returns
+     * { labels: [...], series: [...] }. Genres with zero movies
+     * are excluded so the chart never shows empty slices.
+     */
+    private function buildTopGenresChart(): array
+    {
+        $rows = Genre::withCount('movies')
+            ->having('movies_count', '>', 0)
+            ->orderByDesc('movies_count')
+            ->take(5)
+            ->get(['name']);
+
+        return [
+            'labels' => $rows->pluck('name')->all(),
+            'series' => $rows->pluck('movies_count')->map(fn ($n) => (int) $n)->all(),
+        ];
+    }
+
+    /**
+     * Monthly revenue for the last N months. Sums completed
+     * payment_orders grouped by year-month, then back-fills months
+     * with zero payments so the X axis is continuous.
+     */
+    private function buildMonthlyRevenueChart(int $months = 12): array
+    {
+        $since = Carbon::now()->subMonths($months - 1)->startOfMonth();
+
+        $raw = PaymentOrder::where('status', PaymentOrder::STATUS_COMPLETED)
+            ->where('created_at', '>=', $since)
+            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as bucket, SUM(amount) as total")
+            ->groupBy('bucket')
+            ->pluck('total', 'bucket');
+
+        $labels = [];
+        $series = [];
+        for ($i = $months - 1; $i >= 0; $i--) {
+            $d = Carbon::now()->subMonths($i)->startOfMonth();
+            $key = $d->format('Y-m');
+            $labels[] = $d->format('M Y');
+            $series[] = (float) ($raw[$key] ?? 0);
+        }
+
+        return [
+            'labels' => $labels,
+            'series' => $series,
+            'currency' => config('payments.currency', 'UGX'),
+        ];
+    }
+
+    /**
+     * New subscribers per tier per month for the last N months.
+     * One series per subscription tier, back-filled with zeros so
+     * every tier shows the same X-axis length.
+     */
+    private function buildNewSubscribersChart(int $months = 12): array
+    {
+        $since = Carbon::now()->subMonths($months - 1)->startOfMonth();
+
+        $tiers = SubscriptionTier::orderBy('sort_order')->orderBy('name')->get(['id', 'name']);
+
+        $rows = UserSubscription::where('user_subscriptions.created_at', '>=', $since)
+            ->join('subscription_tiers', 'subscription_tiers.id', '=', 'user_subscriptions.subscription_tier_id')
+            ->selectRaw("DATE_FORMAT(user_subscriptions.created_at, '%Y-%m') as bucket, subscription_tiers.id as tier_id, COUNT(*) as total")
+            ->groupBy('bucket', 'subscription_tiers.id')
+            ->get();
+
+        $byTier = [];
+        foreach ($rows as $r) {
+            $byTier[$r->tier_id][$r->bucket] = (int) $r->total;
+        }
+
+        $labels = [];
+        for ($i = $months - 1; $i >= 0; $i--) {
+            $labels[] = Carbon::now()->subMonths($i)->format('M Y');
+        }
+
+        $series = $tiers->map(function ($tier) use ($byTier, $months) {
+            $data = [];
+            for ($i = $months - 1; $i >= 0; $i--) {
+                $key = Carbon::now()->subMonths($i)->format('Y-m');
+                $data[] = (int) ($byTier[$tier->id][$key] ?? 0);
+            }
+            return ['name' => $tier->name, 'data' => $data];
+        })->values()->all();
+
+        return [
+            'labels' => $labels,
+            'series' => $series,
+        ];
+    }
+
+    /**
+     * Stacked bar — distinct-user watch events per day over the
+     * last N days, split into Movies vs Series.
+     */
+    private function buildMostWatchedChart(int $days = 7): array
+    {
+        $since = Carbon::now()->subDays($days - 1)->startOfDay();
+        $movieType = (new Movie)->getMorphClass();
+        $episodeType = (new Episode)->getMorphClass();
+
+        $rows = WatchHistoryItem::where('watched_at', '>=', $since)
+            ->selectRaw("DATE(watched_at) as bucket, watchable_type, COUNT(DISTINCT user_id) as total")
+            ->groupBy('bucket', 'watchable_type')
+            ->get();
+
+        $movieData = $showData = [];
+        $labels = [];
+        for ($i = $days - 1; $i >= 0; $i--) {
+            $d = Carbon::now()->subDays($i)->format('Y-m-d');
+            $labels[] = Carbon::parse($d)->format('D');
+            $movieData[] = (int) ($rows->firstWhere(fn ($r) => $r->bucket === $d && $r->watchable_type === $movieType)?->total ?? 0);
+            $showData[]  = (int) ($rows->firstWhere(fn ($r) => $r->bucket === $d && $r->watchable_type === $episodeType)?->total ?? 0);
+        }
+
+        return [
+            'labels' => $labels,
+            'series' => [
+                ['name' => 'Movies',  'data' => $movieData],
+                ['name' => 'Series', 'data' => $showData],
+            ],
+        ];
+    }
+
+    /**
+     * Top 5 titles across Movies + Shows by average star rating.
+     * Requires at least 3 ratings to qualify — stops a single
+     * 5-star from leaving a random unheard-of title on the podium.
+     */
+    private function buildTopRatedChart(): array
+    {
+        $combined = collect();
+
+        $movieType = (new Movie)->getMorphClass();
+        $showType = (new Show)->getMorphClass();
+
+        foreach ([$movieType => Movie::class, $showType => Show::class] as $morph => $class) {
+            $rows = DB::table('ratings')
+                ->where('ratable_type', $morph)
+                ->selectRaw('ratable_id, AVG(stars) as avg_stars, COUNT(*) as n')
+                ->havingRaw('n >= 3')
+                ->groupBy('ratable_id')
+                ->get();
+
+            foreach ($rows as $r) {
+                $model = $class::find($r->ratable_id, ['id', 'title']);
+                if ($model) {
+                    $combined->push([
+                        'title' => $model->title,
+                        'avg' => round((float) $r->avg_stars, 2),
+                    ]);
+                }
+            }
+        }
+
+        $top = $combined->sortByDesc('avg')->take(5)->values();
+
+        return [
+            'labels' => $top->pluck('title')->all(),
+            'series' => $top->pluck('avg')->map(fn ($n) => (float) $n)->all(),
+        ];
     }
 
     public function rating(Request $request)

@@ -45,6 +45,8 @@
 
         .jambo-auth-header {
             display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem 1.5rem;
             justify-content: space-between;
             align-items: center;
             padding: 1.25rem 2rem;
@@ -53,14 +55,23 @@
         }
 
         .jambo-auth-header__brand img {
+            display: block;
             height: 36px;
             width: auto;
         }
 
+        /* CTA on the right of the header. `white-space: nowrap` on the
+           anchor keeps "Sign up" / "Contact support" from splitting
+           across lines mid-phrase; the whole CTA block will drop to its
+           own line below the logo if the viewport gets too narrow
+           (flex-wrap on the parent handles that). */
         .jambo-auth-header__cta {
             color: #cfd3dc;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
+            line-height: 1.35;
         }
+
+        .jambo-auth-header__cta a { white-space: nowrap; }
 
         .jambo-auth-main {
             display: flex;
@@ -268,9 +279,18 @@
 
         .jambo-auth-alert ul { margin: 0; padding-left: 1.1rem; }
 
-        /* Small footer under the card. */
+        /* Small footer under the card. Real flex row with explicit
+           separator spans — avoids the &nbsp;·&nbsp; pattern which
+           wraps unpredictably on narrow widths (the non-breaking
+           spaces glue the dot to the neighboring link, so a wrap
+           only ever happens between whole groups, not between a
+           link and its following bullet). */
         .jambo-auth-page-footer {
-            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.35rem 0.85rem;
             padding: 1.5rem 1rem;
             color: #6f7381;
             font-size: 0.8rem;
@@ -283,8 +303,17 @@
 
         .jambo-auth-page-footer a:hover { color: #fff; }
 
+        .jambo-auth-page-footer__sep {
+            color: #4d515c;
+            user-select: none;
+        }
+
         @media (max-width: 520px) {
-            .jambo-auth-header { padding: 1rem; }
+            .jambo-auth-header {
+                padding: 1rem 1.25rem;
+                gap: 0.4rem 1rem;
+            }
+            .jambo-auth-header__cta { font-size: 0.85rem; }
             .jambo-auth-card { padding: 1.75rem 1.25rem; }
         }
     </style>
@@ -308,9 +337,9 @@
 
     <footer class="jambo-auth-page-footer">
         <a href="{{ route('frontend.terms-and-policy') }}">Terms</a>
-        &nbsp;·&nbsp;
+        <span class="jambo-auth-page-footer__sep" aria-hidden="true">·</span>
         <a href="{{ route('frontend.privacy-policy') }}">Privacy</a>
-        &nbsp;·&nbsp;
+        <span class="jambo-auth-page-footer__sep" aria-hidden="true">·</span>
         <a href="{{ route('frontend.contact_us') }}">Contact</a>
     </footer>
 

@@ -134,9 +134,20 @@ Route::group(['as' => 'dashboard.', 'middleware' => ['auth', 'role:admin']], fun
     Route::delete('profile/sessions/{session_id}', [AdminProfileController::class, 'logoutSession'])->name('profile.sessions.destroy');
 });
 Route::group(['as' => 'backend.', 'middleware' => ['auth', 'role:admin']], function () {
-    Route::get('permission-role', [RolePermission::class, 'index'])->name('permission-role')->middleware('password.confirm');
-    Route::post('/permission-role/store/{role_id}', [RolePermission::class, 'store'])->name('permission-role.store');
-    Route::get('/permission-role/reset/{role_id}', [RolePermission::class, 'reset_permission'])->name('permission-role.reset');
+    // The GET entry point + every mutating endpoint (store + reset)
+    // gate behind password.confirm so a stolen admin session cookie
+    // can't silently grant itself permissions or wipe a role's grants.
+    // Previously only the GET was gated — the POST / reset slipped
+    // through, which was the security finding from the audit.
+    Route::get('permission-role', [RolePermission::class, 'index'])
+        ->name('permission-role')
+        ->middleware('password.confirm');
+    Route::post('/permission-role/store/{role_id}', [RolePermission::class, 'store'])
+        ->name('permission-role.store')
+        ->middleware('password.confirm');
+    Route::get('/permission-role/reset/{role_id}', [RolePermission::class, 'reset_permission'])
+        ->name('permission-role.reset')
+        ->middleware('password.confirm');
     // Role & Permissions Crud
     Route::resource('permission', PermissionController::class);
     Route::resource('role', RoleController::class);

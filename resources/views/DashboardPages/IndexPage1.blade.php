@@ -97,7 +97,7 @@
                 </div>
             </div>
             <div class="card-body">
-                <div id="genre-chart" class="d-flex justify-content-center">
+                <div id="jambo-genre-chart" class="d-flex justify-content-center">
                 </div>
             </div>
         </div>
@@ -120,7 +120,7 @@
                 </div>
             </div>
             <div class="card-body">
-                <div id="total-revenue-subscription"></div>
+                <div id="jambo-revenue-chart"></div>
             </div>
         </div>
     </div>
@@ -141,7 +141,7 @@
                 </div>
             </div>
             <div class="card-body">
-                <div id="new-subcriber"></div>
+                <div id="jambo-new-subscribers-chart"></div>
             </div>
         </div>
     </div>
@@ -162,7 +162,7 @@
                 </div>
             </div>
             <div class="card-body">
-                <div id="d-activity"></div>
+                <div id="jambo-most-watched-chart"></div>
             </div>
         </div>
     </div>
@@ -173,19 +173,13 @@
                     <h3 class="card-title">{{ __('dashboard.user-rating-and-reviews') }}</h3>
                 </div>
                 <div class="card-header-toolbar d-flex align-items-center ">
-                    <div class="dropdown">
-                        <span class="text-primary" id="dropdownMenuButton5" data-bs-toggle="dropdown">
-                            {{ __('dashboard.view-all') }}
-                        </span>
-                        <div class="dropdown-menu dropdown-menu-end iq-dropdown toggle"
-                            aria-labelledby="dropdownMenuButton5">
-                            <a class="dropdown-item" href="#"><i class="ri-eye-fill me-2"></i>View</a>
-                            <a class="dropdown-item" href="#"><i class="ri-delete-bin-6-fill me-2"></i>Delete</a>
-                            <a class="dropdown-item" href="#"><i class="ri-pencil-fill me-2"></i>Edit</a>
-                            <a class="dropdown-item" href="#"><i class="ri-printer-fill me-2"></i>Print</a>
-                            <a class="dropdown-item" href="#"><i class="ri-file-download-fill me-2"></i>Download</a>
-                        </div>
-                    </div>
+                    {{-- "View all" goes to the real review moderation page
+                         instead of the original demo dropdown with dead
+                         View/Delete/Edit/Print/Download links that went
+                         to href="#". --}}
+                    <a href="{{ route('dashboard.review') }}" class="text-primary text-decoration-none">
+                        {{ __('dashboard.view-all') }} <i class="ri-arrow-right-line"></i>
+                    </a>
                 </div>
             </div>
             <div class="card-body pt-0">
@@ -247,7 +241,7 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <div id="top-rated-chart" class="d-flex align-items-center justify-content-center"></div>
+                        <div id="jambo-top-rated-chart" class="d-flex align-items-center justify-content-center"></div>
                     </div>
                 </div>
             </div>
@@ -259,20 +253,11 @@
                             <h3 class="card-title">{{ __('dashboard.transaction-history') }}</h3>
                         </div>
                         <div class="card-header-toolbar d-flex align-items-center ">
-                            <div class="dropdown">
-                                <span class="text-primary" id="6" data-bs-toggle="dropdown">
-                                    {{ __('dashboard.view-all') }}
-                                </span>
-                                <div class="dropdown-menu dropdown-menu-end iq-dropdown toggle">
-                                    <a class="dropdown-item" href="#"><i class="ri-eye-fill me-2"></i>View</a>
-                                    <a class="dropdown-item" href="#"><i
-                                            class="ri-delete-bin-6-fill me-2"></i>Delete</a>
-                                    <a class="dropdown-item" href="#"><i class="ri-pencil-fill me-2"></i>Edit</a>
-                                    <a class="dropdown-item" href="#"><i class="ri-printer-fill me-2"></i>Print</a>
-                                    <a class="dropdown-item" href="#"><i
-                                            class="ri-file-download-fill me-2"></i>Download</a>
-                                </div>
-                            </div>
+                            {{-- "View all" goes to the real payment orders
+                                 admin page instead of a dead dropdown. --}}
+                            <a href="{{ route('admin.payments.orders') }}" class="text-primary text-decoration-none">
+                                {{ __('dashboard.view-all') }} <i class="ri-arrow-right-line"></i>
+                            </a>
                         </div>
                     </div>
                     <div class="card-body pt-0">
@@ -321,28 +306,117 @@
         </div>
     </div>
 </div>
-@endsection
 
-@push('after-scripts')
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/apexcharts/3.40.0/apexcharts.min.js"
-        integrity="sha512-Kr1p/vGF2i84dZQTkoYZ2do8xHRaiqIa7ysnDugwoOcG0SbIx98erNekP/qms/hBDiBxj336//77d0dv53Jmew=="
-        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="{{ asset('Dashboard/js/apexcharts.js') }}"></script>
-    <script src="{{ asset('Dashboard/js/bootstrap.min.js') }}"></script>
-    <script src="{{ asset('Dashboard/js/chart-custom.js') }}"></script>
-    <script src="{{ asset('Dashboard/js/countdown.min.js') }}"></script>
-    <script src="{{ asset('Dashboard/js/custom.js') }}"></script>
-    <script src="{{ asset('Dashboard/js/dataTables.bootstrap5.min.js') }}"></script>
-    <script src="{{ asset('Dashboard/js/flatpickr.js') }}"></script>
-    <script src="{{ asset('Dashboard/js/jquery.appear.js') }}"></script>
-    <script src="{{ asset('Dashboard/js/jquery.counterup.min.js') }}"></script>
-    <script src="{{ asset('Dashboard/js/jquery.dataTables.min.js') }}"></script>
-    <script src="{{ asset('Dashboard/js/jquery.min.js') }}"></script>
-    <script src="{{ asset('Dashboard/js/masonry.pkgd.min.js') }}"></script>
-    <script src="{{ asset('Dashboard/js/owl.carousel.js') }}"></script>
-    <script src="{{ asset('Dashboard/js/popper.min.js') }}"></script>
-    <script src="{{ asset('Dashboard/js/rtl.js') }}"></script>
-    <script src="{{ asset('Dashboard/js/smooth-scrollbae.js') }}"></script>
-    <script src="{{ asset('Dashboard/js/waypoints.min.js') }}"></script>
-    <script src="{{ asset('Dashboard/js/wow.min.js') }}"></script>
-@endpush
+{{-- Live-data ApexCharts — every chart below reads from $chartData
+     (built off the DB in DashboardController::index). The element
+     IDs (#jambo-*-chart) are intentionally different from the
+     Streamit template's chart IDs so chart-custom.js (loaded by
+     components/partials/scripts/script.blade.php) skips them.
+
+     The Streamit template pushes ApexCharts via `@push('after-scripts')`
+     but `layouts.app` never renders `@stack('after-scripts')` — so
+     the template's push stack is effectively dead. We load the
+     library + init inline inside the content section here so it
+     actually reaches the browser. --}}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/apexcharts/3.40.0/apexcharts.min.js"
+    integrity="sha512-Kr1p/vGF2i84dZQTkoYZ2do8xHRaiqIa7ysnDugwoOcG0SbIx98erNekP/qms/hBDiBxj336//77d0dv53Jmew=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+    (function () {
+        var data = @json($chartData);
+        var primary = 'var(--bs-primary)';
+        var tints = [
+            'var(--bs-primary)',
+            'var(--bs-primary-tint-20)',
+            'var(--bs-primary-tint-40)',
+            'var(--bs-primary-tint-60)',
+            'var(--bs-primary-tint-80)',
+        ];
+
+        function init(id, options) {
+            var el = document.querySelector(id);
+            if (!el || typeof ApexCharts !== 'function') return;
+            new ApexCharts(el, options).render();
+        }
+
+        // 1. Top genres — donut (hidden if no genres have movies yet)
+        if (data.genres && data.genres.series.length > 0) {
+            init('#jambo-genre-chart', {
+                series: data.genres.series,
+                labels: data.genres.labels,
+                chart: { type: 'donut', height: 255 },
+                colors: tints,
+                stroke: { width: 0 },
+                dataLabels: { enabled: false },
+                legend: { position: 'bottom' },
+                plotOptions: { pie: { donut: { size: '70%' } } },
+            });
+        } else {
+            var g = document.querySelector('#jambo-genre-chart');
+            if (g) g.innerHTML = '<div class="text-muted py-5" style="font-size:13px;">No genres with movies yet.</div>';
+        }
+
+        // 2. Monthly revenue — line
+        init('#jambo-revenue-chart', {
+            series: [{ name: 'Revenue (' + data.revenue.currency + ')', data: data.revenue.series }],
+            chart: { type: 'line', height: 350, zoom: { enabled: false } },
+            colors: [primary],
+            dataLabels: { enabled: false },
+            stroke: { curve: 'smooth', width: 3 },
+            grid: { borderColor: '#1f2738' },
+            xaxis: { categories: data.revenue.labels, labels: { style: { colors: '#9aa0aa' } } },
+            yaxis: {
+                labels: {
+                    formatter: function (v) { return Number(v).toLocaleString(); },
+                    style: { colors: '#9aa0aa' },
+                },
+            },
+        });
+
+        // 3. New subscribers per tier — bar, one series per tier
+        if (data.newSubs && data.newSubs.series.length > 0) {
+            init('#jambo-new-subscribers-chart', {
+                series: data.newSubs.series,
+                chart: { type: 'bar', height: 350, stacked: true, toolbar: { show: false } },
+                colors: tints,
+                plotOptions: { bar: { borderRadius: 3, columnWidth: '55%' } },
+                dataLabels: { enabled: false },
+                grid: { borderColor: '#1f2738' },
+                xaxis: { categories: data.newSubs.labels, labels: { style: { colors: '#9aa0aa' } } },
+                yaxis: { labels: { style: { colors: '#9aa0aa' } } },
+                legend: { position: 'bottom' },
+            });
+        }
+
+        // 4. Most watched — stacked bar (Movies vs Series)
+        init('#jambo-most-watched-chart', {
+            series: data.mostWatched.series,
+            chart: { type: 'bar', height: 350, stacked: true, toolbar: { show: false } },
+            colors: [primary, tints[2]],
+            plotOptions: { bar: { borderRadius: 3, columnWidth: '50%' } },
+            dataLabels: { enabled: false },
+            grid: { borderColor: '#1f2738' },
+            xaxis: { categories: data.mostWatched.labels, labels: { style: { colors: '#9aa0aa' } } },
+            yaxis: { labels: { style: { colors: '#9aa0aa' } } },
+            legend: { position: 'bottom' },
+        });
+
+        // 5. Top rated — horizontal bar chart of average star rating
+        if (data.topRated && data.topRated.series.length > 0) {
+            init('#jambo-top-rated-chart', {
+                series: [{ name: 'Avg rating', data: data.topRated.series }],
+                chart: { type: 'bar', height: 255, toolbar: { show: false } },
+                colors: [primary],
+                plotOptions: { bar: { horizontal: true, borderRadius: 3, barHeight: '55%' } },
+                dataLabels: { enabled: true, formatter: function (v) { return v.toFixed(2); } },
+                grid: { borderColor: '#1f2738' },
+                xaxis: { max: 5, labels: { style: { colors: '#9aa0aa' } } },
+                yaxis: { labels: { style: { colors: '#9aa0aa' } }, categories: data.topRated.labels },
+            });
+        } else {
+            var t = document.querySelector('#jambo-top-rated-chart');
+            if (t) t.innerHTML = '<div class="text-muted py-5 text-center" style="font-size:13px;">Not enough ratings yet.<br><small>Needs 3+ ratings per title.</small></div>';
+        }
+    })();
+</script>
+@endsection

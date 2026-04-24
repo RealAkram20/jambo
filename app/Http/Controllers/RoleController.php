@@ -113,7 +113,7 @@ class RoleController extends Controller
 
         $role->update($data);
 
-        return redirect()->route('backend.permission-role.list')->withSuccess(__('messages.update_form', ['form' => __('permission-role.role_title')]));
+        return redirect()->route('backend.permission-role')->withSuccess(__('messages.update_form', ['form' => __('permission-role.role_title')]));
     }
 
     /**

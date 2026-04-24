@@ -49,7 +49,7 @@ class PermissionController extends Controller
 
         Permission::create($data);
 
-        return redirect()->route('backend.permission-role.list')->withSuccess(__('messages.create_form', ['form' => __('permission-role.permission_title')]));
+        return redirect()->route('backend.permission-role')->withSuccess(__('messages.create_form', ['form' => __('permission-role.permission_title')]));
     }
 
     /**
@@ -98,7 +98,7 @@ class PermissionController extends Controller
 
         $permission->update($data);
 
-        return redirect()->route('backend.permission-role.list')->withSuccess(__('messages.update_form', ['form' => __('permission-role.permission_title')]));
+        return redirect()->route('backend.permission-role')->withSuccess(__('messages.update_form', ['form' => __('permission-role.permission_title')]));
     }
 
     /**
