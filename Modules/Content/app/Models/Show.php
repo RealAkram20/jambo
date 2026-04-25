@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Facades\DB;
+use Modules\Content\app\Models\Concerns\CleansContentMorphsOnDelete;
 use Modules\Content\database\factories\ShowFactory;
 
 /**
@@ -29,6 +31,28 @@ use Modules\Content\database\factories\ShowFactory;
 class Show extends Model
 {
     use HasFactory;
+    use CleansContentMorphsOnDelete;
+
+    protected static function booted(): void
+    {
+        static::deleting(function (Show $show) {
+            // Episodes go away with the show via the FK cascade
+            // (seasons.show_id, episodes.season_id). The cascade
+            // doesn't fire Eloquent events, so the descendants'
+            // morph references have to be wiped here BEFORE the
+            // show row is removed and the cascade kicks in.
+            $episodeIds = DB::table('episodes')
+                ->join('seasons', 'episodes.season_id', '=', 'seasons.id')
+                ->where('seasons.show_id', $show->id)
+                ->pluck('episodes.id')
+                ->all();
+
+            if (!empty($episodeIds)) {
+                self::cleanContentMorphsFor(Episode::class, $episodeIds);
+            }
+            self::cleanContentMorphsFor(self::class, $show->id);
+        });
+    }
 
     protected $table = 'shows';
 

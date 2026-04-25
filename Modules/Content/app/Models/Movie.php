@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Modules\Content\app\Models\Concerns\CleansContentMorphsOnDelete;
 use Modules\Content\app\Models\Concerns\HasStreamSource;
 use Modules\Content\database\factories\MovieFactory;
 
@@ -32,6 +33,14 @@ class Movie extends Model
 {
     use HasFactory;
     use HasStreamSource;
+    use CleansContentMorphsOnDelete;
+
+    protected static function booted(): void
+    {
+        static::deleting(function (Movie $movie) {
+            self::cleanContentMorphsFor(self::class, $movie->id);
+        });
+    }
 
     protected $table = 'movies';
 

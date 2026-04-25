@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Modules\Content\app\Models\Concerns\CleansContentMorphsOnDelete;
 use Modules\Content\app\Models\Concerns\HasStreamSource;
 use Modules\Content\database\factories\EpisodeFactory;
 
@@ -28,6 +29,14 @@ class Episode extends Model
 {
     use HasFactory;
     use HasStreamSource;
+    use CleansContentMorphsOnDelete;
+
+    protected static function booted(): void
+    {
+        static::deleting(function (Episode $episode) {
+            self::cleanContentMorphsFor(self::class, $episode->id);
+        });
+    }
 
     protected $table = 'episodes';
 
