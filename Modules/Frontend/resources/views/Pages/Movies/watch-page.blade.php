@@ -140,6 +140,23 @@
     </div>
 </div>
 
+{{-- "Read more" detail sheet — opened by the trigger inside
+     movie-description.blade.php. Matches the include on the
+     detail page, minus cast/crew (controller doesn't compute
+     those for the watch view). --}}
+@include('frontend::components.widgets.details-description-modal', [
+    'movieName'     => $movie->title,
+    'description'   => $movie->synopsis,
+    'year'          => $movie->year ?: ($movie->published_at?->format('Y') ?: null),
+    'views'         => number_format($movie->views_count) . ' ' . __('streamTag.views'),
+    'movieDuration' => $movie->runtime_minutes
+        ? floor($movie->runtime_minutes / 60) . 'hr : ' . ($movie->runtime_minutes % 60) . 'mins'
+        : null,
+    'ratingCount'   => $movie->rating ?: null,
+    'genres'        => $movie->genres->pluck('name')->all(),
+    'tags'          => $movie->relationLoaded('tags') ? $movie->tags->pluck('name')->all() : [],
+])
+
 @include('frontend::components.widgets.mobile-footer')
 
 @if ($source)
