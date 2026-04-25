@@ -10,6 +10,11 @@
     <title>{{ isset($title) ? $title . ' - ' : '' }}{{ app_name() }}</title>
     <meta name="description" content="{{ meta_description() }}">
 
+    <!-- PWA -->
+    <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
+    <link rel="apple-touch-icon" href="{{ asset('icons/jambo-192.png') }}">
+    <meta name="theme-color" content="#1A98FF">
+
     @include('frontend::components.partials.head.plugins')
     {{-- Vite CSS --}}
     {{ module_vite('build-frontend', 'resources/assets/sass/app.scss') }}
@@ -214,6 +219,10 @@
     @unless (auth()->check() && auth()->user()->hasRole('admin'))
         <script src="{{ asset('frontend/js/jambo-inspect-deterrent.js') }}" defer></script>
     @endunless
+
+    @include('components.partials.pwa-bootstrap')
+    @include('components.partials.push-soft-prompt')
+    @include('components.partials.install-prompt')
 
     {{-- Password-reveal toggle (mirrors the admin layout). Any button
          tagged [data-password-toggle] flips the sibling input between
