@@ -327,8 +327,15 @@ class UpdateManager
         };
 
         // Reject obviously bad names so a malicious POST can't escape
-        // the retained-backup root via "..".
-        if (!preg_match('/^[A-Za-z0-9._-]+$/', $name)) {
+        // the retained-backup root via "..". The regex blocks slashes
+        // and other path metacharacters, and the explicit blacklist
+        // catches the dot-only edge cases the regex would otherwise
+        // permit (".", ".." both match [._]+).
+        if (
+            !preg_match('/^[A-Za-z0-9._-]+$/', $name)
+            || in_array($name, ['.', '..'], true)
+            || str_starts_with($name, '..')
+        ) {
             return ['ok' => false, 'messages' => $log, 'error' => 'Invalid backup name.'];
         }
 
