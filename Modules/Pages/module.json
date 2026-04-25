@@ -1,0 +1,11 @@
+{
+    "name": "Pages",
+    "alias": "pages",
+    "description": "Admin-managed static pages (About, Contact, FAQ, Terms, Privacy) with rich-text editor.",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Pages\\app\\Providers\\PagesServiceProvider"
+    ],
+    "files": []
+}

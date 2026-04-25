@@ -19,6 +19,7 @@ use Modules\Payments\app\Models\PaymentOrder;
 use Modules\Subscriptions\app\Models\SubscriptionTier;
 use Modules\Subscriptions\app\Models\UserSubscription;
 use Modules\Frontend\app\Services\TopPicksRecommender;
+use Modules\Pages\app\Models\Page;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -1722,27 +1723,93 @@ class FrontendController extends Controller
     // Extra Pages
     public function about_us()
     {
-        return view('frontend::Pages.ExtraPages.about-page');
+        return $this->renderManagedPage('about-us');
     }
 
     public function contact_us()
     {
-        return view('frontend::Pages.ExtraPages.contact-page');
+        $page = Page::published()->where('slug', 'contact-us')->firstOrFail();
+
+        return view('frontend::Pages.ExtraPages.managed-contact-page', ['page' => $page]);
+    }
+
+    /**
+     * Handle the public contact-form submission. Recipient address is
+     * read from the Contact page's admin-managed meta so it can be
+     * changed without touching code or env. Falls back to the app's
+     * mail-from address when admin hasn't set one.
+     */
+    public function contact_us_submit(Request $request)
+    {
+        $data = $request->validate([
+            'first_name' => 'required|string|max:100',
+            'last_name' => 'required|string|max:100',
+            'email' => 'required|email|max:255',
+            'phone' => 'required|string|max:50',
+            'message' => 'required|string|max:5000',
+        ]);
+
+        $page = Page::where('slug', 'contact-us')->first();
+        $recipient = $page?->metaValue('form_recipient_email') ?: config('mail.from.address');
+
+        if (! $recipient) {
+            return back()
+                ->withInput()
+                ->with('contact_error', 'Sorry — the contact form is not configured to send email yet.');
+        }
+
+        try {
+            \Illuminate\Support\Facades\Mail::raw(
+                "New contact-form submission\n\n"
+                . "Name: {$data['first_name']} {$data['last_name']}\n"
+                . "Email: {$data['email']}\n"
+                . "Phone: {$data['phone']}\n\n"
+                . "Message:\n{$data['message']}",
+                function ($mail) use ($recipient, $data) {
+                    $mail->to($recipient)
+                        ->replyTo($data['email'], $data['first_name'] . ' ' . $data['last_name'])
+                        ->subject('Contact form: ' . $data['first_name'] . ' ' . $data['last_name']);
+                }
+            );
+
+            return back()->with('contact_success', 'Thanks — your message has been sent. We\'ll be in touch shortly.');
+        } catch (\Throwable $e) {
+            report($e);
+            return back()
+                ->withInput()
+                ->with('contact_error', 'Sorry — we couldn\'t send your message right now. Please try again later.');
+        }
     }
 
     public function faq_page()
     {
-        return view('frontend::Pages.ExtraPages.faq-page');
+        $page = Page::published()->where('slug', 'faqs')->firstOrFail();
+
+        return view('frontend::Pages.ExtraPages.managed-faq-page', ['page' => $page]);
     }
 
     public function privacy()
     {
-        return view('frontend::Pages.ExtraPages.privacy-policy-page');
+        return $this->renderManagedPage('privacy-policy');
     }
 
     public function terms_and_policy()
     {
-        return view('frontend::Pages.ExtraPages.terms-of-use-page');
+        return $this->renderManagedPage('terms-of-use');
+    }
+
+    /**
+     * Every static page renders from the admin Pages CMS — title, body,
+     * and optional featured image are entirely admin-controlled. A draft
+     * page or one that doesn't exist 404s; the seeded system pages always
+     * exist + are published, so this only fires for pages an admin
+     * deliberately removed.
+     */
+    private function renderManagedPage(string $slug)
+    {
+        $page = Page::published()->where('slug', $slug)->firstOrFail();
+
+        return view('frontend::Pages.ExtraPages.managed-page', ['page' => $page]);
     }
 
     public function comming_soon_page()

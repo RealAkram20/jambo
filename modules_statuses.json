@@ -7,5 +7,6 @@
     "Installer": false,
     "SystemUpdate": true,
     "Notifications": true,
-    "FileManager": true
+    "FileManager": true,
+    "Pages": true
 }

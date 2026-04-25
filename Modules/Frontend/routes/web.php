@@ -165,6 +165,9 @@ Route::group([], function () {
     // Extra Pages
     Route::get('/about-us', [FrontendController::class, 'about_us'])->name('frontend.about_us');
     Route::get('/contact-us', [FrontendController::class, 'contact_us'])->name('frontend.contact_us');
+    Route::post('/contact-us', [FrontendController::class, 'contact_us_submit'])
+        ->middleware('throttle:5,10')
+        ->name('frontend.contact_us.submit');
     Route::get('/faq_page', [FrontendController::class, 'faq_page'])->name('frontend.faq_page');
     Route::get('/privacy-policy', [FrontendController::class, 'privacy'])->name('frontend.privacy-policy');
     Route::get('/terms-and-policy', [FrontendController::class, 'terms_and_policy'])->name('frontend.terms-and-policy');

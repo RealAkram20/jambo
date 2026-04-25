@@ -6,6 +6,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Modules\Content\database\seeders\ContentDatabaseSeeder;
 use Modules\Notifications\database\seeders\NotificationsDatabaseSeeder;
+use Modules\Pages\database\seeders\PagesDatabaseSeeder;
 use Modules\Subscriptions\database\seeders\SubscriptionsDatabaseSeeder;
 
 class DatabaseSeeder extends Seeder
@@ -21,5 +22,6 @@ class DatabaseSeeder extends Seeder
         $this->call(ContentDatabaseSeeder::class);
         $this->call(SubscriptionsDatabaseSeeder::class);
         $this->call(NotificationsDatabaseSeeder::class);
+        $this->call(PagesDatabaseSeeder::class);
     }
 }
