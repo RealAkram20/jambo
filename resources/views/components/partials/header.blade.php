@@ -31,6 +31,13 @@
         </div>
         <div class="collapse navbar-collapse" id="navbarSupportedContent">
             <ul class="mb-2 navbar-nav ms-auto align-items-center navbar-list mb-lg-0 ">
+                <li class="nav-item">
+                    <a href="{{ route('frontend.ott') }}" class="nav-link"
+                       title="View site" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                       target="_blank" rel="noopener">
+                        <i class="ph ph-house fs-4 align-middle"></i>
+                    </a>
+                </li>
                 <li class="nav-item dropdown">
                     <a href="#" class="nav-link" id="search-drop" data-bs-toggle="dropdown">
                         <i class="ph ph-magnifying-glass fs-4 align-middle"></i>
