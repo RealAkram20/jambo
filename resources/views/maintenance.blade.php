@@ -1,12 +1,5 @@
 @extends('layouts.jambo-auth', ['title' => 'Maintenance'])
 
-@section('header-cta')
-    <span class="jambo-maintenance-status">
-        <span class="jambo-maintenance-dot" aria-hidden="true"></span>
-        Status: maintenance
-    </span>
-@endsection
-
 @section('styles')
     <link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
 
@@ -21,38 +14,6 @@
             max-width: 560px;
             text-align: center;
             padding: 0 1rem;
-        }
-
-        /* Status pill in the header — same visual language as the
-           access-control eyebrow on the 403 page so the brand reads
-           consistently across error/system pages. */
-        .jambo-maintenance-status {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.55rem;
-            padding: 0.32rem 0.85rem;
-            background: rgba(255, 193, 7, 0.1);
-            border: 1px solid rgba(255, 193, 7, 0.28);
-            border-radius: 999px;
-            color: #f3c768;
-            font-size: 0.78rem;
-            letter-spacing: 0.18em;
-            text-transform: uppercase;
-        }
-
-        .jambo-maintenance-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #f3c768;
-            box-shadow: 0 0 0 0 rgba(243, 199, 104, 0.6);
-            animation: jambo-pulse 2s ease-out infinite;
-        }
-
-        @keyframes jambo-pulse {
-            0%   { box-shadow: 0 0 0 0 rgba(243, 199, 104, 0.55); }
-            70%  { box-shadow: 0 0 0 10px rgba(243, 199, 104, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(243, 199, 104, 0); }
         }
 
         /* Eyebrow above the headline — small tracked label with the
