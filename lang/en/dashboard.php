@@ -69,7 +69,7 @@ return [
     'active-users' => 'Active Users',
     'total-subscribers' => 'Total Subscribers',
     'total-movie' => 'Total Movie',
-    'total-tvshow' => 'Total TVshow',
+    'total-tvshow' => 'Total Series',
     'total-video' => 'Total Video',
     'top-genres' => 'Top Genres',
     'total-revenue-subscriptions' => 'Total Revenue From Subscriptions',
