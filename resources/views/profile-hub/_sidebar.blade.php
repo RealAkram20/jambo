@@ -16,7 +16,6 @@
         ['key' => 'devices',       'label' => 'Devices',       'icon' => 'ph-devices',          'route' => route('profile.devices',       ['username' => $user->username])],
         ['key' => 'notifications', 'label' => 'Notifications', 'icon' => 'ph-bell',             'route' => route('profile.notifications', ['username' => $user->username])],
         ['key' => 'membership',    'label' => 'Membership',    'icon' => 'ph-crown',            'route' => route('profile.membership',    ['username' => $user->username])],
-        ['key' => 'billing',       'label' => 'Billing',       'icon' => 'ph-receipt',          'route' => route('profile.billing',       ['username' => $user->username])],
     ];
 
     // Surface unread count on the Notifications tab so users can see

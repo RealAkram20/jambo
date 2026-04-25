@@ -40,6 +40,8 @@
 
 <body class="{{ $bodyClass ?? '' }}">
 
+    @include('components.partials.verify-email-banner')
+
     @if (Route::currentRouteName() === 'frontend.ott')
         @include('frontend::components.loader-component')
     @endif
