@@ -81,11 +81,26 @@ class Episode extends Model
     {
         $show = $showOverride
             ?? $this->season?->show
-            ?? $this->loadMissing('season.show')->season->show;
+            ?? $this->loadMissing('season.show')->season?->show;
+
+        $season = $this->season;
+
+        // Defensive fallback for orphaned episodes (season_id points
+        // at a deleted/missing season, or NULL). Without this guard the
+        // whole page 500s when one bad row makes it into a list.
+        if (!$show || !$season) {
+            \Log::warning('[episode] frontendUrl called on orphan', [
+                'episode_id' => $this->id,
+                'season_id' => $this->season_id,
+                'has_show' => (bool) $show,
+                'has_season' => (bool) $season,
+            ]);
+            return $show ? route('frontend.series_detail', ['slug' => $show->slug]) : '#';
+        }
 
         return route('frontend.episode', [
             'show' => $show->slug,
-            'season' => $this->season->number,
+            'season' => $season->number,
             'episode' => $this->number,
         ]);
     }
