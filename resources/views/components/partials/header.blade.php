@@ -155,8 +155,17 @@
                         <img src="{{ asset('dashboard/images/user/05.jpg') }}" alt="User-Profile"
                             class="theme-color-pink-img img-fluid avatar avatar-50 avatar-rounded" loading="lazy">
                         <div class="caption ms-3 d-none d-md-block ">
-                            <h6 class="mb-0 caption-title">{{ __('header.austin_robertson') }}</h6>
-                            <p class="mb-0 caption-sub-title">{{ __('header.marketing_administrator') }}</p>
+                            @php
+                                $headerUser = auth()->user();
+                                $headerRoleName = $headerUser?->roles?->first()?->name;
+                                $headerRoleLabel = $headerRoleName
+                                    ? ucwords(str_replace(['-', '_'], ' ', $headerRoleName))
+                                    : 'Member';
+                            @endphp
+                            <h6 class="mb-0 caption-title">
+                                {{ $headerUser?->full_name ?: ($headerUser?->username ?? '') }}
+                            </h6>
+                            <p class="mb-0 caption-sub-title">{{ $headerRoleLabel }}</p>
                         </div>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profile-setting">
