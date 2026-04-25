@@ -418,4 +418,24 @@ new routes on top of the existing template structure.
 
 ---
 
+## Going to production (Hostinger VPS)
+
+When you're ready to ship, the full deploy runbook lives at
+[`docs/deploy/hostinger-vps.md`](docs/deploy/hostinger-vps.md).
+
+It covers:
+
+- One-time VPS bootstrap (PHP 8.2, nginx, MariaDB, FFmpeg, Supervisor, certbot SSL)
+- The standard deploy loop (DB backup → `git pull` → composer/npm → migrate → cache rebuild → queue restart)
+- Rollback procedures for a broken migration or post-deploy 500
+- A post-deploy smoke-test checklist (HTTP codes + manual flows + log tailing)
+- Ongoing maintenance (composer audits, cert renewal, backup retention)
+
+Read it top-to-bottom once before running the first deploy.
+`.env.production.example` in the repo root has every production-safe
+value pre-filled — copy it to `.env` on the VPS and replace the
+`<CHANGE_ME>` markers.
+
+---
+
 *Get the template running first. Once every page loads, come back and we start Phase 1.*
