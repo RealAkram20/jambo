@@ -91,9 +91,15 @@
                                         <td>
                                             @forelse ($u->roles as $role)
                                                 <span class="badge @class([
+                                                    'bg-warning text-dark' => $role->name === 'super-admin',
                                                     'bg-primary' => $role->name === 'admin',
-                                                    'bg-secondary' => $role->name !== 'admin',
-                                                ])">{{ $role->name }}</span>
+                                                    'bg-secondary' => !in_array($role->name, ['admin', 'super-admin']),
+                                                ])">
+                                                    @if ($role->name === 'super-admin')
+                                                        <i class="ph ph-crown-simple-fill"></i>
+                                                    @endif
+                                                    {{ $role->name }}
+                                                </span>
                                             @empty
                                                 <span class="text-muted" style="font-size:11px;">none</span>
                                             @endforelse
@@ -116,6 +122,14 @@
                                             {{ $u->created_at?->format('d M Y') }}
                                         </td>
                                         <td class="text-end">
+                                            @php
+                                                // Super-admins are protected by the controller — surface the
+                                                // same fact in the UI so admins don't waste a click. The edit
+                                                // link is still allowed (the form lets the super-admin update
+                                                // their own profile from this same screen) but delete is hard
+                                                // off for everyone, themselves included.
+                                                $isSuperAdmin = $u->hasRole('super-admin');
+                                            @endphp
                                             <div class="btn-group" role="group">
                                                 <a href="{{ route('dashboard.user-list.edit', $u) }}"
                                                     class="btn btn-sm btn-outline-primary" title="Edit">
@@ -125,8 +139,9 @@
                                                     onsubmit="return confirm('Delete {{ $u->username }}? This cannot be undone.');">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"
-                                                        @disabled($u->id === auth()->id())>
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                        title="{{ $isSuperAdmin ? 'Super-admins can only be removed from the console' : 'Delete' }}"
+                                                        @disabled($u->id === auth()->id() || $isSuperAdmin)>
                                                         <i class="ph ph-trash-simple"></i>
                                                     </button>
                                                 </form>

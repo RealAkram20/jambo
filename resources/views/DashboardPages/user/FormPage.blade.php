@@ -5,6 +5,16 @@
     $formAction = $isEdit
         ? route('dashboard.user-list.update', $user)
         : route('dashboard.user-list.store');
+
+    // Super-admin protection. The controller enforces the same rules
+    // server-side; the view just stops admins wasting a click. Two
+    // gates: (a) the target IS a super-admin, OR (b) the actor isn't
+    // editing their own super-admin row (only super-admins can edit
+    // their own profile from this UI; everyone else's super-admin
+    // edits go through the console).
+    $targetIsSuperAdmin = $isEdit && $user->hasRole('super-admin');
+    $isSelfEdit = $isEdit && $user->id === auth()->id();
+    $lockSuperAdmin = $targetIsSuperAdmin && !$isSelfEdit;
 @endphp
 
 @section('content')
@@ -34,9 +44,28 @@
             </div>
         @endif
 
+        @if ($lockSuperAdmin)
+            <div class="col-12 mb-3">
+                <div class="alert alert-warning d-flex align-items-start gap-2">
+                    <i class="ph ph-crown-simple-fill mt-1"></i>
+                    <div>
+                        <strong>Super-admin account.</strong>
+                        This user owns the platform. Profile fields and roles can only be changed
+                        from the console. To remove super-admin status:
+                        <code style="font-size:12px;">php artisan tinker --execute='App\\Models\\User::where("email", "{{ $user->email }}")->first()->removeRole("super-admin");'</code>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         <div class="col-lg-10 mx-auto">
             <form method="POST" action="{{ $formAction }}">
                 @csrf
+                {{-- One fieldset wraps everything so $lockSuperAdmin can
+                     disable every input + the submit button in a single
+                     line. The controller would reject the POST anyway,
+                     but blocking it from the browser is a nicer UX. --}}
+                <fieldset @disabled($lockSuperAdmin)>
                 @if ($isEdit)
                     @method('PATCH')
                 @endif
@@ -136,13 +165,30 @@
                                     <div class="form-check">
                                         <input type="checkbox" class="form-check-input" id="role-{{ $role }}"
                                             name="roles[]" value="{{ $role }}"
-                                            @checked(in_array($role, old('roles', $assignedRoles), true))>
+                                            @checked(in_array($role, old('roles', $assignedRoles), true))
+                                            @disabled($lockSuperAdmin)>
                                         <label class="form-check-label" for="role-{{ $role }}">
                                             {{ ucfirst($role) }}
                                         </label>
                                     </div>
                                 </div>
                             @endforeach
+                            @if ($targetIsSuperAdmin)
+                                {{-- Super-admin role isn't in $roles (the controller filters
+                                     it out of the picker), but the badge still appears so
+                                     the admin sees it's set. --}}
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" id="role-super-admin"
+                                            checked disabled>
+                                        <label class="form-check-label" for="role-super-admin">
+                                            <i class="ph ph-crown-simple-fill text-warning"></i>
+                                            Super-admin
+                                            <small class="text-muted d-block" style="font-size:11px;">console-managed</small>
+                                        </label>
+                                    </div>
+                                </div>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -154,6 +200,7 @@
                     </button>
                     <a href="{{ route('dashboard.user-list') }}" class="btn btn-ghost">Cancel</a>
                 </div>
+                </fieldset>
             </form>
         </div>
     </div>

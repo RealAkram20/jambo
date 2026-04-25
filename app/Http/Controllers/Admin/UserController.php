@@ -61,7 +61,8 @@ class UserController extends Controller
             ],
             'totalCount' => User::count(),
             'adminCount' => User::role('admin')->count(),
-            'roles' => Role::orderBy('name')->pluck('name'),
+            // Hide super-admin from the role picker — it's console-only by design.
+'roles' => Role::where('name', '!=', 'super-admin')->orderBy('name')->pluck('name'),
         ]);
     }
 
@@ -70,7 +71,8 @@ class UserController extends Controller
         return view('DashboardPages.user.FormPage', [
             'title' => 'Create user',
             'user' => new User(),
-            'roles' => Role::orderBy('name')->pluck('name'),
+            // Hide super-admin from the role picker — it's console-only by design.
+'roles' => Role::where('name', '!=', 'super-admin')->orderBy('name')->pluck('name'),
             'assignedRoles' => [],
         ]);
     }
@@ -106,7 +108,8 @@ class UserController extends Controller
         return view('DashboardPages.user.FormPage', [
             'title' => "Edit {$user->username}",
             'user' => $user,
-            'roles' => Role::orderBy('name')->pluck('name'),
+            // Hide super-admin from the role picker — it's console-only by design.
+'roles' => Role::where('name', '!=', 'super-admin')->orderBy('name')->pluck('name'),
             'assignedRoles' => $user->roles->pluck('name')->all(),
         ]);
     }
@@ -114,6 +117,15 @@ class UserController extends Controller
     public function update(Request $request, User $user): RedirectResponse
     {
         $data = $this->validated($request, $user->id);
+
+        // Super-admins are immutable from the admin UI. The view
+        // already disables most fields, but a hand-crafted POST could
+        // still slip through — refuse the whole update from the
+        // controller as a second line of defence.
+        if ($user->hasRole('super-admin') && $user->id !== $request->user()->id) {
+            return back()->with('error',
+                "\"{$user->username}\" is a super-admin and can only be edited from the console or by themselves.");
+        }
 
         $user->fill([
             'first_name' => $data['first_name'],
@@ -148,6 +160,15 @@ class UserController extends Controller
     {
         if ($user->id === $request->user()->id) {
             return back()->with('error', "You can't delete your own account from here. Use account deactivation in your profile.");
+        }
+
+        // Super-admins are immutable from the admin UI. Removing one is
+        // a deliberate two-key action — drop into tinker if you really
+        // mean it. This guard runs even when the actor is themselves a
+        // super-admin: keeps the top tier symmetric so a single rogue
+        // super-admin can't lock the rest out of the platform.
+        if ($user->hasRole('super-admin')) {
+            return back()->with('error', "\"{$user->username}\" is a super-admin and can't be deleted from the admin UI.");
         }
 
         // Prevent locking the admin group out of the dashboard by
@@ -196,21 +217,44 @@ class UserController extends Controller
     }
 
     /**
-     * Sync roles with a safety net: if the admin hasn't chosen any
-     * role, default to `user` (the RBAC checks assume everyone has
-     * at least one role). The last-admin guard in destroy() prevents
-     * removing the last admin through role changes here too — we
-     * check after sync and revert if needed.
+     * Sync roles with two safety nets and one filter:
+     *
+     *   - Filter: super-admin can never be ASSIGNED via this UI.
+     *     Any 'super-admin' value in the incoming list is dropped.
+     *     The only way to grant super-admin is the console command.
+     *
+     *   - Preserve: if the user is currently a super-admin, that role
+     *     stays on no matter what the form submitted. Stops one admin
+     *     stripping another's owner status by submitting a roles list
+     *     that omits super-admin.
+     *
+     *   - Default: if no roles selected at all, fall back to `user`
+     *     (the RBAC checks assume everyone has at least one role).
+     *
+     *   - Last-admin guard: removing the admin role from the last
+     *     remaining admin would lock the dashboard out. Re-adds admin
+     *     after the sync if that would have happened.
      */
     private function syncRoles(User $user, array $roles): void
     {
-        $roles = array_values(array_filter(array_unique($roles)));
+        // Strip super-admin from the incoming list — UI can never grant it.
+        $roles = array_values(array_filter(array_unique($roles), fn ($r) => $r !== 'super-admin'));
+
         if (empty($roles)) {
             $roles = ['user'];
         }
 
         $wasAdmin = $user->hasRole('admin');
+        $wasSuperAdmin = $user->hasRole('super-admin');
+
         $user->syncRoles($roles);
+
+        // Preserve super-admin if the user already had it. syncRoles
+        // would have dropped it; re-attach so the owner tier survives
+        // a regular admin saving the form.
+        if ($wasSuperAdmin) {
+            $user->assignRole('super-admin');
+        }
 
         // Post-condition: if this demotion would leave zero admins,
         // roll back. Applies on edit, not create (new users aren't
