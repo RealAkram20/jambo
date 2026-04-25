@@ -4,7 +4,6 @@
     "Subscriptions": true,
     "Payments": true,
     "Streaming": true,
-    "Installer": false,
     "SystemUpdate": true,
     "Notifications": true,
     "FileManager": true,
