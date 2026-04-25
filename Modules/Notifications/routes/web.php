@@ -24,10 +24,13 @@ Route::middleware('auth')
         Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('mark-all-read');
         Route::delete('/{id}', [NotificationController::class, 'destroy'])->name('destroy');
 
-        // Dev helper: manual smoke-test dispatch. Only active in
-        // non-production environments.
-        Route::post('/test-dispatch', [NotificationController::class, 'testDispatch'])
-            ->name('test-dispatch');
+        // Dev helper: manual smoke-test dispatch. Gated at the route
+        // level so production never registers it — matches the
+        // @if (app()->environment('local')) check on the admin UI.
+        if (! app()->environment('production')) {
+            Route::post('/test-dispatch', [NotificationController::class, 'testDispatch'])
+                ->name('test-dispatch');
+        }
 
         // Browser push subscribe / unsubscribe. Called from the
         // profile notifications tab after the client asks the browser
