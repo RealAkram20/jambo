@@ -1,97 +1,77 @@
 {{--
-    Install-the-app prompt — fires ~5 minutes into the visitor's first
-    session. Two flavours:
+    Install-the-app prompt — bottom banner that mirrors the push
+    soft-prompt UX. Fires once the visitor has been on the site for
+    ~45 seconds (cumulative across navigation, sessionStorage-tracked).
 
-      - Android Chrome / Edge: catches `beforeinstallprompt`, suppresses
-        the native banner, then triggers the saved event when the user
-        clicks "Install".
-      - iOS Safari: no `beforeinstallprompt` exists, so we explain the
-        Share-button → "Add to Home Screen" steps with a small visual.
+      - Android Chrome / desktop Chrome / Edge: catches the
+        `beforeinstallprompt` event, shows our own banner, and on
+        Install click fires the saved native event.
+      - iOS Safari: no `beforeinstallprompt`, so the banner expands
+        inline with the Share-button → "Add to Home Screen" steps.
 
-    Skipped entirely when:
+    Suppressed when:
       - Already in standalone mode (already installed).
-      - The user dismissed the prompt before (localStorage).
-      - The browser doesn't support either path.
-
-    The 5-minute timer is cumulative across navigation: first visit
-    timestamp is held in sessionStorage so reading multiple pages in a
-    single session still triggers the prompt right around 5 min mark.
+      - The user dismissed the banner before (localStorage).
+      - On Android, no `beforeinstallprompt` was captured (criteria
+        not yet met — manifest, https, valid icons all required).
 --}}
 <div id="jambo-install-prompt"
-     style="position:fixed;inset:0;background:rgba(8,10,16,.78);z-index:1090;
-            display:none;align-items:center;justify-content:center;padding:18px;
-            opacity:0;transition:opacity .25s ease;font-family:Roboto,system-ui,sans-serif;">
-    <div style="background:#10131c;color:#fff;border-radius:18px;
-                box-shadow:0 22px 60px rgba(0,0,0,.55);max-width:440px;width:100%;
-                border:1px solid rgba(255,255,255,.07);overflow:hidden;">
-        <div style="display:flex;align-items:center;gap:14px;padding:20px 22px 0;">
-            <img src="{{ asset('icons/jambo-192.png') }}" alt="Jambo"
-                 style="width:56px;height:56px;border-radius:14px;flex:0 0 auto;
-                        background:#fff;padding:4px;">
-            <div>
-                <div style="font-weight:700;font-size:17px;">Install Jambo</div>
-                <div style="font-size:13px;color:#c2c8d4;margin-top:2px;">
-                    Add it to your home screen for quick access.
-                </div>
+     style="position:fixed;left:50%;bottom:16px;transform:translateX(-50%) translateY(160%);
+            transition:transform .35s ease;z-index:1075;
+            max-width:520px;width:calc(100% - 32px);
+            background:#10131c;color:#fff;border:1px solid rgba(255,255,255,.08);
+            border-radius:14px;box-shadow:0 18px 40px rgba(0,0,0,.45);
+            padding:16px 18px;display:none;font-family:Roboto,system-ui,sans-serif;">
+    <div style="display:flex;gap:14px;align-items:flex-start;">
+        <img src="{{ asset('icons/jambo-192.png') }}" alt="Jambo"
+             style="flex:0 0 auto;width:42px;height:42px;border-radius:11px;
+                    background:#fff;padding:3px;">
+        <div style="flex:1 1 auto;min-width:0;">
+            <div style="font-weight:600;font-size:15px;margin-bottom:4px;">
+                Install Jambo
             </div>
-        </div>
-
-        {{-- Android / desktop content. JamboPWA fires this when a
-             beforeinstallprompt event has been captured. --}}
-        <div id="jambo-install-android" style="display:none;padding:18px 22px 22px;">
-            <p style="font-size:13.5px;line-height:1.55;color:#c2c8d4;margin:0 0 14px;">
-                Tap "Install" to add Jambo to your apps. It launches like any
-                other app — no browser bar, full screen.
-            </p>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                <button type="button" id="jambo-install-android-go"
-                        style="background:#1A98FF;color:#fff;border:0;border-radius:9px;
-                               padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer;flex:1 1 auto;">
-                    Install
-                </button>
-                <button type="button" data-jambo-install-dismiss="true"
-                        style="background:transparent;color:#c2c8d4;border:1px solid rgba(255,255,255,.14);
-                               border-radius:9px;padding:10px 16px;font-size:14px;cursor:pointer;">
-                    Not now
-                </button>
+            <div id="jambo-install-copy" style="font-size:13px;line-height:1.45;color:#c2c8d4;">
+                Add it to your home screen for faster access — no browser bar, full screen.
             </div>
-        </div>
 
-        {{-- iOS content with Share-button illustration. --}}
-        <div id="jambo-install-ios" style="display:none;padding:18px 22px 22px;">
-            <ol style="margin:0 0 14px;padding-left:18px;font-size:13.5px;line-height:1.7;color:#c2c8d4;">
-                <li style="margin-bottom:6px;">
-                    Tap the <strong style="color:#fff;">Share</strong> button
+            {{-- iOS-only inline instructions, hidden by default. --}}
+            <ol id="jambo-install-ios-steps" style="display:none;margin:10px 0 0;padding-left:18px;
+                       font-size:12.5px;line-height:1.65;color:#c2c8d4;">
+                <li>
+                    Tap the <strong style="color:#fff;">Share</strong>
                     <span aria-hidden="true"
                           style="display:inline-flex;align-items:center;justify-content:center;
-                                 width:22px;height:22px;border:1.5px solid #1A98FF;border-radius:5px;
-                                 vertical-align:-5px;margin:0 2px;">
-                        <svg width="12" height="14" viewBox="0 0 12 14" fill="none">
+                                 width:18px;height:18px;border:1.4px solid #1A98FF;border-radius:4px;
+                                 vertical-align:-4px;margin:0 2px;">
+                        <svg width="10" height="12" viewBox="0 0 12 14" fill="none">
                             <path d="M6 10V1.5M6 1.5L3 4.5M6 1.5L9 4.5"
                                   stroke="#1A98FF" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
                             <path d="M2 8v4a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V8"
                                   stroke="#1A98FF" stroke-width="1.4" stroke-linecap="round"/>
                         </svg>
                     </span>
-                    in Safari's toolbar.
+                    button in Safari.
                 </li>
-                <li style="margin-bottom:6px;">
-                    Scroll and tap <strong style="color:#fff;">Add to Home Screen</strong>.
-                </li>
-                <li>Tap <strong style="color:#fff;">Add</strong> in the top-right.</li>
+                <li>Choose <strong style="color:#fff;">Add to Home Screen</strong>.</li>
+                <li>Tap <strong style="color:#fff;">Add</strong>.</li>
             </ol>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                <button type="button" data-jambo-install-dismiss="true"
-                        style="background:#1A98FF;color:#fff;border:0;border-radius:9px;
-                               padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer;flex:1 1 auto;">
-                    Got it
+
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                <button type="button" id="jambo-install-go"
+                        style="background:#1A98FF;color:#fff;border:0;border-radius:8px;
+                               padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;">
+                    Install
+                </button>
+                <button type="button" id="jambo-install-dismiss"
+                        style="background:transparent;color:#c2c8d4;border:1px solid rgba(255,255,255,.14);
+                               border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;">
+                    Not now
                 </button>
             </div>
         </div>
-
-        <button type="button" data-jambo-install-dismiss="true" aria-label="Close"
-                style="position:absolute;top:14px;right:16px;background:transparent;color:#7d8493;
-                       border:0;font-size:22px;cursor:pointer;line-height:1;">
+        <button type="button" id="jambo-install-close" aria-label="Dismiss"
+                style="background:transparent;color:#7d8493;border:0;font-size:18px;
+                       cursor:pointer;padding:0;line-height:1;align-self:flex-start;">
             &times;
         </button>
     </div>
@@ -100,9 +80,9 @@
 (function () {
     var STORAGE_KEY = 'jambo_install_prompt_state';
     var SESSION_KEY = 'jambo_install_first_seen';
-    var DELAY_MS = 5 * 60 * 1000;
-    var modal = document.getElementById('jambo-install-prompt');
-    if (!modal || !window.JamboPWA) return;
+    var DELAY_MS = 45 * 1000;
+    var banner = document.getElementById('jambo-install-prompt');
+    if (!banner || !window.JamboPWA) return;
 
     var pwa = window.JamboPWA;
     var deferredPrompt = null;
@@ -129,38 +109,42 @@
     });
 
     function show(kind) {
-        var androidPanel = document.getElementById('jambo-install-android');
-        var iosPanel = document.getElementById('jambo-install-ios');
-        if (kind === 'ios') { iosPanel.style.display = 'block'; }
-        else { androidPanel.style.display = 'block'; }
-        modal.style.display = 'flex';
-        requestAnimationFrame(function () { modal.style.opacity = '1'; });
+        if (kind === 'ios') {
+            document.getElementById('jambo-install-ios-steps').style.display = 'block';
+            document.getElementById('jambo-install-copy').textContent =
+                'Add Jambo to your home screen for full-screen access.';
+            var goBtn = document.getElementById('jambo-install-go');
+            goBtn.textContent = 'Got it';
+        }
+        banner.style.display = 'block';
+        requestAnimationFrame(function () {
+            banner.style.transform = 'translateX(-50%) translateY(0)';
+        });
     }
     function hide() {
-        modal.style.opacity = '0';
-        setTimeout(function () { modal.style.display = 'none'; }, 280);
+        banner.style.transform = 'translateX(-50%) translateY(160%)';
+        setTimeout(function () { banner.style.display = 'none'; }, 400);
     }
 
-    function attach() {
-        Array.prototype.forEach.call(modal.querySelectorAll('[data-jambo-install-dismiss]'), function (btn) {
-            btn.addEventListener('click', function () { hide(); persist('dismissed'); });
-        });
-        modal.addEventListener('click', function (e) {
-            // Click on the dim backdrop (modal element itself, not the card).
-            if (e.target === modal) { hide(); persist('dismissed'); }
-        });
-        var androidGo = document.getElementById('jambo-install-android-go');
-        if (androidGo) {
-            androidGo.addEventListener('click', function () {
-                if (!deferredPrompt) { hide(); return; }
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then(function (choice) {
-                    persist(choice.outcome === 'accepted' ? 'installed' : 'dismissed');
-                    deferredPrompt = null;
-                    hide();
-                });
+    function attach(kind) {
+        document.getElementById('jambo-install-go').addEventListener('click', function () {
+            if (kind === 'ios') {
+                hide(); persist('dismissed'); return;
+            }
+            if (!deferredPrompt) { hide(); return; }
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then(function (choice) {
+                persist(choice.outcome === 'accepted' ? 'installed' : 'dismissed');
+                deferredPrompt = null;
+                hide();
             });
-        }
+        });
+        document.getElementById('jambo-install-dismiss').addEventListener('click', function () {
+            hide(); persist('dismissed');
+        });
+        document.getElementById('jambo-install-close').addEventListener('click', function () {
+            hide(); persist('dismissed');
+        });
     }
 
     function evaluate() {
@@ -168,13 +152,12 @@
         if (readState() === 'dismissed' || readState() === 'installed') return;
 
         var ios = pwa.isIOS();
-        // On Android the prompt is only useful once we've captured a
-        // beforeinstallprompt; if the browser hasn't fired one (e.g.
-        // criteria not yet met), bail rather than showing a button
-        // that won't work.
+        // On Android / desktop the banner needs a captured
+        // beforeinstallprompt to function; if none has fired, the
+        // browser doesn't think we're installable yet.
         if (!ios && !deferredPrompt) return;
 
-        attach();
+        attach(ios ? 'ios' : 'android');
         show(ios ? 'ios' : 'android');
     }
 
