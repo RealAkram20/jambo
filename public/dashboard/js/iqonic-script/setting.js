@@ -75,11 +75,17 @@
   }
 
   function defaultSettingOption() {
+    // Read the live app name from the <meta name="app_name"> tag the
+    // layout writes from setting('app_name'). Falls back to "Jambo"
+    // so the customiser still has something to render even if the
+    // meta tag isn't present (very old cached pages).
+    var appNameMeta = document.querySelector('meta[name="app_name"]');
+    var appName = (appNameMeta && appNameMeta.getAttribute("content")) || "Jambo";
     return {
       app_name: {
         target: '[data-setting="app_name"]',
         type: "text",
-        value: "Streamit",
+        value: appName,
       },
       theme_scheme_direction: {
         target: "html",

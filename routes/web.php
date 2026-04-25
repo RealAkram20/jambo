@@ -26,6 +26,15 @@ Route::get('/', function () {
 
 Route::get('/app', [DashboardController::class, 'index'])->middleware(['auth', 'role:admin'])->name('dashboard');
 
+// JSON endpoint for the dashboard chart filter dropdowns
+// (Year/Month/Week). Returns a single chart's series + labels for
+// the requested period so the frontend can call updateSeries()
+// without a full reload.
+Route::get('/app/charts/{chart}', [DashboardController::class, 'chartData'])
+    ->middleware(['auth', 'role:admin'])
+    ->whereIn('chart', ['revenue', 'newSubs', 'mostWatched'])
+    ->name('dashboard.chart-data');
+
 // Breeze shipped /profile routes pointing at App\Http\Controllers\
 // ProfileController — that class has been deleted; the profile hub
 // now lives under /{username}. Removing these avoids shadowing

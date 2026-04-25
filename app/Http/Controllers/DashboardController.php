@@ -49,12 +49,15 @@ class DashboardController extends Controller
             ->get();
 
         // Live chart data. Everything below comes from the DB, not
-        // chart-custom.js's hardcoded demo arrays.
+        // chart-custom.js's hardcoded demo arrays. Default period for
+        // the time-series charts is Year so the dashboard loads with
+        // the same shape it always has — admins can switch to
+        // Month/Week via the dropdowns (handled by chartData()).
         $chartData = [
             'genres'      => $this->buildTopGenresChart(),
-            'revenue'     => $this->buildMonthlyRevenueChart(12),
-            'newSubs'     => $this->buildNewSubscribersChart(12),
-            'mostWatched' => $this->buildMostWatchedChart(7),
+            'revenue'     => $this->buildMonthlyRevenueChart('Year'),
+            'newSubs'     => $this->buildNewSubscribersChart('Year'),
+            'mostWatched' => $this->buildMostWatchedChart('Year'),
             'topRated'    => $this->buildTopRatedChart(),
         ];
 
@@ -87,50 +90,90 @@ class DashboardController extends Controller
     }
 
     /**
-     * Monthly revenue for the last N months. Sums completed
-     * payment_orders grouped by year-month, then back-fills months
-     * with zero payments so the X axis is continuous.
+     * Time-bucket plan for a given filter period. Centralised so all
+     * three chart methods bucket the same way and the dropdown UX is
+     * consistent. Returns:
+     *   - count: how many buckets to render
+     *   - unit:  'month' or 'day' (drives Carbon::sub* calls)
+     *   - sqlFmt: MySQL DATE_FORMAT string for the GROUP BY bucket
+     *   - labelFmt: Carbon format string for the visible X-axis label
      */
-    private function buildMonthlyRevenueChart(int $months = 12): array
+    private function periodBuckets(string $period): array
     {
-        $since = Carbon::now()->subMonths($months - 1)->startOfMonth();
+        return match ($period) {
+            'Week'  => ['count' => 7,  'unit' => 'day',   'sqlFmt' => '%Y-%m-%d', 'labelFmt' => 'D'],
+            'Month' => ['count' => 30, 'unit' => 'day',   'sqlFmt' => '%Y-%m-%d', 'labelFmt' => 'M j'],
+            default => ['count' => 12, 'unit' => 'month', 'sqlFmt' => '%Y-%m',    'labelFmt' => 'M Y'],
+        };
+    }
+
+    /**
+     * Walk the bucket list backwards from now, returning [labels, keys]
+     * where labels are visible strings and keys are GROUP BY values to
+     * look up in the SQL result.
+     */
+    private function bucketAxis(array $cfg): array
+    {
+        $labels = $keys = [];
+        for ($i = $cfg['count'] - 1; $i >= 0; $i--) {
+            $d = $cfg['unit'] === 'month'
+                ? Carbon::now()->subMonths($i)->startOfMonth()
+                : Carbon::now()->subDays($i)->startOfDay();
+            $keys[]   = $d->format($cfg['unit'] === 'month' ? 'Y-m' : 'Y-m-d');
+            $labels[] = $d->format($cfg['labelFmt']);
+        }
+        return [$labels, $keys];
+    }
+
+    /**
+     * Revenue chart for the requested period. Sums completed
+     * payment_orders grouped by the period's bucket, then back-fills
+     * empty buckets with 0 so the X axis is continuous.
+     */
+    private function buildMonthlyRevenueChart(string $period = 'Year'): array
+    {
+        $cfg = $this->periodBuckets($period);
+        [$labels, $keys] = $this->bucketAxis($cfg);
+
+        $since = $cfg['unit'] === 'month'
+            ? Carbon::now()->subMonths($cfg['count'] - 1)->startOfMonth()
+            : Carbon::now()->subDays($cfg['count'] - 1)->startOfDay();
 
         $raw = PaymentOrder::where('status', PaymentOrder::STATUS_COMPLETED)
             ->where('created_at', '>=', $since)
-            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as bucket, SUM(amount) as total")
+            ->selectRaw("DATE_FORMAT(created_at, '{$cfg['sqlFmt']}') as bucket, SUM(amount) as total")
             ->groupBy('bucket')
             ->pluck('total', 'bucket');
 
-        $labels = [];
-        $series = [];
-        for ($i = $months - 1; $i >= 0; $i--) {
-            $d = Carbon::now()->subMonths($i)->startOfMonth();
-            $key = $d->format('Y-m');
-            $labels[] = $d->format('M Y');
-            $series[] = (float) ($raw[$key] ?? 0);
-        }
+        $series = array_map(fn ($k) => (float) ($raw[$k] ?? 0), $keys);
 
         return [
             'labels' => $labels,
             'series' => $series,
             'currency' => config('payments.currency', 'UGX'),
+            'period' => $period,
         ];
     }
 
     /**
-     * New subscribers per tier per month for the last N months.
+     * New subscribers per tier for the requested period.
      * One series per subscription tier, back-filled with zeros so
      * every tier shows the same X-axis length.
      */
-    private function buildNewSubscribersChart(int $months = 12): array
+    private function buildNewSubscribersChart(string $period = 'Year'): array
     {
-        $since = Carbon::now()->subMonths($months - 1)->startOfMonth();
+        $cfg = $this->periodBuckets($period);
+        [$labels, $keys] = $this->bucketAxis($cfg);
+
+        $since = $cfg['unit'] === 'month'
+            ? Carbon::now()->subMonths($cfg['count'] - 1)->startOfMonth()
+            : Carbon::now()->subDays($cfg['count'] - 1)->startOfDay();
 
         $tiers = SubscriptionTier::orderBy('sort_order')->orderBy('name')->get(['id', 'name']);
 
         $rows = UserSubscription::where('user_subscriptions.created_at', '>=', $since)
             ->join('subscription_tiers', 'subscription_tiers.id', '=', 'user_subscriptions.subscription_tier_id')
-            ->selectRaw("DATE_FORMAT(user_subscriptions.created_at, '%Y-%m') as bucket, subscription_tiers.id as tier_id, COUNT(*) as total")
+            ->selectRaw("DATE_FORMAT(user_subscriptions.created_at, '{$cfg['sqlFmt']}') as bucket, subscription_tiers.id as tier_id, COUNT(*) as total")
             ->groupBy('bucket', 'subscription_tiers.id')
             ->get();
 
@@ -139,57 +182,79 @@ class DashboardController extends Controller
             $byTier[$r->tier_id][$r->bucket] = (int) $r->total;
         }
 
-        $labels = [];
-        for ($i = $months - 1; $i >= 0; $i--) {
-            $labels[] = Carbon::now()->subMonths($i)->format('M Y');
-        }
-
-        $series = $tiers->map(function ($tier) use ($byTier, $months) {
-            $data = [];
-            for ($i = $months - 1; $i >= 0; $i--) {
-                $key = Carbon::now()->subMonths($i)->format('Y-m');
-                $data[] = (int) ($byTier[$tier->id][$key] ?? 0);
-            }
+        $series = $tiers->map(function ($tier) use ($byTier, $keys) {
+            $data = array_map(fn ($k) => (int) ($byTier[$tier->id][$k] ?? 0), $keys);
             return ['name' => $tier->name, 'data' => $data];
         })->values()->all();
 
         return [
             'labels' => $labels,
             'series' => $series,
+            'period' => $period,
         ];
     }
 
     /**
-     * Stacked bar — distinct-user watch events per day over the
-     * last N days, split into Movies vs Series.
+     * Distinct-user watch events for the requested period, split into
+     * Movies vs Series. Stacked bar friendly.
      */
-    private function buildMostWatchedChart(int $days = 7): array
+    private function buildMostWatchedChart(string $period = 'Year'): array
     {
-        $since = Carbon::now()->subDays($days - 1)->startOfDay();
+        $cfg = $this->periodBuckets($period);
+        [$labels, $keys] = $this->bucketAxis($cfg);
+
+        $since = $cfg['unit'] === 'month'
+            ? Carbon::now()->subMonths($cfg['count'] - 1)->startOfMonth()
+            : Carbon::now()->subDays($cfg['count'] - 1)->startOfDay();
+
         $movieType = (new Movie)->getMorphClass();
         $episodeType = (new Episode)->getMorphClass();
 
         $rows = WatchHistoryItem::where('watched_at', '>=', $since)
-            ->selectRaw("DATE(watched_at) as bucket, watchable_type, COUNT(DISTINCT user_id) as total")
+            ->selectRaw("DATE_FORMAT(watched_at, '{$cfg['sqlFmt']}') as bucket, watchable_type, COUNT(DISTINCT user_id) as total")
             ->groupBy('bucket', 'watchable_type')
             ->get();
 
-        $movieData = $showData = [];
-        $labels = [];
-        for ($i = $days - 1; $i >= 0; $i--) {
-            $d = Carbon::now()->subDays($i)->format('Y-m-d');
-            $labels[] = Carbon::parse($d)->format('D');
-            $movieData[] = (int) ($rows->firstWhere(fn ($r) => $r->bucket === $d && $r->watchable_type === $movieType)?->total ?? 0);
-            $showData[]  = (int) ($rows->firstWhere(fn ($r) => $r->bucket === $d && $r->watchable_type === $episodeType)?->total ?? 0);
-        }
+        $movieData = array_map(
+            fn ($k) => (int) ($rows->firstWhere(fn ($r) => $r->bucket === $k && $r->watchable_type === $movieType)?->total ?? 0),
+            $keys,
+        );
+        $showData = array_map(
+            fn ($k) => (int) ($rows->firstWhere(fn ($r) => $r->bucket === $k && $r->watchable_type === $episodeType)?->total ?? 0),
+            $keys,
+        );
 
         return [
             'labels' => $labels,
             'series' => [
-                ['name' => 'Movies',  'data' => $movieData],
+                ['name' => 'Movies', 'data' => $movieData],
                 ['name' => 'Series', 'data' => $showData],
             ],
+            'period' => $period,
         ];
+    }
+
+    /**
+     * JSON endpoint for the dashboard filter dropdowns. Returns one
+     * chart's series + labels for the requested period so the
+     * frontend can call ApexCharts.updateOptions() / updateSeries()
+     * without a full page reload.
+     */
+    public function chartData(Request $request, string $chart)
+    {
+        $period = $request->query('period', 'Year');
+        if (! in_array($period, ['Year', 'Month', 'Week'], true)) {
+            $period = 'Year';
+        }
+
+        $data = match ($chart) {
+            'revenue'     => $this->buildMonthlyRevenueChart($period),
+            'newSubs'     => $this->buildNewSubscribersChart($period),
+            'mostWatched' => $this->buildMostWatchedChart($period),
+            default       => abort(404),
+        };
+
+        return response()->json($data);
     }
 
     /**

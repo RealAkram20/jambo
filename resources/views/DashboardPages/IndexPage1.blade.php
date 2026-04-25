@@ -109,13 +109,13 @@
                 <div class="iq-header-title">
                     <h3 class="card-title">{{ __('dashboard.total-revenue-subscriptions') }}</h3>
                 </div>
-                <div class="dropdown">
+                <div class="dropdown" data-chart-filter="revenue">
                     <button class="btn custom-btn-dark-dropdown dropdown-toggle total-revenue" type="button"
-                        id="dropdownTotalRevenue" data-bs-toggle="dropdown" aria-expanded="false">Year</button>
+                        id="dropdownTotalRevenue" data-bs-toggle="dropdown" aria-expanded="false" data-chart-filter-label>Year</button>
                     <ul class="dropdown-menu sub-dropdown" aria-labelledby="dropdownTotalRevenue">
-                        <li><a class="revenue-dropdown-item dropdown-item" data-type="Year">Year</a></li>
-                        <li><a class="revenue-dropdown-item dropdown-item" data-type="Month">Month</a></li>
-                        <li><a class="revenue-dropdown-item dropdown-item" data-type="Week">Week</a></li>
+                        <li><a class="revenue-dropdown-item dropdown-item" href="javascript:void(0)" data-type="Year">Year</a></li>
+                        <li><a class="revenue-dropdown-item dropdown-item" href="javascript:void(0)" data-type="Month">Month</a></li>
+                        <li><a class="revenue-dropdown-item dropdown-item" href="javascript:void(0)" data-type="Week">Week</a></li>
                     </ul>
                 </div>
             </div>
@@ -130,13 +130,13 @@
                 <div class="iq-header-title">
                     <h3 class="card-title">{{ __('dashboard.new-subscribers') }}</h3>
                 </div>
-                <div class="dropdown">
+                <div class="dropdown" data-chart-filter="newSubs">
                     <button class="btn custom-btn-dark-dropdown dropdown-toggle total-revenue" type="button"
-                        id="dropdownTotalRevenue1" data-bs-toggle="dropdown" aria-expanded="false">Year</button>
+                        id="dropdownTotalRevenue1" data-bs-toggle="dropdown" aria-expanded="false" data-chart-filter-label>Year</button>
                     <ul class="dropdown-menu sub-dropdown" aria-labelledby="dropdownTotalRevenue1">
-                        <li><a class="revenue-dropdown-item dropdown-item" data-type="Year">Year</a></li>
-                        <li><a class="revenue-dropdown-item dropdown-item" data-type="Month">Month</a></li>
-                        <li><a class="revenue-dropdown-item dropdown-item" data-type="Week">Week</a></li>
+                        <li><a class="revenue-dropdown-item dropdown-item" href="javascript:void(0)" data-type="Year">Year</a></li>
+                        <li><a class="revenue-dropdown-item dropdown-item" href="javascript:void(0)" data-type="Month">Month</a></li>
+                        <li><a class="revenue-dropdown-item dropdown-item" href="javascript:void(0)" data-type="Week">Week</a></li>
                     </ul>
                 </div>
             </div>
@@ -151,13 +151,13 @@
                 <div class="iq-header-title">
                     <h3 class="card-title">{{ __('dashboard.most-watched') }}</h3>
                 </div>
-                <div class="dropdown">
+                <div class="dropdown" data-chart-filter="mostWatched">
                     <button class="btn custom-btn-dark-dropdown dropdown-toggle total-revenue" type="button"
-                        id="dropdownTotalRevenue2" data-bs-toggle="dropdown" aria-expanded="false">Year</button>
+                        id="dropdownTotalRevenue2" data-bs-toggle="dropdown" aria-expanded="false" data-chart-filter-label>Year</button>
                     <ul class="dropdown-menu sub-dropdown" aria-labelledby="dropdownTotalRevenue2">
-                        <li><a class="revenue-dropdown-item dropdown-item" data-type="Year">Year</a></li>
-                        <li><a class="revenue-dropdown-item dropdown-item" data-type="Month">Month</a></li>
-                        <li><a class="revenue-dropdown-item dropdown-item" data-type="Week">Week</a></li>
+                        <li><a class="revenue-dropdown-item dropdown-item" href="javascript:void(0)" data-type="Year">Year</a></li>
+                        <li><a class="revenue-dropdown-item dropdown-item" href="javascript:void(0)" data-type="Month">Month</a></li>
+                        <li><a class="revenue-dropdown-item dropdown-item" href="javascript:void(0)" data-type="Week">Week</a></li>
                     </ul>
                 </div>
             </div>
@@ -324,6 +324,7 @@
 <script>
     (function () {
         var data = @json($chartData);
+        var chartUrlBase = "{{ url('/app/charts') }}";
         var primary = 'var(--bs-primary)';
         var tints = [
             'var(--bs-primary)',
@@ -333,15 +334,24 @@
             'var(--bs-primary-tint-80)',
         ];
 
-        function init(id, options) {
+        // Registry of live ApexCharts instances keyed by the same name
+        // the `data-chart-filter` attribute uses on each dropdown. The
+        // filter handler at the bottom looks up the chart by key, then
+        // calls updateOptions / updateSeries with the freshly-fetched
+        // data — no full page reload.
+        var charts = {};
+
+        function init(key, id, options) {
             var el = document.querySelector(id);
             if (!el || typeof ApexCharts !== 'function') return;
-            new ApexCharts(el, options).render();
+            var chart = new ApexCharts(el, options);
+            chart.render();
+            if (key) charts[key] = chart;
         }
 
-        // 1. Top genres — donut (hidden if no genres have movies yet)
+        // 1. Top genres — donut (no period filter)
         if (data.genres && data.genres.series.length > 0) {
-            init('#jambo-genre-chart', {
+            init(null, '#jambo-genre-chart', {
                 series: data.genres.series,
                 labels: data.genres.labels,
                 chart: { type: 'donut', height: 255 },
@@ -356,8 +366,8 @@
             if (g) g.innerHTML = '<div class="text-muted py-5" style="font-size:13px;">No genres with movies yet.</div>';
         }
 
-        // 2. Monthly revenue — line
-        init('#jambo-revenue-chart', {
+        // 2. Revenue — line (filterable)
+        init('revenue', '#jambo-revenue-chart', {
             series: [{ name: 'Revenue (' + data.revenue.currency + ')', data: data.revenue.series }],
             chart: { type: 'line', height: 350, zoom: { enabled: false } },
             colors: [primary],
@@ -373,9 +383,9 @@
             },
         });
 
-        // 3. New subscribers per tier — bar, one series per tier
+        // 3. New subscribers per tier — bar, one series per tier (filterable)
         if (data.newSubs && data.newSubs.series.length > 0) {
-            init('#jambo-new-subscribers-chart', {
+            init('newSubs', '#jambo-new-subscribers-chart', {
                 series: data.newSubs.series,
                 chart: { type: 'bar', height: 350, stacked: true, toolbar: { show: false } },
                 colors: tints,
@@ -388,8 +398,8 @@
             });
         }
 
-        // 4. Most watched — stacked bar (Movies vs Series)
-        init('#jambo-most-watched-chart', {
+        // 4. Most watched — stacked bar (Movies vs Series) (filterable)
+        init('mostWatched', '#jambo-most-watched-chart', {
             series: data.mostWatched.series,
             chart: { type: 'bar', height: 350, stacked: true, toolbar: { show: false } },
             colors: [primary, tints[2]],
@@ -401,9 +411,9 @@
             legend: { position: 'bottom' },
         });
 
-        // 5. Top rated — horizontal bar chart of average star rating
+        // 5. Top rated — horizontal bar (no period filter)
         if (data.topRated && data.topRated.series.length > 0) {
-            init('#jambo-top-rated-chart', {
+            init(null, '#jambo-top-rated-chart', {
                 series: [{ name: 'Avg rating', data: data.topRated.series }],
                 chart: { type: 'bar', height: 255, toolbar: { show: false } },
                 colors: [primary],
@@ -417,6 +427,50 @@
             var t = document.querySelector('#jambo-top-rated-chart');
             if (t) t.innerHTML = '<div class="text-muted py-5 text-center" style="font-size:13px;">Not enough ratings yet.<br><small>Needs 3+ ratings per title.</small></div>';
         }
+
+        // ------------------------------------------------------------
+        // Filter dropdowns (Year/Month/Week)
+        //
+        // Bootstrap renders the dropdown markup; we just listen for
+        // clicks on the items, fetch fresh data, and call ApexCharts
+        // update methods. Reusing one delegated listener keeps the
+        // dropdowns alive across DOM mutations.
+        // ------------------------------------------------------------
+
+        function applySeries(key, payload) {
+            var chart = charts[key];
+            if (!chart) return;
+
+            // Wrap the single revenue series so the legend keeps the
+            // currency suffix; everything else has its own series shape.
+            var series = key === 'revenue'
+                ? [{ name: 'Revenue (' + (payload.currency || '') + ')', data: payload.series }]
+                : payload.series;
+
+            chart.updateOptions({ xaxis: { categories: payload.labels } }, false, false);
+            chart.updateSeries(series, true);
+        }
+
+        document.addEventListener('click', function (e) {
+            var item = e.target.closest('.revenue-dropdown-item');
+            if (!item) return;
+            e.preventDefault();
+
+            var dropdown = item.closest('[data-chart-filter]');
+            if (!dropdown) return;
+            var key = dropdown.dataset.chartFilter;
+            var period = item.dataset.type;
+            var labelEl = dropdown.querySelector('[data-chart-filter-label]');
+            if (labelEl) labelEl.textContent = period;
+
+            fetch(chartUrlBase + '/' + encodeURIComponent(key) + '?period=' + encodeURIComponent(period), {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+            })
+                .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+                .then(function (payload) { applySeries(key, payload); })
+                .catch(function (err) { console.error('Chart filter failed', err); });
+        });
     })();
 </script>
 @endsection
