@@ -5,8 +5,94 @@
 @section('content')
     <div class="row">
         <div class="col-12">
+            {{-- Maintenance mode ===================================== --}}
+            {{-- Lives at the top because it's the most safety-critical
+                 toggle on the page: flipping it on takes the public site
+                 offline for non-admin visitors. Admins keep working. --}}
+            <form action="{{ route('admin.settings.maintenance') }}" method="POST">
+                @csrf
+
+                @php
+                    $maintenanceOn = (bool) setting('maintenance_enabled');
+                @endphp
+
+                <div class="card border-{{ $maintenanceOn ? 'warning' : '' }}">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="card-title mb-0">
+                                <i class="ph ph-warning-circle me-1"></i> Maintenance mode
+                                @if ($maintenanceOn)
+                                    <span class="badge bg-warning text-dark ms-2">Active</span>
+                                @endif
+                            </h4>
+                            <small class="text-secondary">
+                                When ON, only admins can use the site. Everyone else sees the maintenance page.
+                            </small>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="ph ph-check me-1"></i> Save maintenance
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        @if (session('status_maintenance'))
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                {{ session('status_maintenance') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        @endif
+
+                        <div class="row g-3">
+                            <div class="col-md-12">
+                                <div class="form-check form-switch">
+                                    <input type="hidden" name="maintenance_enabled" value="0">
+                                    <input type="checkbox" class="form-check-input" role="switch"
+                                        id="maintenance_enabled" name="maintenance_enabled" value="1"
+                                        {{ $maintenanceOn ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="maintenance_enabled">
+                                        Enable maintenance mode
+                                    </label>
+                                </div>
+                                <small class="text-secondary d-block mt-1">
+                                    The /login page stays open so you can sign back in if you log out by mistake.
+                                </small>
+                            </div>
+
+                            <div class="col-md-12">
+                                <label class="form-label" for="maintenance_message">
+                                    Message shown to visitors
+                                </label>
+                                <textarea name="maintenance_message" id="maintenance_message" rows="3"
+                                    class="form-control @error('maintenance_message') is-invalid @enderror"
+                                    placeholder="We're updating Jambo with some improvements. Be right back.">{{ old('maintenance_message', setting('maintenance_message')) }}</textarea>
+                                @error('maintenance_message')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                                <small class="text-secondary">
+                                    Plain text. Shown below the headline on the maintenance page.
+                                </small>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label" for="maintenance_until">
+                                    Back by <span class="text-secondary">(optional)</span>
+                                </label>
+                                <input type="datetime-local" name="maintenance_until" id="maintenance_until"
+                                    class="form-control @error('maintenance_until') is-invalid @enderror"
+                                    value="{{ old('maintenance_until', setting('maintenance_until')) }}">
+                                @error('maintenance_until')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                                <small class="text-secondary">
+                                    Drives the countdown on the maintenance page. Leave blank for "soon".
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
             {{-- General ============================================ --}}
-            <form action="{{ route('admin.settings.general') }}" method="POST">
+            <form action="{{ route('admin.settings.general') }}" method="POST" class="mt-4">
                 @csrf
 
                 <div class="card">

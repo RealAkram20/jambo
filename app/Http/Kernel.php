@@ -36,6 +36,12 @@ class Kernel extends HttpKernel
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            // Admin-toggleable maintenance mode. Runs AFTER session
+            // start so it can identify admins (who bypass), and AFTER
+            // CSRF so we don't bypass the maintenance check for any
+            // POST that fails CSRF.  Cheap miss path — short-circuits
+            // before EnforceDeviceLimit when the toggle is off.
+            \App\Http\Middleware\MaintenanceMode::class,
             // Account-level device cap. Runs AFTER StartSession (needs
             // session to identify the user) and AFTER SubstituteBindings
             // (needs route names for its skip list). Self-short-circuits

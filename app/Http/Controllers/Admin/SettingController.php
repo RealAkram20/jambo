@@ -203,6 +203,32 @@ class SettingController extends Controller
     }
 
     /**
+     * Toggle maintenance mode + persist the message and optional
+     * "back by" datetime. Admin role bypasses the MaintenanceMode
+     * middleware entirely, so this controller stays reachable while
+     * the site is dark.
+     */
+    public function updateMaintenance(Request $request)
+    {
+        $data = $request->validate([
+            'maintenance_enabled' => ['required', 'boolean'],
+            'maintenance_message' => ['nullable', 'string', 'max:1000'],
+            'maintenance_until'   => ['nullable', 'date'],
+        ]);
+
+        Setting::set('maintenance_enabled', $data['maintenance_enabled'] ? '1' : '0', 'boolean');
+        Setting::set('maintenance_message', $data['maintenance_message'] ?? '');
+        Setting::set('maintenance_until',   $data['maintenance_until'] ?? '');
+        Setting::flushCache();
+
+        $msg = $data['maintenance_enabled']
+            ? 'Maintenance mode is now ON — non-admin visitors are seeing the maintenance page.'
+            : 'Maintenance mode is OFF — the site is live for everyone.';
+
+        return redirect()->route('admin.settings.index')->with('status_maintenance', $msg);
+    }
+
+    /**
      * Accept absolute URLs or media paths copied from the File Manager.
      * Examples:
      *   https://site.test/storage/media/logos/x.png  → /storage/media/logos/x.png
