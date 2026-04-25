@@ -200,12 +200,71 @@ class DatabaseBackup
 
     private function mysqldumpBinary(): string
     {
-        return config('systemupdate.db_backup.mysqldump_binary', 'mysqldump');
+        return $this->resolveBinary(
+            config('systemupdate.db_backup.mysqldump_binary', 'mysqldump'),
+            'mysqldump',
+        );
     }
 
     private function mysqlBinary(): string
     {
-        return config('systemupdate.db_backup.mysql_binary', 'mysql');
+        return $this->resolveBinary(
+            config('systemupdate.db_backup.mysql_binary', 'mysql'),
+            'mysql',
+        );
+    }
+
+    /**
+     * Resolve a binary name to an absolute path that actually exists.
+     *
+     * Tries in order: the configured value (which may be an absolute
+     * path or just a name), then a list of platform-typical locations.
+     * Returns the configured value untouched if none of the fallbacks
+     * exist either — Symfony Process will then fail with a clear
+     * "command not found" instead of an opaque error.
+     *
+     * Saves the operator a frustrating debug session on first deploy:
+     * Hostinger KVM VPS has /usr/bin/mysqldump in PATH (just works);
+     * XAMPP on Windows ships it at C:\xampp\mysql\bin\mysqldump.exe
+     * which isn't in PATH by default. Either is auto-handled.
+     */
+    private function resolveBinary(string $configured, string $shortName): string
+    {
+        // Configured absolute path that exists wins.
+        if (str_contains($configured, DIRECTORY_SEPARATOR) || str_contains($configured, '/')) {
+            if (is_file($configured)) {
+                return $configured;
+            }
+        }
+
+        // If the name resolves on PATH, let the OS find it.
+        $isWindows = PHP_OS_FAMILY === 'Windows';
+        $exe = $isWindows ? "$shortName.exe" : $shortName;
+
+        $candidates = $isWindows ? [
+            "C:\\xampp\\mysql\\bin\\$exe",
+            "C:\\wamp64\\bin\\mysql\\mysql8.0\\bin\\$exe",
+            "C:\\wamp\\bin\\mysql\\mysql8.0\\bin\\$exe",
+            "C:\\Program Files\\MariaDB 10.11\\bin\\$exe",
+            "C:\\Program Files\\MariaDB 10.6\\bin\\$exe",
+            "C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\$exe",
+            "C:\\laragon\\bin\\mysql\\mysql-8.0\\bin\\$exe",
+        ] : [
+            "/usr/bin/$shortName",
+            "/usr/local/bin/$shortName",
+            "/opt/homebrew/bin/$shortName",
+            "/opt/mysql/bin/$shortName",
+        ];
+
+        foreach ($candidates as $path) {
+            if (is_file($path)) {
+                return $path;
+            }
+        }
+
+        // Nothing matched — return the configured value and let the
+        // Process invocation fail loudly with the actual reason.
+        return $configured;
     }
 
     /* ---------------------------------------------------------------- */

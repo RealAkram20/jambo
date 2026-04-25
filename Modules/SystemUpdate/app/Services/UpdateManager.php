@@ -415,14 +415,17 @@ class UpdateManager
 
         File::ensureDirectoryExists($dest);
 
-        // Move file backup tree under files/
-        rename($fileBackupDir, $dest . DIRECTORY_SEPARATOR . 'files');
+        // Move file backup tree under files/. The project root and
+        // storage/ may live on different volumes on some VPS layouts,
+        // and rename() returns false (EXDEV) across mount points —
+        // moveTree() falls back to recursive copy + delete in that case.
+        $this->moveTree($fileBackupDir, $dest . DIRECTORY_SEPARATOR . 'files');
 
         // Move DB dump alongside it
         $dbBasename = null;
         if ($dbBackupPath && File::exists($dbBackupPath)) {
             $dbBasename = basename($dbBackupPath);
-            rename($dbBackupPath, $dest . DIRECTORY_SEPARATOR . $dbBasename);
+            $this->moveFile($dbBackupPath, $dest . DIRECTORY_SEPARATOR . $dbBasename);
         }
 
         // Write meta.json
@@ -483,6 +486,51 @@ class UpdateManager
         }
         $decoded = json_decode(File::get($metaFile), true);
         return is_array($decoded) ? $decoded : [];
+    }
+
+    /**
+     * Move a single file. Falls back to copy+unlink across filesystems
+     * (where rename() fails with EXDEV).
+     */
+    private function moveFile(string $src, string $dst): void
+    {
+        if (@rename($src, $dst)) {
+            return;
+        }
+        if (!@copy($src, $dst)) {
+            throw new RuntimeException("Could not move file $src → $dst");
+        }
+        @unlink($src);
+    }
+
+    /**
+     * Move a directory tree. Same EXDEV fallback as moveFile().
+     */
+    private function moveTree(string $src, string $dst): void
+    {
+        if (@rename($src, $dst)) {
+            return;
+        }
+
+        // Cross-filesystem: recursive copy then prune the source.
+        File::ensureDirectoryExists($dst);
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($src, \RecursiveDirectoryIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::SELF_FIRST
+        );
+        foreach ($iterator as $item) {
+            $rel = substr($item->getPathname(), strlen($src) + 1);
+            $target = $dst . DIRECTORY_SEPARATOR . $rel;
+            if ($item->isDir()) {
+                File::ensureDirectoryExists($target);
+            } else {
+                File::ensureDirectoryExists(dirname($target));
+                if (!@copy($item->getPathname(), $target)) {
+                    throw new RuntimeException("Could not copy $item → $target during cross-fs move");
+                }
+            }
+        }
+        $this->extractor->deleteDirectory($src);
     }
 
     private function dirSize(string $dir): int
