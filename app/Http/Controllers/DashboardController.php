@@ -34,7 +34,14 @@ class DashboardController extends Controller
             'total_subscribers' => UserSubscription::where('status', 'active')->count(),
             'total_movies'      => Movie::count(),
             'total_shows'       => Show::count(),
-            'total_episodes'    => Episode::count(),
+            // Lifetime gross from completed orders. Sums every COMPLETED
+            // payment_order ever recorded — refunds/disputes aren't
+            // subtracted because we don't track those yet (and the
+            // current admin-mental-model is "money seen", not "money
+            // kept"). Revisit when the Payments module grows refund
+            // accounting.
+            'total_earnings'    => (float) PaymentOrder::where('status', PaymentOrder::STATUS_COMPLETED)->sum('amount'),
+            'currency'          => config('payments.currency', 'UGX'),
         ];
 
         $recentReviews = Review::with(['user', 'reviewable'])

@@ -78,11 +78,18 @@
                 <div class="card">
                     <div class="card-body">
                         <div class="icon-space mb-5">
-                            <i class="ph ph-monitor-play fs-1"></i>
+                            <i class="ph ph-coins fs-1"></i>
                         </div>
                         <div class="card-details">
-                            <h1 class="fw-semibold card-details-title">{{ number_format($stats['total_episodes']) }}</h1>
-                            <p class="mb-0 fs-6">Total Episodes</p>
+                            {{-- Lifetime earnings from every COMPLETED payment_order
+                                 since day one. Currency code shown as a small suffix
+                                 so the headline stays the number — easier to scan
+                                 across the row of stat cards. --}}
+                            <h1 class="fw-semibold card-details-title">
+                                {{ number_format((float) $stats['total_earnings'], 0) }}
+                                <small class="fs-6 text-secondary fw-normal">{{ $stats['currency'] }}</small>
+                            </h1>
+                            <p class="mb-0 fs-6">Total Earnings</p>
                         </div>
                     </div>
                 </div>
