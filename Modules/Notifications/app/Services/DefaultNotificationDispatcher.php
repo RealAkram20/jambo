@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
 use Modules\Notifications\app\Contracts\NotificationDispatcher;
+use Modules\Notifications\app\Models\Guest;
 use Throwable;
 
 /**
@@ -43,6 +44,15 @@ class DefaultNotificationDispatcher implements NotificationDispatcher
             ->each(function (User $user) use ($notification) {
                 $this->safeNotify($user, $notification);
             });
+
+        // Fan out to anonymous (logged-out) browsers that opted in via
+        // the soft-prompt. WebPushChannel iterates every endpoint
+        // attached to the singleton, so one notify() call covers all
+        // guest subscriptions.
+        $guest = Guest::singleton();
+        if ($guest->pushSubscriptions()->exists()) {
+            $this->safeNotify($guest, $notification);
+        }
     }
 
     private function safeNotify(object $user, Notification $notification): void

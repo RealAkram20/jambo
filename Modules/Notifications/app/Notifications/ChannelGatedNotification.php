@@ -102,10 +102,30 @@ abstract class ChannelGatedNotification extends Notification
             ->icon(url('/favicon.ico'))
             ->body($payload['message'] ?? '');
 
+        if (!empty($payload['image'])) {
+            $msg->image($this->absoluteUrl($payload['image']));
+        }
+
         if (!empty($payload['action_url'])) {
             $msg->action('Open', 'open')->data(['url' => $payload['action_url']]);
         }
 
         return $msg;
+    }
+
+    /**
+     * Push image / icon URLs sent to the service worker must be absolute.
+     * Posters and avatars in payloads can be either, depending on caller —
+     * normalise here so subclasses don't have to remember.
+     */
+    protected function absoluteUrl(?string $path): ?string
+    {
+        if (empty($path)) {
+            return null;
+        }
+        if (preg_match('#^https?://#i', $path)) {
+            return $path;
+        }
+        return url(ltrim($path, '/'));
     }
 }

@@ -31,10 +31,15 @@ Route::middleware('auth')
             Route::post('/test-dispatch', [NotificationController::class, 'testDispatch'])
                 ->name('test-dispatch');
         }
+    });
 
-        // Browser push subscribe / unsubscribe. Called from the
-        // profile notifications tab after the client asks the browser
-        // for a push subscription.
+// Push subscribe / unsubscribe are deliberately auth-OPTIONAL: guests
+// can opt in too, anchored to the Guest singleton so broadcasts fan
+// out to logged-out browsers as well. The controller branches on
+// $request->user() to pick the right notifiable.
+Route::prefix('notifications')
+    ->name('notifications.')
+    ->group(function () {
         Route::post('/push/subscribe', [NotificationController::class, 'subscribePush'])
             ->name('push.subscribe');
         Route::post('/push/unsubscribe', [NotificationController::class, 'unsubscribePush'])

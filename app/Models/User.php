@@ -63,6 +63,17 @@ class User extends Authenticatable implements MustVerifyEmail
     ];
 
     /**
+     * Defaults for new users. Notification toggles are all opt-out by
+     * default so a fresh sign-up immediately receives the broadcasts
+     * (movies, series, system) without having to flip switches.
+     */
+    protected $attributes = [
+        'in_app_notifications_enabled' => true,
+        'email_notifications_enabled'  => true,
+        'push_notifications_enabled'   => true,
+    ];
+
+    /**
      * True when the user has both set up AND confirmed 2FA — the
      * middleware only challenges confirmed users, so a half-finished
      * setup can't lock someone out.

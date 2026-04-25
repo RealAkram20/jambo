@@ -11,6 +11,11 @@
     <meta name="app_name" content="{{ app_name() }}">
     <meta name="description" content="{{ meta_description() }}">
 
+    <!-- PWA -->
+    <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
+    <link rel="apple-touch-icon" href="{{ asset('icons/jambo-192.png') }}">
+    <meta name="theme-color" content="#1A98FF">
+
     @include('components.partials.head.head')
     <!-- Scripts -->
     @vite(['resources/css/app.scss', 'public/dashboard/scss/streamit.scss',
@@ -87,6 +92,7 @@
     @endauth
     @include('components.partials.scripts.plugin')
     @include('components.partials.scripts.script')
+    @include('components.partials.pwa-bootstrap')
     <!-- SwiperSlider Script -->
     <script src="{{ asset('dashboard/vendor/swiperSlider/swiper-bundle.min.js') }}"></script>
     <script src="{{ asset('dashboard/js/plugins/swiper-slider.js') }}" defer></script>

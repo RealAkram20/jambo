@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
+use Modules\Notifications\app\Models\Guest;
 use Modules\Notifications\app\Models\NotificationSetting;
 
 /**
@@ -153,9 +154,9 @@ class NotificationController extends Controller
     }
 
     /**
-     * Register a browser push subscription for the current user. The
-     * client calls this after getting a PushSubscription from the
-     * service worker's PushManager.subscribe().
+     * Register a browser push subscription. Works for both authenticated
+     * users and anonymous guests — guests are anchored to a singleton
+     * Guest model so the same morph relation can fan out broadcasts.
      */
     public function subscribePush(Request $request): JsonResponse
     {
@@ -166,7 +167,9 @@ class NotificationController extends Controller
             'expiration_time' => ['nullable'],
         ]);
 
-        $request->user()->updatePushSubscription(
+        $notifiable = $request->user() ?? Guest::singleton();
+
+        $notifiable->updatePushSubscription(
             $data['endpoint'],
             $data['keys']['p256dh'],
             $data['keys']['auth'],
@@ -175,7 +178,9 @@ class NotificationController extends Controller
 
         // Auto-enable the user-level opt-in on first subscribe so the
         // switch in the profile tab reflects reality immediately.
-        if (!$request->user()->push_notifications_enabled) {
+        // Guests don't have this column — the accessor on Guest is
+        // hard-coded true, so nothing to write.
+        if ($request->user() && !$request->user()->push_notifications_enabled) {
             $request->user()->forceFill(['push_notifications_enabled' => true])->save();
         }
 
@@ -192,9 +197,10 @@ class NotificationController extends Controller
             'endpoint' => ['required', 'string'],
         ]);
 
-        $request->user()->deletePushSubscription($data['endpoint']);
+        $notifiable = $request->user() ?? Guest::singleton();
+        $notifiable->deletePushSubscription($data['endpoint']);
 
-        if (!$request->user()->pushSubscriptions()->exists()) {
+        if ($request->user() && !$request->user()->pushSubscriptions()->exists()) {
             $request->user()->forceFill(['push_notifications_enabled' => false])->save();
         }
 

@@ -11,6 +11,11 @@
 
     <!-- Favicon -->
     <link rel="shortcut icon" href="{{ asset('frontend/images/favicon.ico') }}" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
+    <link rel="apple-touch-icon" href="{{ asset('icons/jambo-192.png') }}">
+    <meta name="theme-color" content="#1A98FF">
     {{-- Vite CSS --}}
     {{ module_vite('build-frontend', 'resources/assets/sass/app.scss') }}
     <style>
@@ -51,4 +56,8 @@
     {{ module_vite('build-frontend', 'resources/assets/js/app.js') }}
 
     @include('frontend::components.partials.scripts.script')
+
+    @include('components.partials.pwa-bootstrap')
+    @include('components.partials.push-soft-prompt')
+    @include('components.partials.install-prompt')
 </body>
