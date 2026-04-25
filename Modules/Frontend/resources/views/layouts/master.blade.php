@@ -207,6 +207,14 @@
     })();
     </script>
 
+    {{-- Inspect-deterrent: disables right-click + devtools shortcuts
+         for non-admin users on the public site. Deterrent only — see
+         the file header for the full honest-caveats write-up. Admins
+         keep full browser tooling for debugging. --}}
+    @unless (auth()->check() && auth()->user()->hasRole('admin'))
+        <script src="{{ asset('frontend/js/jambo-inspect-deterrent.js') }}" defer></script>
+    @endunless
+
     {{-- Password-reveal toggle (mirrors the admin layout). Any button
          tagged [data-password-toggle] flips the sibling input between
          "password" and "text" types. --}}
