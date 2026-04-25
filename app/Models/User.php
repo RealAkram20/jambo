@@ -74,6 +74,29 @@ class User extends Authenticatable implements MustVerifyEmail
     ];
 
     /**
+     * Snapshot the user's identity onto their payment_orders before
+     * the row is deleted. The FK now sets user_id to NULL on delete
+     * (see 2026_04_26_120000_preserve_financial_records_on_user_delete),
+     * so without this snapshot we'd retain the order amounts but lose
+     * who paid. Refreshing here also picks up any email/name change
+     * the user made between order creation and account deletion.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (User $user) {
+            $fullName = trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''));
+
+            \Illuminate\Support\Facades\DB::table('payment_orders')
+                ->where('user_id', $user->id)
+                ->update([
+                    'customer_email'    => $user->email,
+                    'customer_name'     => $fullName !== '' ? $fullName : null,
+                    'customer_username' => $user->username,
+                ]);
+        });
+    }
+
+    /**
      * True when the user has both set up AND confirmed 2FA — the
      * middleware only challenges confirmed users, so a half-finished
      * setup can't lock someone out.
