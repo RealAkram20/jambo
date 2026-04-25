@@ -38,6 +38,16 @@ class InstallFilesGalleryCommand extends Command
             'config.php'        => "{$target}/_files/config/config.php",
             'custom.js'         => "{$target}/_files/js/custom.js",
             'gallery-readme.md' => "{$galleryDir}/README.md",
+
+            // Security drop-ins. media.htaccess cookie-gates the Files
+            // Gallery drop-in so direct hits on /storage/media/*
+            // can't bypass the admin role gate. gallery.htaccess
+            // blocks PHP execution + directory listing on the public
+            // gallery tree. Both are force-overwritten on every
+            // install (see --force handling below) so security rules
+            // can't drift behind the code.
+            'media.htaccess'    => "{$target}/.htaccess",
+            'gallery.htaccess'  => "{$galleryDir}/.htaccess",
         ];
 
         File::ensureDirectoryExists("{$target}/_files/config");
@@ -56,7 +66,12 @@ class InstallFilesGalleryCommand extends Command
                 continue;
             }
 
-            if (File::exists($dest) && ! $this->option('force')) {
+            // Always refresh .htaccess rules — they're security policy
+            // and must not drift from the repo. Everything else honours
+            // the --force flag so admins don't lose their custom edits.
+            $forceOverwrite = $this->option('force') || str_ends_with($name, '.htaccess');
+
+            if (File::exists($dest) && ! $forceOverwrite) {
                 $this->line("  · {$name} already present (use --force to overwrite)");
                 $skipped++;
 

@@ -1,0 +1,33 @@
+# Files Gallery drop-in lives in this directory. On a public VPS, a
+# direct hit on /storage/media/index.php would bypass Jambo's admin gate
+# and hand anyone the Files Gallery UI with upload/delete/download on
+# the whole gallery tree.
+#
+# Fix: require the JAMBO_FM_SESSION cookie, which Laravel's
+# admin.file-manager.index controller issues only for authenticated
+# admins. Without it, Apache rejects the request with 403 before Files
+# Gallery ever runs.
+#
+# This file is installed by `php artisan filemanager:install`
+# (wired into composer.json's post-autoload-dump), so every deploy keeps
+# it in place even though storage/app/public/ itself is gitignored.
+
+Options -Indexes -MultiViews
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # The cookie is opaque random bytes issued by Laravel; we only
+    # verify its presence, not the value. Laravel's own HttpOnly flag
+    # keeps it out of reach of client-side JS, so it can't be forged
+    # from an XSS on the app.
+    RewriteCond %{HTTP_COOKIE} !JAMBO_FM_SESSION=[^;]+ [NC]
+    RewriteRule .* - [F,L]
+</IfModule>
+
+# Defense in depth: even if someone rewrites rules, never let Files
+# Gallery serve a response on a non-admin request by denying direct
+# access to its bundled files outside of the index.php entry point.
+<Files "*.log">
+    Require all denied
+</Files>

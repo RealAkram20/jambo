@@ -1,0 +1,36 @@
+# /storage/gallery is the admin-curated public media tree (posters,
+# backdrops, etc.). It's meant to be publicly reachable — the frontend
+# renders these URLs directly. But two things MUST NOT happen here:
+#
+#   1. Directory listing. Revealing filenames helps scrapers enumerate
+#      content. `Options -Indexes` blocks Apache's built-in index.
+#
+#   2. PHP execution. Files Gallery permits arbitrary uploads; if an
+#      admin credential is ever compromised and a .php shell is
+#      uploaded, this rule stops Apache from executing it. The admin
+#      role already gates uploads — this is defense in depth.
+#
+# Installed by `php artisan filemanager:install`.
+
+Options -Indexes -MultiViews
+
+# Block any script-like handler regardless of how it was configured
+# (mod_php, FastCGI, etc.). Apache matches .phtml, .php3, .php7 too.
+<FilesMatch "\.(php[0-9]?|phar|phtml|phps|pl|py|pyc|pyo|jsp|cgi|sh|bash|zsh|ksh|lua|rb|tcl|htm|html)$">
+    SetHandler none
+    SetHandler default-handler
+    ForceType text/plain
+    Require all denied
+</FilesMatch>
+
+# Also disable any AddHandler / AddType directive an outer .htaccess
+# might have set for these extensions.
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>

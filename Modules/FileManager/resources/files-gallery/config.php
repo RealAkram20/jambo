@@ -41,9 +41,14 @@ return [
     // ceiling is silently lowered to whatever PHP permits.
     'upload_max_filesize' => 4294967296,
 
-    // Let admins upload any file type (the module route is already role:admin
-    // gated). Tighten to e.g. 'image/*, video/*, .pdf' for stricter envs.
-    'upload_allowed_file_types' => '',
+    // Allow-list of upload MIME types. Tightened from the previous
+    // wildcard because the admin role gate is no longer the only line
+    // of defense — a compromised admin account should not be able to
+    // drop a PHP shell into /storage/gallery/. Defense in depth: the
+    // gallery's own .htaccess also blocks PHP execution regardless of
+    // what was uploaded. Widen this list if a legitimate asset type is
+    // being rejected — don't switch back to ''.
+    'upload_allowed_file_types' => 'image/*, video/*, audio/*, .pdf, .srt, .vtt, .webvtt, .zip',
 
     // Use ImageMagick for JPEG/PNG resizing when available — better downscaling
     // for large movie posters than PHP GD's default imagecopyresampled.
