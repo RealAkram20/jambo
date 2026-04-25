@@ -1,7 +1,7 @@
-@extends('layouts.app', ['module_title' => 'Movies'])
+@extends('layouts.app', ['module_title' => 'Movies', 'isSweetalert' => true])
 
 @section('content')
-<div class="container-fluid">
+<div class="container-fluid" data-bulk-scope="movies">
     <div class="row">
         <div class="col-12">
             <div class="card">
@@ -47,10 +47,32 @@
                         </div>
                     </form>
 
+                    {{-- Bulk action bar — hidden until at least one row is checked.
+                         Submission is intercepted by JS so we can route through the
+                         SweetAlert2 confirm before posting to bulk-destroy. --}}
+                    <div id="movies-bulk-bar" class="d-none align-items-center justify-content-between gap-3 mb-3 px-3 py-2 rounded"
+                         style="background:#0f1422;border:1px solid rgba(255,255,255,.08);">
+                        <span class="text-light" style="font-size:13px;">
+                            <span id="movies-bulk-count">0</span> selected
+                        </span>
+                        <form id="movies-bulk-form" method="POST" action="{{ route('admin.movies.bulk-destroy') }}"
+                              data-jambo-confirm="bulk-delete-movies" class="m-0">
+                            @csrf
+                            @method('DELETE')
+                            <div id="movies-bulk-ids"></div>
+                            <button type="submit" class="btn btn-sm btn-danger">
+                                <i class="ph ph-trash-simple me-1"></i> Delete selected
+                            </button>
+                        </form>
+                    </div>
+
                     <div class="table-responsive">
                         <table class="table custom-table align-middle mb-0">
                             <thead>
                                 <tr class="text-uppercase" style="font-size:11px;letter-spacing:.5px;">
+                                    <th style="width:36px;">
+                                        <input type="checkbox" id="movies-select-all" class="form-check-input" aria-label="Select all">
+                                    </th>
                                     <th style="width:80px;">Poster</th>
                                     <th>Title</th>
                                     <th>Year</th>
@@ -64,6 +86,11 @@
                             <tbody>
                                 @forelse ($movies as $movie)
                                     <tr>
+                                        <td>
+                                            <input type="checkbox" class="form-check-input movies-row-cb"
+                                                   value="{{ $movie->id }}" data-title="{{ $movie->title }}"
+                                                   aria-label="Select {{ $movie->title }}">
+                                        </td>
                                         <td>
                                             @if ($movie->poster_url)
                                                 <img src="{{ $movie->poster_url }}" alt="" class="rounded" style="width:48px;height:72px;object-fit:cover;">
@@ -123,7 +150,10 @@
                                                 <a href="{{ route('admin.movies.edit', $movie) }}" class="btn btn-sm btn-success-subtle" title="Edit">
                                                     <i class="ph ph-pencil-simple"></i>
                                                 </a>
-                                                <form method="POST" action="{{ route('admin.movies.destroy', $movie) }}" class="d-inline" onsubmit="return confirm('Delete {{ $movie->title }}? This cannot be undone.');">
+                                                <form method="POST" action="{{ route('admin.movies.destroy', $movie) }}"
+                                                      class="d-inline"
+                                                      data-jambo-confirm="delete-movie"
+                                                      data-title="{{ $movie->title }}">
                                                     @csrf
                                                     @method('DELETE')
                                                     <button type="submit" class="btn btn-sm btn-danger-subtle" title="Delete">
@@ -135,7 +165,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="8" class="text-center py-5 text-muted" style="font-size:14px;">
+                                        <td colspan="9" class="text-center py-5 text-muted" style="font-size:14px;">
                                             No movies yet.
                                             <a href="{{ route('admin.movies.create') }}">Add your first movie →</a>
                                         </td>
@@ -155,4 +185,6 @@
         </div>
     </div>
 </div>
+
+@include('components.partials.admin-bulk-confirm')
 @endsection

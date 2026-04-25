@@ -1,7 +1,7 @@
-@extends('layouts.app', ['module_title' => 'Series'])
+@extends('layouts.app', ['module_title' => 'Series', 'isSweetalert' => true])
 
 @section('content')
-<div class="container-fluid">
+<div class="container-fluid" data-bulk-scope="series">
     <div class="row">
         <div class="col-12">
             <div class="card">
@@ -47,10 +47,29 @@
                         </div>
                     </form>
 
+                    <div id="series-bulk-bar" class="d-none align-items-center justify-content-between gap-3 mb-3 px-3 py-2 rounded"
+                         style="background:#0f1422;border:1px solid rgba(255,255,255,.08);">
+                        <span class="text-light" style="font-size:13px;">
+                            <span id="series-bulk-count">0</span> selected
+                        </span>
+                        <form id="series-bulk-form" method="POST" action="{{ route('admin.series.bulk-destroy') }}"
+                              data-jambo-confirm="bulk-delete-series" class="m-0">
+                            @csrf
+                            @method('DELETE')
+                            <div id="series-bulk-ids"></div>
+                            <button type="submit" class="btn btn-sm btn-danger">
+                                <i class="ph ph-trash-simple me-1"></i> Delete selected
+                            </button>
+                        </form>
+                    </div>
+
                     <div class="table-responsive">
                         <table class="table custom-table align-middle mb-0">
                             <thead>
                                 <tr class="text-uppercase" style="font-size:11px;letter-spacing:.5px;">
+                                    <th style="width:36px;">
+                                        <input type="checkbox" id="series-select-all" class="form-check-input" aria-label="Select all">
+                                    </th>
                                     <th style="width:80px;">Poster</th>
                                     <th>Title</th>
                                     <th>Year</th>
@@ -65,6 +84,11 @@
                             <tbody>
                                 @forelse ($shows as $show)
                                     <tr>
+                                        <td>
+                                            <input type="checkbox" class="form-check-input series-row-cb"
+                                                   value="{{ $show->id }}" data-title="{{ $show->title }}"
+                                                   aria-label="Select {{ $show->title }}">
+                                        </td>
                                         <td>
                                             @if ($show->poster_url)
                                                 <img src="{{ $show->poster_url }}" alt="" class="rounded" style="width:48px;height:72px;object-fit:cover;">
@@ -111,7 +135,10 @@
                                                 <a href="{{ route('admin.series.edit', $show) }}" class="btn btn-sm btn-success-subtle" title="Edit">
                                                     <i class="ph ph-pencil-simple"></i>
                                                 </a>
-                                                <form method="POST" action="{{ route('admin.series.destroy', $show) }}" class="d-inline" onsubmit="return confirm('Delete {{ $show->title }}? This cannot be undone.');">
+                                                <form method="POST" action="{{ route('admin.series.destroy', $show) }}"
+                                                      class="d-inline"
+                                                      data-jambo-confirm="delete-series"
+                                                      data-title="{{ $show->title }}">
                                                     @csrf
                                                     @method('DELETE')
                                                     <button type="submit" class="btn btn-sm btn-danger-subtle" title="Delete">
@@ -123,7 +150,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="9" class="text-center py-5 text-muted" style="font-size:14px;">
+                                        <td colspan="10" class="text-center py-5 text-muted" style="font-size:14px;">
                                             No series yet.
                                             <a href="{{ route('admin.series.create') }}">Add your first series →</a>
                                         </td>
@@ -143,4 +170,6 @@
         </div>
     </div>
 </div>
+
+@include('components.partials.admin-bulk-confirm')
 @endsection

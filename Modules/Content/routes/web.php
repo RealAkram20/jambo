@@ -32,6 +32,13 @@ Route::middleware(['auth', 'role:admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
+        // Bulk-delete endpoints. Registered BEFORE the resource() so
+        // /admin/movies/bulk doesn't get matched as {movie} = "bulk".
+        Route::delete('movies/bulk', [MovieController::class, 'bulkDestroy'])
+            ->name('movies.bulk-destroy');
+        Route::delete('series/bulk', [ShowController::class, 'bulkDestroy'])
+            ->name('series.bulk-destroy');
+
         Route::resource('movies', MovieController::class);
 
         // Series (Shows) — slug-based; Seasons scoped by number under each

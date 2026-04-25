@@ -426,6 +426,27 @@ class MovieController extends Controller
             ->with('success', "Deleted \"$title\".");
     }
 
+    /**
+     * Bulk-delete a set of movies. Iterates with each() so model
+     * deleting events fire and any pivot cleanup / file cleanup runs
+     * the same way it does for a single delete.
+     */
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'ids'   => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+        ]);
+
+        $movies = Movie::whereIn('id', $data['ids'])->get();
+        $count = $movies->count();
+        $movies->each(fn (Movie $m) => $m->delete());
+
+        return redirect()
+            ->route('admin.movies.index')
+            ->with('success', "Deleted $count movie" . ($count === 1 ? '' : 's') . '.');
+    }
+
     /* -------------------------------------------------------------------- */
     /* Helpers                                                              */
     /* -------------------------------------------------------------------- */

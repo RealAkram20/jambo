@@ -213,6 +213,27 @@ class ShowController extends Controller
             ->with('success', "Deleted \"$title\".");
     }
 
+    /**
+     * Bulk-delete a set of shows. Iterates with each() so model
+     * deleting events fire and seasons/episodes cascade per the
+     * Show model's relationships.
+     */
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'ids'   => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+        ]);
+
+        $shows = Show::whereIn('id', $data['ids'])->get();
+        $count = $shows->count();
+        $shows->each(fn (Show $s) => $s->delete());
+
+        return redirect()
+            ->route('admin.series.index')
+            ->with('success', "Deleted $count series.");
+    }
+
     /* -------------------------------------------------------------------- */
     /* Helpers                                                              */
     /* -------------------------------------------------------------------- */
