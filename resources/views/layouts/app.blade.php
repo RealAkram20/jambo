@@ -12,8 +12,8 @@
     <meta name="description" content="{{ meta_description() }}">
 
     <!-- PWA -->
-    <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
-    <link rel="apple-touch-icon" href="{{ asset('icons/jambo-192.png') }}">
+    <link rel="manifest" href="{{ url('/manifest.webmanifest') }}">
+    <link rel="apple-touch-icon" href="{{ branded_logo() }}">
     <meta name="theme-color" content="#1A98FF">
 
     @include('components.partials.head.head')

@@ -125,6 +125,29 @@ if (! function_exists('branding_asset')) {
     }
 }
 
+if (! function_exists('branded_logo')) {
+    /**
+     * Resolve the best available branding image for "show the brand":
+     * uploaded logo first, then uploaded favicon, then a stock fallback.
+     * Used by the install prompt, apple-touch-icon, manifest, and the
+     * auth/maintenance shell so they all surface the operator's brand
+     * even when only one of the two settings is filled in.
+     */
+    function branded_logo($fallback = 'icons/jambo-192.png')
+    {
+        foreach (['logo', 'favicon'] as $key) {
+            $value = setting($key);
+            if (empty($value)) {
+                continue;
+            }
+            return str_starts_with($value, 'http') || str_starts_with($value, '/')
+                ? $value
+                : asset($value);
+        }
+        return asset($fallback);
+    }
+}
+
 if (! function_exists('meta_description')) {
     function meta_description()
     {

@@ -24,6 +24,34 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// Dynamic PWA manifest — picks up whatever the operator has uploaded
+// in admin → settings (logo / favicon) so install prompts and the
+// home-screen icon track the live brand instead of a stock template
+// image. Served with the standard manifest+json content type so
+// browsers treat it as a real Web App Manifest, not generic JSON.
+Route::get('/manifest.webmanifest', function () {
+    $appName = config('app.name', 'Jambo');
+    return response()->json([
+        'name' => $appName,
+        'short_name' => $appName,
+        'description' => meta_description() ?: 'Stream movies and series.',
+        'start_url' => '/',
+        'scope' => '/',
+        'display' => 'standalone',
+        'orientation' => 'portrait',
+        'background_color' => '#0b0d17',
+        'theme_color' => '#1A98FF',
+        'icons' => [
+            [
+                'src' => branded_logo(),
+                'sizes' => '192x192',
+                'type' => 'image/png',
+                'purpose' => 'any',
+            ],
+        ],
+    ])->header('Content-Type', 'application/manifest+json');
+});
+
 Route::get('/app', [DashboardController::class, 'index'])->middleware(['auth', 'role:admin'])->name('dashboard');
 
 // JSON endpoint for the dashboard chart filter dropdowns

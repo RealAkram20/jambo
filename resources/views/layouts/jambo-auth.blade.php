@@ -7,7 +7,12 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>{{ isset($title) ? $title . ' — ' : '' }}{{ config('app.name', 'Jambo') }}</title>
 
-    <link rel="shortcut icon" href="{{ asset('frontend/images/favicon.ico') }}" />
+    <link rel="shortcut icon" href="{{ branding_asset('favicon', 'frontend/images/favicon.ico') }}" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="{{ url('/manifest.webmanifest') }}">
+    <link rel="apple-touch-icon" href="{{ branded_logo() }}">
+    <meta name="theme-color" content="#1A98FF">
 
     {{-- Streamit frontend bundle so Bootstrap + theme tokens match the
          rest of the site. --}}
@@ -323,7 +328,7 @@
 <body class="jambo-auth">
     <header class="jambo-auth-header">
         <a href="{{ route('frontend.ott') }}" class="jambo-auth-header__brand">
-            <img src="{{ branding_asset('logo', 'frontend/images/logo.webp') }}"
+            <img src="{{ branded_logo('frontend/images/logo.webp') }}"
                  alt="{{ config('app.name') }}" loading="lazy">
         </a>
         <div class="jambo-auth-header__cta">
