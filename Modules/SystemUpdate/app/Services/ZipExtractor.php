@@ -24,16 +24,27 @@ use ZipArchive;
  */
 class ZipExtractor
 {
+    /**
+     * Forward-slash relative paths matched against a regex deny list.
+     * Anything that matches is silently dropped from the extraction —
+     * a release zip cannot overwrite a user's `.env`, their uploads
+     * under `storage/`, the `public/storage` symlink, the live SQLite
+     * file, or vendor / node_modules even if a careless build script
+     * happened to bundle them.
+     */
+    private array $skipped = [];
+
     public function __construct(
         private readonly string $projectRoot,
-        private readonly string $backupPrefix = 'backup_'
+        private readonly string $backupPrefix = 'backup_',
+        private readonly array $denyPatterns = []
     ) {
     }
 
     /**
      * Extract $zipPath into the project root, creating a backup of any
-     * file that gets overwritten. Returns the absolute path to the
-     * backup directory.
+     * file that gets overwritten. Entries that match the deny list are
+     * skipped and recorded — fetch them with lastSkipped().
      *
      * @throws RuntimeException if the zip can't be opened or any write fails.
      */
@@ -47,6 +58,8 @@ class ZipExtractor
         if ($zip->open($zipPath) !== true) {
             throw new RuntimeException("Could not open update package: $zipPath");
         }
+
+        $this->skipped = [];
 
         $backupDir = $this->projectRoot
             . DIRECTORY_SEPARATOR
@@ -72,6 +85,11 @@ class ZipExtractor
 
                 $target = $this->normalizeEntryPath($entry);
                 if ($target === null) {
+                    continue;
+                }
+
+                if ($this->isDenied($target)) {
+                    $this->skipped[] = $target;
                     continue;
                 }
 
@@ -107,6 +125,27 @@ class ZipExtractor
 
         $zip->close();
         return $backupDir;
+    }
+
+    /**
+     * Paths from the most recent extract() call that were skipped because
+     * they matched the deny list. Empty after a clean release.
+     *
+     * @return string[]
+     */
+    public function lastSkipped(): array
+    {
+        return $this->skipped;
+    }
+
+    private function isDenied(string $relativePath): bool
+    {
+        foreach ($this->denyPatterns as $pattern) {
+            if (@preg_match($pattern, $relativePath) === 1) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

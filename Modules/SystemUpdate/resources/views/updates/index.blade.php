@@ -71,8 +71,86 @@
                 </div>
 
                 <div class="card-footer text-muted" style="font-size:12px;">
-                    Running the installer is destructive — it overwrites files, runs migrations, and restarts the app.
-                    Back up the database and file system before major upgrades.
+                    Each update dumps the database before migrations and keeps the previous file tree
+                    so you can roll back from the table below if a regression surfaces.
+                </div>
+            </div>
+
+            {{-- Retained backups: the last N successful updates' file +
+                 DB snapshots, newest first. Each row is a one-click
+                 rollback point. --}}
+            <div class="card mt-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title mb-0">Retained backups</h5>
+                        <p class="text-muted mb-0 mt-1" style="font-size:13px;">
+                            Click <strong>Restore</strong> to roll back files + database to the state
+                            recorded at the time of that update.
+                        </p>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    @if (empty($backups))
+                        <div class="p-4 text-center text-muted" style="font-size:13px;">
+                            No backups retained yet — they appear here after the first successful update.
+                        </div>
+                    @else
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>When</th>
+                                        <th>Version</th>
+                                        <th>DB dump</th>
+                                        <th class="text-end">Size</th>
+                                        <th class="text-end" style="width:130px;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($backups as $b)
+                                        <tr data-backup-row="{{ $b['name'] }}">
+                                            <td>
+                                                <div>{{ \Carbon\Carbon::createFromTimestamp($b['created_at'])->diffForHumans() }}</div>
+                                                <div class="text-muted" style="font-size:11px;">
+                                                    {{ \Carbon\Carbon::createFromTimestamp($b['created_at'])->format('Y-m-d H:i') }}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                @if ($b['version_from'] && $b['version_to'])
+                                                    <span class="badge bg-secondary">v{{ $b['version_from'] }}</span>
+                                                    <span class="text-muted">→</span>
+                                                    <span class="badge bg-primary">v{{ $b['version_to'] }}</span>
+                                                @else
+                                                    <span class="text-muted">unknown</span>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                @if ($b['has_db'])
+                                                    <i class="ph ph-check-circle text-success"></i> included
+                                                @else
+                                                    <i class="ph ph-warning text-warning"></i>
+                                                    <span class="text-muted">files only</span>
+                                                @endif
+                                            </td>
+                                            <td class="text-end">
+                                                <span class="text-muted" style="font-size:12px;">
+                                                    {{ number_format($b['size_bytes'] / 1024 / 1024, 1) }} MiB
+                                                </span>
+                                            </td>
+                                            <td class="text-end">
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-warning js-restore-backup"
+                                                        data-backup-name="{{ $b['name'] }}"
+                                                        data-backup-version="{{ $b['version_from'] ?: 'previous' }}">
+                                                    <i class="ph ph-arrow-counter-clockwise me-1"></i> Restore
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -166,6 +244,55 @@
             runLog.textContent += '\nRequest failed: ' + e.message + '\n';
             runBtn.disabled = false;
             checkBtn.disabled = false;
+        }
+    });
+
+    // Manual rollback. The Restore button on each retained-backup row
+    // posts to its own URL — the controller validates the name with a
+    // strict regex and the route's where() clause; both layers reject
+    // anything that could traverse the backup root.
+    document.addEventListener('click', async (e) => {
+        const btn = e.target.closest('.js-restore-backup');
+        if (!btn) return;
+
+        const name = btn.dataset.backupName;
+        const version = btn.dataset.backupVersion;
+        if (!name) return;
+
+        if (!confirm(
+            'Restore backup "' + name + '"?\n\n' +
+            'This puts the site into maintenance mode, overwrites the current ' +
+            'files with the snapshot, restores the database from its dump, and ' +
+            'rolls the version back to ' + version + '.'
+        )) {
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ph ph-spinner spin"></i> Restoring…';
+
+        runPanel.style.display = 'block';
+        runLog.textContent = 'Starting restore of ' + name + '…\n';
+
+        try {
+            const res = await fetch('/admin/updates/backups/' + encodeURIComponent(name) + '/restore', {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+            });
+            const json = await res.json();
+            runLog.textContent = (json.messages || []).join('\n') + '\n';
+            if (!json.ok) {
+                runLog.textContent += '\nERROR: ' + (json.error || 'unknown') + '\n';
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ph ph-arrow-counter-clockwise me-1"></i> Restore';
+            } else {
+                runLog.textContent += '\nDone. Reloading in 3s…\n';
+                setTimeout(() => location.reload(), 3000);
+            }
+        } catch (err) {
+            runLog.textContent += '\nRequest failed: ' + err.message + '\n';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ph ph-arrow-counter-clockwise me-1"></i> Restore';
         }
     });
 })();

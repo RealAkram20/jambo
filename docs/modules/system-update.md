@@ -16,6 +16,39 @@ and replace the *implementation*.
 
 ---
 
+## Data-loss prevention features
+
+The updater is designed around the assumption that a release WILL
+eventually try to do something destructive (drop a column, ship a
+careless zip with stray uploads, fail mid-migration). Four protections
+make the worst case recoverable:
+
+1. **DB dump before every migration.** The updater runs `mysqldump`
+   (gzipped) into `storage/app/updates/db-backups/` before
+   `migrate --force`. If a migration fails or the rest of the update
+   throws, the dump is restored automatically before the site comes
+   back up. Without this, a destructive migration is unrecoverable.
+2. **Extraction deny list.** A regex allow-list filters every entry in
+   the release zip — `.env`, `storage/`, `public/storage/`,
+   `database/database.sqlite`, `vendor/`, `node_modules/`, and
+   `modules_statuses.json` are silently dropped. A careless release
+   author can't overwrite the operator's uploads, env, or local module
+   toggles even if those files end up in the archive.
+3. **Retained backups (last 3).** After a successful update, the
+   per-update file backup + the pre-migrate DB dump are moved together
+   into `storage/app/updates/file-backups/<timestamp>/` with a
+   `meta.json` recording the version transition. Older backups beyond
+   the retention limit get rotated out automatically. This gives the
+   admin a window to notice regressions and restore long after the
+   update completed.
+4. **Manual rollback endpoint.** The admin Settings → Updates page
+   lists all retained backups with one-click **Restore** buttons.
+   Restoration runs files-then-DB, rolls `version.txt` back, clears
+   caches, and brings the site up — all behind the same admin gate
+   as the forward update.
+
+---
+
 ## What the updater does
 
 1. Admin visits **Settings → Updates**. Page calls a check endpoint.
@@ -26,16 +59,19 @@ and replace the *implementation*.
    description and an **Update Now** button.
 4. Clicking Update Now:
    1. Puts the app into maintenance mode.
-   2. Downloads the release zip to a temp folder.
-   3. Extracts it, normalizing the wrapper folder name and backing up every
-      file it's about to overwrite.
-   4. Runs any pending migrations.
-   5. Writes the new version string to `version.txt`.
-   6. Clears all caches.
-   7. Deletes the temp zip and the backup directory.
-   8. Brings the app back up.
-5. If any step fails, the backup is restored and the site is brought back
-   up untouched.
+   2. **Dumps the database** to `storage/app/updates/db-backups/` (gzipped).
+   3. Downloads the release zip to a temp folder.
+   4. Extracts it, normalizing the wrapper folder name, applying the
+      deny list, and backing up every file it's about to overwrite.
+   5. Runs any pending migrations.
+   6. Writes the new version string to `version.txt`.
+   7. Clears all caches.
+   8. **Moves the file backup + DB dump to the retained-backups tree**,
+      rotates older backups out beyond the retention count.
+   9. Deletes the temp zip.
+   10. Brings the app back up.
+5. If any step fails after the DB dump, the dump is restored, the file
+   backup is restored, and the site is brought back up untouched.
 
 ---
 

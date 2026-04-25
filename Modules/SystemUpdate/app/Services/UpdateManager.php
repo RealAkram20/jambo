@@ -10,22 +10,30 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Orchestrates an in-app update:
+ * Orchestrates an in-app update with full rollback safety:
  *
  *   1. Fetch the release manifest (local file first, remote URL fallback).
  *   2. Compare manifest.version with version.txt via version_compare().
- *   3. If newer, download the archive, extract with backup, run migrations,
- *      write the new version.txt, and clear caches.
- *   4. On any failure after extraction, restore the backup before bringing
- *      the site back up.
+ *   3. Dump the database BEFORE running migrations (the file backup
+ *      can't undo a destructive `migrate --force`).
+ *   4. Download the archive, extract with per-file backup (denying
+ *      anything in storage/ or .env so user state can't be clobbered),
+ *      run migrations, write the new version.txt, clear caches.
+ *   5. On success: move the file backup + DB dump into a retained
+ *      `storage/app/updates/file-backups/<timestamp>/` slot, rotate so
+ *      only the last N (default 3) survive.
+ *   6. On failure: restore files from backup, restore the DB dump,
+ *      bring the site back up.
  *
- * Keeps its own tiny append-only log at storage/logs/updater.log so the
- * admin can see what happened after the fact.
+ * Also supports manual rollback via listBackups()/restoreBackup() so an
+ * admin can roll back a prior successful update if a bug surfaces later.
  */
 class UpdateManager
 {
-    public function __construct(private readonly ZipExtractor $extractor)
-    {
+    public function __construct(
+        private readonly ZipExtractor $extractor,
+        private readonly DatabaseBackup $dbBackup,
+    ) {
     }
 
     /* -------------------------------------------------------------------- */
@@ -142,13 +150,30 @@ class UpdateManager
 
         $zipPath = $tmpDir . DIRECTORY_SEPARATOR . 'RELEASE-' . $status['latest'] . '.zip';
         $backupDir = null;
+        $dbBackupPath = null;
 
         try {
             // 1. Maintenance mode.
             Artisan::call('down');
             $note('Maintenance mode enabled.');
 
-            // 2. Download.
+            // 2. DB dump BEFORE migrate. If this fails for a supported
+            //    driver we abort — proceeding without a DB backup is
+            //    exactly the data-loss path this exists to prevent.
+            if (config('systemupdate.db_backup.enabled', true)) {
+                $note('Dumping database…');
+                $dbBackupPath = $this->dbBackup->dump('pre-' . $status['latest']);
+                if ($dbBackupPath === null) {
+                    $note('  (driver not supported — proceeding without a DB rollback safety net)');
+                } else {
+                    $note('  → ' . basename($dbBackupPath) . ' (' .
+                        $this->humanBytes((int) @filesize($dbBackupPath)) . ')');
+                }
+            } else {
+                $note('DB backup disabled by config — skipping.');
+            }
+
+            // 3. Download.
             $note('Downloading update package…');
             Http::timeout((int) config('systemupdate.http_timeout', 300))
                 ->sink($zipPath)
@@ -157,33 +182,54 @@ class UpdateManager
             if (!file_exists($zipPath) || filesize($zipPath) === 0) {
                 throw new RuntimeException('Downloaded package is empty or missing.');
             }
-            $note('Downloaded ' . number_format(filesize($zipPath) / 1024, 1) . ' KiB.');
+            $note('Downloaded ' . $this->humanBytes((int) filesize($zipPath)) . '.');
 
-            // 3. Extract + backup.
+            // 4. Extract + backup. Anything in the deny list is silently
+            //    skipped so a careless release can't overwrite uploads
+            //    or .env.
             $note('Extracting package…');
             $backupDir = $this->extractor->extract($zipPath);
-            $note('Extracted. Backup at ' . basename($backupDir));
+            $note('Extracted. File backup at ' . basename($backupDir));
+            $skipped = $this->extractor->lastSkipped();
+            if (!empty($skipped)) {
+                $note('Denied ' . count($skipped) . ' protected path(s) from the zip:');
+                foreach (array_slice($skipped, 0, 10) as $s) {
+                    $note('  · ' . $s);
+                }
+                if (count($skipped) > 10) {
+                    $note('  · …and ' . (count($skipped) - 10) . ' more.');
+                }
+            }
 
-            // 4. Migrations.
+            // 5. Migrations.
             $note('Running database migrations…');
             set_time_limit(300);
             Artisan::call('migrate', ['--force' => true]);
 
-            // 5. Write new version.
+            // 6. Write new version.
             $versionFile = base_path(config('systemupdate.version_file', 'version.txt'));
             File::put($versionFile, $status['latest'] . "\n");
             $note("Wrote version.txt: {$status['latest']}");
 
-            // 6. Clear caches.
+            // 7. Clear caches.
             $this->clearCaches();
             $note('Cleared caches.');
 
-            // 7. Cleanup.
-            @unlink($zipPath);
-            $this->extractor->deleteDirectory($backupDir);
-            $note('Cleaned up backup and temp files.');
+            // 8. Retain the file backup + DB dump together so admins
+            //    can roll back later. Old retained backups beyond the
+            //    keep-N limit get rotated out here.
+            $retained = $this->retainBackup($backupDir, $dbBackupPath, $status['current'], $status['latest']);
+            $note('Retained backup as ' . basename($retained));
+            $rotated = $this->rotateBackups();
+            if ($rotated > 0) {
+                $note("Rotated $rotated old backup(s) past the retention limit.");
+            }
 
-            // 8. Maintenance off.
+            // 9. Cleanup.
+            @unlink($zipPath);
+            $note('Cleaned up temp files.');
+
+            // 10. Maintenance off.
             Artisan::call('up');
             $note('Update complete.');
 
@@ -192,13 +238,25 @@ class UpdateManager
             $note('FAILED: ' . $e->getMessage());
 
             if ($backupDir && is_dir($backupDir)) {
-                $note('Restoring from backup…');
+                $note('Restoring files from backup…');
                 try {
                     $this->extractor->restore($backupDir);
                     $this->extractor->deleteDirectory($backupDir);
-                    $note('Restored.');
+                    $note('Files restored.');
                 } catch (Throwable $restoreError) {
-                    $note('Restore failed: ' . $restoreError->getMessage());
+                    $note('File restore failed: ' . $restoreError->getMessage());
+                }
+            }
+
+            if ($dbBackupPath && File::exists($dbBackupPath)) {
+                $note('Restoring database from dump…');
+                try {
+                    $this->dbBackup->restore($dbBackupPath);
+                    $note('Database restored.');
+                    // Keep the dump file on disk for forensic review;
+                    // admin can delete manually after verifying.
+                } catch (Throwable $dbRestoreError) {
+                    $note('Database restore failed: ' . $dbRestoreError->getMessage());
                 }
             }
 
@@ -215,8 +273,233 @@ class UpdateManager
     }
 
     /* -------------------------------------------------------------------- */
+    /* Retained backups (manual rollback)                                   */
+    /* -------------------------------------------------------------------- */
+
+    /**
+     * Retained backups available for manual restore. Newest first.
+     *
+     * @return array<int, array{name: string, path: string, version_from: ?string, version_to: ?string, size_bytes: int, created_at: int, has_db: bool}>
+     */
+    public function listBackups(): array
+    {
+        $root = $this->retainedBackupRoot();
+        if (!is_dir($root)) {
+            return [];
+        }
+
+        $entries = [];
+        foreach (scandir($root) ?: [] as $name) {
+            if ($name === '.' || $name === '..') continue;
+            $path = $root . DIRECTORY_SEPARATOR . $name;
+            if (!is_dir($path)) continue;
+
+            $meta = $this->readBackupMeta($path);
+            $entries[] = [
+                'name' => $name,
+                'path' => $path,
+                'version_from' => $meta['version_from'] ?? null,
+                'version_to' => $meta['version_to'] ?? null,
+                'size_bytes' => $this->dirSize($path),
+                'created_at' => $meta['created_at'] ?? @filemtime($path) ?: 0,
+                'has_db' => !empty($meta['db_dump']) && File::exists($path . DIRECTORY_SEPARATOR . $meta['db_dump']),
+            ];
+        }
+
+        // Newest first
+        usort($entries, fn ($a, $b) => $b['created_at'] <=> $a['created_at']);
+        return $entries;
+    }
+
+    /**
+     * Restore a retained backup by name. Files first, then DB. Returns
+     * the same shape as runUpdate() so the controller can stream the log
+     * back to the admin.
+     *
+     * @return array{ok: bool, messages: string[], error: ?string}
+     */
+    public function restoreBackup(string $name): array
+    {
+        $log = [];
+        $note = function (string $msg) use (&$log) {
+            $log[] = $msg;
+            $this->log("[restore] $msg");
+        };
+
+        // Reject obviously bad names so a malicious POST can't escape
+        // the retained-backup root via "..".
+        if (!preg_match('/^[A-Za-z0-9._-]+$/', $name)) {
+            return ['ok' => false, 'messages' => $log, 'error' => 'Invalid backup name.'];
+        }
+
+        $path = $this->retainedBackupRoot() . DIRECTORY_SEPARATOR . $name;
+        if (!is_dir($path)) {
+            return ['ok' => false, 'messages' => $log, 'error' => 'Backup not found.'];
+        }
+
+        $meta = $this->readBackupMeta($path);
+        $note("Restoring backup: $name");
+        if (!empty($meta['version_from'])) {
+            $note("  → rolling back to version " . $meta['version_from']);
+        }
+
+        try {
+            Artisan::call('down');
+            $note('Maintenance mode enabled.');
+
+            // Restore files. The retained dir's `files/` subdir mirrors
+            // the project root layout — same shape ZipExtractor::restore
+            // expects.
+            $filesDir = $path . DIRECTORY_SEPARATOR . 'files';
+            if (is_dir($filesDir)) {
+                $this->extractor->restore($filesDir);
+                $note('Files restored.');
+            } else {
+                $note('No files/ subdir in backup — skipping file restore.');
+            }
+
+            // Restore DB if a dump is present.
+            if (!empty($meta['db_dump'])) {
+                $dump = $path . DIRECTORY_SEPARATOR . $meta['db_dump'];
+                if (File::exists($dump)) {
+                    $this->dbBackup->restore($dump);
+                    $note('Database restored.');
+                }
+            }
+
+            // Roll the version back if the backup recorded a from-version.
+            if (!empty($meta['version_from'])) {
+                $versionFile = base_path(config('systemupdate.version_file', 'version.txt'));
+                File::put($versionFile, $meta['version_from'] . "\n");
+                $note("Wrote version.txt: " . $meta['version_from']);
+            }
+
+            $this->clearCaches();
+            $note('Cleared caches.');
+
+            Artisan::call('up');
+            $note('Restore complete.');
+
+            return ['ok' => true, 'messages' => $log, 'error' => null];
+        } catch (Throwable $e) {
+            $note('FAILED: ' . $e->getMessage());
+            try {
+                Artisan::call('up');
+            } catch (Throwable) {
+            }
+            return ['ok' => false, 'messages' => $log, 'error' => $e->getMessage()];
+        }
+    }
+
+    /* -------------------------------------------------------------------- */
     /* Internals                                                            */
     /* -------------------------------------------------------------------- */
+
+    /**
+     * Move the per-update file backup + DB dump into the retained-backup
+     * tree, write a metadata file alongside it, and return the new path.
+     */
+    private function retainBackup(
+        string $fileBackupDir,
+        ?string $dbBackupPath,
+        string $versionFrom,
+        string $versionTo,
+    ): string {
+        $root = $this->retainedBackupRoot();
+        File::ensureDirectoryExists($root);
+
+        $stamp = date('Ymd_His');
+        $name = $stamp . '_v' . $versionFrom . '_to_v' . $versionTo;
+        $name = preg_replace('/[^A-Za-z0-9._-]/', '_', $name) ?: $stamp;
+        $dest = $root . DIRECTORY_SEPARATOR . $name;
+
+        File::ensureDirectoryExists($dest);
+
+        // Move file backup tree under files/
+        rename($fileBackupDir, $dest . DIRECTORY_SEPARATOR . 'files');
+
+        // Move DB dump alongside it
+        $dbBasename = null;
+        if ($dbBackupPath && File::exists($dbBackupPath)) {
+            $dbBasename = basename($dbBackupPath);
+            rename($dbBackupPath, $dest . DIRECTORY_SEPARATOR . $dbBasename);
+        }
+
+        // Write meta.json
+        $meta = [
+            'version_from' => $versionFrom,
+            'version_to' => $versionTo,
+            'created_at' => time(),
+            'db_dump' => $dbBasename,
+        ];
+        File::put(
+            $dest . DIRECTORY_SEPARATOR . 'meta.json',
+            json_encode($meta, JSON_PRETTY_PRINT) . "\n"
+        );
+
+        return $dest;
+    }
+
+    /**
+     * Keep only the most recent N retained backups (config), delete the
+     * rest. Returns the number deleted.
+     */
+    private function rotateBackups(): int
+    {
+        $keep = (int) config('systemupdate.file_backup.retain', 3);
+        if ($keep <= 0) {
+            return 0;
+        }
+
+        $entries = $this->listBackups();
+        if (count($entries) <= $keep) {
+            return 0;
+        }
+
+        $toDelete = array_slice($entries, $keep);
+        $deleted = 0;
+        foreach ($toDelete as $entry) {
+            try {
+                $this->extractor->deleteDirectory($entry['path']);
+                $deleted++;
+            } catch (Throwable $e) {
+                $this->log('Could not delete old backup ' . $entry['name'] . ': ' . $e->getMessage());
+            }
+        }
+        return $deleted;
+    }
+
+    private function retainedBackupRoot(): string
+    {
+        $relative = config('systemupdate.file_backup.path', 'app/updates/file-backups');
+        return storage_path(ltrim($relative, '/'));
+    }
+
+    private function readBackupMeta(string $path): array
+    {
+        $metaFile = $path . DIRECTORY_SEPARATOR . 'meta.json';
+        if (!File::exists($metaFile)) {
+            return [];
+        }
+        $decoded = json_decode(File::get($metaFile), true);
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    private function dirSize(string $dir): int
+    {
+        if (!is_dir($dir)) return 0;
+
+        $bytes = 0;
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($dir, \RecursiveDirectoryIterator::SKIP_DOTS)
+        );
+        foreach ($iterator as $item) {
+            if ($item->isFile()) {
+                $bytes += $item->getSize();
+            }
+        }
+        return $bytes;
+    }
 
     private function decodeManifest(string $json): ?array
     {
@@ -241,6 +524,18 @@ class UpdateManager
             Artisan::call('route:clear');
             Artisan::call('view:clear');
         }
+    }
+
+    private function humanBytes(int $bytes): string
+    {
+        $units = ['B', 'KiB', 'MiB', 'GiB'];
+        $i = 0;
+        $n = (float) $bytes;
+        while ($n >= 1024 && $i < count($units) - 1) {
+            $n /= 1024;
+            $i++;
+        }
+        return number_format($n, $i === 0 ? 0 : 1) . ' ' . $units[$i];
     }
 
     private function log(string $message): void

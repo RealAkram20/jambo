@@ -31,13 +31,25 @@ class SystemUpdateServiceProvider extends ServiceProvider
     {
         $this->app->register(RouteServiceProvider::class);
 
-        // ZipExtractor needs the absolute project-root path, which the
-        // container can't auto-resolve (it's just a string). Bind it
+        // ZipExtractor needs the absolute project-root path and the
+        // deny-list, neither of which the container can auto-resolve
+        // (one's a string, the other's an array from config). Bind it
         // explicitly so UpdateManager can be auto-injected.
         $this->app->singleton(\Modules\SystemUpdate\app\Services\ZipExtractor::class, function ($app) {
             return new \Modules\SystemUpdate\app\Services\ZipExtractor(
                 projectRoot: base_path(),
-                backupPrefix: config('systemupdate.backup_prefix', 'backup_')
+                backupPrefix: config('systemupdate.backup_prefix', 'backup_'),
+                denyPatterns: (array) config('systemupdate.deny_patterns', []),
+            );
+        });
+
+        // DatabaseBackup needs an absolute backup-root path; same
+        // reasoning as above. Storage path is the right home for
+        // these — keeps gigabyte dumps out of the project tree.
+        $this->app->singleton(\Modules\SystemUpdate\app\Services\DatabaseBackup::class, function ($app) {
+            $relative = config('systemupdate.db_backup.path', 'app/updates/db-backups');
+            return new \Modules\SystemUpdate\app\Services\DatabaseBackup(
+                backupRoot: storage_path(ltrim($relative, '/')),
             );
         });
     }
