@@ -51,7 +51,7 @@
             data-src-default="{{ $playerSrc }}"
             @if (!empty($playerSrcLow)) data-src-low="{{ $playerSrcLow }}" @endif
             @if (!empty($resumePosition)) data-resume="{{ $resumePosition }}" @endif
-            playsinline></video>
+            muted autoplay playsinline></video>
         {{-- Set src + preload immediately before the browser starts buffering.
              Data Saver ON  → preload="metadata" (only download what you watch)
              Data Saver OFF → preload="auto" (buffer ahead for smooth playback)
@@ -70,6 +70,18 @@
 
             // Data Saver: minimize buffering.
             v.preload = ds ? 'metadata' : 'auto';
+
+            // Kick off playback immediately — beats the customElements
+            // .whenDefined gate that watch-page / episode-page have
+            // around their player wiring. The element is muted so the
+            // browser allows autoplay; sound is gestured-on by the
+            // user via the volume control.
+            try {
+                var earlyPlay = v.play();
+                if (earlyPlay && typeof earlyPlay.catch === 'function') {
+                    earlyPlay.catch(function () {});
+                }
+            } catch (e) {}
 
             // Resume from last position once video metadata loads.
             if (resume > 0) {
