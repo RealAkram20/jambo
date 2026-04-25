@@ -72,22 +72,11 @@ trait HasStreamSource
             ];
         }
 
-        // Dropbox: rewrite share URLs to direct-streamable ones.
-        if ($host === 'dropbox.com'
-            || str_ends_with($host, '.dropbox.com')
-            || str_ends_with($host, '.dropboxusercontent.com')
-        ) {
-            $resolved = $this->normaliseDropboxUrl($url);
-            $mime = $this->guessVideoMime($url);
-        } else {
-            $resolved = $url;
-            $mime = $this->guessVideoMime($url);
-        }
+        $isEpisode = $this instanceof \Modules\Content\app\Models\Episode;
 
         // If the format isn't natively browser-playable, route through
         // the FFmpeg proxy that converts to H.264 MP4 on the fly.
         if ($this->needsProxy($url)) {
-            $isEpisode = $this instanceof \Modules\Content\app\Models\Episode;
             return [
                 'type' => 'file',
                 'url' => route(
@@ -98,10 +87,18 @@ trait HasStreamSource
             ];
         }
 
+        // Browser-safe format (mp4/webm/ogg). We still route the URL
+        // through Laravel's passthrough controller instead of handing
+        // the raw Contabo / Dropbox URL to the player — keeps the
+        // origin out of the <video src="..."> attribute. The controller
+        // does a 302 to the resolved URL after tier_gate + auth check.
         return [
             'type' => 'file',
-            'url' => $resolved,
-            'mime' => $mime,
+            'url' => route(
+                $isEpisode ? 'stream.src.episode' : 'stream.src.movie',
+                [$isEpisode ? 'episode' : 'movie' => $isEpisode ? $this->id : $this->slug]
+            ),
+            'mime' => $this->guessVideoMime($url),
         ];
     }
 
@@ -129,28 +126,25 @@ trait HasStreamSource
     /**
      * Returns the stream source for the low-quality (Data Saver) version.
      * Only available when the admin has set a video_url_low.
+     *
+     * Like streamSource(), the URL is wrapped in a Laravel passthrough
+     * route so the raw Contabo / Dropbox URL stays out of the player's
+     * data-src-low attribute. The controller 302s to the real origin
+     * after tier_gate + auth.
      */
     public function streamSourceLow(): ?array
     {
         $url = $this->video_url_low ?? null;
         if (!$url) return null;
 
-        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
-
-        if ($host === 'dropbox.com'
-            || str_ends_with($host, '.dropbox.com')
-            || str_ends_with($host, '.dropboxusercontent.com')
-        ) {
-            return [
-                'type' => 'file',
-                'url' => $this->normaliseDropboxUrl($url),
-                'mime' => $this->guessVideoMime($url),
-            ];
-        }
+        $isEpisode = $this instanceof \Modules\Content\app\Models\Episode;
 
         return [
             'type' => 'file',
-            'url' => $url,
+            'url' => route(
+                $isEpisode ? 'stream.src.episode.low' : 'stream.src.movie.low',
+                [$isEpisode ? 'episode' : 'movie' => $isEpisode ? $this->id : $this->slug]
+            ),
             'mime' => $this->guessVideoMime($url),
         ];
     }

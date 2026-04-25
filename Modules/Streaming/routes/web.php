@@ -76,6 +76,25 @@ Route::middleware(['tier_gate'])->group(function () {
     Route::get('/stream/proxy/episode/{episode}', [StreamProxyController::class, 'episode'])
         ->name('stream.proxy.episode');
 
+    // Stream-source passthrough. The <video src="..."> attribute points
+    // at one of these routes instead of the raw Contabo / Dropbox URL,
+    // so inspect-element on the HTML no longer hands out a copyable
+    // direct link. Still auth + tier_gate: a leaked /watch/src URL
+    // shared with a logged-out viewer bounces to login. These issue a
+    // 302 to the real origin after the middleware passes — advanced
+    // users watching the Network tab during playback will still see
+    // the final URL, but it's no longer sitting in plain HTML.
+    // Ordered BEFORE the /stream/movie/{slug}/{path?} HLS wildcard for
+    // the same reason as the proxy routes above.
+    Route::get('/watch/src/movie/{movie:slug}/low', [StreamProxyController::class, 'passthroughMovieLow'])
+        ->name('stream.src.movie.low');
+    Route::get('/watch/src/movie/{movie:slug}', [StreamProxyController::class, 'passthroughMovie'])
+        ->name('stream.src.movie');
+    Route::get('/watch/src/episode/{episode}/low', [StreamProxyController::class, 'passthroughEpisodeLow'])
+        ->name('stream.src.episode.low');
+    Route::get('/watch/src/episode/{episode}', [StreamProxyController::class, 'passthroughEpisode'])
+        ->name('stream.src.episode');
+
     // HLS stream endpoints.
     Route::get('/stream/movie/{movie:slug}/{path?}', [StreamController::class, 'movie'])
         ->where('path', '.*')

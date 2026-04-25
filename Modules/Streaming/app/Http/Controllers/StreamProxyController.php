@@ -2,6 +2,7 @@
 
 namespace Modules\Streaming\app\Http\Controllers;
 
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Modules\Content\app\Models\Episode;
@@ -13,8 +14,12 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * (MKV, HEVC/x265, AVI, etc.) into browser-playable H.264 MP4 on the fly.
  *
  * For files already in H.264 MP4, the browser plays them directly without
- * hitting this controller. This is only used as a fallback when the source
- * format isn't browser-compatible.
+ * hitting the FFmpeg transcode path — but the URL is still routed through
+ * this controller via the `passthrough*` actions so the raw Contabo /
+ * Dropbox / CDN URL never appears in the <video src="..."> attribute.
+ * Devtools Network tab still reveals the redirect target during playback
+ * (browsers expose this); fully hiding it would require byte-proxying
+ * through the VPS, which trades bandwidth for opacity.
  */
 class StreamProxyController extends Controller
 {
@@ -35,15 +40,62 @@ class StreamProxyController extends Controller
     }
 
     /**
+     * Session-gated redirect to the real origin URL for a browser-safe
+     * movie. The <video> src points at this Laravel route, so the raw
+     * Contabo / Dropbox URL is no longer sitting in the HTML for anyone
+     * to copy out of inspect-element. The redirect still requires the
+     * user's tier_gate + auth middleware to pass, so a leaked /watch/src
+     * URL shared with a logged-out friend gets bounced to login.
+     */
+    public function passthroughMovie(Request $request, Movie $movie): RedirectResponse
+    {
+        $url = $this->getRawUrl($movie);
+        abort_unless($url, 404);
+
+        return redirect()->away($url, 302);
+    }
+
+    public function passthroughMovieLow(Request $request, Movie $movie): RedirectResponse
+    {
+        $url = $this->getRawUrl($movie, 'low');
+        abort_unless($url, 404);
+
+        return redirect()->away($url, 302);
+    }
+
+    public function passthroughEpisode(Request $request, Episode $episode): RedirectResponse
+    {
+        $url = $this->getRawUrl($episode);
+        abort_unless($url, 404);
+
+        return redirect()->away($url, 302);
+    }
+
+    public function passthroughEpisodeLow(Request $request, Episode $episode): RedirectResponse
+    {
+        $url = $this->getRawUrl($episode, 'low');
+        abort_unless($url, 404);
+
+        return redirect()->away($url, 302);
+    }
+
+    /**
      * Get the raw video URL directly from the model, bypassing
      * streamSource() which would return the proxy URL (infinite loop).
+     *
+     * $quality: 'default' reads video_url (falling back to dropbox_path);
+     * 'low' reads video_url_low — used by the Data Saver path.
      */
-    private function getRawUrl(Movie|Episode $model): ?string
+    private function getRawUrl(Movie|Episode $model, string $quality = 'default'): ?string
     {
-        $url = $model->video_url ?? null;
+        if ($quality === 'low') {
+            $url = $model->video_url_low ?? null;
+        } else {
+            $url = $model->video_url ?? null;
 
-        if (!$url && !empty($model->dropbox_path)) {
-            $url = $model->dropbox_path;
+            if (!$url && !empty($model->dropbox_path)) {
+                $url = $model->dropbox_path;
+            }
         }
 
         if (!$url) return null;
