@@ -418,23 +418,28 @@ new routes on top of the existing template structure.
 
 ---
 
-## Going to production (Hostinger VPS)
+## Going to production
 
-When you're ready to ship, the full deploy runbook lives at
-[`docs/deploy/hostinger-vps.md`](docs/deploy/hostinger-vps.md).
+Pick the runbook that matches your VPS:
 
-It covers:
+- **[`docs/deploy/cyberpanel.md`](docs/deploy/cyberpanel.md)** — if your VPS
+  has CyberPanel installed (Hostinger / Contabo / DigitalOcean often pre-install
+  it). Covers the panel UI tasks (vHost docRoot, SSL button, cron entry, DB
+  creation) plus the SSH steps. **Use this one.**
+- [`docs/deploy/hostinger-vps.md`](docs/deploy/hostinger-vps.md) — if your VPS
+  is a clean Ubuntu install with no control panel, and you're configuring
+  nginx + MariaDB + Supervisor + certbot manually.
 
-- One-time VPS bootstrap (PHP 8.2, nginx, MariaDB, FFmpeg, Supervisor, certbot SSL)
-- The standard deploy loop (DB backup → `git pull` → composer/npm → migrate → cache rebuild → queue restart)
-- Rollback procedures for a broken migration or post-deploy 500
-- A post-deploy smoke-test checklist (HTTP codes + manual flows + log tailing)
-- Ongoing maintenance (composer audits, cert renewal, backup retention)
+Both runbooks reference `.env.production.example` in the repo root — copy it
+to `.env` on the VPS and replace every `<CHANGE_ME>` marker. **Do not import
+the local XAMPP database dump into production** — it ships with seeded demo
+content and would prevent future migrations from running cleanly. Let
+`php artisan migrate --force` + `php artisan db:seed --force` build the
+schema fresh.
 
-Read it top-to-bottom once before running the first deploy.
-`.env.production.example` in the repo root has every production-safe
-value pre-filled — copy it to `.env` on the VPS and replace the
-`<CHANGE_ME>` markers.
+Once live, the in-app updater at `/admin/updates` handles subsequent
+releases without SSH — see [`docs/modules/system-update.md`](docs/modules/system-update.md)
+for how the manifest + retained-backup flow works.
 
 ---
 
