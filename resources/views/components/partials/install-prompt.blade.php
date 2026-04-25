@@ -23,7 +23,7 @@
             border-radius:14px;box-shadow:0 18px 40px rgba(0,0,0,.45);
             padding:16px 18px;display:none;font-family:Roboto,system-ui,sans-serif;">
     <div style="display:flex;gap:14px;align-items:flex-start;">
-        <img src="{{ branded_logo() }}" alt="{{ config('app.name', 'Jambo') }}"
+        <img src="{{ branded_icon() }}" alt="{{ config('app.name', 'Jambo') }}"
              style="flex:0 0 auto;width:42px;height:42px;border-radius:11px;
                     background:#fff;padding:3px;object-fit:contain;">
         <div style="flex:1 1 auto;min-width:0;">

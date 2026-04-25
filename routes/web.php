@@ -43,7 +43,7 @@ Route::get('/manifest.webmanifest', function () {
         'theme_color' => '#1A98FF',
         'icons' => [
             [
-                'src' => branded_logo(),
+                'src' => branded_icon(),
                 'sizes' => '192x192',
                 'type' => 'image/png',
                 'purpose' => 'any',

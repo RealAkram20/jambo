@@ -13,7 +13,7 @@
 
     <!-- PWA -->
     <link rel="manifest" href="{{ url('/manifest.webmanifest') }}">
-    <link rel="apple-touch-icon" href="{{ branded_logo() }}">
+    <link rel="apple-touch-icon" href="{{ branded_icon() }}">
     <meta name="theme-color" content="#1A98FF">
 
     @include('components.partials.head.head')

@@ -127,15 +127,35 @@ if (! function_exists('branding_asset')) {
 
 if (! function_exists('branded_logo')) {
     /**
-     * Resolve the best available branding image for "show the brand":
-     * uploaded logo first, then uploaded favicon, then a stock fallback.
-     * Used by the install prompt, apple-touch-icon, manifest, and the
-     * auth/maintenance shell so they all surface the operator's brand
-     * even when only one of the two settings is filled in.
+     * Resolve the best available branding image for places that want a
+     * wide / wordmark-style logo: uploaded logo first, then favicon,
+     * then a stock fallback. Used by the auth + maintenance header.
      */
     function branded_logo($fallback = 'icons/jambo-192.png')
     {
         foreach (['logo', 'favicon'] as $key) {
+            $value = setting($key);
+            if (empty($value)) {
+                continue;
+            }
+            return str_starts_with($value, 'http') || str_starts_with($value, '/')
+                ? $value
+                : asset($value);
+        }
+        return asset($fallback);
+    }
+}
+
+if (! function_exists('branded_icon')) {
+    /**
+     * Resolve the best square brand icon — favicon first since square
+     * marks render cleanly in the install banner, apple-touch-icon,
+     * manifest, and any other icon-shaped slot. Falls back to the
+     * uploaded logo, then a stock fallback.
+     */
+    function branded_icon($fallback = 'icons/jambo-192.png')
+    {
+        foreach (['favicon', 'logo'] as $key) {
             $value = setting($key);
             if (empty($value)) {
                 continue;
