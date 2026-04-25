@@ -14,8 +14,8 @@
              re-centers slides so the "most recent" item wouldn't be the
              visually leftmost one. Continue Watching has a hard cap of
              6, so a non-looping row reads naturally. --}}
-        <div class="position-relative swiper swiper-card" data-slide="7" data-laptop="3" data-tab="4" data-mobile="3"
-            data-mobile-sm="3" data-autoplay="false" data-loop="false" data-navigation="true" data-pagination="false">
+        <div class="position-relative swiper swiper-card" data-slide="7" data-laptop="3" data-tab="4" data-mobile="2"
+            data-mobile-sm="2" data-autoplay="false" data-loop="false" data-navigation="true" data-pagination="false">
             <ul class="p-0 swiper-wrapper m-0 list-inline">
                 @foreach ($items as $card)
                     <li class="swiper-slide" data-cw-slide>

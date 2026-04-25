@@ -3,8 +3,8 @@
         <h4 class="main-title text-capitalize mb-0 fw-medium">{{ __('sectionTitle.top_ten') }}</h4>
     </div>
     <div class="card-style-slider">
-        <div class="position-relative swiper swiper-card iq-top-ten-block-slider" data-slide="7" data-laptop="7"
-            data-tab="4" data-mobile="3" data-mobile-sm="3" data-autoplay="false" data-loop="false"
+        <div class="position-relative swiper swiper-card iq-top-ten-block-slider" data-slide="6" data-laptop="6"
+            data-tab="3" data-mobile="2" data-mobile-sm="2" data-autoplay="false" data-loop="false"
             data-navigation="true" data-pagination="true">
             <ul class="p-0 swiper-wrapper mb-5 list-inline">
                 @forelse ($topMovies ?? collect() as $i => $movie)
