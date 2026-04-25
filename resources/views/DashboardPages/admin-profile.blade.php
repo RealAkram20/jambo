@@ -31,20 +31,41 @@
                             <span><i class="ph ph-envelope-simple"></i> {{ $user->email }}</span>
                         </div>
                     </div>
-                    <div class="d-flex gap-1 flex-wrap">
+                    <div class="d-flex gap-1 flex-wrap align-items-center">
                         @foreach ($user->roles as $role)
                             <span class="badge @class([
+                                'bg-warning text-dark' => $role->name === 'super-admin',
                                 'bg-primary' => $role->name === 'admin',
-                                'bg-secondary' => $role->name !== 'admin',
-                            ])">{{ $role->name }}</span>
+                                'bg-secondary' => !in_array($role->name, ['admin', 'super-admin']),
+                            ])">
+                                @if ($role->name === 'super-admin')
+                                    <i class="ph ph-crown-simple-fill"></i>
+                                @endif
+                                {{ ucwords(str_replace(['-', '_'], ' ', $role->name)) }}
+                            </span>
                         @endforeach
                         @if ($user->email_verified_at)
                             <span class="badge bg-success-subtle text-success-emphasis">
                                 <i class="ph ph-check-circle"></i> Verified
                             </span>
+                        @else
+                            <span class="badge bg-warning-subtle text-warning-emphasis">
+                                <i class="ph ph-warning-circle"></i> Email not verified
+                            </span>
+                            <form method="POST" action="{{ route('verification.send') }}" class="m-0">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-outline-warning">
+                                    <i class="ph ph-paper-plane-tilt me-1"></i> Send verification email
+                                </button>
+                            </form>
                         @endif
                     </div>
                 </div>
+                @if (session('status') === 'verification-link-sent')
+                    <div class="alert alert-success mt-3 mb-0">
+                        A new verification link has been sent to <strong>{{ $user->email }}</strong>.
+                    </div>
+                @endif
             </div>
 
             {{-- ============================================================
