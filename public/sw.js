@@ -17,11 +17,6 @@ self.addEventListener('activate', function (event) {
     event.waitUntil(self.clients.claim());
 });
 
-// Pass-through fetch handler. Required for Chrome to flag the site
-// as installable as a PWA — its install criteria check that sw.js
-// has a fetch listener, even if we're not doing offline caching yet.
-self.addEventListener('fetch', function () {});
-
 self.addEventListener('push', function (event) {
     let payload = {
         title: 'Jambo',
