@@ -361,6 +361,18 @@
         </li>
     @endif
     @role('admin')
+        @if (Route::has('admin.pages.index'))
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('admin.pages.*') ? 'active' : '' }}"
+                    href="{{ route('admin.pages.index') }}">
+                    <i class="icon" title="Pages" data-bs-toggle="tooltip" data-bs-placement="right"
+                        aria-label="Pages" data-bs-original-title="Pages">
+                        <i class="ph ph-file-text fs-4"></i>
+                    </i>
+                    <span class="item-name">Pages</span>
+                </a>
+            </li>
+        @endif
         <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}"
                 href="{{ route('admin.settings.index') }}">
