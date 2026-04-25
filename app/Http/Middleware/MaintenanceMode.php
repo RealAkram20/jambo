@@ -62,9 +62,12 @@ class MaintenanceMode
 
         // Authenticated admins pass through. We deliberately allow ANY
         // admin, not just the one who toggled the switch — multiple
-        // admins working on the upgrade need to coordinate.
+        // admins working on the upgrade need to coordinate. Both
+        // `admin` and `super-admin` qualify so platform owners aren't
+        // locked out of their own site even if they no longer carry
+        // the regular admin role.
         $user = $request->user();
-        if ($user && method_exists($user, 'hasRole') && $user->hasRole('admin')) {
+        if ($user && method_exists($user, 'hasAnyRole') && $user->hasAnyRole(['admin', 'super-admin'])) {
             return $next($request);
         }
 
