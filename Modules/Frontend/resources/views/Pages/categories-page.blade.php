@@ -27,7 +27,7 @@
                         {{ __('frontendheader.movies') ?? 'Movies' }}
                         <span class="text-muted small ms-1">({{ $movies->count() }})</span>
                     </h6>
-                    <div class="row row-cols-xl-5 row-cols-md-3 row-cols-2 g-3">
+                    <div class="row row-cols-xl-5 row-cols-md-3 row-cols-3 g-3">
                         @foreach ($movies as $movie)
                             <div class="col">
                                 @include('frontend::components.cards.card-style', [
@@ -53,7 +53,7 @@
                         {{ __('frontendheader.tvshow') ?? 'Series' }}
                         <span class="text-muted small ms-1">({{ $shows->count() }})</span>
                     </h6>
-                    <div class="row row-cols-xl-5 row-cols-md-3 row-cols-2 g-3">
+                    <div class="row row-cols-xl-5 row-cols-md-3 row-cols-3 g-3">
                         @foreach ($shows as $show)
                             <div class="col">
                                 @include('frontend::components.cards.card-style', [

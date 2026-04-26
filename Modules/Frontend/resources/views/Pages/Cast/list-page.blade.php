@@ -7,7 +7,7 @@
                 <h4 class="main-title text-capitalize mb-0">{{ __('frontendheader.cast') }}</h4>
                 <span class="text-muted">{{ $persons->count() }}</span>
             </div>
-            <div class="data-listing row gy-5 row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 row-cols-xl-5">
+            <div class="data-listing row gy-3 row-cols-3 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 row-cols-xl-5">
                 @forelse ($persons as $person)
                     <div class="col">
                         @include('frontend::components.cards.cast', [

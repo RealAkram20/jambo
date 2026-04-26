@@ -11,7 +11,7 @@
             </div>
 
             @if ($tags->count())
-                <div class="row gy-4 row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 data-listing">
+                <div class="row gy-3 row-cols-3 row-cols-sm-3 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 data-listing">
                     @foreach ($tags as $tag)
                         @php
                             $usage = ($tag->movies_count ?? 0) + ($tag->shows_count ?? 0);

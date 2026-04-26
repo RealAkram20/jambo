@@ -12,7 +12,7 @@
 
                 @if ($movies->count())
                     <h6 class="main-title text-capitalize mt-4 mb-3">{{ __('frontendheader.movies') ?? 'Movies' }}</h6>
-                    <div class="row row-cols-xl-5 row-cols-md-3 row-cols-2 g-3">
+                    <div class="row row-cols-xl-5 row-cols-md-3 row-cols-3 g-3">
                         @foreach ($movies as $movie)
                             <div class="col">
                                 @include('frontend::components.cards.card-style', [
@@ -33,7 +33,7 @@
 
                 @if ($shows->count())
                     <h6 class="main-title text-capitalize mt-5 mb-3">{{ __('frontendheader.tvshow') ?? 'Series' }}</h6>
-                    <div class="row row-cols-xl-5 row-cols-md-3 row-cols-2 g-3">
+                    <div class="row row-cols-xl-5 row-cols-md-3 row-cols-3 g-3">
                         @foreach ($shows as $show)
                             <div class="col">
                                 @include('frontend::components.cards.card-style', [
@@ -61,7 +61,7 @@
                     <h4 class="main-title text-capitalize mb-0">{{ __('frontendheader.tags') }}</h4>
                     <span class="text-muted">{{ $tags->count() }}</span>
                 </div>
-                <div class="row g-3 g-lg-4 row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 row-cols-xxl-6">
+                <div class="row g-3 g-lg-4 row-cols-3 row-cols-sm-3 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 row-cols-xxl-6">
                     @forelse ($tags as $t)
                         <div class="col">
                             @include('frontend::components.cards.tags-card', [

@@ -70,6 +70,9 @@ return [
     'unread' => 'Unread',
     'view' => 'View',
     'views' => 'Views',
+    'movies' => 'movies',
+    'series' => 'series',
+    'episodes' => 'episodes',
 
     // Listing / empty-state copy
     'no_upcoming' => 'No upcoming titles announced yet. Check back soon.',
