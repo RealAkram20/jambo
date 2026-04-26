@@ -73,6 +73,7 @@ return [
     'movies' => 'movies',
     'series' => 'series',
     'episodes' => 'episodes',
+    'most_popular' => 'Most popular',
 
     // Listing / empty-state copy
     'no_upcoming' => 'No upcoming titles announced yet. Check back soon.',
