@@ -131,8 +131,20 @@ class Episode extends Model
 
     public function scopePublished(Builder $q): Builder
     {
+        // Mirrors Movie::scopePublished — an episode is only publicly
+        // visible when its HLS master is in place. Without this guard
+        // an episode whose encode is still running would surface in
+        // the show's episode list and 500 / fail to play on click.
         return $q->whereNotNull('published_at')
-            ->where('published_at', '<=', now());
+            ->where('published_at', '<=', now())
+            ->where(function ($outer) {
+                $outer->whereNotNull('hls_master_path')
+                    ->orWhere(function ($metadataOnly) {
+                        $metadataOnly->whereNull('video_url')
+                            ->whereNull('dropbox_path')
+                            ->whereNull('source_path');
+                    });
+            });
     }
 
     protected static function newFactory(): EpisodeFactory
