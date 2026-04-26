@@ -1698,9 +1698,16 @@ class FrontendController extends Controller
     // cast Pages Routes
     public function cast_details(?string $slug = null)
     {
-        $person = $slug
-            ? Person::where('slug', $slug)->firstOrFail()
-            : Person::firstOrFail();
+        // No slug → no specific person to show. Bouncing to the cast
+        // list is sane behaviour; the previous Person::firstOrFail()
+        // returned the alphabetical first person regardless of which
+        // card the user clicked, which is the source of the
+        // "everyone opens Idris Elba" bug.
+        if (!$slug) {
+            return redirect()->route('frontend.cast_list');
+        }
+
+        $person = Person::where('slug', $slug)->firstOrFail();
 
         $person->load(['movies' => fn ($q) => $q->published(), 'shows' => fn ($q) => $q->published()]);
 

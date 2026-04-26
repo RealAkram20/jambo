@@ -4,8 +4,17 @@
     $backdrop = $movie->backdrop_url ?: $movie->poster_url;
     $posterSrc = media_url($backdrop, 'media/gameofhero.webp');
     $trailer = $movie->trailer_url;
-    $cast = $movie->cast->filter(fn ($p) => ($p->pivot->role ?? null) === 'actor');
-    $crew = $movie->cast->filter(fn ($p) => in_array(($p->pivot->role ?? null), ['director', 'writer', 'producer']));
+    // Dedupe by person id — a person may have multiple pivot rows
+    // (e.g., both 'actor' and 'director' for the same title) which
+    // otherwise surfaces them twice in the same rail.
+    $cast = $movie->cast
+        ->filter(fn ($p) => ($p->pivot->role ?? null) === 'actor')
+        ->unique('id')
+        ->values();
+    $crew = $movie->cast
+        ->filter(fn ($p) => in_array(($p->pivot->role ?? null), ['director', 'writer', 'producer']))
+        ->unique('id')
+        ->values();
 @endphp
 
 @section('content')
@@ -85,6 +94,7 @@
                                     'castImage' => $actor->photo_url ?: 'olivia-foster.webp',
                                     'castTitle' => trim(($actor->first_name ?? '') . ' ' . ($actor->last_name ?? '')),
                                     'castCategory' => $actor->pivot->character_name ?: 'Actor',
+                                    'castLink' => $actor->slug ? route('frontend.cast_details', $actor->slug) : '#',
                                 ])
                             </li>
                         @endforeach
@@ -115,6 +125,7 @@
                                         'castImage' => $person->photo_url ?: 'maria-rodriguez.webp',
                                         'castTitle' => trim(($person->first_name ?? '') . ' ' . ($person->last_name ?? '')),
                                         'castCategory' => ucfirst($person->pivot->role ?? 'Crew'),
+                                        'castLink' => $person->slug ? route('frontend.cast_details', $person->slug) : '#',
                                     ])
                                 </li>
                             @endforeach
