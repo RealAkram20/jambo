@@ -58,8 +58,8 @@
         </a>
         <ul class="sub-nav collapse" id="sidebar-movies" data-bs-parent="#sidebar-menu">
                 <li class="nav-item">
-                    <a class="nav-link {{ activeRoute(route('dashboard.movie-list')) }}"
-                        href="{{ route('dashboard.movie-list') }}">
+                    <a class="nav-link {{ request()->routeIs('admin.movies.*') ? 'active' : '' }}"
+                        href="{{ route('admin.movies.index') }}">
                         <i class="icon" data-bs-toggle="tooltip" title="Movie List" data-bs-placement="right"
                             aria-label="Movie List" data-bs-original-title="Movie List">
                             <i class="ph ph-film-strip fs-5"></i>
