@@ -56,6 +56,29 @@
         if (window.JamboMediaPicker) return;
 
         const FM_BASE = @json(url('storage/media/index.php'));
+        // The /storage/media/index.php drop-in is .htaccess-gated on
+        // the JAMBO_FM_SESSION cookie. That cookie is only issued
+        // when the admin hits /admin/file-manager (the Laravel route).
+        // Open the picker without ever visiting that page and you get
+        // a 403 from LiteSpeed before the iframe even renders. Pre-warm
+        // by fetching the route once before each modal open so the
+        // cookie is sitting in the jar when the iframe load begins.
+        const FM_WARMUP_URL = @json(route('admin.file-manager.index'));
+        let warmupPromise = null;
+        function warmFileManagerCookie() {
+            if (!warmupPromise) {
+                warmupPromise = fetch(FM_WARMUP_URL, {
+                    credentials: 'same-origin',
+                    headers: { 'Accept': 'text/html' },
+                }).then(function () {}).catch(function () {
+                    // Failure here just means the iframe will hit its
+                    // 403 path and the user can retry — better than
+                    // blocking the modal entirely on a transient error.
+                    warmupPromise = null;
+                });
+            }
+            return warmupPromise;
+        }
         let modalEl = null;
         let modalInstance = null;
         let currentOpts = null;
@@ -293,8 +316,14 @@
                 const params = new URLSearchParams({ picker: '1', _t: String(Date.now()) });
                 if (accept) params.set('accept', accept);
                 const frame = document.getElementById('jamboMediaPickerFrame');
-                if (frame) frame.src = FM_BASE + '?' + params.toString();
                 modalInstance.show();
+                // Wait for the cookie warmup before pointing the iframe.
+                // Safe to await even when the cookie was already set on
+                // a prior open — fetch is fast and the server re-issues
+                // a fresh 4-hour TTL each call.
+                warmFileManagerCookie().finally(function () {
+                    if (frame) frame.src = FM_BASE + '?' + params.toString();
+                });
             },
         };
     })();
