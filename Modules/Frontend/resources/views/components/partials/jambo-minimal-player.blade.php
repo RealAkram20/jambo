@@ -105,8 +105,8 @@
             // they never get bumped back to t=0.
             // --------------------------------------------------------
             var retryCount = 0;
-            var MAX_RETRIES = 3;
-            var STALL_TIMEOUT_MS = 12000; // pause-of-progress before retry
+            var MAX_RETRIES = 12;          // effectively silent recovery
+            var STALL_TIMEOUT_MS = 10000; // pause-of-progress before retry
             var stallTimer = null;
             var lastKnownPosition = 0;
 
@@ -154,7 +154,12 @@
                 // Codes: 1 aborted, 2 network, 3 decode, 4 src not supported.
                 // We retry on decode / src / network — not on manual abort.
                 if (err.code === 1) return;
-                setTimeout(function () { reloadAtPosition('error code=' + err.code); }, 800);
+                // Exponential-ish backoff so we don't hammer a flaky
+                // source: 1s, 2s, 4s, capped at 8s. Combined with the
+                // larger retry budget, transient errors recover with
+                // nothing visible to the user but the buffering spinner.
+                var backoff = Math.min(8000, 1000 * Math.pow(2, Math.max(0, retryCount)));
+                setTimeout(function () { reloadAtPosition('error code=' + err.code); }, backoff);
             });
 
             // Stall detection: when the player can't progress (network
@@ -235,11 +240,17 @@
             @endif
         </div>
 
-        <media-error-dialog class="media-error">
+        {{-- Error dialog kept in the DOM but visually suppressed — the
+             auto-recovery loop above retries up to 12 times with
+             backoff, so almost every transient blip resolves itself
+             before the user notices. The buffering spinner stays
+             visible while we retry, which feels like a normal
+             network pause rather than an error. --}}
+        <media-error-dialog class="media-error" style="display:none !important;">
             <div class="media-error__dialog">
                 <div class="media-error__content">
-                    <media-alert-dialog-title class="media-error__title">Unable to play this video</media-alert-dialog-title>
-                    <media-alert-dialog-description class="media-error__description">This video format may not be supported by your browser. For best results, use H.264 MP4 files.</media-alert-dialog-description>
+                    <media-alert-dialog-title class="media-error__title">Reconnecting…</media-alert-dialog-title>
+                    <media-alert-dialog-description class="media-error__description">Hold on while we restore the stream.</media-alert-dialog-description>
                 </div>
                 <div class="media-error__actions">
                     <media-alert-dialog-close class="media-button media-button--primary">OK</media-alert-dialog-close>
