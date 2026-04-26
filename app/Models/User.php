@@ -2,19 +2,35 @@
 
 namespace App\Models;
 
+use App\Models\Traits\HasHashedMediaTrait;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use NotificationChannels\WebPush\HasPushSubscriptions;
+use Spatie\MediaLibrary\HasMedia;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable implements MustVerifyEmail, HasMedia
 {
     use HasApiTokens, HasFactory, Notifiable;
     use HasRoles;
     use HasPushSubscriptions;
+    use HasHashedMediaTrait;
+
+    /**
+     * Avatar lives in a single-file media collection so each new
+     * upload replaces the previous file rather than piling up. The
+     * media-library config persists files under storage/app/public,
+     * exposed via the standard /storage symlink.
+     */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('profile_image')
+            ->singleFile()
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+    }
 
     /**
      * The attributes that are mass assignable.

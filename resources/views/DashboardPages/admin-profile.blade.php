@@ -20,9 +20,41 @@
                  context without the template's demo banner. --}}
             <div class="card mb-4">
                 <div class="card-body d-flex align-items-center gap-3 flex-wrap">
-                    <div class="jambo-admin-avatar d-flex align-items-center justify-content-center flex-shrink-0"
-                         style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#2b3141 0%,#141923 100%);border:1px solid #1f2738;font-size:20px;font-weight:600;color:#f5f6f8;letter-spacing:.5px;">
-                        {{ $initials }}
+                    @php
+                        $hasAvatar = $user->getFirstMediaUrl('profile_image') !== '';
+                    @endphp
+                    <div class="jambo-admin-avatar d-flex align-items-center justify-content-center flex-shrink-0 position-relative"
+                         style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#2b3141 0%,#141923 100%);border:1px solid #1f2738;font-size:20px;font-weight:600;color:#f5f6f8;letter-spacing:.5px;overflow:hidden;">
+                        @if ($hasAvatar)
+                            <img src="{{ $user->getFirstMediaUrl('profile_image') }}"
+                                 alt="{{ $fullName }}"
+                                 style="width:100%;height:100%;object-fit:cover;">
+                        @else
+                            {{ $initials }}
+                        @endif
+                    </div>
+                    <div class="d-flex flex-column gap-1">
+                        <form method="POST" action="{{ route('dashboard.profile.avatar.upload') }}"
+                              enctype="multipart/form-data" class="d-flex align-items-center gap-2 m-0">
+                            @csrf
+                            <label class="btn btn-sm btn-outline-primary mb-0" style="cursor:pointer;">
+                                <i class="ph ph-camera me-1"></i>
+                                {{ $hasAvatar ? 'Change photo' : 'Upload photo' }}
+                                <input type="file" name="profile_image" accept="image/*"
+                                       onchange="this.form.submit()" hidden>
+                            </label>
+                        </form>
+                        @if ($hasAvatar)
+                            <form method="POST" action="{{ route('dashboard.profile.avatar.destroy') }}"
+                                  class="m-0"
+                                  onsubmit="return confirm('Remove your profile photo?');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-sm btn-link text-danger p-0">
+                                    Remove photo
+                                </button>
+                            </form>
+                        @endif
                     </div>
                     <div class="flex-grow-1" style="min-width:0;">
                         <h5 class="mb-1" style="font-weight:600;">{{ $fullName }}</h5>

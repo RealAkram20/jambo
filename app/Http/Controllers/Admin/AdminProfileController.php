@@ -121,6 +121,34 @@ class AdminProfileController extends Controller
             ->with('status-profile', 'Profile updated.');
     }
 
+    /**
+     * Replace the admin's profile image. Single-file media collection,
+     * so the previous upload is dropped automatically.
+     */
+    public function uploadProfileImage(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'profile_image' => ['required', 'image', 'mimes:jpeg,png,webp,gif', 'max:2048'],
+        ]);
+
+        $request->user()
+            ->addMedia($request->file('profile_image'))
+            ->toMediaCollection('profile_image');
+
+        return redirect()
+            ->route('dashboard.profile')
+            ->with('status-profile', 'Profile photo updated.');
+    }
+
+    public function removeProfileImage(Request $request): RedirectResponse
+    {
+        $request->user()->clearMediaCollection('profile_image');
+
+        return redirect()
+            ->route('dashboard.profile')
+            ->with('status-profile', 'Profile photo removed.');
+    }
+
     public function updatePassword(Request $request): RedirectResponse
     {
         $request->validateWithBag('updatePassword', [

@@ -169,6 +169,8 @@ Route::group(['as' => 'dashboard.', 'middleware' => ['auth', 'role:admin']], fun
     Route::put('profile/password', [AdminProfileController::class, 'updatePassword'])->name('profile.password');
     Route::post('profile/sessions/logout-others', [AdminProfileController::class, 'logoutOtherSessions'])->name('profile.sessions.logout-others');
     Route::delete('profile/sessions/{session_id}', [AdminProfileController::class, 'logoutSession'])->name('profile.sessions.destroy');
+    Route::post('profile/avatar', [AdminProfileController::class, 'uploadProfileImage'])->name('profile.avatar.upload');
+    Route::delete('profile/avatar', [AdminProfileController::class, 'removeProfileImage'])->name('profile.avatar.destroy');
 });
 Route::group(['as' => 'backend.', 'middleware' => ['auth', 'role:admin']], function () {
     // The GET entry point + every mutating endpoint (store + reset)
@@ -242,6 +244,16 @@ Route::middleware('auth')->group(function () {
         [\App\Http\Controllers\ProfileHubController::class, 'updateProfile'])
         ->where('username', $usernamePattern)
         ->name('profile.update');
+
+    Route::post('/{username}/avatar',
+        [\App\Http\Controllers\ProfileHubController::class, 'uploadProfileImage'])
+        ->where('username', $usernamePattern)
+        ->name('profile.avatar.upload');
+
+    Route::delete('/{username}/avatar',
+        [\App\Http\Controllers\ProfileHubController::class, 'removeProfileImage'])
+        ->where('username', $usernamePattern)
+        ->name('profile.avatar.destroy');
 
     Route::get('/{username}/security',
         [\App\Http\Controllers\ProfileHubController::class, 'security'])

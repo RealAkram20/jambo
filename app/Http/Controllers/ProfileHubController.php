@@ -284,6 +284,32 @@ class ProfileHubController extends Controller
      * whether to send on that channel. No channel-per-notification
      * granularity yet — keep it simple until users ask for it.
      */
+    public function uploadProfileImage(Request $request, string $username)
+    {
+        $user = $this->resolveOwn($request, $username);
+
+        $request->validate([
+            'profile_image' => ['required', 'image', 'mimes:jpeg,png,webp,gif', 'max:2048'],
+        ]);
+
+        $user->addMedia($request->file('profile_image'))
+            ->toMediaCollection('profile_image');
+
+        return redirect()
+            ->route('profile.show', ['username' => $user->username])
+            ->with('status-profile', 'Profile photo updated.');
+    }
+
+    public function removeProfileImage(Request $request, string $username)
+    {
+        $user = $this->resolveOwn($request, $username);
+        $user->clearMediaCollection('profile_image');
+
+        return redirect()
+            ->route('profile.show', ['username' => $user->username])
+            ->with('status-profile', 'Profile photo removed.');
+    }
+
     public function updateNotificationPrefs(Request $request, string $username)
     {
         $user = $this->resolveOwn($request, $username);

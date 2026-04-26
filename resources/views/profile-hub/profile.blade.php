@@ -10,6 +10,10 @@
             <i class="ph ph-user-circle fs-2 text-muted"></i>
         </div>
 
+        @if (session('status-profile'))
+            <div class="alert alert-success py-2 small">{{ session('status-profile') }}</div>
+        @endif
+
         @if ($errors->any())
             <div class="alert alert-danger py-2 small">
                 <ul class="mb-0 ps-3">
@@ -17,6 +21,41 @@
                 </ul>
             </div>
         @endif
+
+        @php
+            $hasAvatar = $user->getFirstMediaUrl('profile_image') !== '';
+            $initial = strtoupper(substr($user->first_name ?? $user->username ?? '?', 0, 1));
+        @endphp
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <div class="d-flex align-items-center justify-content-center position-relative flex-shrink-0"
+                 style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#2b3141 0%,#141923 100%);border:1px solid #1f2738;font-size:24px;font-weight:600;color:#f5f6f8;overflow:hidden;">
+                @if ($hasAvatar)
+                    <img src="{{ $user->getFirstMediaUrl('profile_image') }}" alt=""
+                         style="width:100%;height:100%;object-fit:cover;">
+                @else
+                    {{ $initial }}
+                @endif
+            </div>
+            <div class="d-flex flex-column gap-1">
+                <form method="POST" action="{{ route('profile.avatar.upload', ['username' => $user->username]) }}"
+                      enctype="multipart/form-data" class="m-0">
+                    @csrf
+                    <label class="btn btn-sm btn-outline-primary mb-0" style="cursor:pointer;">
+                        <i class="ph ph-camera me-1"></i>
+                        {{ $hasAvatar ? 'Change photo' : 'Upload photo' }}
+                        <input type="file" name="profile_image" accept="image/*"
+                               onchange="this.form.submit()" hidden>
+                    </label>
+                </form>
+                @if ($hasAvatar)
+                    <form method="POST" action="{{ route('profile.avatar.destroy', ['username' => $user->username]) }}"
+                          class="m-0" onsubmit="return confirm('Remove your profile photo?');">
+                        @csrf @method('DELETE')
+                        <button type="submit" class="btn btn-sm btn-link text-danger p-0">Remove photo</button>
+                    </form>
+                @endif
+            </div>
+        </div>
 
         <form method="POST" action="{{ route('profile.update', ['username' => $user->username]) }}">
             @csrf @method('PUT')
