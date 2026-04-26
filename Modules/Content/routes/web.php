@@ -13,6 +13,7 @@ use Modules\Content\app\Http\Controllers\Admin\CategoryController;
 use Modules\Content\app\Http\Controllers\Admin\RatingController;
 use Modules\Content\app\Http\Controllers\Admin\ReviewController;
 use Modules\Content\app\Http\Controllers\Admin\CommentController;
+use Modules\Content\app\Http\Controllers\Admin\TranscodeProgressController;
 
 /*
 |--------------------------------------------------------------------------
@@ -38,6 +39,14 @@ Route::middleware(['auth', 'role:admin'])
             ->name('movies.bulk-destroy');
         Route::delete('series/bulk', [ShowController::class, 'bulkDestroy'])
             ->name('series.bulk-destroy');
+
+        // Polling endpoints for the admin transcode-progress banner.
+        // Returns JSON describing current encoding state + an estimated
+        // percentage so the edit page can render a live progress bar.
+        Route::get('movies/{movie}/transcode-progress', [TranscodeProgressController::class, 'movie'])
+            ->name('movies.transcode-progress');
+        Route::get('episodes/{episode}/transcode-progress', [TranscodeProgressController::class, 'episode'])
+            ->name('episodes.transcode-progress');
 
         Route::resource('movies', MovieController::class);
 
