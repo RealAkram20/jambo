@@ -125,6 +125,25 @@ if (! function_exists('branding_asset')) {
     }
 }
 
+if (! function_exists('versioned_asset')) {
+    /**
+     * Like asset(), but appends a ?v=<mtime> query string so browser
+     * caches invalidate automatically the moment a file changes on
+     * disk. Use this for hand-written /public assets (JS, CSS) that
+     * we expect to evolve and where stale caches would surface as
+     * "user reports a bug we already fixed". Falls back to plain
+     * asset() if the file isn't reachable on the local disk.
+     */
+    function versioned_asset(string $path): string
+    {
+        $absolute = public_path($path);
+        if (file_exists($absolute)) {
+            return asset($path) . '?v=' . filemtime($absolute);
+        }
+        return asset($path);
+    }
+}
+
 if (! function_exists('branded_logo')) {
     /**
      * Resolve the best available branding image for places that want a

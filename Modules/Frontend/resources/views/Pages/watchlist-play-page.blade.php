@@ -5,8 +5,8 @@
          the in-page player behaves identically here. --}}
     <link rel="stylesheet" href="{{ asset('frontend/css/player.css') }}">
     <script type="module" src="https://cdn.jsdelivr.net/npm/@videojs/html/cdn/video-minimal-ui.js"></script>
-    <script src="{{ asset('frontend/js/jambo-settings-menu.js') }}" defer></script>
-    <script src="{{ asset('frontend/js/jambo-player-gestures.js') }}" defer></script>
+    <script src="{{ versioned_asset('frontend/js/jambo-settings-menu.js') }}" defer></script>
+    <script src="{{ versioned_asset('frontend/js/jambo-player-gestures.js') }}" defer></script>
 
     <section class="section-padding">
         <div class="playlist-detail-page">
