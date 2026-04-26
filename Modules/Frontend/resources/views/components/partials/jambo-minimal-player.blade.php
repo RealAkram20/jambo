@@ -95,42 +95,89 @@
             }
 
             // --------------------------------------------------------
-            // Transient error recovery. Demo hosts (archive.org, etc.)
-            // occasionally 503 under load or mangle range requests,
-            // which surfaces as a MediaError with code 3 (decode) or
-            // 4 (src not supported). Most of these recover on a
-            // second try, so we auto-retry once with a cache-buster
-            // before handing off to the <media-error-dialog>.
+            // Transient error recovery + stall recovery. Demo hosts
+            // (archive.org, etc.) occasionally 503 under load or mangle
+            // range requests, which surfaces as a MediaError with code
+            // 3 (decode) or 4 (src not supported). Stalls happen when
+            // the network briefly drops mid-stream and the player just
+            // sits on a buffering spinner. Both auto-retry up to a few
+            // times, with the user's last known position preserved so
+            // they never get bumped back to t=0.
             // --------------------------------------------------------
             var retryCount = 0;
-            var MAX_RETRIES = 1;
+            var MAX_RETRIES = 3;
+            var STALL_TIMEOUT_MS = 12000; // pause-of-progress before retry
+            var stallTimer = null;
+            var lastKnownPosition = 0;
 
-            v.addEventListener('error', function(){
+            v.addEventListener('timeupdate', function () {
+                if (v.currentTime > 0) lastKnownPosition = v.currentTime;
+            });
+
+            function reloadAtPosition(reason) {
+                if (retryCount >= MAX_RETRIES) {
+                    console.warn('[jambo-player] giving up after ' + retryCount + ' retries (' + reason + ')');
+                    return;
+                }
+                retryCount++;
+                console.warn('[jambo-player] ' + reason + ', retry ' + retryCount);
+                clearTimeout(stallTimer);
+
+                var q = localStorage.getItem('jambo.quality') || 'default';
+                var base = (q === 'low' && v.dataset.srcLow) ? v.dataset.srcLow : v.dataset.srcDefault;
+                if (!base) return;
+                var sep = base.indexOf('?') === -1 ? '?' : '&';
+                v.src = base + sep + '_retry=' + Date.now();
+
+                // Seek back to where we were once the new fetch has
+                // metadata. Skip the seek if we're inside the last 30s
+                // of the file — better to let it end naturally than
+                // race the credits.
+                var seekTarget = lastKnownPosition;
+                if (seekTarget > 0) {
+                    v.addEventListener('loadedmetadata', function onResume() {
+                        v.removeEventListener('loadedmetadata', onResume);
+                        if (v.duration && seekTarget < v.duration - 30) {
+                            v.currentTime = seekTarget;
+                        }
+                    });
+                }
+
+                v.load();
+                var p = v.play();
+                if (p && typeof p.catch === 'function') p.catch(function(){});
+            }
+
+            v.addEventListener('error', function () {
                 var err = v.error;
                 if (!err) return;
                 // Codes: 1 aborted, 2 network, 3 decode, 4 src not supported.
                 // We retry on decode / src / network — not on manual abort.
                 if (err.code === 1) return;
-                if (retryCount >= MAX_RETRIES) return;
-                retryCount++;
-                console.warn('[jambo-player] error code=' + err.code + ' (' + (err.message || '') + '), retry ' + retryCount);
-                setTimeout(function(){
-                    var q = localStorage.getItem('jambo.quality') || 'default';
-                    var base = (q === 'low' && v.dataset.srcLow) ? v.dataset.srcLow : v.dataset.srcDefault;
-                    if (!base) return;
-                    // Cache-buster forces a fresh fetch so we don't
-                    // replay a poisoned 206 response from earlier.
-                    var sep = base.indexOf('?') === -1 ? '?' : '&';
-                    v.src = base + sep + '_retry=' + Date.now();
-                    v.load();
-                    var p = v.play();
-                    if (p && typeof p.catch === 'function') p.catch(function(){});
-                }, 800);
+                setTimeout(function () { reloadAtPosition('error code=' + err.code); }, 800);
             });
 
-            // Reset the retry budget on successful playback so a later
-            // unrelated blip can also get a second chance.
-            v.addEventListener('playing', function(){ retryCount = 0; });
+            // Stall detection: when the player can't progress (network
+            // hiccup, server-side range stall), `waiting` fires and
+            // playback halts. If we don't recover within STALL_TIMEOUT_MS,
+            // tear down and reload from the same position.
+            v.addEventListener('waiting', function () {
+                clearTimeout(stallTimer);
+                stallTimer = setTimeout(function () {
+                    reloadAtPosition('stall (no progress for ' + STALL_TIMEOUT_MS + 'ms)');
+                }, STALL_TIMEOUT_MS);
+            });
+            ['playing', 'pause', 'ended', 'seeking'].forEach(function (ev) {
+                v.addEventListener(ev, function () { clearTimeout(stallTimer); });
+            });
+
+            // Reset the retry budget after a sustained good playback
+            // window so a later unrelated blip can also get retries.
+            v.addEventListener('playing', function () {
+                setTimeout(function () {
+                    if (!v.paused && !v.ended) retryCount = 0;
+                }, 30000);
+            });
         })();
         </script>
 
