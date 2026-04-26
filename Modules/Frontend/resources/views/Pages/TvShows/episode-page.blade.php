@@ -494,8 +494,18 @@ document.addEventListener('DOMContentLoaded', async function () {
     'ratingCount'   => null, // episodes don't carry an IMDb rating of their own
     'genres'        => $show->genres->pluck('name')->all(),
     'tags'          => $show->relationLoaded('tags') ? $show->tags->pluck('name')->all() : [],
-    'cast'          => $show->cast->filter(fn ($p) => ($p->pivot->role ?? null) === 'actor'),
-    'crew'          => $show->cast->filter(fn ($p) => in_array(($p->pivot->role ?? null), ['director', 'writer', 'producer'])),
+    // Dedupe by person id — same fix as the movie/show detail pages.
+    // A single person with multiple pivot rows (e.g., both an actor
+    // and a director credit) would otherwise show up twice in the
+    // Read-more modal's cast / crew lists.
+    'cast'          => $show->cast
+        ->filter(fn ($p) => ($p->pivot->role ?? null) === 'actor')
+        ->unique('id')
+        ->values(),
+    'crew'          => $show->cast
+        ->filter(fn ($p) => in_array(($p->pivot->role ?? null), ['director', 'writer', 'producer']))
+        ->unique('id')
+        ->values(),
 ])
 
 {{-- Device-limit kick overlay (see partial for what it does). Only

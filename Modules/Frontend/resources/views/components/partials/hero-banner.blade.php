@@ -46,7 +46,10 @@
     // Top 3 of each taxonomy
     $genres = $item->relationLoaded('genres') ? $item->genres->take(3) : collect();
     $tags = $item->relationLoaded('tags') ? $item->tags->take(3) : collect();
-    $cast = $item->relationLoaded('cast') ? $item->cast->take(3) : collect();
+    // Dedupe by id before slicing — pivot rows can repeat the same
+    // person across multiple roles, otherwise the hero shows the
+    // same actor twice when that person is also a credited director.
+    $cast = $item->relationLoaded('cast') ? $item->cast->unique('id')->take(3) : collect();
 @endphp
 
 <div class="swiper-slide banner-bg p-0">
