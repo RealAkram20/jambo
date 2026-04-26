@@ -139,9 +139,31 @@ class Show extends Model
 
     public function scopePublished(Builder $q): Builder
     {
+        // A series only counts as publicly published when at least one
+        // of its episodes is itself fully published — meaning the
+        // episode has a published_at in the past AND a finished HLS
+        // master (or no video source at all, for placeholder-style
+        // entries; mirrors the Episode/Movie scope rules).
+        //
+        // Without this guard a show could show up in the public rails
+        // with no clickable episodes, which is a dead-end UX. Detail
+        // page (scopeDetailVisible) is intentionally not gated this
+        // way so "Coming soon" series still get a landing page.
         return $q->where('status', self::STATUS_PUBLISHED)
             ->whereNotNull('published_at')
-            ->where('published_at', '<=', now());
+            ->where('published_at', '<=', now())
+            ->whereHas('episodes', function ($ep) {
+                $ep->whereNotNull('published_at')
+                    ->where('published_at', '<=', now())
+                    ->where(function ($outer) {
+                        $outer->whereNotNull('hls_master_path')
+                            ->orWhere(function ($metadataOnly) {
+                                $metadataOnly->whereNull('video_url')
+                                    ->whereNull('dropbox_path')
+                                    ->whereNull('source_path');
+                            });
+                    });
+            });
     }
 
     /**
