@@ -101,28 +101,52 @@
             showFeedback(video.muted ? 'mute' : 'volumeUp', video.muted ? 'Muted' : Math.round(video.volume * 100) + '%');
         }
 
-        // Media Chrome's <media-fullscreen-button> tracks fullscreen on
-        // a specific element it owns (the media-controller / container).
-        // If we call requestFullscreen on a different ancestor (e.g.,
-        // <video-player>) the icon never updates and the click falls
-        // out of sync. Cheapest path to keep them aligned: route the
-        // F shortcut through the button itself so Media Chrome owns
-        // both paths.
+        // Use the browser's `document.fullscreenElement` as the single
+        // source of truth. Media Chrome's internal tracking can drift
+        // from reality (it watches one element; our F shortcut and
+        // gesture handlers can fullscreen another), and once the two
+        // diverge the button click ends up sending the wrong request.
+        // Doing the toggle ourselves removes that whole drift surface.
+        var fullscreenTarget = container.closest('video-player') || container;
+
         function toggleFullscreen() {
-            var btn = container && container.querySelector('media-fullscreen-button');
-            if (btn && typeof btn.click === 'function') {
-                btn.click();
-            } else {
-                // Fallback if the button isn't on the page (custom skin).
-                var el = container.closest('video-player') || container;
-                if (document.fullscreenElement) {
-                    if (document.exitFullscreen) document.exitFullscreen().catch(function () {});
-                } else if (el.requestFullscreen) {
-                    el.requestFullscreen().catch(function () {});
-                }
+            if (document.fullscreenElement) {
+                if (document.exitFullscreen) document.exitFullscreen().catch(function () {});
+            } else if (fullscreenTarget.requestFullscreen) {
+                fullscreenTarget.requestFullscreen().catch(function () {});
             }
             showFeedback('fullscreen');
         }
+
+        // Hijack the Media Chrome fullscreen button so its click also
+        // routes through toggleFullscreen, which means click-and-key
+        // share an identical code path with the same target element.
+        // Capture phase + stopImmediatePropagation prevents Media
+        // Chrome's own click handler from firing afterwards and
+        // double-toggling.
+        var fsBtn = container && container.querySelector('media-fullscreen-button');
+        if (fsBtn) {
+            fsBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                toggleFullscreen();
+            }, true);
+        }
+
+        // Keep the button's `mediaisfullscreen` attribute in sync with
+        // reality so its enter/exit icon flips correctly regardless of
+        // how the state changed (F key, gesture, browser ESC, the OS
+        // fullscreen tray, etc.). Without this nudge the icon can drift
+        // because Media Chrome only updates from its own controller's
+        // state events.
+        document.addEventListener('fullscreenchange', function () {
+            if (!fsBtn) return;
+            if (document.fullscreenElement) {
+                fsBtn.setAttribute('mediaisfullscreen', '');
+            } else {
+                fsBtn.removeAttribute('mediaisfullscreen');
+            }
+        });
 
         function seekPercent(pct) {
             if (video.duration && isFinite(video.duration)) {
