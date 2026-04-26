@@ -48,21 +48,29 @@ class QueueContentTranscodesCommand extends Command
 
     private function queue(string $modelClass, string $payableType): int
     {
+        // Skip rows that are already in flight — re-dispatching while a
+        // job is queued or actively downloading/transcoding just creates
+        // duplicate work for the worker.
+        $inFlight = ['queued', 'downloading', 'transcoding'];
+
         $count = 0;
-        $modelClass::query()->whereNull('hls_master_path')->each(function ($row) use ($payableType, &$count) {
-            if (empty($row->video_url)) {
-                $this->line("  skip #{$row->id} — no video_url");
-                return;
-            }
-            $row->forceFill([
-                'transcode_status' => 'queued',
-                'transcode_error'  => null,
-            ])->save();
-            DownloadAndTranscodeJob::dispatch($payableType, $row->id, $row->video_url);
-            $title = $row->title ?? ('episode ' . $row->id);
-            $this->line("  queued #{$row->id} {$title}");
-            $count++;
-        });
+        $modelClass::query()
+            ->whereNull('hls_master_path')
+            ->whereNotIn('transcode_status', $inFlight)
+            ->each(function ($row) use ($payableType, &$count) {
+                if (empty($row->video_url)) {
+                    $this->line("  skip #{$row->id} — no video_url");
+                    return;
+                }
+                $row->forceFill([
+                    'transcode_status' => 'queued',
+                    'transcode_error'  => null,
+                ])->save();
+                DownloadAndTranscodeJob::dispatch($payableType, $row->id, $row->video_url);
+                $title = $row->title ?? ('episode ' . $row->id);
+                $this->line("  queued #{$row->id} {$title}");
+                $count++;
+            });
         return $count;
     }
 }
