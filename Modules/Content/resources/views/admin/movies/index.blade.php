@@ -187,4 +187,26 @@
 </div>
 
 @include('components.partials.admin-bulk-confirm')
+
+{{-- Keep the status badges current while transcodes are running.
+     Reload on Back-button (bfcache) restore, and auto-poll every 30s
+     when there's at least one in-flight transcode visible on this
+     page so the admin sees `Queued → Transcoding → HLS` flip in
+     place without manually refreshing. --}}
+<script>
+(function () {
+    window.addEventListener('pageshow', function (e) {
+        if (e.persisted) location.reload();
+    });
+
+    var hasInflight = document.querySelector(
+        '.badge[title="Transcode queued"], .badge[title="Transcoding in progress"]'
+    );
+    if (hasInflight && !document.hidden) {
+        setInterval(function () {
+            if (!document.hidden) location.reload();
+        }, 30000);
+    }
+})();
+</script>
 @endsection
