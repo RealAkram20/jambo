@@ -642,7 +642,13 @@ class TopPicksRecommender
         $result = collect();
 
         if (!empty($dailyIds)) {
-            $shows = Show::whereIn('id', $dailyIds)
+            // Re-filter the daily IDs through Show::scopePublished so a
+            // series that's flagged published but has no playable
+            // (HLS-encoded) episode never lands in the rail. The raw
+            // SQL above can't apply the model scope, so we apply it
+            // here on the result fetch.
+            $shows = Show::published()
+                ->whereIn('id', $dailyIds)
                 ->with(['seasons.episodes'])
                 ->get()
                 ->keyBy('id');
