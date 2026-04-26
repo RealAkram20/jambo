@@ -37,12 +37,17 @@ class DownloadAndTranscodeJob implements ShouldQueue
         $payable = $this->resolvePayable();
         if (!$payable) return;
 
+        // Normalise Dropbox share links so we always get the actual
+        // file. Without this the bare URL returns the share-page HTML
+        // and the next step fails with "moov atom not found".
+        $url = $this->normaliseDropboxUrl($this->downloadUrl);
+
         $payable->forceFill([
             'transcode_status' => 'downloading',
             'transcode_error'  => null,
         ])->save();
 
-        $ext = $this->guessExtension($this->downloadUrl);
+        $ext = $this->guessExtension($url);
         $dir = ($this->payableType === 'episode' ? 'episodes' : 'movies') . '/' . $payable->id;
         $destPath = $dir . '/source.' . $ext;
 
@@ -51,7 +56,7 @@ class DownloadAndTranscodeJob implements ShouldQueue
 
             // Stream the download directly to disk to avoid memory issues.
             $tempFile = Storage::disk('source')->path($destPath);
-            $this->streamDownload($this->downloadUrl, $tempFile);
+            $this->streamDownload($url, $tempFile);
 
             $size = Storage::disk('source')->size($destPath);
             if ($size < 1024) {
@@ -136,6 +141,35 @@ class DownloadAndTranscodeJob implements ShouldQueue
         $path = (string) parse_url($url, PHP_URL_PATH);
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
         return in_array($ext, ['mp4', 'webm', 'mov', 'mkv', 'm4v']) ? $ext : 'mp4';
+    }
+
+    /**
+     * Convert a Dropbox share URL into a direct-download URL. Mirrors
+     * MovieController::normaliseDropboxUrl so jobs dispatched outside
+     * the controller (manual tinker, console commands, batch jobs)
+     * also get the real file instead of the share-landing-page HTML.
+     */
+    private function normaliseDropboxUrl(string $url): string
+    {
+        if (!preg_match('#^https?://([^/]+\.)?dropbox\.com/#i', $url)
+            && !preg_match('#^https?://([^/]+\.)?dropboxusercontent\.com/#i', $url)) {
+            return $url;
+        }
+
+        $path = (string) parse_url($url, PHP_URL_PATH);
+
+        if (str_starts_with($path, '/scl/')) {
+            $url = preg_replace('/([?&])dl=\d+/', '$1dl=1', $url);
+            if (!str_contains($url, 'dl=1')) {
+                $url .= (str_contains($url, '?') ? '&' : '?') . 'dl=1';
+            }
+        } else {
+            $url = preg_replace('#^https?://(www\.)?dropbox\.com/#i', 'https://dl.dropboxusercontent.com/', $url);
+            $url = preg_replace('/([?&])dl=\d+(&|$)/i', '$1', $url);
+            $url = rtrim($url, '?&');
+        }
+
+        return $url;
     }
 
     private function resolvePayable(): Movie|Episode|null
