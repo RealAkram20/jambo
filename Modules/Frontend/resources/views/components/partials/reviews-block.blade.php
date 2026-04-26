@@ -13,6 +13,41 @@
     $reviews = $reviews ?? collect();
 @endphp
 
+{{-- Star rating styles. Markup is rendered 5→1 with row-reverse so
+     hover/checked on a higher star fills every star visually to its
+     left via the `~` sibling selector. --}}
+<style>
+.jambo-star-input {
+    display: inline-flex;
+    flex-direction: row-reverse;
+    gap: 4px;
+    font-size: 24px;
+}
+.jambo-star-input input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+.jambo-star-input label {
+    cursor: pointer;
+    color: #4b5160;
+    transition: color .15s ease, transform .15s ease;
+    margin: 0;
+    line-height: 1;
+}
+.jambo-star-input label:hover { transform: scale(1.1); }
+.jambo-star-input label:hover,
+.jambo-star-input label:hover ~ label,
+.jambo-star-input input[type="radio"]:checked ~ label {
+    color: #ffc107;
+}
+.jambo-star-input input[type="radio"]:focus-visible + label {
+    outline: 2px solid #1A98FF;
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+</style>
+
 <section class="jambo-reviews-block section-padding">
     <div class="container-fluid">
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
@@ -53,12 +88,15 @@
                     @csrf
                     <div class="mb-3">
                         <label class="form-label small text-muted mb-1">Your rating</label>
-                        <div class="jambo-star-input d-flex gap-1" role="radiogroup" aria-label="Rating">
-                            @for ($i = 1; $i <= 5; $i++)
-                                <label class="jambo-star-choice" title="{{ $i }} star{{ $i > 1 ? 's' : '' }}">
-                                    <input type="radio" name="stars" value="{{ $i }}"
-                                           {{ old('stars', $myReview?->stars) == $i ? 'checked' : '' }}
-                                           class="visually-hidden" required>
+                        @php $currentStars = (int) old('stars', $myReview?->stars ?? 0); @endphp
+                        {{-- Rendered 5→1 (right-to-left) with flex-direction: row-reverse
+                             so the CSS-only "fill stars to the left of hovered/checked"
+                             trick (using `~`) reads visually as 1→5 left-to-right. --}}
+                        <div class="jambo-star-input" role="radiogroup" aria-label="Rating">
+                            @for ($i = 5; $i >= 1; $i--)
+                                <input type="radio" id="jambo-star-{{ $i }}" name="stars" value="{{ $i }}"
+                                       {{ $currentStars === $i ? 'checked' : '' }} required>
+                                <label for="jambo-star-{{ $i }}" title="{{ $i }} star{{ $i > 1 ? 's' : '' }}">
                                     <i class="ph-fill ph-star"></i>
                                 </label>
                             @endfor
