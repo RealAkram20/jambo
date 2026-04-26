@@ -153,4 +153,6 @@
             </div>
         </div>
     </div>
+
+    @include('frontend::components.widgets.mobile-footer')
 @endsection

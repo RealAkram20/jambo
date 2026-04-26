@@ -26,4 +26,6 @@
             </div>
         </div>
     </section>
+
+    @include('frontend::components.widgets.mobile-footer')
 @endsection
