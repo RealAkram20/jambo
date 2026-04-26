@@ -146,8 +146,8 @@
                     <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
                         <h4 class="main-title text-capitalize mb-0 fw-medium">{{ __('sectionTitle.starring') }}</h4>
                     </div>
-                    <div class="position-relative swiper swiper-card" data-slide="11" data-laptop="11" data-tab="4" data-mobile="2"
-                        data-mobile-sm="2" data-autoplay="false" data-loop="true" data-navigation="true" data-pagination="true">
+                    <div class="position-relative swiper swiper-card" data-slide="6" data-laptop="6" data-tab="4" data-mobile="3"
+                        data-mobile-sm="3" data-autoplay="false" data-loop="false" data-navigation="true" data-pagination="true">
                         <ul class="p-0 swiper-wrapper m-0 list-inline personality-card">
                             @foreach ($cast as $actor)
                                 <li class="swiper-slide">
@@ -175,8 +175,8 @@
                         <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
                             <h4 class="main-title text-capitalize mb-0">{{ __('sectionTitle.crew') }}</h4>
                         </div>
-                        <div class="position-relative swiper swiper-card" data-slide="11" data-laptop="11" data-tab="4"
-                            data-mobile="2" data-mobile-sm="2" data-autoplay="false" data-loop="true"
+                        <div class="position-relative swiper swiper-card" data-slide="6" data-laptop="6" data-tab="4"
+                            data-mobile="3" data-mobile-sm="3" data-autoplay="false" data-loop="false"
                             data-navigation="true" data-pagination="true">
                             <ul class="p-0 swiper-wrapper m-0 list-inline personality-card">
                                 @foreach ($crew as $person)
