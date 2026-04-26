@@ -4,6 +4,20 @@
         <div class="container-fluid d-flex align-items-center justify-content-between gap-3">
             {{-- Left: hamburger (desktop only) + logo + subscribe badge --}}
             <div class="jambo-header__left d-flex align-items-center gap-2 flex-shrink-0">
+                {{-- Back / Forward shortcuts. Visible only when the
+                     site is running as an installed PWA (display-mode:
+                     standalone) — installed windows have no browser
+                     chrome, so users have no other way to go back.
+                     Hidden in regular browser tabs since the browser
+                     toolbar already provides them. --}}
+                <button type="button" class="jambo-header__menu-btn jambo-pwa-nav d-none"
+                        id="jambo-pwa-back" aria-label="Go back" title="Back">
+                    <i class="ph ph-caret-left"></i>
+                </button>
+                <button type="button" class="jambo-header__menu-btn jambo-pwa-nav d-none"
+                        id="jambo-pwa-forward" aria-label="Go forward" title="Forward">
+                    <i class="ph ph-caret-right"></i>
+                </button>
                 <button class="jambo-header__menu-btn d-none d-lg-flex" type="button" id="jambo-sidebar-toggle" aria-label="Menu">
                     <i class="ph ph-list"></i>
                 </button>
@@ -276,5 +290,66 @@
         d.textContent = s;
         return d.innerHTML;
     }
+})();
+</script>
+
+{{-- PWA back/forward chrome. Standalone (installed) windows have no
+     browser toolbar, so without these buttons users can't navigate.
+     We toggle visibility from JS rather than CSS-only because the
+     standalone state can change at runtime (window install / uninstall),
+     and we also want to disable Forward when there's no forward
+     history. --}}
+<script>
+(function () {
+    var backBtn = document.getElementById('jambo-pwa-back');
+    var fwdBtn  = document.getElementById('jambo-pwa-forward');
+    if (!backBtn || !fwdBtn) return;
+
+    function isStandalone() {
+        return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+            || window.navigator.standalone === true;
+    }
+
+    function applyVisibility() {
+        if (isStandalone()) {
+            backBtn.classList.remove('d-none');
+            fwdBtn.classList.remove('d-none');
+        } else {
+            backBtn.classList.add('d-none');
+            fwdBtn.classList.add('d-none');
+        }
+    }
+
+    function applyEnabled() {
+        // history.length is 1 on a fresh-load entry. Disable back when
+        // there's no prior page to go to so users get a hint instead
+        // of a no-op click.
+        var hasHistory = window.history.length > 1;
+        backBtn.disabled = !hasHistory;
+        backBtn.style.opacity = hasHistory ? '' : '0.4';
+        backBtn.style.cursor = hasHistory ? '' : 'not-allowed';
+    }
+
+    backBtn.addEventListener('click', function () {
+        if (window.history.length > 1) window.history.back();
+    });
+    fwdBtn.addEventListener('click', function () {
+        window.history.forward();
+    });
+
+    // Keyboard: Alt+ArrowLeft / Alt+ArrowRight (matches browser default).
+    document.addEventListener('keydown', function (e) {
+        if (!e.altKey) return;
+        if (e.key === 'ArrowLeft')  { backBtn.click();  e.preventDefault(); }
+        if (e.key === 'ArrowRight') { fwdBtn.click();   e.preventDefault(); }
+    });
+
+    applyVisibility();
+    applyEnabled();
+    if (window.matchMedia) {
+        window.matchMedia('(display-mode: standalone)').addEventListener('change', applyVisibility);
+    }
+    window.addEventListener('popstate', applyEnabled);
+    window.addEventListener('pageshow', applyEnabled);
 })();
 </script>
