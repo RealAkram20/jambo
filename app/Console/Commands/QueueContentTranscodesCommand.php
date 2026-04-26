@@ -56,7 +56,14 @@ class QueueContentTranscodesCommand extends Command
         $count = 0;
         $modelClass::query()
             ->whereNull('hls_master_path')
-            ->whereNotIn('transcode_status', $inFlight)
+            // SQL three-valued logic: `NULL NOT IN (...)` returns NULL,
+            // not TRUE, so plain whereNotIn would silently drop rows
+            // whose transcode_status is null. The OR-null branch
+            // explicitly readmits them.
+            ->where(function ($q) use ($inFlight) {
+                $q->whereNotIn('transcode_status', $inFlight)
+                  ->orWhereNull('transcode_status');
+            })
             ->each(function ($row) use ($payableType, &$count) {
                 if (empty($row->video_url)) {
                     $this->line("  skip #{$row->id} — no video_url");
