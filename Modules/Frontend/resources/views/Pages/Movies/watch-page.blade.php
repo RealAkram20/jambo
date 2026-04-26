@@ -270,9 +270,20 @@ document.addEventListener('DOMContentLoaded', async function () {
         if (hero) hero.appendChild(frame);
     }
 
+    // Suppress mini-mode flips for a beat after fullscreen toggles —
+    // the layout reflow that follows can briefly drag the sentinel's
+    // intersection ratio across our thresholds, which the observer
+    // would interpret as "user scrolled away, enter mini" and animate
+    // a frame of mini-mode the user perceives as a lag spike.
+    let suppressMiniUntil = 0;
+    document.addEventListener('fullscreenchange', () => {
+        suppressMiniUntil = Date.now() + 600;
+    });
+
     if ('IntersectionObserver' in window && sentinel) {
         const io = new IntersectionObserver((entries) => {
             if (document.fullscreenElement) return;
+            if (Date.now() < suppressMiniUntil) return;
             const r = entries[0].intersectionRatio;
             // Hysteresis: only enter mini at <25% visible, only exit at
             // >50% visible. Prevents flicker when the user parks near

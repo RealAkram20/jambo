@@ -460,9 +460,18 @@ document.addEventListener('DOMContentLoaded', async function () {
         if (hero) hero.appendChild(frame);
     }
 
+    // Same fullscreen-toggle settle suppression as watch-page so the
+    // post-fullscreen reflow can't trick the observer into flickering
+    // mini-mode for a frame.
+    let suppressMiniUntil = 0;
+    document.addEventListener('fullscreenchange', () => {
+        suppressMiniUntil = Date.now() + 600;
+    });
+
     if ('IntersectionObserver' in window && sentinel) {
         const io = new IntersectionObserver((entries) => {
             if (document.fullscreenElement) return;
+            if (Date.now() < suppressMiniUntil) return;
             const r = entries[0].intersectionRatio;
             if (r < 0.25) enterMini();
             else if (r > 0.5) exitMini();
