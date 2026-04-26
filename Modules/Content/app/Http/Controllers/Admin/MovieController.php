@@ -112,20 +112,35 @@ class MovieController extends Controller
 
             $this->syncRelationships($movie, $data);
 
-            $wasPublished = $movie->status === 'published';
-
             return $movie;
         });
 
-        if ($wasPublished) {
+        // Queue transcode for whatever video source the admin provided
+        // (file upload / local FileManager pick / Dropbox URL). Each of
+        // these helpers is a no-op if the corresponding source path
+        // wasn't used, so calling all three is safe.
+        $this->handleVideoUpload($request, $movie);
+        $this->handleLocalTranscode($request, $movie);
+        $this->handleDropboxTranscode($request, $movie);
+
+        // If admin asked to publish a movie that still needs encoding,
+        // defer to the auto-publish-on-transcode-complete hook so the
+        // public never sees a "Published" movie that won't play.
+        $deferred = $this->applyPublishDeferral($movie, $data['status'] ?? 'draft');
+
+        if (!$deferred && $movie->status === 'published') {
             event(new \Modules\Notifications\app\Events\MovieAdded(
                 $movie->id, $movie->title, $movie->slug, $movie->poster_url,
             ));
         }
 
+        $message = $deferred
+            ? "Movie \"{$movie->title}\" saved. It will publish automatically once transcoding finishes."
+            : "Movie \"{$movie->title}\" created.";
+
         return redirect()
             ->route('admin.movies.edit', $movie)
-            ->with('success', "Movie \"{$movie->title}\" created.");
+            ->with('success', $message);
     }
 
     public function edit(Movie $movie): View
@@ -206,15 +221,27 @@ class MovieController extends Controller
             $justPublished = $oldStatus !== 'published' && $movie->status === 'published';
         });
 
-        if ($justPublished) {
+        // Pick up any new video source the admin supplied with this save.
+        $this->handleVideoUpload($request, $movie);
+        $this->handleLocalTranscode($request, $movie);
+        $this->handleDropboxTranscode($request, $movie);
+
+        // Defer publication if the asset is mid-transcode.
+        $deferred = $this->applyPublishDeferral($movie, $movie->status);
+
+        if ($justPublished && !$deferred) {
             event(new \Modules\Notifications\app\Events\MovieAdded(
                 $movie->id, $movie->title, $movie->slug, $movie->poster_url,
             ));
         }
 
+        $message = $deferred
+            ? 'Movie saved. It will publish automatically once transcoding finishes.'
+            : 'Movie saved.';
+
         return redirect()
             ->route('admin.movies.edit', $movie)
-            ->with('success', 'Movie saved.');
+            ->with('success', $message);
     }
 
     /**
@@ -450,6 +477,37 @@ class MovieController extends Controller
     /* -------------------------------------------------------------------- */
     /* Helpers                                                              */
     /* -------------------------------------------------------------------- */
+
+    /**
+     * If the admin asked to publish a movie that hasn't finished
+     * transcoding, demote it back to draft and flip publish_when_ready
+     * so the post-transcode hook auto-publishes it.
+     *
+     * Returns true when the deferral happened so the caller knows to
+     * suppress the immediate MovieAdded push event.
+     */
+    private function applyPublishDeferral(Movie $movie, string $intendedStatus): bool
+    {
+        if ($intendedStatus !== 'published') {
+            return false;
+        }
+
+        $hasVideoSource = !empty($movie->video_url) || !empty($movie->dropbox_path) || !empty($movie->source_path);
+        if (!$hasVideoSource) {
+            return false; // nothing to transcode (e.g. upcoming with metadata only)
+        }
+
+        if ($movie->transcode_status === 'ready') {
+            return false; // already encoded, publish is real
+        }
+
+        $movie->forceFill([
+            'status'              => 'draft',
+            'publish_when_ready'  => true,
+        ])->save();
+
+        return true;
+    }
 
     private function uniqueSlug(string $title, ?int $ignoreId = null): string
     {

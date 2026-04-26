@@ -54,16 +54,27 @@ class EpisodeController extends Controller
             'published_at' => $data['published_at'] ?? null,
         ]);
 
-        if ($episode->published_at) {
+        // Queue transcode for whatever video source the admin provided.
+        $this->handleVideoUpload($request, $episode);
+        $this->handleLocalTranscode($request, $episode);
+        $this->handleDropboxTranscode($request, $episode);
+
+        $deferred = $this->applyPublishDeferral($episode);
+
+        if ($episode->published_at && !$deferred) {
             event(new \Modules\Notifications\app\Events\EpisodeAdded(
                 $show->title, $season->number, $episode->number,
                 $episode->title, $show->slug, $episode->still_url ?? $show->poster_url,
             ));
         }
 
+        $message = $deferred
+            ? "Episode {$episode->number} saved. It will publish automatically once transcoding finishes."
+            : "Episode {$episode->number} added.";
+
         return redirect()
             ->route('admin.series.seasons.episodes.edit', [$show, $season, $episode])
-            ->with('success', "Episode {$episode->number} added.");
+            ->with('success', $message);
     }
 
     public function edit(Show $show, Season $season, Episode $episode): View
@@ -108,9 +119,56 @@ class EpisodeController extends Controller
 
         $episode->save();
 
+        // Pick up new video source + dispatch transcode if needed.
+        $this->handleVideoUpload($request, $episode);
+        $this->handleLocalTranscode($request, $episode);
+        $this->handleDropboxTranscode($request, $episode);
+
+        $deferred = $this->applyPublishDeferral($episode);
+
+        $justPublished = !$wasPublished && $episode->published_at !== null;
+        if ($justPublished && !$deferred) {
+            event(new \Modules\Notifications\app\Events\EpisodeAdded(
+                $show->title, $season->number, $episode->number,
+                $episode->title, $show->slug, $episode->still_url ?? $show->poster_url,
+            ));
+        }
+
+        $message = $deferred
+            ? 'Episode saved. It will publish automatically once transcoding finishes.'
+            : 'Episode saved.';
+
         return redirect()
             ->route('admin.series.seasons.episodes.edit', [$show, $season, $episode])
-            ->with('success', 'Episode saved.');
+            ->with('success', $message);
+    }
+
+    /**
+     * Mirrors MovieController::applyPublishDeferral but sized for the
+     * episode model — episodes don't have a `status` column, so the
+     * "is this published?" signal is just whether published_at is set.
+     */
+    private function applyPublishDeferral(Episode $episode): bool
+    {
+        if (!$episode->published_at) {
+            return false; // admin didn't ask to publish
+        }
+
+        $hasVideoSource = !empty($episode->video_url) || !empty($episode->dropbox_path) || !empty($episode->source_path);
+        if (!$hasVideoSource) {
+            return false;
+        }
+
+        if ($episode->transcode_status === 'ready') {
+            return false;
+        }
+
+        $episode->forceFill([
+            'published_at'        => null, // we'll set it for real on transcode complete
+            'publish_when_ready'  => true,
+        ])->save();
+
+        return true;
     }
 
     /**

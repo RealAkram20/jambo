@@ -93,6 +93,12 @@ class TranscodeVideoJob implements ShouldQueue
                 'id' => $payable->id,
                 'master' => $outDir . '/master.m3u8',
             ]);
+
+            // Auto-publish + audience push if the admin clicked
+            // Publish before transcoding finished. The dispatch happens
+            // here rather than in the controller because this is the
+            // moment when the asset is actually watchable.
+            $this->autoPublish($payable);
         } catch (\Throwable $e) {
             $this->fail($payable, $e->getMessage());
             Log::error('[transcode] failed', [
@@ -125,5 +131,64 @@ class TranscodeVideoJob implements ShouldQueue
             'transcode_status' => 'failed',
             'transcode_error' => substr($message, 0, 1000),
         ])->save();
+    }
+
+    /**
+     * If the admin clicked Publish before this finished encoding,
+     * flip the asset to published, stamp published_at, and fire the
+     * matching *Added event so subscribers get pushed. Movies and
+     * episodes diverge on the published signal (movies: status column;
+     * episodes: published_at presence) so each is handled separately.
+     *
+     * Idempotent for re-transcodes: if the asset was already public,
+     * we won't fire the audience-facing event again.
+     */
+    private function autoPublish(Movie|Episode $payable): void
+    {
+        if (!($payable->publish_when_ready ?? false)) {
+            return;
+        }
+
+        if ($payable instanceof Movie) {
+            $alreadyPublished = $payable->status === 'published';
+            $payable->forceFill([
+                'status'              => 'published',
+                'published_at'        => $payable->published_at ?: now(),
+                'publish_when_ready'  => false,
+            ])->save();
+
+            Log::info('[transcode] auto-published movie', [
+                'id' => $payable->id, 'title' => $payable->title,
+            ]);
+
+            if (!$alreadyPublished) {
+                event(new \Modules\Notifications\app\Events\MovieAdded(
+                    $payable->id, $payable->title, $payable->slug, $payable->poster_url,
+                ));
+            }
+            return;
+        }
+
+        if ($payable instanceof Episode) {
+            $alreadyPublished = (bool) $payable->published_at;
+            $payable->forceFill([
+                'published_at'       => $payable->published_at ?: now(),
+                'publish_when_ready' => false,
+            ])->save();
+
+            Log::info('[transcode] auto-published episode', [
+                'id' => $payable->id,
+            ]);
+
+            if (!$alreadyPublished) {
+                $show = $payable->season?->show;
+                if ($show) {
+                    event(new \Modules\Notifications\app\Events\EpisodeAdded(
+                        $show->title, $payable->season->number, $payable->number,
+                        $payable->title, $show->slug, $payable->still_url ?? $show->poster_url,
+                    ));
+                }
+            }
+        }
     }
 }
