@@ -103,12 +103,31 @@
 
         function toggleFullscreen() {
             var el = container.closest('video-player') || container;
+            // Use the standard Promise API and swallow the rejection
+            // — when the user denies the fullscreen request mid-flight
+            // (rare), Chrome rejects the promise and we'd otherwise
+            // log a console error for nothing.
             if (document.fullscreenElement) {
-                document.exitFullscreen();
+                if (document.exitFullscreen) document.exitFullscreen().catch(function () {});
             } else if (el.requestFullscreen) {
-                el.requestFullscreen();
+                el.requestFullscreen().catch(function () {});
             }
             showFeedback('fullscreen');
+        }
+
+        // Media Chrome's <media-fullscreen-button> tracks fullscreen on
+        // an element it owns. Our F-key shortcut fullscreens the
+        // <video-player> ancestor, so the button can drift out of sync
+        // — its icon flips, but the click ends up trying to exit on the
+        // wrong target and the browser stays fullscreen. Hijacking the
+        // button here forces both paths through the same native API.
+        var fsBtn = container && container.querySelector('media-fullscreen-button');
+        if (fsBtn) {
+            fsBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                toggleFullscreen();
+            }, true); // capture phase, before Media Chrome handles it
         }
 
         function seekPercent(pct) {
