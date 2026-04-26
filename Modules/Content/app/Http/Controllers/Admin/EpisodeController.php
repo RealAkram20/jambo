@@ -41,6 +41,16 @@ class EpisodeController extends Controller
 
         [$videoUrl, $dropboxPath] = $this->resolveVideoSource($data);
 
+        // Status comes from the form's Draft/Upcoming/Published picker
+        // (UI helper — episodes don't have a status column, but using
+        // the picker to drive published_at gives admins the same
+        // mental model as movies). Mirrors MovieController: status
+        // changing to published with no explicit date stamps now().
+        $publishedAt = $this->resolveEpisodePublishedAt(
+            $request->input('status', 'draft'),
+            $data['published_at'] ?? null,
+        );
+
         $episode = $season->episodes()->create([
             'number' => $data['number'],
             'title' => $data['title'],
@@ -51,7 +61,7 @@ class EpisodeController extends Controller
             'video_url' => $videoUrl,
             'video_url_low' => trim($data['video_url_low'] ?? '') ?: null,
             'tier_required' => $data['tier_required'] ?? null,
-            'published_at' => $data['published_at'] ?? null,
+            'published_at' => $publishedAt,
         ]);
 
         // Queue transcode for whatever video source the admin provided.
@@ -105,16 +115,19 @@ class EpisodeController extends Controller
             'tier_required' => $data['tier_required'] ?? null,
         ]);
 
-        // published_at: if the form sent a value, use it; otherwise if
-        // the user cleared it, null it; otherwise leave as-is. We also
-        // stamp now() automatically when toggling a draft episode to
-        // published by setting a value for the first time.
-        if (array_key_exists('published_at', $data)) {
+        // Status picker (UI helper) drives published_at the same way
+        // as the movies form: Draft clears the date, Published stamps
+        // now() if the admin didn't pick one, Upcoming keeps whatever
+        // future date they entered. Falls back to the previously
+        // stored value if the form didn't send a status field at all.
+        $statusInput = $request->input('status');
+        if ($statusInput) {
+            $episode->published_at = $this->resolveEpisodePublishedAt(
+                $statusInput,
+                $data['published_at'] ?? null,
+            );
+        } elseif (array_key_exists('published_at', $data)) {
             $episode->published_at = $data['published_at'] ?: null;
-        }
-
-        if (!$wasPublished && $episode->published_at === null && ($data['published_at'] ?? null)) {
-            $episode->published_at = now();
         }
 
         $episode->save();
@@ -141,6 +154,26 @@ class EpisodeController extends Controller
         return redirect()
             ->route('admin.series.seasons.episodes.edit', [$show, $season, $episode])
             ->with('success', $message);
+    }
+
+    /**
+     * Translate the form's Draft/Upcoming/Published picker into the
+     * actual published_at value to store. Mirrors what MovieController
+     * does inline — published_at is the single source of truth on
+     * episodes, but admins think in terms of status, so we keep the
+     * conversion logic explicit and shared between store() and
+     * update().
+     */
+    private function resolveEpisodePublishedAt(string $status, mixed $rawDate): mixed
+    {
+        $rawDate = is_string($rawDate) && trim($rawDate) === '' ? null : $rawDate;
+
+        return match ($status) {
+            'draft'     => null,
+            'published' => $rawDate ?: now(),
+            'upcoming'  => $rawDate ?: null, // admin should pick a date; null = treated as draft
+            default     => $rawDate ?: null,
+        };
     }
 
     /**

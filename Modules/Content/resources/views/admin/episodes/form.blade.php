@@ -136,13 +136,17 @@
     var dateInput = document.getElementById('published_at');
     if (!statusSel || !wrap || !label || !hint || !dateInput) return;
 
+    function nowLocalForInput() {
+        var d = new Date();
+        var pad = function (n) { return String(n).padStart(2, '0'); };
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+            + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+
     function apply() {
         var s = statusSel.value;
         if (s === 'draft') {
             wrap.style.display = 'none';
-            // Don't blast the date — the controller reads it, and an
-            // empty value plus status=draft cleanly signals "save as
-            // draft" without losing whatever was typed.
             dateInput.value = '';
         } else {
             wrap.style.display = '';
@@ -152,6 +156,14 @@
             } else {
                 label.textContent = 'Published at';
                 hint.textContent = 'When this episode went live. Leave blank to auto-stamp on save.';
+                // When admin flips to Published, prefill the field with
+                // "now" so the saved row actually reflects the intent.
+                // The controller would also fall back to now() on its
+                // own, but populating the input keeps the UI honest:
+                // the admin sees the value that's about to be saved.
+                if (!dateInput.value) {
+                    dateInput.value = nowLocalForInput();
+                }
             }
         }
     }
