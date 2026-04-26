@@ -40,4 +40,25 @@
         </div>
     </div>
 </div>
+
+{{-- Same live-refresh behaviour as the movies list: reload on Back
+     so a stale browser snapshot can't hide newly-finished
+     transcodes, and auto-poll every 30s while any episode in this
+     season is still queued or transcoding. --}}
+<script>
+(function () {
+    window.addEventListener('pageshow', function (e) {
+        if (e.persisted) location.reload();
+    });
+
+    var hasInflight = document.querySelector(
+        '.badge[title="Transcode queued"], .badge[title="Transcoding in progress"], .badge[title="Downloading source"]'
+    );
+    if (hasInflight) {
+        setInterval(function () {
+            if (!document.hidden) location.reload();
+        }, 30000);
+    }
+})();
+</script>
 @endsection

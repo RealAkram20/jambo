@@ -35,8 +35,29 @@
                             <td>
                                 @if ($episode->published_at)
                                     <span class="badge bg-success">Published</span>
+                                @elseif ($episode->publish_when_ready)
+                                    <span class="badge bg-secondary" title="Will go live when transcoding finishes">Pending</span>
                                 @else
                                     <span class="badge bg-warning">Draft</span>
+                                @endif
+                                @if ($episode->transcode_status)
+                                    @switch($episode->transcode_status)
+                                        @case('queued')
+                                            <span class="badge bg-secondary" title="Transcode queued" style="font-size:10px;">Queued</span>
+                                            @break
+                                        @case('downloading')
+                                            <span class="badge bg-info" title="Downloading source" style="font-size:10px;">Downloading</span>
+                                            @break
+                                        @case('transcoding')
+                                            <span class="badge bg-info" title="Transcoding in progress" style="font-size:10px;">Transcoding</span>
+                                            @break
+                                        @case('ready')
+                                            <span class="badge bg-success" title="HLS stream ready" style="font-size:10px;">HLS</span>
+                                            @break
+                                        @case('failed')
+                                            <span class="badge bg-danger" title="{{ $episode->transcode_error }}" style="font-size:10px;">Transcode failed</span>
+                                            @break
+                                    @endswitch
                                 @endif
                             </td>
                             <td class="text-end">
