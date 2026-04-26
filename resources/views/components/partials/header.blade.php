@@ -149,18 +149,23 @@
                 <li class="nav-item dropdown">
                     <a class="py-0 nav-link d-flex align-items-center ps-3" href="#" id="profile-setting"
                         role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <img src="{{ asset('dashboard/images/user/01.jpg') }}" alt="User-Profile"
-                            class="theme-color-default-img img-fluid avatar avatar-50 avatar-rounded" loading="lazy">
-                        <img src="{{ asset('dashboard/images/user/01.jpg') }}" alt="User-Profile"
-                            class="theme-color-purple-img img-fluid avatar avatar-50 avatar-rounded" loading="lazy">
-                        <img src="{{ asset('dashboard/images/user/02.jpg') }}" alt="User-Profile"
-                            class="theme-color-blue-img img-fluid avatar avatar-50 avatar-rounded" loading="lazy">
-                        <img src="{{ asset('dashboard/images/user/03.jpg') }}" alt="User-Profile"
-                            class="theme-color-green-img img-fluid avatar avatar-50 avatar-rounded" loading="lazy">
-                        <img src="{{ asset('dashboard/images/user/04.jpg') }}" alt="User-Profile"
-                            class="theme-color-yellow-img img-fluid avatar avatar-50 avatar-rounded" loading="lazy">
-                        <img src="{{ asset('dashboard/images/user/05.jpg') }}" alt="User-Profile"
-                            class="theme-color-pink-img img-fluid avatar avatar-50 avatar-rounded" loading="lazy">
+                        @php
+                            $headerAvatarSrc = auth()->user()?->profile_image
+                                ?: asset('dashboard/images/user/01.jpg');
+                            $headerAvatarAlt = auth()->user()?->full_name
+                                ?: (auth()->user()?->username ?? 'Profile');
+                        @endphp
+                        {{-- One real avatar instead of six themed
+                             template demos. The accessor on User
+                             cascades upload → favicon → logo →
+                             default, so this surfaces the operator's
+                             real brand even when the user hasn't
+                             uploaded a photo yet. --}}
+                        <img src="{{ $headerAvatarSrc }}"
+                             alt="{{ $headerAvatarAlt }}"
+                             class="img-fluid avatar avatar-50 avatar-rounded" loading="lazy"
+                             style="object-fit:cover;">
+
                         <div class="caption ms-3 d-none d-md-block ">
                             @php
                                 $headerUser = auth()->user();

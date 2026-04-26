@@ -138,7 +138,20 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
     protected function getProfileImageAttribute()
     {
         $media = $this->getFirstMediaUrl('profile_image');
+        if (!empty($media)) {
+            return $media;
+        }
 
-        return isset($media) && ! empty($media) ? $media : asset(config('app.avatar_base_path').'avatar.png');
+        // Fallback chain when the user hasn't uploaded a photo:
+        //   1. branded_icon() — operator's favicon, then logo
+        //   2. final stock avatar from app config
+        // Picks up the same brand asset the install prompt and PWA
+        // manifest use, so unauthenticated/photo-less users see the
+        // site's identity instead of a generic person silhouette.
+        if (function_exists('branded_icon')) {
+            return branded_icon(config('app.avatar_base_path', '') . 'avatar.png');
+        }
+
+        return asset(config('app.avatar_base_path', '') . 'avatar.png');
     }
 }

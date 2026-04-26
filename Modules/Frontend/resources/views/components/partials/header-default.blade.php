@@ -65,14 +65,18 @@
                 </a>
 
                 @if (auth()->check())
-                    @php $jamboIsAdmin = auth()->user()->hasRole('admin'); @endphp
+                    @php
+                        $jamboIsAdmin = auth()->user()->hasRole('admin');
+                        $jamboHeaderAvatar = auth()->user()->profile_image
+                            ?: asset('frontend/images/user/user6.jpg');
+                    @endphp
                     <div class="dropdown">
                         <a href="javascript:void(0)" class="jambo-header__avatar" data-bs-toggle="dropdown" aria-expanded="false">
-                            <img src="{{ asset('frontend/images/user/user6.jpg') }}" alt="{{ auth()->user()->full_name ?: (auth()->user()->username ?? 'User') }}" class="rounded-circle" width="32" height="32" loading="lazy">
+                            <img src="{{ $jamboHeaderAvatar }}" alt="{{ auth()->user()->full_name ?: (auth()->user()->username ?? 'User') }}" class="rounded-circle" width="32" height="32" loading="lazy" style="object-fit:cover;">
                         </a>
                         <div class="dropdown-menu dropdown-menu-end jambo-user-dropdown">
                             <div class="d-flex align-items-center gap-3 px-3 py-2 border-bottom border-dark">
-                                <img src="{{ asset('frontend/images/user/user6.jpg') }}" class="rounded-circle" width="40" height="40" alt="">
+                                <img src="{{ $jamboHeaderAvatar }}" class="rounded-circle" width="40" height="40" alt="" style="object-fit:cover;">
                                 <div>
                                     <div class="fw-semibold d-flex align-items-center gap-2">
                                         {{ auth()->user()->full_name ?: (auth()->user()->username ?? 'User') }}
