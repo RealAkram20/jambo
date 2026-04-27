@@ -544,3 +544,26 @@
     overflow-x: hidden;
 }
 
+/* ================================================================== */
+/* Global horizontal-overflow guard                                     */
+/* ================================================================== */
+/*
+ * Hard cap the document width to the viewport. Without this, any
+ * accidental overflow (a too-wide swiper wrapper, a missing
+ * max-width on an image, a stray `width: 1920px` from a vendor
+ * SCSS) extends the layout viewport on mobile. When that happens
+ * `.jambo-mobile-nav` (position:fixed; left:0; right:0) anchors to
+ * the document edges instead of the visible screen — so the
+ * "Series" / "Watchlist" tabs slide off the right of the phone.
+ *
+ * `overflow-x: clip` is the right tool — it clips without creating
+ * a scroll container, so position:sticky still works inside.
+ * Falls back to `hidden` on older browsers (clip ships in 90%+
+ * mobile browsers as of late 2024).
+ */
+html, body {
+    overflow-x: hidden;
+    overflow-x: clip;
+}
+
+
