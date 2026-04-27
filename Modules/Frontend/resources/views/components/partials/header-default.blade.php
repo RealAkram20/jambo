@@ -293,12 +293,14 @@
 })();
 </script>
 
-{{-- PWA back/forward chrome. Standalone (installed) windows have no
-     browser toolbar, so without these buttons users can't navigate.
-     We toggle visibility from JS rather than CSS-only because the
-     standalone state can change at runtime (window install / uninstall),
-     and we also want to disable Forward when there's no forward
-     history. --}}
+{{-- PWA back/forward chrome. Standalone (installed) desktop windows
+     have no browser toolbar, so without these buttons users can't
+     navigate. On mobile PWAs we leave them off because the OS already
+     provides a back gesture / hardware button, and the extra header
+     chrome eats horizontal space on small screens. We toggle visibility
+     from JS rather than CSS-only because the standalone state can
+     change at runtime (window install / uninstall), and we also want
+     to disable Forward when there's no forward history. --}}
 <script>
 (function () {
     var backBtn = document.getElementById('jambo-pwa-back');
@@ -310,8 +312,13 @@
             || window.navigator.standalone === true;
     }
 
+    // Bootstrap's `lg` breakpoint. Mobile / tablet portrait stays
+    // chromeless; desktop / large tablets get the buttons.
+    var DESKTOP_MIN_PX = 992;
+
     function applyVisibility() {
-        if (isStandalone()) {
+        var show = isStandalone() && window.innerWidth >= DESKTOP_MIN_PX;
+        if (show) {
             backBtn.classList.remove('d-none');
             fwdBtn.classList.remove('d-none');
         } else {
@@ -349,6 +356,10 @@
     if (window.matchMedia) {
         window.matchMedia('(display-mode: standalone)').addEventListener('change', applyVisibility);
     }
+    // Re-evaluate on tablet rotation / window resize across the lg
+    // breakpoint so the buttons appear/disappear immediately rather
+    // than only on the next page load.
+    window.addEventListener('resize', applyVisibility);
     window.addEventListener('popstate', applyEnabled);
     window.addEventListener('pageshow', applyEnabled);
 })();
