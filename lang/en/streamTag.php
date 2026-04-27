@@ -72,6 +72,7 @@ return [
     'views' => 'Views',
     'movies' => 'movies',
     'series' => 'series',
+    'shows' => 'shows',
     'episodes' => 'episodes',
     'most_popular' => 'Most popular',
 
