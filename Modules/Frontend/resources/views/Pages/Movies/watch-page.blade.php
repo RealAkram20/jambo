@@ -10,7 +10,7 @@
     {{-- Minimal-skin player from @videojs/html. The CSS file is at
          public/frontend/css/player.css; the module script below registers
          the custom elements (<video-player>, <media-*>). --}}
-    <link rel="stylesheet" href="{{ asset('frontend/css/player.css') }}">
+    <link rel="stylesheet" href="{{ versioned_asset('frontend/css/player.css') }}">
     <script type="module" src="https://cdn.jsdelivr.net/npm/@videojs/html/cdn/video-minimal-ui.js"></script>
     <script src="{{ versioned_asset('frontend/js/jambo-settings-menu.js') }}" defer></script>
     <script src="{{ versioned_asset('frontend/js/jambo-player-gestures.js') }}" defer></script>

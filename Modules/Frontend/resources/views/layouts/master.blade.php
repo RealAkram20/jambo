@@ -35,7 +35,11 @@
         href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,700;0,900;1,300&display=swap"
         rel="stylesheet">
 
-    <link rel="stylesheet" href="{{ asset('frontend/css/jambo-header.css') }}">
+    {{-- versioned_asset() appends ?v=<filemtime> so browsers and the
+         PWA pick up CSS edits immediately instead of holding stale
+         copies. The earlier .movie-banner-image fix didn't visibly
+         apply in production until this was wired up. --}}
+    <link rel="stylesheet" href="{{ versioned_asset('frontend/css/jambo-header.css') }}">
 </head>
 
 <body class="{{ $bodyClass ?? '' }}">
