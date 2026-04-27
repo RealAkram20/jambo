@@ -5,5 +5,5 @@
 <!-- utility Script -->
 <script src="{{ asset('frontend/js/utility.js') }}"></script>
 <!-- Jambo Script -->
-<script src="{{ asset('frontend/js/streamit.js') }}" defer></script>
-<script src="{{ asset('frontend/js/swiper.js') }}" defer></script>
+<script src="{{ versioned_asset('frontend/js/streamit.js') }}" defer></script>
+<script src="{{ versioned_asset('frontend/js/swiper.js') }}" defer></script>

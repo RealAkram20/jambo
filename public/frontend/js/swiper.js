@@ -459,6 +459,12 @@
     document.querySelectorAll('[data-swiper="banner-detail-slider"]').length
   ) {
     const options = {
+      // centeredSlides only kicks in at >=992px where slidesPerView
+      // goes >1 ("peek the neighbours" design). On phones we want
+      // ONE full-width slide — centering a single slide is a no-op
+      // but mixing centeredSlides:true with slidesPerView:1 does
+      // not break, so we keep the flag default-on for desktop and
+      // accept the no-op on mobile.
       centeredSlides: true,
       grabCursor: true,
       loop: true,
@@ -472,13 +478,15 @@
       },
       speed : 1500,
       breakpoints: {
+        // Phones / portrait tablets: one slide per view, takes the
+        // full viewport width. The previous 1.2 left a 17% gap on
+        // the right side of every slide — making the page look
+        // broken on mobile.
         0: {
-          slidesPerView: 1.2,
+          slidesPerView: 1,
         },
-        479: {
-          slidesPerView: 1.2,
-        },
-        769: {
+        // Landscape tablets / small laptops: keep "peek next" hint.
+        992: {
           slidesPerView: 1.1,
         },
         1200: {
