@@ -435,8 +435,24 @@
     display: none;
     position: fixed;
     bottom: 0;
+    /* Bind to the VISUAL viewport, not the containing block. With
+       `left: 0; right: 0` the nav fills its containing block (the
+       initial containing block / layout viewport). On mobile, ANY
+       element on the page that escapes 100% width — a swiper wrapper
+       with a transform, an oversized image, a vendor stylesheet that
+       sets `width: 1920px` — extends the layout viewport past the
+       screen. The nav then renders that wider, with the rightmost
+       tabs sliding offscreen.
+
+       `width: 100vw` + `left: 0` is bound to the visual viewport
+       directly; `max-width: 100%` falls back to 100% when 100vw
+       includes a phantom scrollbar (rare on mobile, defensive). The
+       inner flex layout still distributes the four items evenly. */
     left: 0;
-    right: 0;
+    right: auto;
+    width: 100vw;
+    max-width: 100%;
+    box-sizing: border-box;
     z-index: 1000;
     background: rgba(10, 10, 10, 0.85);
     backdrop-filter: blur(20px) saturate(1.5);

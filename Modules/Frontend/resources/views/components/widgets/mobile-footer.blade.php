@@ -58,3 +58,40 @@
         <span class="jambo-mobile-nav__label">Watchlist</span>
     </a>
 </nav>
+
+{{-- Active horizontal-overflow watchdog. CSS already caps body at
+     100vw on mobile, but content rendered/resized after first paint
+     (lazy images, swiper-wrapper transforms, late-mounting iframes)
+     can still nudge the document wider for a frame and leave the
+     fixed nav anchored to the wider edge. This script measures the
+     document on every relevant lifecycle event and re-applies the
+     clip if anything escaped. Cheap — short-circuits when there's
+     no overflow, which is the steady state. --}}
+<script>
+(function () {
+    if (window.innerWidth >= 992) return;
+    var html = document.documentElement;
+    var body = document.body;
+
+    function clamp() {
+        // Don't lock html overflow — that breaks fullscreen on
+        // iOS WebKit. Body is enough to cap the layout viewport.
+        if (html.scrollWidth > html.clientWidth) {
+            body.style.overflowX = 'clip';
+            body.style.maxWidth = '100vw';
+        }
+    }
+
+    // Run on every lifecycle that can introduce late overflow.
+    clamp();
+    window.addEventListener('load', clamp);
+    window.addEventListener('resize', clamp);
+    window.addEventListener('orientationchange', clamp);
+
+    // Re-check whenever images load (most common late-overflow source).
+    document.querySelectorAll('img').forEach(function (img) {
+        if (img.complete) return;
+        img.addEventListener('load', clamp, { once: true });
+    });
+})();
+</script>
