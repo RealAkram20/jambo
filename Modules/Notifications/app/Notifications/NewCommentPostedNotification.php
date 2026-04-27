@@ -27,7 +27,10 @@ class NewCommentPostedNotification extends ChannelGatedNotification
             'icon'         => 'ph-chat-circle-dots',
             'colour'       => 'warning',
             'image'        => null,
-            'action_url'   => route('dashboard.comment'),
+            // No comments moderation page exists anymore; deep-link to
+            // the dashboard so the admin sees the badge but isn't
+            // dropped onto a 500.
+            'action_url'   => route('dashboard'),
             'action_label' => 'Moderate',
             'comment_id'   => $this->commentId,
         ];

@@ -25,7 +25,9 @@ class NewReviewPostedNotification extends ChannelGatedNotification
             'icon'         => 'ph-star',
             'colour'       => 'warning',
             'image'        => null,
-            'action_url'   => route('dashboard.review'),
+            // Reviews and ratings now live on the same admin page —
+            // dashboard.review was removed in favour of dashboard.rating.
+            'action_url'   => route('dashboard.rating'),
             'action_label' => 'Moderate',
             'review_id'    => $this->reviewId,
         ];

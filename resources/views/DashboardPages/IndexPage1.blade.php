@@ -180,11 +180,9 @@
                     <h3 class="card-title">{{ __('dashboard.user-rating-and-reviews') }}</h3>
                 </div>
                 <div class="card-header-toolbar d-flex align-items-center ">
-                    {{-- "View all" goes to the real review moderation page
-                         instead of the original demo dropdown with dead
-                         View/Delete/Edit/Print/Download links that went
-                         to href="#". --}}
-                    <a href="{{ route('dashboard.review') }}" class="text-primary text-decoration-none">
+                    {{-- "View all" goes to the unified Ratings page
+                         (formerly Review). --}}
+                    <a href="{{ route('dashboard.rating') }}" class="text-primary text-decoration-none">
                         {{ __('dashboard.view-all') }} <i class="ri-arrow-right-line"></i>
                     </a>
                 </div>
