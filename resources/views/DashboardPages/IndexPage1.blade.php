@@ -202,13 +202,20 @@
                         </thead>
                         <tbody>
                             @forelse ($recentReviews as $review)
+                                @php
+                                    $reviewerName = $review->user
+                                        ? ($review->user->full_name ?: $review->user->username)
+                                        : '—';
+                                    $reviewerAvatar = $review->user?->profile_image ?: branded_icon();
+                                @endphp
                                 <tr>
                                     <td>
                                         <div class="d-flex gap-3 align-items-center">
                                             <img class="avatar avatar-40 rounded-pill"
-                                                src="{{ asset('dashboard/images/author/0' . ((($loop->index) % 6) + 1) . '.png') }}" alt="profile">
+                                                style="object-fit:cover;"
+                                                src="{{ $reviewerAvatar }}" alt="{{ $reviewerName }}">
                                             <div class="text-start">
-                                                <h6 class="m-0">{{ $review->user?->name ?? '—' }}</h6>
+                                                <h6 class="m-0">{{ $reviewerName }}</h6>
                                                 <small>{{ $review->user?->email ?? '' }}</small>
                                             </div>
                                         </div>
@@ -282,14 +289,26 @@
                                 </thead>
                                 <tbody>
                                     @forelse ($recentPayments as $payment)
+                                        @php
+                                            // The order may outlive its user (the payment-history-
+                                            // preservation work makes user_id nullable on delete).
+                                            // When that happens, fall back to the customer_*
+                                            // snapshot columns we stamp on save.
+                                            $payerName = $payment->user
+                                                ? ($payment->user->full_name ?: $payment->user->username)
+                                                : ($payment->customer_name ?: ($payment->customer_username ?: '—'));
+                                            $payerEmail = $payment->user?->email ?: ($payment->customer_email ?? '');
+                                            $payerAvatar = $payment->user?->profile_image ?: branded_icon();
+                                        @endphp
                                         <tr>
                                             <td>
                                                 <div class="d-flex gap-3 align-items-center">
                                                     <img class="avatar avatar-40 rounded-pill"
-                                                        src="{{ asset('dashboard/images/author/0' . ((($loop->index) % 6) + 1) . '.png') }}" alt="profile">
+                                                        style="object-fit:cover;"
+                                                        src="{{ $payerAvatar }}" alt="{{ $payerName }}">
                                                     <div class="text-start">
-                                                        <h6 class="m-0">{{ $payment->user?->name ?? '—' }}</h6>
-                                                        <small>{{ $payment->user?->email ?? '' }}</small>
+                                                        <h6 class="m-0">{{ $payerName }}</h6>
+                                                        <small>{{ $payerEmail }}</small>
                                                     </div>
                                                 </div>
                                             </td>

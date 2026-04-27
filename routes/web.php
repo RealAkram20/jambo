@@ -74,7 +74,6 @@ Route::get('/app/charts/{chart}', [DashboardController::class, 'chartData'])
 Route::group(['as' => 'dashboard.', 'middleware' => ['auth', 'role:admin']], function () {
     // Route::get('static-app', [DashboardController::class, 'index'])->name('home');
     Route::get('rating', [DashboardController::class, 'rating'])->name('rating');
-    Route::get('comment', [DashboardController::class, 'comment'])->name('comment');
     // User admin — full CRUD. Kept under `/user-list` with the
     // `dashboard.user-list` name so the sidebar link already points
     // at the right place. The create / store / edit / update /
@@ -102,7 +101,6 @@ Route::group(['as' => 'dashboard.', 'middleware' => ['auth', 'role:admin']], fun
     Route::get('person-categories', [DashboardController::class, 'personCategories'])->name('person-categories');
     Route::get('person-tags', [DashboardController::class, 'personTags'])->name('person-tags');
 
-    Route::get('review', [DashboardController::class, 'review'])->name('review');
     Route::get('pricing', [DashboardController::class, 'pricing'])->name('pricing');
 
     Route::group(['prefix' => 'auth'], function () {

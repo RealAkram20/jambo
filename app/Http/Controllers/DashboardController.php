@@ -11,7 +11,6 @@ use Modules\Content\app\Models\Category;
 use Modules\Content\app\Models\Tag;
 use Modules\Content\app\Models\Rating;
 use Modules\Content\app\Models\Review;
-use Modules\Content\app\Models\Comment;
 use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Vj;
 use Modules\Payments\app\Models\PaymentOrder;
@@ -276,11 +275,17 @@ class DashboardController extends Controller
         $movieType = (new Movie)->getMorphClass();
         $showType = (new Show)->getMorphClass();
 
+        // Min ratings per title to qualify for the leaderboard. Higher
+        // = more reliable averages, lower = visible sooner. Set to 2
+        // while the audience is small; bump back up once a typical
+        // title sees double-digit ratings.
+        $minRatings = 2;
+
         foreach ([$movieType => Movie::class, $showType => Show::class] as $morph => $class) {
             $rows = DB::table('ratings')
                 ->where('ratable_type', $morph)
                 ->selectRaw('ratable_id, AVG(stars) as avg_stars, COUNT(*) as n')
-                ->havingRaw('n >= 3')
+                ->havingRaw('n >= ?', [$minRatings])
                 ->groupBy('ratable_id')
                 ->get();
 
@@ -307,52 +312,75 @@ class DashboardController extends Controller
     {
         $title = __('sidebar.rating');
 
-        $query = Rating::with(['user', 'ratable'])->latest();
+        // Reviews and ratings are conceptually the same thing to admins
+        // moderating user feedback — both carry a star score, a target,
+        // and a user. The page used to surface only the Rating model;
+        // now it loads both, normalises into a single row shape, sorts
+        // by recency, and paginates together so admins have one queue.
+        $type = $request->query('type');
+        $morphMap = [
+            'movie'   => \Modules\Content\app\Models\Movie::class,
+            'show'    => \Modules\Content\app\Models\Show::class,
+            'episode' => \Modules\Content\app\Models\Episode::class,
+        ];
+        $morphFilter = $morphMap[$type] ?? null;
 
-        if ($type = $request->query('type')) {
-            $map = [
-                'movie' => \Modules\Content\app\Models\Movie::class,
-                'show'  => \Modules\Content\app\Models\Show::class,
-                'episode' => \Modules\Content\app\Models\Episode::class,
-            ];
-            if (isset($map[$type])) {
-                $query->where('ratable_type', $map[$type]);
-            }
+        $ratingsQ = Rating::with(['user', 'ratable']);
+        $reviewsQ = Review::with(['user', 'reviewable']);
+
+        if ($morphFilter) {
+            $ratingsQ->where('ratable_type', $morphFilter);
+            $reviewsQ->where('reviewable_type', $morphFilter);
         }
 
-        $ratings = $query->paginate(20)->withQueryString();
+        $ratingRows = $ratingsQ->get()->map(fn ($r) => (object) [
+            'id'           => $r->id,
+            'kind'         => 'rating',
+            'user'         => $r->user,
+            'target'       => $r->ratable,
+            'targetType'   => $r->ratable_type,
+            'stars'        => $r->stars,
+            'reviewTitle'  => null,
+            'body'         => null,
+            'created_at'   => $r->created_at,
+            'editRoute'    => route('admin.ratings.update', $r),
+            'destroyRoute' => route('admin.ratings.destroy', $r),
+        ]);
+
+        $reviewRows = $reviewsQ->get()->map(fn ($r) => (object) [
+            'id'           => $r->id,
+            'kind'         => 'review',
+            'user'         => $r->user,
+            'target'       => $r->reviewable,
+            'targetType'   => $r->reviewable_type,
+            'stars'        => $r->stars,
+            'reviewTitle'  => $r->title,
+            'body'         => $r->body,
+            'created_at'   => $r->created_at,
+            // Reviews carry text — keep edit out (admin destroys
+            // instead) so we don't tempt rewriting user prose.
+            'editRoute'    => null,
+            'destroyRoute' => route('admin.reviews.destroy', $r),
+        ]);
+
+        $merged = $ratingRows->concat($reviewRows)->sortByDesc('created_at')->values();
+
+        // Manual LengthAwarePaginator over the merged collection — both
+        // sources live in different tables so a SQL UNION would be more
+        // setup than it's worth at the volumes we'll see.
+        $perPage = 20;
+        $page = max(1, (int) $request->query('page', 1));
+        $ratings = new \Illuminate\Pagination\LengthAwarePaginator(
+            $merged->forPage($page, $perPage)->values(),
+            $merged->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
 
         return view('DashboardPages.rating.RatingPage', compact('title', 'ratings'));
     }
 
-    public function comment(Request $request)
-    {
-        $title = __('dashboard.Comment_List');
-
-        $query = Comment::with(['user', 'commentable'])->latest();
-
-        if ($request->query('status') === 'approved') {
-            $query->where('is_approved', true);
-        } elseif ($request->query('status') === 'unapproved') {
-            $query->where('is_approved', false);
-        }
-
-        if ($type = $request->query('type')) {
-            $map = [
-                'movie' => \Modules\Content\app\Models\Movie::class,
-                'show'  => \Modules\Content\app\Models\Show::class,
-                'episode' => \Modules\Content\app\Models\Episode::class,
-            ];
-            if (isset($map[$type])) {
-                $query->where('commentable_type', $map[$type]);
-            }
-        }
-
-        $comments = $query->paginate(20)->withQueryString();
-        $filter = $request->query('status', '');
-
-        return view('DashboardPages.CommentPage', compact('title', 'comments', 'filter'));
-    }
 
     // The /user-list index has moved to App\Http\Controllers\Admin\UserController
     // so it can serve real data + CRUD. The route name
@@ -460,35 +488,6 @@ class DashboardController extends Controller
         $title = __('streamTag.tags');
         $tags = Tag::withCount(['movies', 'shows'])->orderBy('name')->get();
         return view('DashboardPages.persons.PersonTag', compact('title', 'tags'));
-    }
-
-    public function review(Request $request)
-    {
-        $title = __('sidebar.review');
-
-        $query = Review::with(['user', 'reviewable'])->latest();
-
-        if ($type = $request->query('type')) {
-            $map = [
-                'movie' => \Modules\Content\app\Models\Movie::class,
-                'show'  => \Modules\Content\app\Models\Show::class,
-                'episode' => \Modules\Content\app\Models\Episode::class,
-            ];
-            if (isset($map[$type])) {
-                $query->where('reviewable_type', $map[$type]);
-            }
-        }
-
-        if ($request->query('status') === 'published') {
-            $query->where('is_published', true);
-        } elseif ($request->query('status') === 'unpublished') {
-            $query->where('is_published', false);
-        }
-
-        $reviews = $query->paginate(20)->withQueryString();
-        $filter = $request->query('status', '');
-
-        return view('DashboardPages.review.ReviewPage', compact('title', 'reviews', 'filter'));
     }
 
     public function pricing(Request $request)

@@ -19,16 +19,6 @@
             <span class="item-name">{{ __('sidebar.rating') }}</span>
         </a>
     </li>
-    <li class="nav-item">
-        <a class="nav-link {{ activeRoute(route('dashboard.comment')) }}" aria-current="page"
-            href="{{ route('dashboard.comment') }}">
-            <i class="icon" data-bs-toggle="tooltip" data-bs-placement="right" aria-label="Comment"
-                data-bs-original-title="Comment">
-                <i class="ph ph-chat-circle-dots fs-4"></i>
-            </i>
-            <span class="item-name">{{ __('sidebar.comments') }}</span>
-        </a>
-    </li>
     @can('view_users')
         <li class="nav-item">
             <a class="nav-link {{ activeRoute(route('dashboard.user-list')) }}" href="{{ route('dashboard.user-list') }}">
@@ -291,15 +281,6 @@
         </li>
     @endif
 
-    <li class="nav-item">
-        <a class="nav-link {{ activeRoute(route('dashboard.review')) }}" href="{{ route('dashboard.review') }}">
-            <i class="icon" data-bs-toggle="tooltip" title="Review" data-bs-placement="right" aria-label="Review"
-                data-bs-original-title="Review">
-                <i class="ph ph-chat-centered fs-4"></i>
-            </i>
-            <span class="item-name">{{ __('sidebar.review') }}</span>
-        </a>
-    </li>
 
     {{--
         Template-demo groups removed for admin cleanup — Authentication,

@@ -87,6 +87,7 @@ Route::middleware(['auth', 'role:admin'])
         Route::delete('categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
 
         // Moderation: ratings, reviews, comments (listing via DashboardController template pages)
+        Route::patch('ratings/{rating}', [RatingController::class, 'update'])->name('ratings.update');
         Route::delete('ratings/{rating}', [RatingController::class, 'destroy'])->name('ratings.destroy');
 
         Route::patch('reviews/{review}/toggle-published', [ReviewController::class, 'togglePublished'])->name('reviews.toggle-published');
