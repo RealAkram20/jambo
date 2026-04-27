@@ -13,7 +13,10 @@ use Modules\Subscriptions\app\Http\Controllers\Admin\SubscriptionTierController;
 |
 */
 
-Route::middleware(['auth', 'role:admin'])
+// Subscription tier CRUD = pricing controls. Same role gate as the
+// rest of the payments / pricing surface so a content admin can't
+// edit tier amounts behind the operator's back.
+Route::middleware(['auth', 'role:admin', 'role:finance|super-admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {

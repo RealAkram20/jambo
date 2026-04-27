@@ -223,7 +223,13 @@
          under one parent so the top-level sidebar stays compact. Route
          guards on each child so modules that aren't loaded don't
          surface a dead link. Whole group hides if payments isn't
-         configured at all. --}}
+         configured at all.
+
+         Role gate: only finance / super-admin can see the financial
+         surface. A plain `admin` user manages content but never gets
+         the menu — same role check the routes themselves enforce, so
+         clicking through directly also 403s. --}}
+    @hasanyrole('finance|super-admin')
     @if (Route::has('admin.payments.index') || Route::has('admin.subscription-tiers.index'))
         <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('admin.payments.*') || request()->routeIs('admin.subscription-tiers.*') ? 'active' : '' }}"
@@ -280,6 +286,7 @@
             </ul>
         </li>
     @endif
+    @endhasanyrole
 
 
     {{--

@@ -25,5 +25,7 @@ return [
     'user' => 'User',
     "admin" => "Admin",
     "user" => "User",
-    "movies" => "Movie List"
+    "movies" => "Movie List",
+    "super-admin" => "Super Admin",
+    "finance" => "Finance",
 ];

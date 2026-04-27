@@ -35,6 +35,12 @@
                     </div>
                 </div>
             </div>
+            {{-- Financial cards (Total Subscribers, Total Earnings) are
+                 hidden from non-finance admins. Plain content admins
+                 don't need to see revenue figures, and the stats array
+                 still includes the values — only the rendering is
+                 gated. --}}
+            @hasanyrole('finance|super-admin')
             <div class="col-md-4 col-sm-6">
                 <div class="card">
                     <div class="card-body">
@@ -48,6 +54,7 @@
                     </div>
                 </div>
             </div>
+            @endhasanyrole
             <div class="col-md-4 col-sm-6">
                 <div class="card">
                     <div class="card-body">
@@ -74,6 +81,7 @@
                     </div>
                 </div>
             </div>
+            @hasanyrole('finance|super-admin')
             <div class="col-md-4 col-sm-6">
                 <div class="card">
                     <div class="card-body">
@@ -94,6 +102,7 @@
                     </div>
                 </div>
             </div>
+            @endhasanyrole
         </div>
     </div>
     <div class="col-lg-4">
@@ -258,6 +267,7 @@
                 </div>
             </div>
 
+            @hasanyrole('finance|super-admin')
             <div class="col-lg-8 col-md-6">
                 <div class="card card-dashboard">
                     <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">
@@ -327,6 +337,7 @@
                     </div>
                 </div>
             </div>
+            @endhasanyrole
         </div>
     </div>
 </div>

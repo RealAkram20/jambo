@@ -43,7 +43,10 @@ Route::get('payment/complete', [PaymentController::class, 'complete'])
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'role:admin'])
+// Payments + reconciliation are gated by the `finance` role. Regular
+// admins (content / moderation only) shouldn't see customer payment
+// data; super-admins always pass via the OR clause.
+Route::middleware(['auth', 'role:admin', 'role:finance|super-admin'])
     ->prefix('admin/payments')
     ->name('admin.payments.')
     ->group(function () {

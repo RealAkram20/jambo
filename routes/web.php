@@ -101,7 +101,12 @@ Route::group(['as' => 'dashboard.', 'middleware' => ['auth', 'role:admin']], fun
     Route::get('person-categories', [DashboardController::class, 'personCategories'])->name('person-categories');
     Route::get('person-tags', [DashboardController::class, 'personTags'])->name('person-tags');
 
-    Route::get('pricing', [DashboardController::class, 'pricing'])->name('pricing');
+    // Pricing is finance-gated; sits inside the dashboard role:admin
+    // group already, but layered with role:finance|super-admin so a
+    // content admin can't tweak tier prices.
+    Route::middleware('role:finance|super-admin')
+        ->get('pricing', [DashboardController::class, 'pricing'])
+        ->name('pricing');
 
     Route::group(['prefix' => 'auth'], function () {
         Route::get('login', [DashboardController::class, 'login'])->name('login');
