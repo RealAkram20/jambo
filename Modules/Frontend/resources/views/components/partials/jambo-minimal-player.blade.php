@@ -624,6 +624,87 @@
         wake();
     }
 
+    /* --- Rotate-to-fullscreen (mobile + installed PWA) -------------
+       When the user rotates a phone/tablet to landscape during
+       playback, drop the player into fullscreen automatically — the
+       behaviour every native streaming app has. Rotating back to
+       portrait exits fullscreen *only if* this handler was the one
+       that entered, so we never steal a manual fullscreen.
+
+       Gated on `pointer: coarse` so we don't trigger on a desktop
+       user resizing a window. Also requires the video to be actively
+       playing — pausing the player and rotating shouldn't force
+       fullscreen on top of nothing. */
+    (function(){
+        var fsTarget = videoEl.closest('media-container') || videoEl;
+        if (!fsTarget) return;
+
+        var coarsePointer = window.matchMedia
+            && window.matchMedia('(pointer: coarse)').matches;
+        if (!coarsePointer) return;
+
+        var enteredFsByRotation = false;
+
+        function isLandscape() {
+            if (screen.orientation && screen.orientation.type) {
+                return screen.orientation.type.indexOf('landscape') === 0;
+            }
+            return window.innerWidth > window.innerHeight;
+        }
+        function inFullscreen() {
+            return !!(document.fullscreenElement
+                || document.webkitFullscreenElement);
+        }
+        function requestFs() {
+            var fn = fsTarget.requestFullscreen
+                || fsTarget.webkitRequestFullscreen
+                || fsTarget.webkitEnterFullscreen;
+            if (!fn) return Promise.resolve();
+            try {
+                var p = fn.call(fsTarget);
+                return p && p.then ? p : Promise.resolve();
+            } catch (_) { return Promise.resolve(); }
+        }
+        function exitFs() {
+            var fn = document.exitFullscreen
+                || document.webkitExitFullscreen;
+            if (!fn) return Promise.resolve();
+            try {
+                var p = fn.call(document);
+                return p && p.then ? p : Promise.resolve();
+            } catch (_) { return Promise.resolve(); }
+        }
+
+        function handle() {
+            // Don't fullscreen a paused / not-yet-started player —
+            // would lock the user into a black screen with no obvious
+            // way back if they hadn't started watching yet.
+            if (videoEl.paused || videoEl.ended || videoEl.readyState < 2) return;
+
+            if (isLandscape() && !inFullscreen()) {
+                requestFs().then(function(){ enteredFsByRotation = true; });
+            } else if (!isLandscape() && inFullscreen() && enteredFsByRotation) {
+                exitFs().then(function(){ enteredFsByRotation = false; });
+            }
+        }
+
+        // Reset the flag if the user manually exits fullscreen while
+        // still in landscape — they explicitly asked to leave, so we
+        // shouldn't re-enter on the next rotation event.
+        document.addEventListener('fullscreenchange', function(){
+            if (!inFullscreen()) enteredFsByRotation = false;
+        });
+
+        if (screen.orientation && screen.orientation.addEventListener) {
+            screen.orientation.addEventListener('change', handle);
+        } else {
+            window.addEventListener('orientationchange', handle);
+        }
+        // Also re-check on play — if the user rotates while paused
+        // and then taps play, that should fullscreen too.
+        videoEl.addEventListener('play', handle);
+    })();
+
     @if ($isSeries)
         /* --- Autoplay-next switch wiring ------------------------- */
         // Persists across all episodes, all series, all sessions via

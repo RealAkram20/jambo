@@ -38,7 +38,12 @@ Route::get('/manifest.webmanifest', function () {
         'start_url' => '/',
         'scope' => '/',
         'display' => 'standalone',
-        'orientation' => 'portrait',
+        // 'any' lets the OS rotate the installed app freely. The
+        // previous 'portrait' lock prevented landscape entirely,
+        // which broke the watch-on-rotate UX. Pages that want to
+        // stay portrait can still use CSS / JS, but the manifest
+        // shouldn't dictate from the top.
+        'orientation' => 'any',
         'background_color' => '#0b0d17',
         'theme_color' => '#1A98FF',
         'icons' => [
