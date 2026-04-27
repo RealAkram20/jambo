@@ -59,13 +59,23 @@ class DashboardController extends Controller
         // the time-series charts is Year so the dashboard loads with
         // the same shape it always has — admins can switch to
         // Month/Week via the dropdowns (handled by chartData()).
+        //
+        // Revenue series is gated to finance/super-admin: the card
+        // is hidden in the view but the JSON payload below ships in
+        // a <script> tag in the page source, so a non-finance admin
+        // could still see the numbers via "view source" without this.
+        $canSeeRevenue = $request->user()?->hasAnyRole(['finance', 'super-admin']) ?? false;
+
         $chartData = [
             'genres'      => $this->buildTopGenresChart(),
-            'revenue'     => $this->buildMonthlyRevenueChart('Year'),
             'newSubs'     => $this->buildNewSubscribersChart('Year'),
             'mostWatched' => $this->buildMostWatchedChart('Year'),
             'topRated'    => $this->buildTopRatedChart(),
         ];
+
+        if ($canSeeRevenue) {
+            $chartData['revenue'] = $this->buildMonthlyRevenueChart('Year');
+        }
 
         return view('DashboardPages.IndexPage1', compact(
             'title',
@@ -251,6 +261,13 @@ class DashboardController extends Controller
         $period = $request->query('period', 'Year');
         if (! in_array($period, ['Year', 'Month', 'Week'], true)) {
             $period = 'Year';
+        }
+
+        // Revenue is finance-gated. A non-finance admin clicking the
+        // (hidden) revenue dropdown would otherwise still get fresh
+        // numbers back from this JSON endpoint.
+        if ($chart === 'revenue' && ! ($request->user()?->hasAnyRole(['finance', 'super-admin']) ?? false)) {
+            abort(403);
         }
 
         $data = match ($chart) {

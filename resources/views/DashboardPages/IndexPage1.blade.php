@@ -119,6 +119,7 @@
         </div>
     </div>
 
+    @hasanyrole('finance|super-admin')
     <div class="col-lg-6">
         <div class="card card-block card-height card-dashboard">
             <div class="card-header d-flex align-items-center justify-content-between">
@@ -140,6 +141,7 @@
             </div>
         </div>
     </div>
+    @endhasanyrole
     <div class="col-lg-6">
         <div class="card card-dashboard">
             <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">
@@ -401,22 +403,27 @@
             if (g) g.innerHTML = '<div class="text-muted py-5" style="font-size:13px;">No genres with movies yet.</div>';
         }
 
-        // 2. Revenue — line (filterable)
-        init('revenue', '#jambo-revenue-chart', {
-            series: [{ name: 'Revenue (' + data.revenue.currency + ')', data: data.revenue.series }],
-            chart: { type: 'line', height: 350, zoom: { enabled: false } },
-            colors: [primary],
-            dataLabels: { enabled: false },
-            stroke: { curve: 'smooth', width: 3 },
-            grid: { borderColor: '#1f2738' },
-            xaxis: { categories: data.revenue.labels, labels: { style: { colors: '#9aa0aa' } } },
-            yaxis: {
-                labels: {
-                    formatter: function (v) { return Number(v).toLocaleString(); },
-                    style: { colors: '#9aa0aa' },
+        // 2. Revenue — line (filterable). Server omits this key
+        // entirely for non-finance admins; skip the init when absent
+        // so a missing data.revenue doesn't TypeError the rest of
+        // the chart pipeline below.
+        if (data.revenue) {
+            init('revenue', '#jambo-revenue-chart', {
+                series: [{ name: 'Revenue (' + data.revenue.currency + ')', data: data.revenue.series }],
+                chart: { type: 'line', height: 350, zoom: { enabled: false } },
+                colors: [primary],
+                dataLabels: { enabled: false },
+                stroke: { curve: 'smooth', width: 3 },
+                grid: { borderColor: '#1f2738' },
+                xaxis: { categories: data.revenue.labels, labels: { style: { colors: '#9aa0aa' } } },
+                yaxis: {
+                    labels: {
+                        formatter: function (v) { return Number(v).toLocaleString(); },
+                        style: { colors: '#9aa0aa' },
+                    },
                 },
-            },
-        });
+            });
+        }
 
         // 3. New subscribers per tier — bar, one series per tier (filterable)
         if (data.newSubs && data.newSubs.series.length > 0) {
