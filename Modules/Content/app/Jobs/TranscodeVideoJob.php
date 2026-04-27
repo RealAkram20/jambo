@@ -29,8 +29,18 @@ class TranscodeVideoJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $timeout = 3600;
+    // 6-hour ceiling. Even a 3-hour film at 0.5× realtime on a small
+    // VPS finishes inside this. The previous 1-hour cap was killing
+    // anything longer than ~50 minutes mid-stream — see failed_jobs
+    // entries from 2026-04-26 (TimeoutExceededException).
+    public int $timeout = 21600;
     public int $tries = 1;
+
+    // When the job hits $timeout, call failed() so transcode_status
+    // moves to 'failed' cleanly instead of leaving the asset stuck
+    // on 'transcoding' forever. Default is false, which lets the
+    // worker SIGTERM without giving the job a chance to write state.
+    public bool $failOnTimeout = true;
 
     public function __construct(
         public string $payableType,  // 'movie' | 'episode'
@@ -66,12 +76,20 @@ class TranscodeVideoJob implements ShouldQueue
             // down on congestion. Segment length 6s is the HLS sweet spot —
             // long enough for efficient ABR decisions, short enough to keep
             // startup latency low.
+            //
+            // -preset veryfast is the speed/size sweet spot for VOD on a
+            // low-core VPS: ~4× faster than libx264's default `medium`
+            // for ~10% larger files. Without this, full-length films
+            // were taking longer to encode than they were to watch and
+            // hitting the queue timeout.
             $rung360 = (new X264('aac', 'libx264'))
                 ->setKiloBitrate(400)
-                ->setAudioKiloBitrate(64);
+                ->setAudioKiloBitrate(64)
+                ->setAdditionalParameters(['-preset', 'veryfast']);
             $rung720 = (new X264('aac', 'libx264'))
                 ->setKiloBitrate(800)
-                ->setAudioKiloBitrate(96);
+                ->setAudioKiloBitrate(96)
+                ->setAdditionalParameters(['-preset', 'veryfast']);
 
             FFMpeg::fromDisk('source')
                 ->open($payable->source_path)
