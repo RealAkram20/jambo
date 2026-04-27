@@ -588,6 +588,28 @@
         overflow-x: hidden;
         overflow-x: clip;
     }
+
+    /* ========================================================== */
+    /* THE actual /movie + /series + /vj overflow source           */
+    /* ========================================================== */
+    /*
+     * Streamit's SCSS sets `.card-style-slider .swiper { overflow:
+     * visible }` so the card-hover :hover effect can extend ~12%
+     * past the swiper boundary on desktop. Mobile has no hover
+     * state, but the visible overflow still leaks every VJ row's
+     * swiper-wrapper (7+ slides * card width = far wider than the
+     * phone viewport) past the right edge of the screen.
+     *
+     * That horizontal overflow is what extends the document width
+     * on /movie, which then anchored the bottom nav offscreen.
+     * Kill the visible overflow on mobile only — hover effects
+     * weren't usable on touch anyway, so nothing visual is lost.
+     */
+    .card-style-slider .swiper,
+    .card-style-slider .swiper-card,
+    .swiper.swiper-card {
+        overflow: hidden !important;
+    }
 }
 
 
