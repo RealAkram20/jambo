@@ -30,6 +30,12 @@
                 'playerPoster' => $poster,
                 'playerId' => 'jambo-watch-player',
                 'resumePosition' => $resumePosition ?? 0,
+                // Count this play if the viewer is a guest and the
+                // movie is free. Authed users go through the heartbeat
+                // path which counts on watch_history first-create.
+                'guestCountTarget' => (!auth()->check() && empty($movie->tier_required))
+                    ? ['type' => 'movie', 'id' => $movie->id]
+                    : null,
             ])
         </div>
     </div>

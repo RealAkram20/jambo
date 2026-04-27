@@ -45,6 +45,12 @@
                 'nextEpisodeUrl' => $nextEpUrl,
                 'prevEpisodeLabel' => $prevEpLabel,
                 'nextEpisodeLabel' => $nextEpLabel,
+                // Free episodes count guest views the same as free
+                // movies. tier_required lives on the parent show,
+                // so check that — episode rows don't carry their own.
+                'guestCountTarget' => (!auth()->check() && empty($episode->season?->show?->tier_required))
+                    ? ['type' => 'episode', 'id' => $episode->id]
+                    : null,
             ])
         </div>
     </div>

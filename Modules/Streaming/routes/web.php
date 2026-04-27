@@ -54,6 +54,14 @@ Route::middleware(['auth'])->group(function () {
         ->name('streaming.heartbeat');
 });
 
+// Guest view counter. Open to anyone (no auth) because the whole
+// point is to count people who haven't signed up yet. Throttled so
+// scripts can't hammer it; the unique-cookie dedupe stops counter
+// inflation regardless, but throttling keeps DB writes bounded.
+Route::post('/api/v1/streaming/guest-view', [StreamingController::class, 'guestView'])
+    ->middleware('throttle:30,1')
+    ->name('streaming.guest-view');
+
 // Tier-gated: `tier_gate` handles the auth + tier decision.
 //   - Free content (tier_required null) → open to guests + authed users
 //   - Premium content → guest redirected to login, authed user checked

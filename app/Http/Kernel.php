@@ -47,6 +47,11 @@ class Kernel extends HttpKernel
             // (needs route names for its skip list). Self-short-circuits
             // for guests, admins, the picker, AJAX / API requests.
             \Modules\Streaming\app\Http\Middleware\EnforceDeviceLimit::class,
+            // Issues a long-lived UUID cookie to anyone without one.
+            // Used to dedupe guest view counts (one increment per
+            // unique device per piece of content). Cheap — only
+            // does work on the first hit.
+            \Modules\Streaming\app\Http\Middleware\EnsureVisitorId::class,
         ],
 
         'api' => [

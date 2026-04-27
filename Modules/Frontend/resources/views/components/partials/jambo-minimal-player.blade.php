@@ -44,6 +44,14 @@
     // Autoplay-next pill — defaults to $isSeries (episode-only) for
     // back-compat. Opt in on other queue-style pages.
     $showAutoplayNext = $showAutoplayNext ?? $isSeries;
+
+    // Guest view counter target. Set by callers that render the
+    // player for guests on free content. Shape:
+    //   ['type' => 'movie'|'episode', 'id' => 42]
+    // null means "skip the call" (authed user, premium content,
+    // or caller didn't opt in). The endpoint itself also rejects
+    // tier-gated content, so this is just an opt-in shortcut.
+    $guestCountTarget = $guestCountTarget ?? null;
 @endphp
 <video-player>
     <media-container class="media-minimal-skin media-minimal-skin--video">
@@ -623,6 +631,39 @@
 
         wake();
     }
+
+    @if ($guestCountTarget)
+        /* --- Guest view counter ----------------------------------
+           Fires once per page load when a guest actually starts
+           watching. Server-side dedupe via the unique index on
+           guest_views (visitor_id, type, id), so even if a guest
+           watches the same movie three times the counter only
+           ticks the first time. We still want to skip the network
+           call after the first play within this same page, hence
+           the local `fired` guard. */
+        (function(){
+            var fired = false;
+            videoEl.addEventListener('play', function () {
+                if (fired) return;
+                fired = true;
+                var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                fetch('{{ route('streaming.guest-view') }}', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': token,
+                    },
+                    body: JSON.stringify({
+                        type: @json($guestCountTarget['type']),
+                        id:   @json($guestCountTarget['id']),
+                    }),
+                }).catch(function(){ /* ignore — view count is best-effort */ });
+            }, { once: true });
+        })();
+    @endif
 
     /* --- Rotate-to-fullscreen (mobile + installed PWA) -------------
        When the user rotates a phone/tablet to landscape during

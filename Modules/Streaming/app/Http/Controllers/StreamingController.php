@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Movie;
+use Modules\Content\app\Models\Show;
+use Modules\Streaming\app\Http\Middleware\EnsureVisitorId;
 use Modules\Streaming\app\Models\ActiveStream;
 use Modules\Streaming\app\Models\WatchHistoryItem;
 use Modules\Subscriptions\app\Models\SubscriptionTier;
@@ -349,5 +351,82 @@ class StreamingController extends Controller
             'position' => $row->position_seconds,
             'completed' => $row->completed,
         ]);
+    }
+
+    /**
+     * Guest view counter. Logged-in users hit the heartbeat above (which
+     * upserts watch_history and increments views_count on first watch).
+     * Guests can't reach heartbeat (it's auth-only) and that's fine —
+     * heartbeat needs a user_id. This endpoint is the parallel path:
+     * accept a (visitor_cookie, content_id) tuple, dedupe via the unique
+     * index on guest_views, and bump the public views_count on first
+     * sight per device.
+     *
+     * Premium content stays excluded — guests can't actually play it (the
+     * watch route is tier-gated to the login flow), so a guest hitting
+     * this endpoint with a premium ID is either a misconfig or someone
+     * scripting; we no-op rather than count.
+     */
+    public function guestView(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'type' => 'required|in:movie,episode',
+            'id'   => 'required|integer|min:1',
+        ]);
+
+        $visitor = $request->cookie(EnsureVisitorId::COOKIE_NAME);
+        if (!$visitor) {
+            // Middleware should have set it on this same request; if it
+            // isn't here something stripped cookies. Fail soft.
+            return response()->json(['ok' => false, 'reason' => 'no_visitor'], 200);
+        }
+
+        $content = $data['type'] === 'movie'
+            ? Movie::find($data['id'])
+            : Episode::with('season')->find($data['id']);
+
+        if (!$content) {
+            return response()->json(['ok' => false, 'reason' => 'not_found'], 200);
+        }
+
+        // Guests only count on free content. Anything tier-gated would
+        // never have made it past TierGate to play in the first place.
+        if (!empty($content->tier_required)) {
+            return response()->json(['ok' => false, 'reason' => 'tier_gated'], 200);
+        }
+
+        $morphType = $content->getMorphClass();
+        $morphId   = $content->getKey();
+
+        try {
+            DB::table('guest_views')->insert([
+                'visitor_id'     => $visitor,
+                'watchable_type' => $morphType,
+                'watchable_id'   => $morphId,
+                'created_at'     => now(),
+            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Duplicate key on the unique index = this device has already
+            // counted on this content. Idempotent: return 200, no count.
+            $sqlState = $e->errorInfo[0] ?? null;
+            $errCode  = $e->errorInfo[1] ?? null;
+            if ($sqlState === '23000' || in_array($errCode, [1062, 19], true)) {
+                return response()->json(['ok' => true, 'counted' => false]);
+            }
+            throw $e;
+        }
+
+        // Fresh row — same accounting rule as the authed path: movies
+        // carry their own views_count, episodes credit the parent show.
+        if ($content instanceof Movie) {
+            Movie::whereKey($morphId)->increment('views_count');
+        } elseif ($content instanceof Episode) {
+            $showId = $content->season?->show_id;
+            if ($showId) {
+                Show::whereKey($showId)->increment('views_count');
+            }
+        }
+
+        return response()->json(['ok' => true, 'counted' => true]);
     }
 }
