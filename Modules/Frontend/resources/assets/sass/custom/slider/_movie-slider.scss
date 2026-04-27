@@ -23,6 +23,13 @@
     position: relative;
 		min-height: 72vh;
 		height: 100%;
+    // Backdrop is set inline as background-image; without these the
+    // 1920x1080 source renders at native pixel width on mobile and
+    // blows the page horizontally out of the viewport.
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    max-width: 100%;
 
     img {
       height: 100%;

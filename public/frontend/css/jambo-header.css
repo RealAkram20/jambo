@@ -514,3 +514,33 @@
     opacity: 1;
     pointer-events: auto;
 }
+
+/* ================================================================== */
+/* /movie banner — responsive fix                                      */
+/* ================================================================== */
+/*
+ * The movie-slider partial sets background-image inline but the
+ * Streamit SCSS for .movie-banner-image is missing background-size /
+ * background-position. On mobile that means the 1920x1080 backdrop
+ * renders at its native pixel width, blowing the page horizontally
+ * out of the viewport — which then misaligns the fixed bottom nav
+ * and makes the whole page feel "not responsive". This block fixes
+ * that without touching the Vite SCSS pipeline. Same rule on every
+ * screen, so add it outside any media query.
+ */
+.movie-banner-image {
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    /* Defensive: hard-cap horizontal width to the viewport so even
+       if a future inline style or child element tries to push wider,
+       the parent never blows out. */
+    max-width: 100%;
+}
+.banner-container,
+.movie-banner,
+.movie-banner .swiper-banner-container {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
