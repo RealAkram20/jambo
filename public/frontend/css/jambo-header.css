@@ -545,25 +545,33 @@
 }
 
 /* ================================================================== */
-/* Global horizontal-overflow guard                                     */
+/* Mobile horizontal-overflow guard                                    */
 /* ================================================================== */
 /*
- * Hard cap the document width to the viewport. Without this, any
- * accidental overflow (a too-wide swiper wrapper, a missing
- * max-width on an image, a stray `width: 1920px` from a vendor
- * SCSS) extends the layout viewport on mobile. When that happens
- * `.jambo-mobile-nav` (position:fixed; left:0; right:0) anchors to
- * the document edges instead of the visible screen — so the
- * "Series" / "Watchlist" tabs slide off the right of the phone.
+ * Cap body width to the viewport on phones / portrait tablets so any
+ * accidental overflow (too-wide swiper wrapper, oversized image,
+ * stray `width: 1920px` from a vendor SCSS) doesn't push the layout
+ * viewport wider than the screen — when that happens
+ * `.jambo-mobile-nav` (position:fixed; right:0) anchors to the
+ * document's right edge and slides Series / Watchlist offscreen.
  *
- * `overflow-x: clip` is the right tool — it clips without creating
- * a scroll container, so position:sticky still works inside.
- * Falls back to `hidden` on older browsers (clip ships in 90%+
- * mobile browsers as of late 2024).
+ * Scoped to <body> (not <html>) and to <992px only because:
+ *   1. `overflow-x: clip` on <html> interferes with the fullscreen
+ *      API in some browsers — the fullscreen target gets clipped
+ *      against the html overflow setting on mobile WebKit.
+ *   2. Desktop has a horizontal scrollbar to fall back on if some
+ *      weird overflow ever happens, and the bottom nav doesn't
+ *      exist there. No need to clip.
+ *
+ * `clip` is preferred over `hidden`: it doesn't create a scroll
+ * container, so position:sticky inside still works. Falls back to
+ * `hidden` on older browsers via the cascade.
  */
-html, body {
-    overflow-x: hidden;
-    overflow-x: clip;
+@media (max-width: 991.98px) {
+    body {
+        overflow-x: hidden;
+        overflow-x: clip;
+    }
 }
 
 
