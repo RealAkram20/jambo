@@ -304,7 +304,17 @@
                     <media-tooltip id="{{ $playerId }}-play-tooltip" side="top" class="media-tooltip"></media-tooltip>
 
                     @unless ($hideSeekButtons)
-                        <media-seek-button commandfor="{{ $playerId }}-seek-back-tooltip" seconds="-10" class="media-button media-button--subtle media-button--icon media-button--seek">
+                        {{-- Episode + watchlist players also render
+                             prev/next nav buttons in this same row.
+                             That makes the bottom bar uncomfortably
+                             dense on phones, so we mark the ±10s
+                             buttons jambo-bar-seek--mobile-hide and
+                             they collapse below 992px. The big middle
+                             seek overlays in .jambo-mobile-center keep
+                             ±10s available for touch — and the
+                             left/right edge gestures already do too. --}}
+                        @php $barSeekMobileHide = $showPrevNext ? 'jambo-bar-seek--mobile-hide' : ''; @endphp
+                        <media-seek-button commandfor="{{ $playerId }}-seek-back-tooltip" seconds="-10" class="media-button media-button--subtle media-button--icon media-button--seek {{ $barSeekMobileHide }}">
                             <span class="media-icon__container">
                                 <svg class="media-icon media-icon--flipped" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" aria-hidden="true" viewBox="0 0 18 18"><path fill="currentColor" d="M1 9c0 2.21.895 4.21 2.343 5.657l1.06-1.06a6.5 6.5 0 1 1 9.665-8.665l-1.641 1.641a.25.25 0 0 0 .177.427h4.146a.25.25 0 0 0 .25-.25V2.604a.25.25 0 0 0-.427-.177l-1.438 1.438A8 8 0 0 0 1 9"/></svg>
                                 <span class="media-icon__label">10</span>
@@ -312,7 +322,7 @@
                         </media-seek-button>
                         <media-tooltip id="{{ $playerId }}-seek-back-tooltip" side="top" class="media-tooltip">Seek backward 10 seconds</media-tooltip>
 
-                        <media-seek-button commandfor="{{ $playerId }}-seek-fwd-tooltip" seconds="10" class="media-button media-button--subtle media-button--icon media-button--seek">
+                        <media-seek-button commandfor="{{ $playerId }}-seek-fwd-tooltip" seconds="10" class="media-button media-button--subtle media-button--icon media-button--seek {{ $barSeekMobileHide }}">
                             <span class="media-icon__container">
                                 <svg class="media-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" aria-hidden="true" viewBox="0 0 18 18"><path fill="currentColor" d="M1 9c0 2.21.895 4.21 2.343 5.657l1.06-1.06a6.5 6.5 0 1 1 9.665-8.665l-1.641 1.641a.25.25 0 0 0 .177.427h4.146a.25.25 0 0 0 .25-.25V2.604a.25.25 0 0 0-.427-.177l-1.438 1.438A8 8 0 0 0 1 9"/></svg>
                                 <span class="media-icon__label">10</span>

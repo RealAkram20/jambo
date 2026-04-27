@@ -1864,3 +1864,20 @@ media-tooltip-group {
 .swiper-slide.is-playing > * {
     animation: jamboNowPlayingPulse 2.4s ease-in-out infinite;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Bottom-bar seek buttons hidden on mobile when prev/next nav is present     */
+/* -------------------------------------------------------------------------- */
+/*
+ * Episode + watchlist players show prev / next item buttons in the same
+ * control row as the ±10s seek. On phones that's too many icons crammed
+ * into a single bar, so the seek pair collapses below 992px. Mid-screen
+ * overlay seek buttons (.jambo-mobile-center__btn--seek) stay visible
+ * for touch, and edge-zone tap gestures still seek ±10s, so users keep
+ * the functionality without the visual clutter.
+ */
+@media (max-width: 991.98px) {
+    .jambo-bar-seek--mobile-hide {
+        display: none !important;
+    }
+}
