@@ -33,23 +33,27 @@ class RouteServiceProvider extends ServiceProvider
     /**
      * /sitemap.xml + /robots.txt — public crawler endpoints.
      *
-     * Registered with a deliberately bare middleware stack — NOT the
-     * `web` group. Reason: this app's web group apparently includes
-     * something that redirects unauthenticated requests to /login
-     * (a custom force-auth middleware, possibly tier_gate fanned out
-     * site-wide, or 2FA enforcement). We learned that the hard way
-     * when /sitemap.xml started 302'ing Googlebot to /login.
+     * Registered under the `api` middleware group instead of `web`
+     * because this app's `web` group quietly redirects unauthenticated
+     * requests to /login (we never managed to pin down which middleware
+     * does it — possibly an undocumented fork of MaintenanceMode or a
+     * leftover from the auth-related additions). The 1.5.3 attempt to
+     * use `Route::middleware([])` did not strip the redirect, suggesting
+     * something downstream still forces the web stack on bare routes.
      *
-     * Crawler endpoints don't need session, CSRF, cookies, or auth —
-     * they just need to run the controller and return bytes. Empty
-     * middleware list ensures nothing in the global / web stack can
-     * intercept the response. The route-cache invalidation on the
-     * `Illuminate\Routing\Middleware\SubstituteBindings` removal is
-     * fine; neither sitemap nor robots uses route model binding.
+     * The `api` group is known to have only ThrottleRequests +
+     * localization + SubstituteBindings — none of those redirect, none
+     * touch sessions, none enforce auth. Crawler endpoints need exactly
+     * none of the things `web` provides anyway (no CSRF on GET, no
+     * sessions in a public XML response, no cookies).
+     *
+     * The throttle rate-limit is api default (60/min) which is way more
+     * than any real crawler will request — Googlebot averages a request
+     * every few seconds at most.
      */
     protected function mapPublicRoutes(): void
     {
-        Route::middleware([])
+        Route::middleware('api')
             ->namespace($this->moduleNamespace)
             ->group(module_path('Seo', '/routes/public.php'));
     }
