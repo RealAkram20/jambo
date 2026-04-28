@@ -59,7 +59,7 @@
 
             @if ($hasTrailer)
                 <video id="my-video" poster="{{ $posterSrc }}"
-                    class="my-video video-js vjs-big-play-centered w-100" loop autoplay muted preload="auto"
+                    class="my-video video-js vjs-big-play-centered w-100" loop autoplay muted playsinline preload="metadata"
                     data-setup='{!! $videoSetup !!}'>
                 </video>
             @else

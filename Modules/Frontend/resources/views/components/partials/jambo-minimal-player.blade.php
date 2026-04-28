@@ -182,6 +182,12 @@
                     console.warn('[jambo-player] source not supported by this browser — '
                         + 'check the codec (must be H.264 / VP9 / AV1) and that the URL '
                         + 'returns video bytes, not an HTML error page.');
+                    showPlayerError(
+                        "Can't play this video",
+                        "The file is in a format your browser can't decode (most often "
+                        + "HEVC/H.265 in Chrome or Firefox). Try Safari, or ask support to "
+                        + "re-upload the video as H.264 MP4."
+                    );
                     return;
                 }
                 // Exponential-ish backoff so we don't hammer a flaky
@@ -217,10 +223,47 @@
             // unrelated blip can also get retries.
             v.addEventListener('playing', function () {
                 hasPlayedOnce = true;
+                hidePlayerError();
                 setTimeout(function () {
                     if (!v.paused && !v.ended) retryCount = 0;
                 }, 30000);
             });
+
+            // Show / hide a user-facing error overlay over the player.
+            // Used when the source is genuinely unplayable (code 4 on
+            // initial load) — the console warning alone isn't enough,
+            // most viewers won't open devtools.
+            function showPlayerError(title, body) {
+                var container = v.closest('media-container') || v.parentElement;
+                if (!container) return;
+                var existing = container.querySelector('.jambo-player-error');
+                if (existing) {
+                    existing.querySelector('.jambo-player-error__title').textContent = title;
+                    existing.querySelector('.jambo-player-error__body').textContent = body;
+                    return;
+                }
+                var box = document.createElement('div');
+                box.className = 'jambo-player-error';
+                box.innerHTML =
+                    '<div class="jambo-player-error__icon">' +
+                        '<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+                            '<circle cx="12" cy="12" r="10"></circle>' +
+                            '<line x1="12" y1="8" x2="12" y2="12"></line>' +
+                            '<line x1="12" y1="16" x2="12.01" y2="16"></line>' +
+                        '</svg>' +
+                    '</div>' +
+                    '<div class="jambo-player-error__title"></div>' +
+                    '<p class="jambo-player-error__body"></p>';
+                box.querySelector('.jambo-player-error__title').textContent = title;
+                box.querySelector('.jambo-player-error__body').textContent = body;
+                container.appendChild(box);
+            }
+            function hidePlayerError() {
+                var container = v.closest('media-container') || v.parentElement;
+                if (!container) return;
+                var existing = container.querySelector('.jambo-player-error');
+                if (existing) existing.remove();
+            }
         })();
         </script>
 

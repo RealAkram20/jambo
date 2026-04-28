@@ -31,6 +31,16 @@
     <!-- Google Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    {{-- Warm the DNS + TLS handshake to Dropbox's CDN so the first
+         video request doesn't pay the connection cost. Saves ~150-
+         400ms on first play (more on mobile networks where DNS is
+         slower). dropboxusercontent.com is the final hop the
+         redirect chain lands on; preconnecting upstream
+         (www.dropbox.com) doesn't help because the redirect always
+         flips host before bytes are served. --}}
+    <link rel="preconnect" href="https://dropboxusercontent.com" crossorigin>
+    <link rel="dns-prefetch" href="//dropboxusercontent.com">
     <link
         href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,700;0,900;1,300&display=swap"
         rel="stylesheet">

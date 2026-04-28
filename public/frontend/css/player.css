@@ -1881,3 +1881,51 @@ media-tooltip-group {
         display: none !important;
     }
 }
+
+
+/* -------------------------------------------------------------------------- */
+/* Player-blocking error overlay                                              */
+/* -------------------------------------------------------------------------- */
+/*
+ * Shown when the <video> emits MEDIA_ERR_SRC_NOT_SUPPORTED (code 4)
+ * before the first successful play. The console message alone reaches
+ * developers; the visible overlay reaches the actual viewer who would
+ * otherwise stare at a frozen poster wondering what broke. Most common
+ * trigger: an HEVC/H.265-encoded MP4 that Chrome and Firefox can not
+ * decode. Message tells the user what to do (try Safari) AND what to
+ * tell us (re-encode as H.264).
+ */
+.jambo-player-error {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    background: rgba(0, 0, 0, 0.88);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+    pointer-events: auto;
+}
+.jambo-player-error__icon {
+    color: rgba(255, 255, 255, 0.75);
+    margin-bottom: 12px;
+}
+.jambo-player-error__title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+.jambo-player-error__body {
+    font-size: 14px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.75);
+    max-width: 480px;
+    margin: 0;
+}
+@media (max-width: 575.98px) {
+    .jambo-player-error__title { font-size: 16px; }
+    .jambo-player-error__body  { font-size: 13px; }
+}

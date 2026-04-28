@@ -33,7 +33,15 @@ class StreamProxyController extends Controller
         $url = $this->getRawUrl($movie);
         abort_unless($url, 404);
 
-        return redirect()->away($url, 302);
+        return redirect()->away($url, 302)->withHeaders([
+            // Let browsers reuse the 302 for 5 min so a play → pause →
+            // play (or restart from beginning) skips the round-trip
+            // through Laravel + tier_gate + DB and goes straight to
+            // Dropbox. Public is safe — the redirect target itself is
+            // a signed Dropbox URL, and tier_gate already ran when
+            // the response was first issued.
+            'Cache-Control' => 'public, max-age=300',
+        ]);
     }
 
     public function passthroughMovieLow(Request $request, Movie $movie): RedirectResponse
@@ -41,7 +49,15 @@ class StreamProxyController extends Controller
         $url = $this->getRawUrl($movie, 'low');
         abort_unless($url, 404);
 
-        return redirect()->away($url, 302);
+        return redirect()->away($url, 302)->withHeaders([
+            // Let browsers reuse the 302 for 5 min so a play → pause →
+            // play (or restart from beginning) skips the round-trip
+            // through Laravel + tier_gate + DB and goes straight to
+            // Dropbox. Public is safe — the redirect target itself is
+            // a signed Dropbox URL, and tier_gate already ran when
+            // the response was first issued.
+            'Cache-Control' => 'public, max-age=300',
+        ]);
     }
 
     public function passthroughEpisode(Request $request, Episode $episode): RedirectResponse
@@ -49,7 +65,15 @@ class StreamProxyController extends Controller
         $url = $this->getRawUrl($episode);
         abort_unless($url, 404);
 
-        return redirect()->away($url, 302);
+        return redirect()->away($url, 302)->withHeaders([
+            // Let browsers reuse the 302 for 5 min so a play → pause →
+            // play (or restart from beginning) skips the round-trip
+            // through Laravel + tier_gate + DB and goes straight to
+            // Dropbox. Public is safe — the redirect target itself is
+            // a signed Dropbox URL, and tier_gate already ran when
+            // the response was first issued.
+            'Cache-Control' => 'public, max-age=300',
+        ]);
     }
 
     public function passthroughEpisodeLow(Request $request, Episode $episode): RedirectResponse
@@ -57,7 +81,15 @@ class StreamProxyController extends Controller
         $url = $this->getRawUrl($episode, 'low');
         abort_unless($url, 404);
 
-        return redirect()->away($url, 302);
+        return redirect()->away($url, 302)->withHeaders([
+            // Let browsers reuse the 302 for 5 min so a play → pause →
+            // play (or restart from beginning) skips the round-trip
+            // through Laravel + tier_gate + DB and goes straight to
+            // Dropbox. Public is safe — the redirect target itself is
+            // a signed Dropbox URL, and tier_gate already ran when
+            // the response was first issued.
+            'Cache-Control' => 'public, max-age=300',
+        ]);
     }
 
     /**
