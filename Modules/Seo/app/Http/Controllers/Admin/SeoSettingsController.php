@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
 use Illuminate\View\View;
 
 /**
@@ -38,6 +39,7 @@ class SeoSettingsController extends Controller
                 'og_default_description' => setting('seo.og_default_description', ''),
                 'twitter_handle'         => setting('seo.twitter_handle', ''),
             ],
+            'verificationFiles' => $this->listVerificationFiles(),
         ]);
     }
 
@@ -131,5 +133,124 @@ class SeoSettingsController extends Controller
         return redirect()
             ->route('admin.seo.index')
             ->with('status_seo_social', 'Social-share defaults saved.');
+    }
+
+    /**
+     * Save a search-engine verification file (Google's `googleXXX.html`,
+     * Bing's `BingSiteAuth.xml`, Yandex's `yandex_XXX.html`, etc.) into
+     * public/ so the engine can fetch it directly at the site root.
+     *
+     * Two layers of safety:
+     *   1. Filename whitelist regex — only known verification-file
+     *      shapes pass, so the form can't be repurposed to drop
+     *      arbitrary HTML / PHP into the document root.
+     *   2. We never trust the client filename verbatim; we re-derive
+     *      it from the regex match group so a "google.html/../etc.html"
+     *      style path-traversal attempt fails on the regex alone.
+     *
+     * The file content has to come from the upload (Google's verifier
+     * fetches the file and matches its body to a token only Google
+     * knows), so we accept the bytes as-is and write them to public/.
+     */
+    public function uploadVerificationFile(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'verification_file' => ['required', 'file', 'max:64'], // 64 KB cap; verification files are tiny
+        ]);
+
+        $file = $request->file('verification_file');
+        $clientName = $file->getClientOriginalName();
+
+        // Whitelist of accepted patterns. If you add a new search
+        // engine's verification format, extend this list — DON'T
+        // loosen the regex.
+        $patterns = [
+            '/^google[a-zA-Z0-9]+\.html$/',         // Google Search Console
+            '/^BingSiteAuth\.xml$/',                 // Bing Webmaster
+            '/^yandex_[a-zA-Z0-9]+\.html$/',         // Yandex
+            '/^pinterest-[a-zA-Z0-9]+\.html$/',      // Pinterest
+            '/^baidu_verify_[a-zA-Z0-9_]+\.html$/',  // Baidu
+        ];
+
+        $matched = false;
+        foreach ($patterns as $rx) {
+            if (preg_match($rx, $clientName)) {
+                $matched = true;
+                break;
+            }
+        }
+
+        if (!$matched) {
+            return redirect()
+                ->route('admin.seo.index')
+                ->withErrors(['verification_file' =>
+                    'Filename must match a known verification format (e.g. googleXXX.html, BingSiteAuth.xml, yandex_XXX.html). Got: ' . $clientName]);
+        }
+
+        // Move into public/. Using public_path() rather than the
+        // public disk so the file lands at /<filename> exactly where
+        // the verifier expects to fetch it. Existing files with the
+        // same name are overwritten — re-uploading replaces the
+        // previous copy.
+        $destination = public_path($clientName);
+        $file->move(public_path(), $clientName);
+
+        return redirect()
+            ->route('admin.seo.index')
+            ->with('status_seo_verification', 'Verification file "' . $clientName . '" uploaded. The verifier should be able to find it at ' . url('/' . $clientName));
+    }
+
+    /**
+     * Remove a previously-uploaded verification file. Limited to the
+     * same whitelist of filename shapes so this endpoint can never be
+     * abused to delete arbitrary files in public/.
+     */
+    public function deleteVerificationFile(string $filename): RedirectResponse
+    {
+        $known = $this->listVerificationFiles();
+        $present = collect($known)->firstWhere('name', $filename);
+
+        if (!$present) {
+            return redirect()
+                ->route('admin.seo.index')
+                ->withErrors(['verification_file' => 'File not found or not removable.']);
+        }
+
+        @unlink(public_path($filename));
+
+        return redirect()
+            ->route('admin.seo.index')
+            ->with('status_seo_verification', 'Verification file "' . $filename . '" removed.');
+    }
+
+    /**
+     * Scan public/ for files matching our verification-filename
+     * whitelist so the admin form can show what's currently published.
+     * Returns each as ['name' => ..., 'url' => ..., 'size' => bytes].
+     */
+    private function listVerificationFiles(): array
+    {
+        $globs = [
+            'google*.html',
+            'BingSiteAuth.xml',
+            'yandex_*.html',
+            'pinterest-*.html',
+            'baidu_verify_*.html',
+        ];
+
+        $found = [];
+        foreach ($globs as $glob) {
+            foreach (glob(public_path($glob)) ?: [] as $path) {
+                $name = basename($path);
+                $found[$name] = [
+                    'name' => $name,
+                    'url'  => url('/' . $name),
+                    'size' => filesize($path) ?: 0,
+                ];
+            }
+        }
+
+        ksort($found);
+        return array_values($found);
     }
 }

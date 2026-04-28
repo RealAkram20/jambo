@@ -129,6 +129,77 @@
                 </div>
             </div>
 
+            {{-- ─── Verification file upload ──────────────────────────────── --}}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Verification file upload</h5>
+                    <p class="text-muted mb-0 mt-1" style="font-size:13px;">
+                        Some Search Console / Webmaster Tools accounts prefer the
+                        <em>HTML file</em> verification method instead of the meta tag above.
+                        Drop the file Google (or Bing / Yandex / Pinterest / Baidu) gives you here
+                        and we'll publish it at the site root where the verifier looks.
+                    </p>
+                </div>
+                <div class="card-body">
+                    @if (session('status_seo_verification'))
+                        <div class="alert alert-success mb-3">{{ session('status_seo_verification') }}</div>
+                    @endif
+
+                    @if (!empty($verificationFiles))
+                        <div class="mb-4">
+                            <h6 class="mb-2" style="font-size: 14px;">Currently published</h6>
+                            <ul class="list-group list-group-flush">
+                                @foreach ($verificationFiles as $vf)
+                                    <li class="list-group-item d-flex align-items-center justify-content-between bg-transparent px-0">
+                                        <div>
+                                            <a href="{{ $vf['url'] }}" target="_blank" rel="noopener" class="text-decoration-none">
+                                                <i class="ph ph-file-text me-1"></i>
+                                                <code>{{ $vf['name'] }}</code>
+                                            </a>
+                                            <span class="text-muted ms-2" style="font-size:12px;">{{ $vf['size'] }} bytes</span>
+                                        </div>
+                                        <form method="POST" action="{{ route('admin.seo.verification.delete', ['filename' => $vf['name']]) }}"
+                                              onsubmit="return confirm('Remove {{ $vf['name'] }}? Search Console will lose verification through this file.');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-danger-subtle" title="Remove">
+                                                <i class="ph ph-trash-simple"></i>
+                                            </button>
+                                        </form>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
+                    <form method="POST" action="{{ route('admin.seo.verification.upload') }}" enctype="multipart/form-data">
+                        @csrf
+
+                        <div class="form-row">
+                            <label class="form-label" for="verification_file">Upload verification file</label>
+                            <input type="file" class="form-control @error('verification_file') is-invalid @enderror"
+                                   id="verification_file" name="verification_file"
+                                   accept=".html,.xml,.txt"
+                                   required>
+                            <div class="form-text">
+                                Accepted filename shapes:
+                                <code>google&hellip;.html</code>,
+                                <code>BingSiteAuth.xml</code>,
+                                <code>yandex_&hellip;.html</code>,
+                                <code>pinterest-&hellip;.html</code>,
+                                <code>baidu_verify_&hellip;.html</code>.
+                                Anything else is rejected.
+                            </div>
+                            @error('verification_file')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+
+                        <div class="d-flex gap-2 mt-4 pt-3 border-top">
+                            <button type="submit" class="btn btn-primary">Upload</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
             {{-- ─── Social-share defaults ──────────────────────────────────── --}}
             <div class="card">
                 <div class="card-header">
