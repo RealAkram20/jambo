@@ -39,38 +39,38 @@
     </div>
 </div>
 
+{{-- No overflow-hidden wrapper here: card-hover on .iq-card extends
+     ~1.25em outside each card and ~5em below via the ::after pseudo,
+     so clipping cuts off the Play Now / wishlist reveal on the
+     leftmost column and the bottom row. Horizontal page overflow is
+     handled at the body level in custom.css. Same pattern as
+     /movie, /series, /upcoming, /genres/*. --}}
 <div class="container-fluid">
-    <div class="overflow-hidden">
-        @include('frontend::components.sections.continue-watching', ['value' => '6', 'sectionPaddingClass' => true])
-        @include('frontend::components.sections.top-ten-block')
-        @include('frontend::components.sections.top-ten-tvshow')
-        @include('frontend::components.sections.only-on-streamit')
-        @include('frontend::components.sections.fresh-picks-just-for-you')
-        @include('frontend::components.sections.upcomming', ['viewAllBtn' => true])
-    </div>
+    @include('frontend::components.sections.continue-watching', ['value' => '6', 'sectionPaddingClass' => true])
+    @include('frontend::components.sections.top-ten-block')
+    @include('frontend::components.sections.top-ten-tvshow')
+    @include('frontend::components.sections.only-on-streamit')
+    @include('frontend::components.sections.fresh-picks-just-for-you')
+    @include('frontend::components.sections.upcomming', ['viewAllBtn' => true])
 </div>
 
 @include('frontend::components.sections.verticle-slider')
 
 <div class="container-fluid">
-    <div class="overflow-hidden">
-        @include('frontend::components.sections.Your-Favourite-Personality')
-        @include('frontend::components.sections.Popular-movies', ['viewAllBtn' => true])
-    </div>
+    @include('frontend::components.sections.Your-Favourite-Personality')
+    @include('frontend::components.sections.Popular-movies', ['viewAllBtn' => true])
 </div>
 
 @include('frontend::components.sections.tab-slider')
 
 <div class="container-fluid">
-    <div class="overflow-hidden">
-        @include('frontend::components.sections.geners')
+    @include('frontend::components.sections.geners')
 
-        @include('frontend::components.sections.recommended', [
-        'recommended' => __('sectionTitle.smart_shuffle'), 'viewAllBtn' => true,
-        ])
+    @include('frontend::components.sections.recommended', [
+    'recommended' => __('sectionTitle.smart_shuffle'), 'viewAllBtn' => true,
+    ])
 
-        @include('frontend::components.sections.top-pict')
-    </div>
+    @include('frontend::components.sections.top-pict')
 </div>
 
 {{-- Mobile Footer --}}

@@ -111,24 +111,25 @@
     </div>
 </section>
 
+{{-- No overflow-hidden wrapper here: card-hover on .iq-card extends
+     ~1.25em outside each card and ~5em below via the ::after pseudo,
+     so clipping cuts off the Play Now / wishlist reveal on the
+     leftmost column and the bottom row. Horizontal page overflow is
+     handled at the body level in custom.css. --}}
 <div class="container-fluid">
-    <div class="overflow-hidden">
-        @include('frontend::components.sections.continue-watching', ['value' => '4', 'sectionPaddingClass' => true])
+    @include('frontend::components.sections.continue-watching', ['value' => '4', 'sectionPaddingClass' => true])
 
-        @include('frontend::components.sections.upcomming')
+    @include('frontend::components.sections.upcomming')
 
-        @include('frontend::components.sections.best-in-tv')
+    @include('frontend::components.sections.best-in-tv')
 
-        @include('frontend::components.sections.latest-movies')
-    </div>
+    @include('frontend::components.sections.latest-movies')
 </div>
 
 @include('frontend::components.sections.verticle-slider')
 
 <div class="container-fluid">
-    <div class="overflow-hidden">
-        @include('frontend::components.sections.suggested')
-    </div>
+    @include('frontend::components.sections.suggested')
 </div>
 
 @include('frontend::components.sections.parallax')
@@ -136,13 +137,11 @@
 @include('frontend::components.sections.tranding-tab')
 
 <div class="container-fluid">
-    <div class="overflow-hidden">
-        @include('frontend::components.sections.recommended', [
-            'recommended' => __('sectionTitle.recommended_tv_show'),
-            'relatedUpcoming' => true,
-            'viewAllBtn' => true,
-        ])
-    </div>
+    @include('frontend::components.sections.recommended', [
+        'recommended' => __('sectionTitle.recommended_tv_show'),
+        'relatedUpcoming' => true,
+        'viewAllBtn' => true,
+    ])
 </div>
 
 {{-- Mobile Footer --}}
