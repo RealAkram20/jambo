@@ -44,24 +44,6 @@ return [
             'throw' => false,
         ],
 
-        // Raw uploaded video source files. Private — never exposed by URL.
-        // The transcode job reads from here; after transcoding completes the
-        // source stays around so re-transcoding a different ladder is possible.
-        'source' => [
-            'driver' => 'local',
-            'root' => storage_path('app/source'),
-            'throw' => false,
-        ],
-
-        // HLS renditions + master.m3u8. Private disk; the StreamController
-        // is the only way bytes leave this disk, so storage paths are never
-        // exposed to the browser.
-        'hls' => [
-            'driver' => 'local',
-            'root' => storage_path('app/hls'),
-            'throw' => false,
-        ],
-
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

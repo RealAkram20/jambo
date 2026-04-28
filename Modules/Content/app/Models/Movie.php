@@ -122,27 +122,17 @@ class Movie extends Model
 
     public function scopePublished(Builder $q): Builder
     {
-        // A movie is only "publicly published" when it's flagged
-        // Published AND has a finished HLS master to actually play.
-        // Without the HLS check we'd surface rows on the public rails
-        // whose video is still being encoded — users would click in
-        // and hit a "DEMUXER_ERROR" / spinning poster.
-        //
-        // Movies with no video source at all are still considered
-        // public (they're metadata-only placeholders for in-the-pipeline
-        // titles); the orWhereNull-on-source branch keeps that case
-        // working without forcing every entry through the encoder.
+        // A movie is "publicly published" when it's flagged Published
+        // and its release date has passed. Playback is direct passthrough
+        // to whatever URL the admin pasted, so there's no encoder state
+        // to gate on anymore — uploaders are expected to provide a
+        // browser-playable file (mp4/webm/m4v) before hitting Publish.
+        // Metadata-only entries (no video at all) still flow through;
+        // the player view shows a "not streamable yet" message instead
+        // of a broken <video>.
         return $q->where('status', self::STATUS_PUBLISHED)
             ->whereNotNull('published_at')
-            ->where('published_at', '<=', now())
-            ->where(function ($outer) {
-                $outer->whereNotNull('hls_master_path')
-                    ->orWhere(function ($metadataOnly) {
-                        $metadataOnly->whereNull('video_url')
-                            ->whereNull('dropbox_path')
-                            ->whereNull('source_path');
-                    });
-            });
+            ->where('published_at', '<=', now());
     }
 
     /**

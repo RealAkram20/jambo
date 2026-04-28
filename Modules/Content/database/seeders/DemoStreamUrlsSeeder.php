@@ -72,9 +72,6 @@ class DemoStreamUrlsSeeder extends Seeder
                 'trailer_url' => self::TRAILERS[$m->id % count(self::TRAILERS)],
                 'video_url' => self::FEATURES[$m->id % count(self::FEATURES)],
                 'video_url_low' => self::FEATURES_LOW[$m->id % count(self::FEATURES_LOW)],
-                // Force the HLS branch off — these aren't transcoded.
-                'transcode_status' => null,
-                'hls_master_path' => null,
             ]);
         }
         $this->command?->info("Movies updated: {$movies->count()}");
@@ -98,8 +95,6 @@ class DemoStreamUrlsSeeder extends Seeder
             Episode::whereKey($e->id)->update([
                 'video_url' => self::FEATURES[$e->id % count(self::FEATURES)],
                 'video_url_low' => self::FEATURES_LOW[$e->id % count(self::FEATURES_LOW)],
-                'transcode_status' => null,
-                'hls_master_path' => null,
             ]);
         }
         $this->command?->info("Episodes updated: {$episodes->count()}");

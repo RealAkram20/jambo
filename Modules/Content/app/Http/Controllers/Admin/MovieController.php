@@ -6,13 +6,10 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Modules\Content\app\Http\Requests\StoreMovieRequest;
 use Modules\Content\app\Http\Requests\UpdateMovieRequest;
-use Modules\Content\app\Jobs\DownloadAndTranscodeJob;
-use Modules\Content\app\Jobs\TranscodeVideoJob;
 use Modules\Content\app\Models\Category;
 use Modules\Content\app\Models\Genre;
 use Modules\Content\app\Models\Vj;
@@ -115,32 +112,15 @@ class MovieController extends Controller
             return $movie;
         });
 
-        // Queue transcode for whatever video source the admin provided
-        // (file upload / local FileManager pick / Dropbox URL). Each of
-        // these helpers is a no-op if the corresponding source path
-        // wasn't used, so calling all three is safe.
-        $this->handleVideoUpload($request, $movie);
-        $this->handleLocalTranscode($request, $movie);
-        $this->handleDropboxTranscode($request, $movie);
-
-        // If admin asked to publish a movie that still needs encoding,
-        // defer to the auto-publish-on-transcode-complete hook so the
-        // public never sees a "Published" movie that won't play.
-        $deferred = $this->applyPublishDeferral($movie, $data['status'] ?? 'draft');
-
-        if (!$deferred && $movie->status === 'published') {
+        if ($movie->status === 'published') {
             event(new \Modules\Notifications\app\Events\MovieAdded(
                 $movie->id, $movie->title, $movie->slug, $movie->poster_url,
             ));
         }
 
-        $message = $deferred
-            ? "Movie \"{$movie->title}\" saved. It will publish automatically once transcoding finishes."
-            : "Movie \"{$movie->title}\" created.";
-
         return redirect()
             ->route('admin.movies.edit', $movie)
-            ->with('success', $message);
+            ->with('success', "Movie \"{$movie->title}\" created.");
     }
 
     public function edit(Movie $movie): View
@@ -221,27 +201,15 @@ class MovieController extends Controller
             $justPublished = $oldStatus !== 'published' && $movie->status === 'published';
         });
 
-        // Pick up any new video source the admin supplied with this save.
-        $this->handleVideoUpload($request, $movie);
-        $this->handleLocalTranscode($request, $movie);
-        $this->handleDropboxTranscode($request, $movie);
-
-        // Defer publication if the asset is mid-transcode.
-        $deferred = $this->applyPublishDeferral($movie, $movie->status);
-
-        if ($justPublished && !$deferred) {
+        if ($justPublished) {
             event(new \Modules\Notifications\app\Events\MovieAdded(
                 $movie->id, $movie->title, $movie->slug, $movie->poster_url,
             ));
         }
 
-        $message = $deferred
-            ? 'Movie saved. It will publish automatically once transcoding finishes.'
-            : 'Movie saved.';
-
         return redirect()
             ->route('admin.movies.edit', $movie)
-            ->with('success', $message);
+            ->with('success', 'Movie saved.');
     }
 
     /**
@@ -273,174 +241,6 @@ class MovieController extends Controller
             'dropbox' => [$isDropboxUrl ? $dropbox : null, $dropbox !== '' ? $dropbox : null],
             default   => [$url !== '' ? $url : null, null],
         };
-    }
-
-    /**
-     * Save an uploaded video to the private `source` disk and queue a
-     * transcode job. Existing HLS output for this movie is cleared so the
-     * old stream stops serving the moment a new source replaces it.
-     *
-     * A file upload always wins over the `video_url` field — keeping both
-     * in sync would be surprising; picking one and sticking with it is
-     * easier to reason about.
-     */
-    private function handleVideoUpload(Request $request, Movie $movie): void
-    {
-        if (!$request->hasFile('video_file')) return;
-
-        $file = $request->file('video_file');
-        $ext = strtolower($file->getClientOriginalExtension() ?: 'mp4');
-        $path = 'movies/' . $movie->id . '/source.' . $ext;
-
-        Storage::disk('source')->putFileAs(
-            'movies/' . $movie->id,
-            $file,
-            'source.' . $ext
-        );
-
-        // Wipe the previous HLS output; the old stream URL becomes 404
-        // until the new transcode finishes.
-        if ($movie->hls_master_path) {
-            Storage::disk('hls')->deleteDirectory('movie/' . $movie->id);
-        }
-
-        $movie->forceFill([
-            'source_path' => $path,
-            'hls_master_path' => null,
-            'transcode_status' => 'queued',
-            'transcode_error' => null,
-            // Clear the URL field: the file is now the source of truth.
-            'video_url' => null,
-        ])->save();
-
-        TranscodeVideoJob::dispatch('movie', $movie->id);
-    }
-
-    /**
-     * When a local file is chosen via FileManager, copy it to the private
-     * `source` disk and queue the transcode job — same outcome as a direct
-     * upload but without needing a multipart POST.
-     *
-     * Skipped when:
-     *  - a direct file upload was already handled (handleVideoUpload wins)
-     *  - the video_source isn't 'local'
-     *  - the local path hasn't changed (avoids re-transcoding on every save)
-     */
-    private function handleLocalTranscode(Request $request, Movie $movie): void
-    {
-        // A direct upload already handled transcoding.
-        if ($request->hasFile('video_file')) return;
-
-        if (($request->input('video_source') ?? '') !== 'local') return;
-
-        $localUrl = trim((string) $request->input('video_local'));
-        if ($localUrl === '') return;
-
-        // If this is the same URL we already transcoded, don't re-do it.
-        if ($movie->transcode_status === 'ready' && $movie->video_url === $localUrl) return;
-        if ($movie->transcode_status === 'queued' || $movie->transcode_status === 'transcoding') return;
-
-        // Resolve the local URL to an absolute filesystem path.
-        // FileManager stores paths like "/Jambo/storage/media/movies/file.mp4"
-        // which maps to public_path() or the XAMPP document root.
-        $absolute = $this->resolveLocalPath($localUrl);
-        if (!$absolute || !file_exists($absolute)) return;
-
-        $ext = strtolower(pathinfo($absolute, PATHINFO_EXTENSION) ?: 'mp4');
-        $destPath = 'movies/' . $movie->id . '/source.' . $ext;
-
-        Storage::disk('source')->makeDirectory('movies/' . $movie->id);
-        $stream = fopen($absolute, 'r');
-        Storage::disk('source')->put($destPath, $stream);
-        if (is_resource($stream)) fclose($stream);
-
-        if ($movie->hls_master_path) {
-            Storage::disk('hls')->deleteDirectory('movie/' . $movie->id);
-        }
-
-        $movie->forceFill([
-            'source_path' => $destPath,
-            'hls_master_path' => null,
-            'transcode_status' => 'queued',
-            'transcode_error' => null,
-        ])->save();
-
-        TranscodeVideoJob::dispatch('movie', $movie->id);
-    }
-
-    /**
-     * Turn a web-relative path (e.g. "/Jambo/storage/media/movies/file.mp4")
-     * into an absolute filesystem path by anchoring it to the document root.
-     */
-    private function resolveLocalPath(string $url): ?string
-    {
-        $parsed = urldecode(parse_url($url, PHP_URL_PATH) ?: $url);
-
-        // Strip the app base prefix so we get a path relative to public/.
-        $base = parse_url(config('app.url'), PHP_URL_PATH) ?: '';
-        $base = rtrim($base, '/');
-        if ($base !== '' && str_starts_with($parsed, $base)) {
-            $parsed = substr($parsed, strlen($base));
-        }
-
-        $absolute = public_path(ltrim($parsed, '/'));
-
-        // Basic safety: block directory traversal.
-        $real = realpath($absolute);
-        if (!$real || !str_starts_with($real, realpath(public_path()))) {
-            return null;
-        }
-
-        return $real;
-    }
-
-    /**
-     * When a Dropbox URL is provided, queue a download-then-transcode job
-     * so the file gets pulled to the source disk and encoded into HLS.
-     */
-    private function handleDropboxTranscode(Request $request, Movie $movie): void
-    {
-        if ($request->hasFile('video_file')) return;
-        if (($request->input('video_source') ?? '') !== 'dropbox') return;
-
-        $dropbox = trim((string) $request->input('dropbox_path'));
-        if ($dropbox === '' || !str_starts_with($dropbox, 'http')) return;
-
-        // Don't re-download if already processed or in progress.
-        if ($movie->transcode_status === 'ready' && $movie->dropbox_path === $dropbox) return;
-        if (in_array($movie->transcode_status, ['queued', 'downloading', 'transcoding'])) return;
-
-        // Normalise to a direct-download URL.
-        $downloadUrl = $this->normaliseDropboxUrl($dropbox);
-
-        $movie->forceFill([
-            'transcode_status' => 'queued',
-            'transcode_error'  => null,
-            'hls_master_path'  => null,
-        ])->save();
-
-        DownloadAndTranscodeJob::dispatch('movie', $movie->id, $downloadUrl);
-    }
-
-    /**
-     * Convert a Dropbox share URL to a direct-download URL.
-     */
-    private function normaliseDropboxUrl(string $url): string
-    {
-        $path = (string) parse_url($url, PHP_URL_PATH);
-
-        if (str_starts_with($path, '/scl/')) {
-            $url = preg_replace('/([?&])dl=\d+/', '$1dl=1', $url);
-            if (!str_contains($url, 'dl=1')) {
-                $url .= (str_contains($url, '?') ? '&' : '?') . 'dl=1';
-            }
-        } else {
-            $url = preg_replace('#^https?://(www\.)?dropbox\.com/#i', 'https://dl.dropboxusercontent.com/', $url);
-            $url = preg_replace('/([?&])dl=\d+(&|$)/i', '$1', $url);
-            $url = rtrim($url, '?&');
-        }
-
-        return $url;
     }
 
     public function destroy(Movie $movie): RedirectResponse
@@ -477,37 +277,6 @@ class MovieController extends Controller
     /* -------------------------------------------------------------------- */
     /* Helpers                                                              */
     /* -------------------------------------------------------------------- */
-
-    /**
-     * If the admin asked to publish a movie that hasn't finished
-     * transcoding, demote it back to draft and flip publish_when_ready
-     * so the post-transcode hook auto-publishes it.
-     *
-     * Returns true when the deferral happened so the caller knows to
-     * suppress the immediate MovieAdded push event.
-     */
-    private function applyPublishDeferral(Movie $movie, string $intendedStatus): bool
-    {
-        if ($intendedStatus !== 'published') {
-            return false;
-        }
-
-        $hasVideoSource = !empty($movie->video_url) || !empty($movie->dropbox_path) || !empty($movie->source_path);
-        if (!$hasVideoSource) {
-            return false; // nothing to transcode (e.g. upcoming with metadata only)
-        }
-
-        if ($movie->transcode_status === 'ready') {
-            return false; // already encoded, publish is real
-        }
-
-        $movie->forceFill([
-            'status'              => 'draft',
-            'publish_when_ready'  => true,
-        ])->save();
-
-        return true;
-    }
 
     private function uniqueSlug(string $title, ?int $ignoreId = null): string
     {
