@@ -237,11 +237,24 @@ Route::middleware('auth')->group(function () {
     // Without this, /notifications gets interpreted as a profile hub
     // request with username="notifications" and admins get bounced to
     // /app by resolveOwn().
+    //
+    // The second negative lookahead excludes paths that end in a known
+    // file extension (.xml, .txt, .html, etc.). Without it, Googlebot
+    // hitting /sitemap.xml or /robots.txt would match the username
+    // pattern (since the chars are all in [a-zA-Z0-9._\-]), this auth
+    // group would trigger Authenticate, and the crawler would get a
+    // 302 → /login. The Seo module registers those routes later in the
+    // stack, so route-precedence alone wasn't enough to win the match.
+    // List covers the common static-file shapes the site might serve
+    // at the root: sitemaps, robots, search-engine verification HTML
+    // files, PWA manifests, browser-fetched assets that occasionally
+    // bypass /storage or /build prefixes.
     $reserved = implode('|', array_map(
         fn ($n) => preg_quote($n, '/'),
         \App\Rules\ReservedUsername::RESERVED,
     ));
-    $usernamePattern = '(?!(?:' . $reserved . ')$)[a-zA-Z0-9._\-]+';
+    $extensionExclusion = '(?!.*\.(?:xml|txt|html|json|css|js|ico|png|jpe?g|gif|svg|webp|woff2?|ttf|eot|mp4|webm|pdf|webmanifest|map|php)$)';
+    $usernamePattern = '(?!(?:' . $reserved . ')$)' . $extensionExclusion . '[a-zA-Z0-9._\-]+';
 
     Route::get('/{username}',
         [\App\Http\Controllers\ProfileHubController::class, 'show'])
