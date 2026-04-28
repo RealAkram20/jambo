@@ -32,12 +32,24 @@ class RouteServiceProvider extends ServiceProvider
 
     /**
      * /sitemap.xml + /robots.txt — public crawler endpoints.
-     * Loaded as a separate route file so the public-facing routes
-     * are easy to spot vs. the auth-gated admin ones.
+     *
+     * Registered with a deliberately bare middleware stack — NOT the
+     * `web` group. Reason: this app's web group apparently includes
+     * something that redirects unauthenticated requests to /login
+     * (a custom force-auth middleware, possibly tier_gate fanned out
+     * site-wide, or 2FA enforcement). We learned that the hard way
+     * when /sitemap.xml started 302'ing Googlebot to /login.
+     *
+     * Crawler endpoints don't need session, CSRF, cookies, or auth —
+     * they just need to run the controller and return bytes. Empty
+     * middleware list ensures nothing in the global / web stack can
+     * intercept the response. The route-cache invalidation on the
+     * `Illuminate\Routing\Middleware\SubstituteBindings` removal is
+     * fine; neither sitemap nor robots uses route model binding.
      */
     protected function mapPublicRoutes(): void
     {
-        Route::middleware('web')
+        Route::middleware([])
             ->namespace($this->moduleNamespace)
             ->group(module_path('Seo', '/routes/public.php'));
     }
