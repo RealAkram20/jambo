@@ -109,6 +109,27 @@
                     </a>
                 </div>
                 @if ($trailerUrl)
+                @php
+                    // Pre-compute video.js setup JSON. Inlining a Blade @json
+                    // directive inside a single-quoted attribute confuses
+                    // Blade's tokenizer: the first PHP single-quote inside
+                    // the array is read as the attribute terminator and the
+                    // view fails to compile. Computing here, echoing via
+                    // {{ }} into a double-quoted attribute lets HTML escape
+                    // the JSON quotes to &quot; safely — JS reading
+                    // dataset.setup gets the original JSON back.
+                    $videoSetup = json_encode([
+                        'techOrder' => ['youtube'],
+                        'sources' => [['type' => 'video/youtube', 'src' => $trailerUrl]],
+                        'youtube' => [
+                            'modestbranding' => 1,
+                            'rel' => 0,
+                            'showinfo' => 0,
+                            'autoplay' => 1,
+                        ],
+                        'fullscreen' => true,
+                    ], JSON_UNESCAPED_SLASHES);
+                @endphp
                 <div class="col-lg-5 col-md-12 trailor-video iq-slider d-none d-lg-block position-relative">
                     <a data-fslightbox="html5-video" href="{{ $trailerUrl }}"
                         class="video-open playbtn text-decoration-none" tabindex="0">
@@ -126,20 +147,7 @@
                     </a>
                     <video id="my-video" class="my-video video-js vjs-big-play-centered w-100 d-none" loop autoplay
                         muted preload="auto"
-                        data-setup='@json([
-                            'techOrder' => ['youtube'],
-                            'sources' => [[
-                                'type' => 'video/youtube',
-                                'src' => $trailerUrl,
-                            ]],
-                            'youtube' => [
-                                'modestbranding' => 1,
-                                'rel' => 0,
-                                'showinfo' => 0,
-                                'autoplay' => 1,
-                            ],
-                            'fullscreen' => true,
-                        ])'>
+                        data-setup="{{ $videoSetup }}">
                     </video>
                 </div>
                 @endif
