@@ -13,7 +13,7 @@
                 <div>
                     @if ($q !== '')
                         <h4 class="main-title text-capitalize mb-1 fw-medium">
-                            {{ __('streamButtons.search') ?? 'Search' }}:
+                            {{ __('frontendheader.search') }}:
                             <span class="text-primary">"{{ $q }}"</span>
                         </h4>
                         <p class="text-muted mb-0" style="font-size: 14px;">
@@ -22,7 +22,7 @@
                         </p>
                     @else
                         <h4 class="main-title text-capitalize mb-1 fw-medium">
-                            {{ __('streamButtons.search') ?? 'Search' }}
+                            {{ __('frontendheader.search') }}
                         </h4>
                         <p class="text-muted mb-0" style="font-size: 14px;">
                             Type at least two characters in the search bar above to find a movie or series.
@@ -34,7 +34,7 @@
             {{-- Movies --}}
             @if ($movies->count())
                 <div class="d-flex align-items-center justify-content-between mt-4 mb-3">
-                    <h6 class="main-title text-capitalize mb-0">{{ __('frontendheader.movies') ?? 'Movies' }}</h6>
+                    <h6 class="main-title text-capitalize mb-0">{{ __('frontendheader.movies') }}</h6>
                 </div>
                 <div class="row row-cols-xl-5 row-cols-md-3 row-cols-3 g-3">
                     @foreach ($movies as $movie)
@@ -60,7 +60,7 @@
             {{-- Series --}}
             @if ($shows->count())
                 <div class="d-flex align-items-center justify-content-between mt-5 mb-3">
-                    <h6 class="main-title text-capitalize mb-0">{{ __('frontendheader.tvshow') ?? 'Series' }}</h6>
+                    <h6 class="main-title text-capitalize mb-0">{{ __('frontendheader.tvshow') }}</h6>
                 </div>
                 <div class="row row-cols-xl-5 row-cols-md-3 row-cols-3 g-3">
                     @foreach ($shows as $show)
