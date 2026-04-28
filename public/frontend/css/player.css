@@ -1929,3 +1929,18 @@ media-tooltip-group {
     .jambo-player-error__title { font-size: 16px; }
     .jambo-player-error__body  { font-size: 13px; }
 }
+
+.jambo-player-error__btn {
+    margin-top: 18px;
+    padding: 10px 22px;
+    background: var(--bs-primary, #1A98FF);
+    color: #fff;
+    border: 0;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: filter 0.15s ease, transform 0.1s ease;
+}
+.jambo-player-error__btn:hover { filter: brightness(1.1); }
+.jambo-player-error__btn:active { transform: scale(0.96); }

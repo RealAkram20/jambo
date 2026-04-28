@@ -183,10 +183,10 @@
                         + 'check the codec (must be H.264 / VP9 / AV1) and that the URL '
                         + 'returns video bytes, not an HTML error page.');
                     showPlayerError(
-                        "Can't play this video",
-                        "The file is in a format your browser can't decode (most often "
-                        + "HEVC/H.265 in Chrome or Firefox). Try Safari, or ask support to "
-                        + "re-upload the video as H.264 MP4."
+                        "We can't play this video right now",
+                        "Please try again. If it keeps happening, the file may need to be "
+                        + "re-uploaded — let our support team know which title.",
+                        true
                     );
                     return;
                 }
@@ -233,15 +233,12 @@
             // Used when the source is genuinely unplayable (code 4 on
             // initial load) — the console warning alone isn't enough,
             // most viewers won't open devtools.
-            function showPlayerError(title, body) {
+            function showPlayerError(title, body, withRetry) {
                 var container = v.closest('media-container') || v.parentElement;
                 if (!container) return;
                 var existing = container.querySelector('.jambo-player-error');
-                if (existing) {
-                    existing.querySelector('.jambo-player-error__title').textContent = title;
-                    existing.querySelector('.jambo-player-error__body').textContent = body;
-                    return;
-                }
+                if (existing) existing.remove();
+
                 var box = document.createElement('div');
                 box.className = 'jambo-player-error';
                 box.innerHTML =
@@ -253,10 +250,32 @@
                         '</svg>' +
                     '</div>' +
                     '<div class="jambo-player-error__title"></div>' +
-                    '<p class="jambo-player-error__body"></p>';
+                    '<p class="jambo-player-error__body"></p>' +
+                    (withRetry
+                        ? '<button type="button" class="jambo-player-error__btn">Try again</button>'
+                        : '');
                 box.querySelector('.jambo-player-error__title').textContent = title;
                 box.querySelector('.jambo-player-error__body').textContent = body;
                 container.appendChild(box);
+
+                var btn = box.querySelector('.jambo-player-error__btn');
+                if (btn) {
+                    btn.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        hidePlayerError();
+                        // Force the browser to refetch from origin in case
+                        // the failure was a cached 4xx / corrupted byte
+                        // window. The _retry param breaks any HTTP cache.
+                        var base = (localStorage.getItem('jambo.quality') === 'low' && v.dataset.srcLow)
+                            ? v.dataset.srcLow : v.dataset.srcDefault;
+                        if (!base) return;
+                        var sep = base.indexOf('?') === -1 ? '?' : '&';
+                        v.src = base + sep + '_retry=' + Date.now();
+                        v.load();
+                        var p = v.play();
+                        if (p && typeof p.catch === 'function') p.catch(function () {});
+                    });
+                }
             }
             function hidePlayerError() {
                 var container = v.closest('media-container') || v.parentElement;
