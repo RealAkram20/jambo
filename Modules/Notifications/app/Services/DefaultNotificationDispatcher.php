@@ -26,10 +26,28 @@ class DefaultNotificationDispatcher implements NotificationDispatcher
 
     public function toRole(string $role, Notification $notification): void
     {
-        User::role($role)
-            ->each(function (User $user) use ($notification) {
-                $this->safeNotify($user, $notification);
-            });
+        // Spatie's role() scope throws RoleDoesNotExist when the role
+        // hasn't been seeded — which on a fresh install or partially
+        // restored DB means every event(new Registered) crashes with a
+        // 500 mid-signup. The user record is already committed by then
+        // (User::create runs before the event), so the visible bug is
+        // "account exists but signup screen errors." Swallow the lookup
+        // error so user-facing flows can never depend on admin-side
+        // notification infrastructure being correctly seeded.
+        try {
+            $users = User::role($role)->cursor();
+        } catch (Throwable $e) {
+            Log::warning('[notifications] toRole skipped — role lookup failed', [
+                'role' => $role,
+                'notification' => $notification::class,
+                'error' => $e->getMessage(),
+            ]);
+            return;
+        }
+
+        foreach ($users as $user) {
+            $this->safeNotify($user, $notification);
+        }
     }
 
     public function toAdmins(Notification $notification): void

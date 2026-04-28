@@ -53,6 +53,7 @@
                                 'calenderIcon' => true,
                                 'buttonUrl' => $detailUrl,
                                 'movieText' => $item->synopsis ?: '',
+                                'trailerUrl' => $item->trailer_url ?: null,
                             ], fn ($v) => $v !== null))
                         @endforeach
                     </div>

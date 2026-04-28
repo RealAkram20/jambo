@@ -127,10 +127,30 @@ class NotificationEventSubscriber
         }
     }
 
-    public function handleSubscriptionExpiredStringEvent(User $user, ?string $planName = null): void
+    public function handleSubscriptionExpiredStringEvent(mixed $payload = null, ?string $planName = null): void
     {
-        // Invoked by the string-keyed event('subscription.expired', [$user, $planName])
-        // dispatched by ExpireSubscriptionsCommand.
+        // ExpireSubscriptionsCommand fires `event('subscription.expired', [$userSubscription])`,
+        // where the payload is a UserSubscription model. Older callers may
+        // still pass [$user, $planName]. Accept both shapes — pull the User
+        // out of whatever we got, and resolve the plan name from the tier
+        // when not supplied explicitly.
+        $user = null;
+
+        if ($payload instanceof \Modules\Subscriptions\app\Models\UserSubscription) {
+            $user = $payload->user;
+            if ($planName === null) {
+                $planName = $payload->relationLoaded('tier')
+                    ? optional($payload->tier)->name
+                    : optional($payload->loadMissing('tier')->tier)->name;
+            }
+        } elseif ($payload instanceof User) {
+            $user = $payload;
+        }
+
+        if (!$user instanceof User) {
+            return;
+        }
+
         $notif = new N\SubscriptionExpiredNotification($user->id, $planName);
         $this->dispatcher->toUser($user, $notif);
         $this->dispatcher->toAdmins($notif);

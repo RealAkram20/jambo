@@ -127,6 +127,19 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
         return !is_null($this->deactivated_at);
     }
 
+    /**
+     * Override Laravel's default sync verification email with the
+     * queued variant. The default implementation calls $this->notify()
+     * with Illuminate's stock VerifyEmail, which is NOT ShouldQueue —
+     * so a flaky SMTP host (TLS handshake failure, auth refused, etc.)
+     * crashes the signup request. Queuing decouples signup success
+     * from mail-server uptime.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new \App\Notifications\QueuedVerifyEmail);
+    }
+
     protected $appends = ['full_name', 'profile_image'];
 
     public function getFullNameAttribute() // notice that the attribute name is in CamelCase.

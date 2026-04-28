@@ -12,7 +12,12 @@
                         $heroSrc = $heroBg && \Illuminate\Support\Str::startsWith($heroBg, ['http://', 'https://'])
                             ? $heroBg
                             : ($heroBg ? asset('frontend/images/' . $heroBg) : asset('frontend/images/media/krishna.webp'));
-                        $heroTrailer = $movie->trailer_url ?: 'https://www.youtube.com/embed/_PhvjbegfBI?autoplay=1&mute=1&loop=1&playlist=_PhvjbegfBI';
+                        // Trailer is per-movie. When a movie has none we hide
+                        // the floating "Watch Trailer" button entirely rather
+                        // than playing a hardcoded placeholder (this used to
+                        // fall back to a Lion King trailer baked into the
+                        // template).
+                        $heroTrailer = $movie->trailer_url ?: null;
                         $heroCast = $movie->cast?->filter(fn ($p) => ($p->pivot->role ?? null) === 'actor')->take(3) ?? collect();
                     @endphp
                     <div class="swiper-slide slide s-bg-1 p-0">
@@ -72,6 +77,7 @@
                                             ])
                                         </div>
                                     </div>
+                                    @if ($heroTrailer)
                                     <div class="col-xl-7 col-lg-6 col-md-12 trailor-video iq-slider d-none d-lg-block">
                                         <a data-fslightbox="html5-video" href="{{ $heroTrailer }}"
                                             class="video-open playbtn text-decoration-none" tabindex="0">
@@ -89,6 +95,7 @@
                                             <span class="w-trailor text-uppercase">{{ __('streamButtons.watch_trailer') }}</span>
                                         </a>
                                     </div>
+                                    @endif
                                 </div>
                             </div>
                         </div>

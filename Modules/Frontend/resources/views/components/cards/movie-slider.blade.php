@@ -4,6 +4,13 @@
     // "Play Now" for a context-appropriate label without a second
     // partial. Existing callers that don't pass one get the default.
     $buttonLabel = $buttonLabel ?? __('streamButtons.play_now');
+
+    // Trailer URL is per-movie (or per-show) and pulled from the
+    // model. When the caller doesn't have one, the trailer column
+    // and the floating "Watch Trailer" play button are hidden
+    // entirely — better than playing a hardcoded placeholder
+    // (this used to be a Lion King trailer baked into the markup).
+    $trailerUrl = $trailerUrl ?? null;
 @endphp
 <div class="swiper-slide {{ $movieCard }} p-0">
     <div class="movie-banner-image" style="background-image: url('{{ $sliderImg }}');">
@@ -101,8 +108,9 @@
                         </div>
                     </a>
                 </div>
+                @if ($trailerUrl)
                 <div class="col-lg-5 col-md-12 trailor-video iq-slider d-none d-lg-block position-relative">
-                    <a data-fslightbox="html5-video" href="https://www.youtube.com/watch?v=spGSAeqxVUc"
+                    <a data-fslightbox="html5-video" href="{{ $trailerUrl }}"
                         class="video-open playbtn text-decoration-none" tabindex="0">
                         <svg version="1.1" xmlns="http://www.w3.org/2000/svg"
                             xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="80px" height="80px"
@@ -118,22 +126,23 @@
                     </a>
                     <video id="my-video" class="my-video video-js vjs-big-play-centered w-100 d-none" loop autoplay
                         muted preload="auto"
-                        data-setup='{
-                            "techOrder": ["youtube"],
-                            "sources": [{
-                                "type": "video/youtube",
-                                "src": "https://www.youtube.com/watch?v=spGSAeqxVUc"
-                            }],
-                            "youtube": {
-                                "modestbranding": 1,
-                                "rel": 0,
-                                "showinfo": 0,
-                                "autoplay": 1
-                            },
-                            "fullscreen": true
-                            }'>
+                        data-setup='@json([
+                            'techOrder' => ['youtube'],
+                            'sources' => [[
+                                'type' => 'video/youtube',
+                                'src' => $trailerUrl,
+                            ]],
+                            'youtube' => [
+                                'modestbranding' => 1,
+                                'rel' => 0,
+                                'showinfo' => 0,
+                                'autoplay' => 1,
+                            ],
+                            'fullscreen' => true,
+                        ])'>
                     </video>
                 </div>
+                @endif
             </div>
         </div>
     </div>

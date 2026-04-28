@@ -17,6 +17,7 @@
                             'calenderIcon' => true,
                             'buttonUrl' => route('frontend.series_detail', $show->slug),
                             'movieText' => $show->synopsis ?: '',
+                            'trailerUrl' => $show->trailer_url ?: null,
                         ])
                     @endforeach
                 </div>

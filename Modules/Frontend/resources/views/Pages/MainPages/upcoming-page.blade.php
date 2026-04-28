@@ -34,6 +34,7 @@
                                 'buttonUrl' => '#jambo-upcoming-list',
                                 'buttonLabel' => __('streamButtons.view_all'),
                                 'movieText' => $item->synopsis ?: '',
+                                'trailerUrl' => $item->trailer_url ?: null,
                             ])
                         @endforeach
                     </div>
