@@ -202,9 +202,22 @@
 
         // Single tap on the center area (the video element itself) → play/pause.
         // Only when not clicking a control or gesture zone.
+        //
+        // The .jambo-mobile-center exclusion is critical on mobile.
+        // Its <media-play-button> / <media-seek-button> children are
+        // Media Chrome web components that already handle their own
+        // clicks (toggling play, seeking ±10s). Without this guard,
+        // a tap on the center play button toggles play once via the
+        // web component AND a second time via this bubbled handler —
+        // net effect: tap "play" → starts → immediately pauses,
+        // user sees the video as if play does nothing. Same trap for
+        // the flanking seek buttons (tap to seek 10s → also toggles
+        // play, so seek + pause in one tap).
         video.addEventListener('click', function (e) {
-            // Don't interfere with controls.
-            if (e.target.closest('.media-controls') || e.target.closest('.jambo-settings-popover')) return;
+            if (e.target.closest('.media-controls') ||
+                e.target.closest('.jambo-settings-popover') ||
+                e.target.closest('.jambo-mobile-center') ||
+                e.target.closest('.jambo-gesture-zone')) return;
             togglePlay();
         });
 
