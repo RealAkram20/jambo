@@ -172,6 +172,18 @@
                 // Codes: 1 aborted, 2 network, 3 decode, 4 src not supported.
                 // We retry on decode / src / network — not on manual abort.
                 if (err.code === 1) return;
+                // Code 4 BEFORE first play means the source is genuinely
+                // unplayable (wrong codec / dead share link / HTML error
+                // page where bytes were expected). Reloading the same
+                // source 12 times won't change that, it just spams the
+                // console with `error code=4, retry N`. Bail with a
+                // single clear message.
+                if (err.code === 4 && !hasPlayedOnce) {
+                    console.warn('[jambo-player] source not supported by this browser — '
+                        + 'check the codec (must be H.264 / VP9 / AV1) and that the URL '
+                        + 'returns video bytes, not an HTML error page.');
+                    return;
+                }
                 // Exponential-ish backoff so we don't hammer a flaky
                 // source: 1s, 2s, 4s, capped at 8s. Combined with the
                 // larger retry budget, transient errors recover with
