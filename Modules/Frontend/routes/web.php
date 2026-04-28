@@ -18,7 +18,13 @@ Route::group([], function () {
     //main pages
     Route::get('/', [FrontendController::class, 'ott'])->name('frontend.ott');
     Route::get('/home', [FrontendController::class, 'index'])->name('frontend.index');
-    Route::get('/search', [FrontendController::class, 'search'])->name('frontend.search');
+    // /search is the full-page results view (form's submit target).
+    // /search/suggest is the JSON endpoint the header dropdown polls.
+    // Splitting them prevents the form from landing the user on the
+    // raw JSON when they press Enter — they get the styled results
+    // page instead, while the live dropdown keeps its own JSON feed.
+    Route::get('/search', [FrontendController::class, 'searchPage'])->name('frontend.search');
+    Route::get('/search/suggest', [FrontendController::class, 'searchSuggest'])->name('frontend.search.suggest');
     Route::get('/movie', [FrontendController::class, 'movie'])->name('frontend.movie');
     Route::get('/upcoming', [FrontendController::class, 'upcomingPage'])->name('frontend.upcoming');
     Route::get('/upcoming/load-more', [FrontendController::class, 'upcomingLoadMore'])->name('frontend.upcoming_load_more');

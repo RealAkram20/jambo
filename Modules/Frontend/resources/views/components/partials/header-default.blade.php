@@ -195,27 +195,188 @@
 {{-- Sidebar overlay --}}
 <div class="jambo-sidebar-overlay" id="jambo-sidebar-overlay"></div>
 
+{{-- Search bar + dropdown styling. Inlined here rather than
+     compiled into the SCSS bundle so deploys don't need a Vite
+     build to pick up changes. The classes (jambo-search-*) are
+     scoped enough not to collide with anything else. --}}
+<style>
+    .jambo-search { position: relative; }
+
+    .jambo-search-form {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 999px;
+        padding: 4px 4px 4px 18px;
+        transition: border-color 0.18s ease, background 0.18s ease;
+    }
+    .jambo-search-form:focus-within {
+        border-color: var(--bs-primary);
+        background: rgba(255, 255, 255, 0.09);
+    }
+    .jambo-search-input {
+        flex: 1 1 auto;
+        min-width: 0;
+        background: transparent;
+        border: 0;
+        outline: 0;
+        color: var(--bs-body-color, #fff);
+        font-size: 14px;
+        line-height: 1.4;
+        padding: 8px 0;
+    }
+    .jambo-search-input::placeholder {
+        color: rgba(255, 255, 255, 0.45);
+    }
+    .jambo-search-btn {
+        flex: 0 0 auto;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        border: 0;
+        background: var(--bs-primary);
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background 0.18s ease, transform 0.12s ease;
+    }
+    .jambo-search-btn:hover { background: var(--bs-primary); filter: brightness(1.1); }
+    .jambo-search-btn:active { transform: scale(0.94); }
+    .jambo-search-btn i { font-size: 16px; line-height: 1; }
+
+    .jambo-search-results {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        right: 0;
+        z-index: 1050;
+        background: var(--bs-body-bg, #0f0f15);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+        overflow: hidden;
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+    .jambo-search-results[hidden] { display: none; }
+
+    .jambo-search-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        color: var(--bs-body-color, #fff);
+        text-decoration: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        transition: background 0.12s ease;
+    }
+    .jambo-search-item:last-of-type { border-bottom: 0; }
+    .jambo-search-item:hover,
+    .jambo-search-item.is-active {
+        background: rgba(var(--bs-primary-rgb, 229, 9, 20), 0.12);
+        color: #fff;
+    }
+    .jambo-search-thumb {
+        width: 44px;
+        height: 62px;
+        flex: 0 0 auto;
+        object-fit: cover;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.04);
+    }
+    .jambo-search-info {
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+    .jambo-search-title {
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 1.3;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .jambo-search-meta {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.55);
+        margin-top: 2px;
+    }
+    .jambo-search-empty {
+        padding: 22px 16px;
+        text-align: center;
+        color: rgba(255, 255, 255, 0.55);
+        font-size: 13px;
+    }
+    .jambo-search-all {
+        display: block;
+        padding: 10px 14px;
+        text-align: center;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--bs-primary);
+        text-decoration: none;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.02);
+        transition: background 0.12s ease;
+    }
+    .jambo-search-all:hover,
+    .jambo-search-all.is-active {
+        background: rgba(var(--bs-primary-rgb, 229, 9, 20), 0.14);
+        color: #fff;
+    }
+
+    /* Mobile: search input collapsed by default, the magnifier toggle
+       in the right cluster expands it as a full-width row below the
+       header. The dropdown shares the row so results stay anchored
+       to the input. */
+    @media (max-width: 1199.98px) {
+        .jambo-header__search {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            padding: 10px 14px 14px;
+            background: var(--bs-body-bg, #0f0f15);
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .jambo-header__search.jambo-search--expanded {
+            display: block;
+        }
+    }
+</style>
+
 {{-- Search + sidebar JS --}}
 <script>
 (function() {
     // ---- Debounced AJAX search ----
+    // Form's `action` points at /search (the styled results page). The
+    // dropdown polls /search/suggest (JSON) so the form's natural
+    // submit flow on Enter / button click takes the user to a real
+    // page rather than dumping raw JSON in the address bar.
     var input = document.getElementById('jambo-search-input');
     var results = document.getElementById('jambo-search-results');
-    var searchUrl = {{ Js::from(route('frontend.search')) }};
+    var suggestUrl = {{ Js::from(route('frontend.search.suggest')) }};
     var timer = null;
+    var activeIndex = -1;
 
     if (input && results) {
         input.addEventListener('input', function() {
             clearTimeout(timer);
             var q = this.value.trim();
-            if (q.length < 2) { results.hidden = true; return; }
+            if (q.length < 2) { results.hidden = true; results.innerHTML = ''; activeIndex = -1; return; }
             timer = setTimeout(function() {
-                fetch(searchUrl + '?q=' + encodeURIComponent(q), {
+                fetch(suggestUrl + '?q=' + encodeURIComponent(q), {
                     headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
                 })
                 .then(function(r) { return r.json(); })
                 .then(function(data) {
                     var items = [].concat(data.movies || [], data.shows || []);
+                    activeIndex = -1;
                     if (items.length === 0) {
                         results.innerHTML = '<div class="jambo-search-empty">No results found</div>';
                     } else {
@@ -224,35 +385,64 @@
                                 '<img src="' + (item.poster || '') + '" alt="" class="jambo-search-thumb" onerror="this.style.display=\'none\'">' +
                                 '<div class="jambo-search-info">' +
                                     '<div class="jambo-search-title">' + escapeHtml(item.title) + '</div>' +
-                                    '<small class="text-muted">' + item.type + (item.year ? ' &middot; ' + item.year : '') + '</small>' +
+                                    '<div class="jambo-search-meta">' + item.type + (item.year ? ' &middot; ' + item.year : '') + '</div>' +
                                 '</div>' +
                             '</a>';
                         }).join('');
+                        // "View all results" footer — sends the user to
+                        // the styled results page for the full grid.
+                        results.innerHTML += '<a href="' + {{ Js::from(route('frontend.search')) }} + '?q=' + encodeURIComponent(q) +
+                            '" class="jambo-search-all">View all results &rsaquo;</a>';
                     }
                     results.hidden = false;
                 })
                 .catch(function() { results.hidden = true; });
-            }, 400);
+            }, 250);
         });
 
         document.addEventListener('click', function(e) {
             if (!e.target.closest('#jambo-search')) {
                 results.hidden = true;
-                // Close mobile expanded search when clicking outside.
                 var sb = document.getElementById('jambo-search');
                 if (sb && sb.classList.contains('jambo-search--expanded') && !e.target.closest('#jambo-search-toggle')) {
                     sb.classList.remove('jambo-search--expanded');
                 }
             }
         });
+
+        // Keyboard nav: arrow keys cycle through dropdown items, Enter
+        // navigates to the highlighted one (falling back to the form's
+        // default submit → full results page when nothing is highlighted).
         input.addEventListener('keydown', function(e) {
+            var rows = results.querySelectorAll('.jambo-search-item, .jambo-search-all');
             if (e.key === 'Escape') {
                 results.hidden = true;
                 this.blur();
                 var sb = document.getElementById('jambo-search');
                 if (sb) sb.classList.remove('jambo-search--expanded');
+                return;
+            }
+            if (results.hidden || rows.length === 0) return;
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                activeIndex = Math.min(activeIndex + 1, rows.length - 1);
+                highlightRow(rows, activeIndex);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                activeIndex = Math.max(activeIndex - 1, -1);
+                highlightRow(rows, activeIndex);
+            } else if (e.key === 'Enter' && activeIndex >= 0) {
+                e.preventDefault();
+                window.location.href = rows[activeIndex].href;
             }
         });
+
+        function highlightRow(rows, idx) {
+            rows.forEach(function (r, i) {
+                r.classList.toggle('is-active', i === idx);
+                if (i === idx) r.scrollIntoView({ block: 'nearest' });
+            });
+        }
     }
 
     // ---- Mobile search toggle ----

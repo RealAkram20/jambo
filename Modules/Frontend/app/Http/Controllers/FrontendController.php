@@ -22,10 +22,54 @@ use Modules\Frontend\app\Services\TopPicksRecommender;
 use Modules\Pages\app\Models\Page;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class FrontendController extends Controller
 {
-    public function search(Request $request): JsonResponse
+    /**
+     * Full-page search results — the form's submit target. Renders a
+     * grid of matching movies + shows using the same card-style
+     * component used elsewhere on the frontend, so the page feels like
+     * a natural extension of /movie or /series rather than a one-off.
+     *
+     * Returns even when $q is empty / too short — the view shows an
+     * "enter at least 2 characters" hint in that case so users who
+     * land on /search by mistake get something coherent instead of a
+     * blank page.
+     */
+    public function searchPage(Request $request): View
+    {
+        $q = trim((string) $request->query('q', ''));
+        $movies = collect();
+        $shows = collect();
+
+        if (strlen($q) >= 2) {
+            $like = '%' . $q . '%';
+
+            $movies = Movie::published()
+                ->with('genres')
+                ->where(fn ($query) => $query->where('title', 'like', $like)->orWhere('synopsis', 'like', $like))
+                ->orderByDesc('published_at')
+                ->take(48)
+                ->get();
+
+            $shows = Show::published()
+                ->with('genres')
+                ->where(fn ($query) => $query->where('title', 'like', $like)->orWhere('synopsis', 'like', $like))
+                ->orderByDesc('published_at')
+                ->take(48)
+                ->get();
+        }
+
+        return view('frontend::Pages.MainPages.search-page', compact('q', 'movies', 'shows'));
+    }
+
+    /**
+     * Live-search suggestions for the header dropdown. Same shape as
+     * before — kept stable so the dropdown JS doesn't need to know
+     * about the new full-page route.
+     */
+    public function searchSuggest(Request $request): JsonResponse
     {
         $q = trim((string) $request->query('q'));
         if (strlen($q) < 2) {
