@@ -34,11 +34,6 @@
                 </div>
             @endif
 
-            @include('content::admin.partials.transcode-status-banner', [
-                'row' => $episode,
-                'progressUrl' => route('admin.episodes.transcode-progress', $episode),
-            ])
-
             <form method="POST" action="{{ route('admin.series.seasons.episodes.update', [$show, $season, $episode]) }}" enctype="multipart/form-data">
                 @method('PUT')
                 @include('content::admin.episodes.form')

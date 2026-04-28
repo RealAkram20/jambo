@@ -2,8 +2,8 @@
     Reusable Streaming source tabs (URL / Local / Dropbox).
 
     Props:
-        model         — the Eloquent model (has video_url, dropbox_path, optional transcode_status/error)
-        acceptLocal   — array of allowed local video extensions (default ['mp4','webm','mov','m4v','mkv'])
+        model         — the Eloquent model (has video_url, dropbox_path)
+        acceptLocal   — array of allowed local video extensions (default ['mp4','webm','m4v'])
         showUpload    — bool; whether to render the native <input type=file> upload field (default false — file manager handles uploads)
 --}}
 @php
@@ -36,7 +36,11 @@
     elseif ($errors->has('video_local') || $errors->has('video_file')) $activeTab = 'local';
     elseif ($errors->has('video_url')) $activeTab = 'url';
 
-    $acceptLocal = $acceptLocal ?? ['mp4','webm','mov','m4v','mkv'];
+    // Browser-playable formats only. MKV/MOV/AVI must be converted
+    // to MP4 by the uploader before adding to the library — the
+    // server doesn't transcode anymore (every playback redirects
+    // straight to the original Dropbox/local URL).
+    $acceptLocal = $acceptLocal ?? ['mp4','webm','m4v'];
     $acceptCsv   = implode(',', $acceptLocal);
 
     $sourceBadge = [
@@ -44,8 +48,6 @@
         'local'   => ['label' => 'Local',   'class' => 'bg-primary-subtle text-primary', 'icon' => 'ph-folder-open'],
         'dropbox' => ['label' => 'Dropbox', 'class' => 'bg-warning-subtle text-warning', 'icon' => 'ph-dropbox-logo'],
     ];
-    $transcodeStatus = $model->transcode_status ?? null;
-    $transcodeError  = $model->transcode_error ?? null;
 @endphp
 
 <div class="card mt-4">
@@ -112,21 +114,8 @@
                         id="video_local_clear" title="Clear selection">
                         <i class="ph ph-x"></i>
                     </button>
-                    @if ($transcodeStatus)
-                        <span class="badge
-                            @switch($transcodeStatus)
-                                @case('queued') bg-secondary @break
-                                @case('downloading') bg-warning @break
-                                @case('transcoding') bg-info @break
-                                @case('ready') bg-success @break
-                                @case('failed') bg-danger @break
-                            @endswitch">{{ ucfirst($transcodeStatus) }}</span>
-                    @endif
                 </div>
                 @error('video_local') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                @if ($transcodeStatus === 'failed' && $transcodeError)
-                    <div class="text-danger small mt-2">{{ $transcodeError }}</div>
-                @endif
             </div>
 
             <div class="tab-pane fade {{ $activeTab === 'dropbox' ? 'show active' : '' }}" id="pane-stream-dropbox" role="tabpanel">

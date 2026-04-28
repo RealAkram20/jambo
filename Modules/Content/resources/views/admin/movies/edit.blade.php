@@ -34,11 +34,6 @@
                 </div>
             @endif
 
-            @include('content::admin.partials.transcode-status-banner', [
-                'row' => $movie,
-                'progressUrl' => route('admin.movies.transcode-progress', $movie),
-            ])
-
             <form method="POST" action="{{ route('admin.movies.update', $movie) }}" enctype="multipart/form-data">
                 @method('PUT')
                 @include('content::admin.movies.form')

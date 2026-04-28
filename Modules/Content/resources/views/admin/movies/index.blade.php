@@ -127,22 +127,6 @@
                                             @else
                                                 <span class="badge bg-warning">Draft</span>
                                             @endif
-                                            @if ($movie->transcode_status)
-                                                @switch($movie->transcode_status)
-                                                    @case('queued')
-                                                        <span class="badge bg-secondary" title="Transcode queued" style="font-size:10px;">Queued</span>
-                                                        @break
-                                                    @case('transcoding')
-                                                        <span class="badge bg-info" title="Transcoding in progress" style="font-size:10px;">Transcoding</span>
-                                                        @break
-                                                    @case('ready')
-                                                        <span class="badge bg-success" title="HLS stream ready" style="font-size:10px;">HLS</span>
-                                                        @break
-                                                    @case('failed')
-                                                        <span class="badge bg-danger" title="{{ $movie->transcode_error }}" style="font-size:10px;">Transcode failed</span>
-                                                        @break
-                                                @endswitch
-                                            @endif
                                         </td>
                                         <td style="font-size:12px;color:var(--bs-secondary);">{{ $movie->updated_at?->diffForHumans() }}</td>
                                         <td class="text-end">
@@ -188,25 +172,13 @@
 
 @include('components.partials.admin-bulk-confirm')
 
-{{-- Keep the status badges current while transcodes are running.
-     Reload on Back-button (bfcache) restore, and auto-poll every 30s
-     when there's at least one in-flight transcode visible on this
-     page so the admin sees `Queued → Transcoding → HLS` flip in
-     place without manually refreshing. --}}
+{{-- bfcache restore reload — back-button on a list page should
+     reflect any deletes/edits done on the detail page in between. --}}
 <script>
 (function () {
     window.addEventListener('pageshow', function (e) {
         if (e.persisted) location.reload();
     });
-
-    var hasInflight = document.querySelector(
-        '.badge[title="Transcode queued"], .badge[title="Transcoding in progress"]'
-    );
-    if (hasInflight && !document.hidden) {
-        setInterval(function () {
-            if (!document.hidden) location.reload();
-        }, 30000);
-    }
 })();
 </script>
 @endsection
