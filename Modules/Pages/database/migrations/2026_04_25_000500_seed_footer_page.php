@@ -59,7 +59,7 @@ return new class extends Migration {
                 ['icon' => 'icon icon-facebook-share', 'url' => 'https://www.facebook.com/'],
                 ['icon' => 'ph ph-x-logo', 'url' => 'https://twitter.com/'],
                 ['icon' => 'ph ph-instagram-logo', 'url' => 'https://www.instagram.com/'],
-                ['icon' => 'ph-fill ph-linkedin-logo', 'url' => 'https://www.linkedin.com/'],
+                ['icon' => 'ph ph-tiktok-logo', 'url' => 'https://www.tiktok.com/'],
             ],
             'copyright' => '&copy; ' . date('Y') . ' <span class="text-primary">JAMBO.</span> All rights reserved.',
             'download_app_title' => 'Download App',

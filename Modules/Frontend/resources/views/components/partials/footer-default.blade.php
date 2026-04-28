@@ -18,16 +18,27 @@
                     <div class="footer-logo">
                         @include('frontend::components.brand.logo')
                     </div>
-                    @if (!empty($contact['email_label']) || !empty($contact['email_address']))
-                        <div>
-                            {{ $contact['email_label'] ?? '' }}
+                    @php
+                        // Append a trailing ":" to the saved labels if
+                        // the admin didn't include one. Keeps the
+                        // address / phone visually attached to its
+                        // label without forcing every operator to
+                        // remember to type the colon themselves.
+                        $emailLabel    = trim($contact['email_label']    ?? '');
+                        $helplineLabel = trim($contact['helpline_label'] ?? '');
+                        if ($emailLabel !== ''    && !str_ends_with($emailLabel, ':'))    $emailLabel    .= ':';
+                        if ($helplineLabel !== '' && !str_ends_with($helplineLabel, ':')) $helplineLabel .= ':';
+                    @endphp
+                    @if ($emailLabel !== '' || !empty($contact['email_address']))
+                        <div class="mb-3">
+                            {{ $emailLabel }}
                             @if (!empty($contact['email_address']))
                                 <span class="text-white">{{ $contact['email_address'] }}</span>
                             @endif
                         </div>
                     @endif
-                    @if (!empty($contact['helpline_label']))
-                        <p class="mt-0 mb-2">{{ $contact['helpline_label'] }}</p>
+                    @if ($helplineLabel !== '')
+                        <p class="mt-0 mb-2">{{ $helplineLabel }}</p>
                     @endif
                     @if (!empty($contact['helpline_phone']))
                         <a href="tel:{{ preg_replace('/[^0-9+]/', '', $contact['helpline_phone']) }}" class="helpline">{{ $contact['helpline_phone'] }}</a>
