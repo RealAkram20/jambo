@@ -114,24 +114,44 @@ class StreamProxyController extends Controller
 
         if (!$url) return null;
 
-        // Normalize Dropbox URLs to ensure dl=1. Browser chases the
-        // chain (www.dropbox.com → dropboxusercontent.com → signed
-        // inline) itself — a few extra round trips at startup, but
-        // bulletproof. The resolver attempt in 1.4.1 was returning a
-        // bad URL on some Dropbox responses (the player saw "no
-        // supported sources" / error code 4), so we're back to the
-        // straightforward redirect-only path. The hasPlayedOnce gate
-        // in the player keeps initial-load buffering from triggering
-        // the stall recovery loop.
+        // Normalize Dropbox URLs for inline video playback.
+        //
+        // ?dl=1  → Dropbox sends `Content-Disposition: attachment;
+        //          filename="..."`. Chrome / Firefox / Android ignore
+        //          that header on a <video src=...> request and play
+        //          the file. iPhone Safari (and any iOS browser, which
+        //          all use WebKit) refuses — it treats `attachment` as
+        //          "this is a download, not a video," and the player
+        //          fires MEDIA_ERR_SRC_NOT_SUPPORTED (code 4) before
+        //          a single byte is decoded. That's the "works on
+        //          desktop + Android, fails on iPhone" pattern users
+        //          have been hitting.
+        //
+        // ?raw=1 → Dropbox sends `Content-Disposition: inline` (or
+        //          omits the header). Same byte stream; iPhone plays
+        //          it. Other browsers don't care either way.
+        //
+        // Strip any dl= variant and force raw=1. Use parse_url +
+        // http_build_query rather than regex on the query string —
+        // safer when admins paste URLs with weird parameter ordering
+        // or already-encoded characters.
         $host = strtolower((string) parse_url($url, PHP_URL_HOST));
         if ($host === 'dropbox.com'
             || str_ends_with($host, '.dropbox.com')
             || str_ends_with($host, '.dropboxusercontent.com')
         ) {
-            $url = preg_replace('/([?&])dl=\d+/', '$1dl=1', $url);
-            if (!str_contains($url, 'dl=1')) {
-                $url .= (str_contains($url, '?') ? '&' : '?') . 'dl=1';
-            }
+            $parts = parse_url($url);
+            parse_str($parts['query'] ?? '', $query);
+            unset($query['dl']);
+            $query['raw'] = '1';
+
+            $rebuilt = ($parts['scheme'] ?? 'https') . '://' . $parts['host'];
+            if (!empty($parts['port']))     $rebuilt .= ':' . $parts['port'];
+            if (!empty($parts['path']))     $rebuilt .= $parts['path'];
+            $rebuilt .= '?' . http_build_query($query);
+            if (!empty($parts['fragment'])) $rebuilt .= '#' . $parts['fragment'];
+
+            $url = $rebuilt;
         }
 
         return $url;
