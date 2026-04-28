@@ -111,12 +111,22 @@
             // sits on a buffering spinner. Both auto-retry up to a few
             // times, with the user's last known position preserved so
             // they never get bumped back to t=0.
+            //
+            // The `hasPlayedOnce` gate is critical: stall recovery is
+            // for MID-playback recovery, not initial load. Direct
+            // passthrough to Dropbox can take 5–15s on first byte
+            // (redirect chain + cold CDN warmup); without this gate
+            // the stall timer trips during normal startup, reloads
+            // the source, redoes the redirect chain, stalls again,
+            // and the user is stuck in an infinite "retry 1, retry 2"
+            // spiral they can see in console.
             // --------------------------------------------------------
             var retryCount = 0;
             var MAX_RETRIES = 12;          // effectively silent recovery
             var STALL_TIMEOUT_MS = 10000; // pause-of-progress before retry
             var stallTimer = null;
             var lastKnownPosition = 0;
+            var hasPlayedOnce = false;
 
             v.addEventListener('timeupdate', function () {
                 if (v.currentTime > 0) lastKnownPosition = v.currentTime;
@@ -174,7 +184,13 @@
             // hiccup, server-side range stall), `waiting` fires and
             // playback halts. If we don't recover within STALL_TIMEOUT_MS,
             // tear down and reload from the same position.
+            //
+            // Skipped while hasPlayedOnce === false — initial-load
+            // buffering can take longer than STALL_TIMEOUT_MS on a
+            // cold-CDN/redirect-chain start, and a reload there only
+            // restarts the wait from zero.
             v.addEventListener('waiting', function () {
+                if (!hasPlayedOnce) return;
                 clearTimeout(stallTimer);
                 stallTimer = setTimeout(function () {
                     reloadAtPosition('stall (no progress for ' + STALL_TIMEOUT_MS + 'ms)');
@@ -184,9 +200,11 @@
                 v.addEventListener(ev, function () { clearTimeout(stallTimer); });
             });
 
-            // Reset the retry budget after a sustained good playback
-            // window so a later unrelated blip can also get retries.
+            // First successful play arms the stall recovery + resets
+            // the retry budget after sustained playback so a later
+            // unrelated blip can also get retries.
             v.addEventListener('playing', function () {
+                hasPlayedOnce = true;
                 setTimeout(function () {
                     if (!v.paused && !v.ended) retryCount = 0;
                 }, 30000);
