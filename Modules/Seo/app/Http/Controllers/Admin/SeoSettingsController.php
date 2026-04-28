@@ -43,6 +43,37 @@ class SeoSettingsController extends Controller
 
     public function updateGeneral(Request $request): RedirectResponse
     {
+        // Pre-process the GSC verification field BEFORE validation —
+        // Google Search Console hands operators an HTML snippet like:
+        //   <meta name="google-site-verification" content="abcd1234..." />
+        // and people predictably paste the whole thing into the input.
+        // Pull the content="..." value out so the validator only sees
+        // the token. Also tolerate a leading/trailing meta tag with
+        // single quotes or no quotes around the value.
+        $rawGsc = trim((string) $request->input('gsc_verification', ''));
+        if ($rawGsc !== '' && stripos($rawGsc, 'google-site-verification') !== false) {
+            if (preg_match('/content\s*=\s*["\']([A-Za-z0-9_\-]+)["\']/i', $rawGsc, $m)) {
+                $rawGsc = $m[1];
+                $request->merge(['gsc_verification' => $rawGsc]);
+            }
+        }
+
+        // Same forgiveness for GA4 ID — operators sometimes paste the
+        // full <script src="...?id=G-XXX"> tag instead of the bare ID.
+        $rawGa4 = trim((string) $request->input('ga4_id', ''));
+        if ($rawGa4 !== '' && stripos($rawGa4, '<') !== false) {
+            if (preg_match('/(G-[A-Z0-9]{4,})/i', $rawGa4, $m)) {
+                $request->merge(['ga4_id' => strtoupper($m[1])]);
+            }
+        }
+        // And GTM: people paste the full container snippet too.
+        $rawGtm = trim((string) $request->input('gtm_id', ''));
+        if ($rawGtm !== '' && stripos($rawGtm, '<') !== false) {
+            if (preg_match('/(GTM-[A-Z0-9]{4,})/i', $rawGtm, $m)) {
+                $request->merge(['gtm_id' => strtoupper($m[1])]);
+            }
+        }
+
         $data = $request->validate([
             'tracking_enabled'  => ['nullable', 'in:0,1'],
             'exclude_admins'    => ['nullable', 'in:0,1'],
@@ -50,6 +81,8 @@ class SeoSettingsController extends Controller
             // GA4 IDs look like "G-XXXXXXXXXX"; GTM is "GTM-XXXXXXX". Both
             // are short ASCII tokens — strict regex prevents accidental
             // pastes of full HTML snippets that would break the page.
+            // The pre-processing above handles the common "pasted the
+            // whole snippet" case so the regex can stay strict here.
             'ga4_id'            => ['nullable', 'string', 'max:30', 'regex:/^G-[A-Z0-9]{4,}$/i'],
             'gtm_id'            => ['nullable', 'string', 'max:30', 'regex:/^GTM-[A-Z0-9]{4,}$/i'],
             // GSC verification token is base64url; alphanumeric + - _.

@@ -95,7 +95,8 @@
                             <div class="form-text">
                                 In Search Console, choose <em>HTML tag</em> verification — it shows you
                                 a snippet like <code>&lt;meta name="google-site-verification" content="<strong>this-part-only</strong>"&gt;</code>.
-                                Paste only the value between the quotes.
+                                You can paste either the bare token or the full <code>&lt;meta&gt;</code>
+                                tag — we'll extract the token automatically.
                             </div>
                             @error('gsc_verification')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
