@@ -7,5 +7,6 @@
     "SystemUpdate": true,
     "Notifications": true,
     "FileManager": true,
-    "Pages": true
+    "Pages": true,
+    "Seo": true
 }

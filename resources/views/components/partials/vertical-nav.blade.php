@@ -371,6 +371,18 @@
                 <span class="item-name">Settings</span>
             </a>
         </li>
+        @if (Route::has('admin.seo.index'))
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('admin.seo.*') ? 'active' : '' }}"
+                    href="{{ route('admin.seo.index') }}">
+                    <i class="icon" title="SEO &amp; Analytics" data-bs-toggle="tooltip" data-bs-placement="right"
+                        aria-label="SEO &amp; Analytics" data-bs-original-title="SEO &amp; Analytics">
+                        <i class="ph ph-magnifying-glass-plus fs-4"></i>
+                    </i>
+                    <span class="item-name">SEO &amp; Analytics</span>
+                </a>
+            </li>
+        @endif
     @endrole
 </ul>
 

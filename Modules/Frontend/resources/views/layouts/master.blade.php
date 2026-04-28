@@ -50,6 +50,15 @@
          copies. The earlier .movie-banner-image fix didn't visibly
          apply in production until this was wired up. --}}
     <link rel="stylesheet" href="{{ versioned_asset('frontend/css/jambo-header.css') }}">
+
+    {{-- SEO + analytics. Pulled from the Seo module's settings:
+         GA4, GTM, Search Console verification, canonical link,
+         Open Graph + Twitter Card defaults, per-page overrides via
+         @section('seo:title|description|image') and @push('seo:head').
+         @includeIf so the layout still renders if the Seo module is
+         disabled — falls back silently to no analytics, no extra
+         meta tags. --}}
+    @includeIf('seo::partials.head-tags')
 </head>
 
 <body class="{{ $bodyClass ?? '' }}">

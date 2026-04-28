@@ -1,0 +1,11 @@
+{
+    "name": "Seo",
+    "alias": "seo",
+    "description": "Google Analytics + Search Console + sitemap + dynamic robots.txt + per-page Open Graph / structured data scaffolding.",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Seo\\app\\Providers\\SeoServiceProvider"
+    ],
+    "files": []
+}
