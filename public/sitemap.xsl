@@ -243,7 +243,7 @@
                     </xsl:choose>
 
                     <p class="footer-note">
-                        Source: <code>https://jambofilms.com/sitemap.xml</code> &mdash;
+                        Source: <code>https://jambofilms.com/sitemap.xml</code> &#8212;
                         crawlers see the raw XML; you're seeing the styled view.
                     </p>
                 </main>
