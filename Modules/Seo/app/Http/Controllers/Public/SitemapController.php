@@ -263,6 +263,12 @@ class SitemapController extends Controller
     private function renderXml(Collection $urls): string
     {
         $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+        // Browser-side stylesheet — turns the raw XML into a styled HTML
+        // table when a human visits /sitemap.xml in a browser. Crawlers
+        // (Googlebot, Bingbot) ignore this PI and read the XML directly.
+        // The XSL file lives at public/sitemap.xsl, served as a static
+        // file by the web server.
+        $xml .= '<?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?>' . "\n";
         $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
         foreach ($urls as $u) {
             $xml .= "  <url>\n";
@@ -285,6 +291,7 @@ class SitemapController extends Controller
     private function emptySitemap(): Response
     {
         $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n"
+            . '<?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?>' . "\n"
             . '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>' . "\n";
         return response($xml, 200, [
             'Content-Type'  => 'application/xml; charset=UTF-8',
