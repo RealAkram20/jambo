@@ -28,24 +28,29 @@ class RobotsController extends Controller
     {
         $sitemapUrl = url('/sitemap.xml');
 
-        $body = <<<TXT
-        User-agent: *
-        Disallow: /admin
-        Disallow: /admin/
-        Disallow: /profile
-        Disallow: /profile/
-        Disallow: /watch/src
-        Disallow: /watch/src/
-        Disallow: /api
-        Disallow: /api/
-        Disallow: /login
-        Disallow: /register
-        Disallow: /password/
+        // Plain string concatenation rather than heredoc — heredoc's
+        // indented-closing-marker rules can choke on subtle whitespace
+        // differences (tabs vs spaces, editor reformatting), which
+        // surfaces as a hard PHP parse error on every request. A plain
+        // implode(\n) is safer and easier to edit.
+        $lines = [
+            'User-agent: *',
+            'Disallow: /admin',
+            'Disallow: /admin/',
+            'Disallow: /profile',
+            'Disallow: /profile/',
+            'Disallow: /watch/src',
+            'Disallow: /watch/src/',
+            'Disallow: /api',
+            'Disallow: /api/',
+            'Disallow: /login',
+            'Disallow: /register',
+            'Disallow: /password/',
+            '',
+            'Sitemap: ' . $sitemapUrl,
+        ];
 
-        Sitemap: {$sitemapUrl}
-        TXT;
-
-        return response($body, 200, [
+        return response(implode("\n", $lines) . "\n", 200, [
             'Content-Type'  => 'text/plain; charset=UTF-8',
             'Cache-Control' => 'public, max-age=86400',
         ]);

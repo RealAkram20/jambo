@@ -5,8 +5,8 @@ namespace Modules\Seo\app\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 use Modules\Content\app\Models\Movie;
 use Modules\Content\app\Models\Show;
 use Modules\Content\app\Models\Vj;
@@ -36,9 +36,23 @@ class SitemapController extends Controller
             return $this->emptySitemap();
         }
 
-        $xml = Cache::remember('seo.sitemap.xml', now()->addHours(6), function () {
-            return $this->buildXml();
-        });
+        // Outer try/catch: anything inside buildXml or the cache driver
+        // that throws (rare cache backend failure, an unexpected DB
+        // shape, an unloaded route, etc.) is logged but doesn't bubble
+        // up as a 500. Crawlers see an empty but valid sitemap; we see
+        // the stack trace in storage/logs/laravel.log.
+        try {
+            $xml = Cache::remember('seo.sitemap.xml', now()->addHours(6), function () {
+                return $this->buildXml();
+            });
+        } catch (\Throwable $e) {
+            Log::warning('[seo] sitemap build failed; serving empty', [
+                'message' => $e->getMessage(),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+            ]);
+            return $this->emptySitemap();
+        }
 
         return response($xml, 200, [
             'Content-Type'  => 'application/xml; charset=UTF-8',
@@ -67,8 +81,8 @@ class SitemapController extends Controller
                     'changefreq' => $row['changefreq'],
                     'priority'   => $row['priority'],
                 ]);
-            } catch (\Throwable) {
-                // Route not registered (module disabled) — skip.
+            } catch (\Throwable $e) {
+                Log::debug('[seo] static route skipped', ['name' => $row['name'], 'err' => $e->getMessage()]);
             }
         }
 
@@ -90,7 +104,9 @@ class SitemapController extends Controller
                             ]);
                         }
                     });
-            } catch (\Throwable) { /* table absent / migration not run */ }
+            } catch (\Throwable $e) {
+                Log::warning('[seo] sitemap section failed', ['section' => 'movies', 'err' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()]);
+            }
         }
 
         // Shows.
@@ -109,7 +125,9 @@ class SitemapController extends Controller
                             ]);
                         }
                     });
-            } catch (\Throwable) { /* */ }
+            } catch (\Throwable $e) {
+                Log::warning('[seo] sitemap section failed', ['section' => 'shows', 'err' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()]);
+            }
         }
 
         // VJs (translators / narrators) — high-traffic personas in
@@ -129,7 +147,9 @@ class SitemapController extends Controller
                             ]);
                         }
                     });
-            } catch (\Throwable) { /* */ }
+            } catch (\Throwable $e) {
+                Log::warning('[seo] sitemap section failed', ['section' => 'vjs', 'err' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()]);
+            }
         }
 
         return $this->renderXml($urls);
