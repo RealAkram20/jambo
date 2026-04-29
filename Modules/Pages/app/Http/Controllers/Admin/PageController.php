@@ -3,6 +3,7 @@
 namespace Modules\Pages\app\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\HtmlSanitizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -68,7 +69,10 @@ class PageController extends Controller
         $page = Page::create([
             'title' => $data['title'],
             'slug' => $data['slug'] ?: $this->uniqueSlug($data['title']),
-            'content' => $data['content'] ?? null,
+            // Quill stores HTML; sanitise it server-side because the
+            // hidden input accepts whatever is POSTed (Quill's own
+            // paste-time scrubbing doesn't apply to the wire payload).
+            'content' => HtmlSanitizer::sanitize($data['content'] ?? null),
             'featured_image_url' => $data['featured_image_url'] ?? null,
             'meta_description' => $data['meta_description'] ?? null,
             'status' => $data['status'],
@@ -93,7 +97,8 @@ class PageController extends Controller
 
         $page->fill([
             'title' => $data['title'],
-            'content' => $data['content'] ?? null,
+            // Quill stores HTML; sanitise it server-side. See store().
+            'content' => HtmlSanitizer::sanitize($data['content'] ?? null),
             'featured_image_url' => $data['featured_image_url'] ?? null,
             'meta_description' => $data['meta_description'] ?? null,
             'status' => $data['status'],

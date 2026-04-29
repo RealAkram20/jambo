@@ -88,8 +88,15 @@ return [
     | IDs. The controller rejects update requests from users not in this
     | list when it's an array.
     |
+    | Production: set JAMBO_UPDATER_USER_IDS=1,2 in `.env` so a
+    | compromised non-operator admin cannot push an update. Leaving it
+    | unset preserves the legacy "any admin" behaviour for local /
+    | development installs.
+    |
     */
-    'allow_users_id' => false,
+    'allow_users_id' => env('JAMBO_UPDATER_USER_IDS') !== null
+        ? array_filter(array_map('intval', explode(',', env('JAMBO_UPDATER_USER_IDS'))))
+        : false,
 
     /*
     |--------------------------------------------------------------------------

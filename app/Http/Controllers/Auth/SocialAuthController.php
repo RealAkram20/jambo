@@ -53,6 +53,16 @@ class SocialAuthController extends Controller
 
         if (!$user) {
             $user = $this->createFromSocial($email, $social);
+        } elseif ($user->email_verified_at === null) {
+            // Match-by-email into a local account that never confirmed
+            // its email is the account-takeover risk. Google's OAuth
+            // flow is itself proof of email ownership (Google verifies
+            // every account's email), so we can safely promote the
+            // local row to "verified" — the OAuth user IS the rightful
+            // owner of that mailbox. This closes the squatting attack
+            // (someone signing up locally with a typo / abandoned
+            // address never owned) without a confusing UX detour.
+            $user->forceFill(['email_verified_at' => now()])->save();
         }
 
         if ($user->isDeactivated()) {

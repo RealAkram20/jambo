@@ -200,7 +200,6 @@ class PaymentController extends Controller
     public function callback(Request $request): RedirectResponse
     {
         $merchantRef = $request->query('OrderMerchantReference');
-        $trackingId = $request->query('OrderTrackingId');
 
         if (!$merchantRef) {
             return redirect()->route('payment.complete', [
@@ -224,7 +223,7 @@ class PaymentController extends Controller
             ]);
         }
 
-        $finalStatus = $this->processPaymentResult($order, $trackingId, 'callback');
+        $finalStatus = $this->processPaymentResult($order, 'callback');
 
         return redirect()->route('payment.complete', [
             'result' => match ($finalStatus) {
@@ -240,7 +239,6 @@ class PaymentController extends Controller
     public function ipn(Request $request): JsonResponse
     {
         $merchantRef = $request->input('OrderMerchantReference', $request->query('OrderMerchantReference'));
-        $trackingId = $request->input('OrderTrackingId', $request->query('OrderTrackingId'));
 
         if (!$merchantRef) {
             return response()->json(['ok' => false, 'error' => 'Missing reference'], 200);
@@ -256,7 +254,7 @@ class PaymentController extends Controller
             return response()->json(['ok' => true, 'status' => 'already_completed'], 200);
         }
 
-        $finalStatus = $this->processPaymentResult($order, $trackingId, 'ipn');
+        $finalStatus = $this->processPaymentResult($order, 'ipn');
 
         return response()->json(['ok' => true, 'status' => $finalStatus], 200);
     }
@@ -307,27 +305,32 @@ class PaymentController extends Controller
     /* Core: idempotent status reconciliation                               */
     /* -------------------------------------------------------------------- */
 
-    private function processPaymentResult(PaymentOrder $order, ?string $trackingId, string $source): string
+    private function processPaymentResult(PaymentOrder $order, string $source): string
     {
         // Re-read inside a lock so concurrent callback + IPN can't
         // double-activate.
-        return DB::transaction(function () use ($order, $trackingId, $source) {
+        return DB::transaction(function () use ($order, $source) {
             $fresh = PaymentOrder::lockForUpdate()->find($order->id);
 
             if ($fresh->isCompleted()) {
                 return $fresh->status;
             }
 
-            $effectiveTracking = $trackingId ?: $fresh->order_tracking_id;
-            if (!$effectiveTracking) {
-                Log::warning('[payments] processPaymentResult without tracking id', [
+            // Always poll using the tracking ID we stored when the order
+            // was submitted to the gateway. Trusting the tracking ID
+            // from inbound query/body would let an attacker pair their
+            // own pending merchant_reference with someone else's
+            // completed tracking ID and have the gateway "confirm"
+            // their order — paid by another transaction.
+            if (!$fresh->order_tracking_id) {
+                Log::warning('[payments] processPaymentResult without stored tracking id', [
                     'order_id' => $fresh->id,
                     'source' => $source,
                 ]);
                 return $fresh->status;
             }
 
-            $status = $this->pollStatus($effectiveTracking);
+            $status = $this->pollStatus($fresh->order_tracking_id);
             $normalised = $this->gateway->interpretStatus($status);
 
             $fresh->fill([

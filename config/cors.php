@@ -17,9 +17,23 @@ return [
 
     'paths' => ['api/*', 'sanctum/csrf-cookie'],
 
-    'allowed_methods' => ['*'],
+    'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 
-    'allowed_origins' => ['*'],
+    // Narrow to the production origin (and localhost dev hosts). A
+    // wildcard origin combined with credentials is fatal; even
+    // credentialless wildcard leaks API metadata to any origin. Add
+    // additional origins here as the frontend deploys to staging /
+    // preview hosts. The CORS_ALLOWED_ORIGINS env var lets ops widen
+    // this without a code deploy.
+    'allowed_origins' => array_filter(array_merge(
+        [
+            env('APP_URL', 'http://localhost'),
+            'https://jambofilms.com',
+            'http://localhost',
+            'http://127.0.0.1',
+        ],
+        array_map('trim', explode(',', (string) env('CORS_ALLOWED_ORIGINS', ''))),
+    )),
 
     'allowed_origins_patterns' => [],
 

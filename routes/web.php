@@ -5,6 +5,7 @@ use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\RolePermission;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\Admin\SettingController as AdminSettingController;
+use App\Http\Controllers\Admin\SystemDiagnosticsController as AdminDiagnosticsController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\AdminProfileController;
 use Illuminate\Support\Facades\Route;
@@ -213,6 +214,18 @@ Route::middleware(['auth', 'role:admin'])
         Route::post('settings/vapid', [AdminSettingController::class, 'updateVapid'])->name('settings.vapid');
         Route::post('settings/vapid-generate', [AdminSettingController::class, 'generateVapid'])->name('settings.vapid-generate');
         Route::post('settings/maintenance', [AdminSettingController::class, 'updateMaintenance'])->name('settings.maintenance');
+
+        // Diagnostics: error log tail + system status snapshot. Both
+        // are read-only views; only `logs.clear` mutates state (it
+        // truncates the selected log file, gated by the role:admin
+        // group above). No write paths into modules / settings / DB.
+        Route::get('diagnostics/logs', [AdminDiagnosticsController::class, 'logsIndex'])
+            ->name('diagnostics.logs');
+        Route::post('diagnostics/logs/{file}/clear', [AdminDiagnosticsController::class, 'logsClear'])
+            ->where('file', '[A-Za-z0-9._-]+\.log')
+            ->name('diagnostics.logs.clear');
+        Route::get('diagnostics/status', [AdminDiagnosticsController::class, 'statusIndex'])
+            ->name('diagnostics.status');
     });
 
 require __DIR__ . '/auth.php';

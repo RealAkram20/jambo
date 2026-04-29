@@ -24,6 +24,17 @@ class UserTableSeeder extends Seeder
     {
         Schema::disableForeignKeyConstraints();
 
+        // Demo / dev-only seed data. The master admin (admin@demo.com /
+        // 12345678) and the dummy customer account are gated behind
+        // IS_DUMMY_DATA so an operator who runs `db:seed` on production
+        // doesn't accidentally provision a well-known set of credentials.
+        // On a real install, create the first admin via tinker or a
+        // dedicated artisan command instead.
+        if (!env('IS_DUMMY_DATA')) {
+            Schema::enableForeignKeyConstraints();
+            return;
+        }
+
         // Add the master administrator, user id of 1
         $avatarPath = config('app.avatar_base_path');
         $admin = User::create([
@@ -50,19 +61,18 @@ class UserTableSeeder extends Seeder
             ],
         ];
 
-        if (env('IS_DUMMY_DATA')) {
-            foreach ($users as $key => $user_data) {
-                $user = User::create($user_data);
+        // Already inside the IS_DUMMY_DATA branch — guard at the top of run().
+        foreach ($users as $key => $user_data) {
+            $user = User::create($user_data);
+            $user->assignRole('user');
+            event(new UserCreated($user));
+        }
+        if (env('IS_FAKE_DATA')) {
+            User::factory()->count(30)->create()->each(function ($user) {
                 $user->assignRole('user');
-                event(new UserCreated($user));
-            }
-            if (env('IS_FAKE_DATA')) {
-                User::factory()->count(30)->create()->each(function ($user) {
-                    $user->assignRole('user');
-                    $img = public_path('/dummy-images/customers/'.fake()->numberBetween(1, 13).'.webp');
-                    $this->attachFeatureImage($user, $img);
-                });
-            }
+                $img = public_path('/dummy-images/customers/'.fake()->numberBetween(1, 13).'.webp');
+                $this->attachFeatureImage($user, $img);
+            });
         }
 
         Schema::enableForeignKeyConstraints();

@@ -75,7 +75,11 @@ Route::middleware('auth')->group(function () {
     Route::get('confirm-password', [ConfirmablePasswordController::class, 'show'])
                 ->name('password.confirm');
 
-    Route::post('confirm-password', [ConfirmablePasswordController::class, 'store']);
+    // Throttle so a stolen session cookie cannot be used to brute-force
+    // the user's password against this gate. 6/min matches the rest of
+    // the auth flow (2FA verify, email verification resend).
+    Route::post('confirm-password', [ConfirmablePasswordController::class, 'store'])
+                ->middleware('throttle:6,1');
 
     Route::put('password', [PasswordController::class, 'update'])->name('password.update');
 

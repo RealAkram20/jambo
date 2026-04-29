@@ -42,10 +42,17 @@ class SettingController extends Controller
 
     public function updateBranding(Request $request)
     {
+        // SVG was previously accepted on logo / favicon / preloader. An
+        // SVG file can carry inline <script>; navigating to its URL
+        // executes that script in the app origin and steals admin
+        // sessions. Drop it from the allowlist. Existing SVG files
+        // already saved keep displaying — this only blocks new SVG
+        // uploads. If you need vector logos later, add
+        // `enshrined/svg-sanitize` and re-allow with a sanitiser pass.
         $request->validate([
-            'logo'          => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp,svg', 'max:2048'],
-            'favicon'       => ['nullable', 'image', 'mimes:png,ico,x-icon,svg', 'max:512'],
-            'preloader'     => ['nullable', 'mimes:gif,png,jpg,jpeg,webp,svg', 'max:2048'],
+            'logo'          => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
+            'favicon'       => ['nullable', 'image', 'mimes:png,ico,x-icon', 'max:512'],
+            'preloader'     => ['nullable', 'mimes:gif,png,jpg,jpeg,webp', 'max:2048'],
             'logo_url'      => ['nullable', 'string', 'max:1000'],
             'favicon_url'   => ['nullable', 'string', 'max:1000'],
             'preloader_url' => ['nullable', 'string', 'max:1000'],

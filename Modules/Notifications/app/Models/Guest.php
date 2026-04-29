@@ -27,7 +27,12 @@ class Guest extends Model
 
     public $timestamps = false;
 
-    protected $guarded = [];
+    // Singleton row keyed on id=1 (seeded). The only assignable column
+    // is `id`, set by `firstOrCreate(['id' => self::SINGLETON_ID])`.
+    // Explicit fillable beats `$guarded = []` because no future
+    // controller can accidentally splat $request->all() into a Guest
+    // create/update and pick up unintended columns.
+    protected $fillable = ['id'];
 
     /**
      * Resolve the one-and-only guest row. Created lazily on first

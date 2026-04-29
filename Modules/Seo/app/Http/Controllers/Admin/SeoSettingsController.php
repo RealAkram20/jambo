@@ -202,6 +202,29 @@ class SeoSettingsController extends Controller
                     'Filename must match a known verification format (e.g. googleXXX.html, BingSiteAuth.xml, yandex_XXX.html). Got: ' . $clientName]);
         }
 
+        // Reject files that contain anything browsers will execute.
+        // The filename whitelist alone is not enough: an admin (or
+        // anyone with stolen admin creds) could upload a perfectly-
+        // named "googleAAA.html" whose body is a <script> tag, and the
+        // file would land directly under the brand origin's webroot
+        // and become same-origin stored XSS for any visitor opening
+        // its URL. Verification files only need a small token; reject
+        // anything resembling a script / iframe / object / event
+        // attribute.
+        $body = (string) @file_get_contents($file->getRealPath());
+        if ($body === '') {
+            return redirect()
+                ->route('admin.seo.index')
+                ->withErrors(['verification_file' => 'Verification file is empty.']);
+        }
+        $hostile = '/<\s*(script|iframe|object|embed|link|meta|svg|style)\b|on[a-z]+\s*=|javascript:|data:text\/html/i';
+        if (preg_match($hostile, $body)) {
+            return redirect()
+                ->route('admin.seo.index')
+                ->withErrors(['verification_file' =>
+                    'Refusing to upload: file contains script-like content. Verification files should be a single token / line, not HTML.']);
+        }
+
         // Move into public/. Using public_path() rather than the
         // public disk so the file lands at /<filename> exactly where
         // the verifier expects to fetch it. Existing files with the

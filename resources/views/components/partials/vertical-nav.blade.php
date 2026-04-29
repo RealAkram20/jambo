@@ -383,6 +383,30 @@
                 </a>
             </li>
         @endif
+        @if (Route::has('admin.diagnostics.logs'))
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('admin.diagnostics.logs') ? 'active' : '' }}"
+                    href="{{ route('admin.diagnostics.logs') }}">
+                    <i class="icon" title="Error log" data-bs-toggle="tooltip" data-bs-placement="right"
+                        aria-label="Error log" data-bs-original-title="Error log">
+                        <i class="ph ph-file-text fs-4"></i>
+                    </i>
+                    <span class="item-name">Error log</span>
+                </a>
+            </li>
+        @endif
+        @if (Route::has('admin.diagnostics.status'))
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('admin.diagnostics.status') ? 'active' : '' }}"
+                    href="{{ route('admin.diagnostics.status') }}">
+                    <i class="icon" title="System status" data-bs-toggle="tooltip" data-bs-placement="right"
+                        aria-label="System status" data-bs-original-title="System status">
+                        <i class="ph ph-gauge fs-4"></i>
+                    </i>
+                    <span class="item-name">System status</span>
+                </a>
+            </li>
+        @endif
     @endrole
 </ul>
 

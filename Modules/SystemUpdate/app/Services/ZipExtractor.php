@@ -88,6 +88,19 @@ class ZipExtractor
                     continue;
                 }
 
+                // Containment check (zip-slip guard). normalizeEntryPath
+                // strips wrapper folders but does not reject `..`
+                // segments — without this, a malicious zip entry like
+                // `../../../etc/cron.d/jambo` would resolve outside
+                // $projectRoot and let an update zip plant files
+                // anywhere the PHP user can write. We refuse on any
+                // `..` part and re-verify with realpath() on the parent
+                // dir before writing.
+                if ($this->isOutsideProjectRoot($target)) {
+                    $this->skipped[] = $target;
+                    continue;
+                }
+
                 if ($this->isDenied($target)) {
                     $this->skipped[] = $target;
                     continue;
@@ -146,6 +159,69 @@ class ZipExtractor
             }
         }
         return false;
+    }
+
+    /**
+     * True if the entry's relative path would escape $projectRoot when
+     * resolved (zip-slip). We reject:
+     *
+     *   - any `..` path segment, anywhere in the relative path
+     *   - absolute paths (Windows drive-letter or POSIX root)
+     *   - paths that, after realpath() of their resolved parent dir,
+     *     are not inside the realpath of $projectRoot
+     *
+     * The third check is belt-and-braces — symlinks under projectRoot
+     * could theoretically point outwards, and if a release zip ever
+     * shipped a symlink-into-the-wild plus a regular file at the
+     * symlinked target's path, the regular-file write would land out
+     * of containment. realpath() neutralises that.
+     */
+    private function isOutsideProjectRoot(string $relativePath): bool
+    {
+        if ($relativePath === '') {
+            return true;
+        }
+
+        $segments = explode('/', $relativePath);
+        foreach ($segments as $seg) {
+            if ($seg === '..' || $seg === '') {
+                return true;
+            }
+        }
+
+        // Absolute path? Windows ("C:..."), or POSIX-rooted ("/...").
+        if (preg_match('#^[A-Za-z]:#', $relativePath) || str_starts_with($relativePath, '/')) {
+            return true;
+        }
+
+        $projectReal = realpath($this->projectRoot);
+        if ($projectReal === false) {
+            // Project root doesn't resolve — refuse rather than risk
+            // an unbounded write.
+            return true;
+        }
+
+        $absolute = $this->projectRoot . DIRECTORY_SEPARATOR
+            . str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
+        $parent = dirname($absolute);
+
+        // The parent may not exist yet (new file in a new subdirectory).
+        // Walk up until we hit a directory that does exist, then check
+        // its realpath is inside projectRoot.
+        while ($parent !== '' && $parent !== '.' && !is_dir($parent)) {
+            $up = dirname($parent);
+            if ($up === $parent) break;
+            $parent = $up;
+        }
+
+        $parentReal = $parent !== '' ? realpath($parent) : false;
+        if ($parentReal === false) {
+            return false; // brand-new tree under projectRoot — fine.
+        }
+
+        $projectRealNorm = rtrim($projectReal, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        $parentRealNorm = rtrim($parentReal, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        return !str_starts_with($parentRealNorm, $projectRealNorm);
     }
 
     /**

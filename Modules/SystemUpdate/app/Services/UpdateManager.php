@@ -184,6 +184,27 @@ class UpdateManager
             }
             $note('Downloaded ' . $this->humanBytes((int) filesize($zipPath)) . '.');
 
+            // 3b. Verify against the manifest's SHA-256 if one was
+            // supplied. This is the single check that turns a manifest
+            // host compromise / MITM from full RCE into a noisy abort.
+            // Missing sha256 in the manifest is intentionally a warning
+            // rather than a fail — we don't want to brick existing
+            // deployments while the publishing pipeline catches up.
+            $expected = $manifest['sha256'] ?? null;
+            if ($expected) {
+                $actual = hash_file('sha256', $zipPath);
+                if (!hash_equals($expected, strtolower((string) $actual))) {
+                    throw new RuntimeException(
+                        'Update package SHA-256 mismatch — refusing to extract. '
+                        . "Expected $expected, got $actual."
+                    );
+                }
+                $note('Verified SHA-256 against manifest.');
+            } else {
+                $note('WARNING: manifest has no `sha256` field — skipping integrity check. '
+                    . 'Please add one to laraupdater.json so we can verify future updates.');
+            }
+
             // 4. Extract + backup. Anything in the deny list is silently
             //    skipped so a careless release can't overwrite uploads
             //    or .env.
@@ -567,6 +588,15 @@ class UpdateManager
             'archive' => $decoded['archive'] ?? null,
             'description' => $decoded['description'] ?? null,
             'released_at' => $decoded['released_at'] ?? null,
+            // Optional: hex-encoded SHA-256 of the archive file. When
+            // present we verify before extracting — that's how an
+            // attacker who hijacks the manifest host or MITMs the
+            // archive download is detected. When absent we log a
+            // warning so the operator can roll the publishing pipeline
+            // forward; ship `sha256` in the manifest as soon as you
+            // can and we'll start refusing missing values in a future
+            // version.
+            'sha256' => isset($decoded['sha256']) ? strtolower(trim((string) $decoded['sha256'])) : null,
         ];
     }
 

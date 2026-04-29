@@ -21,6 +21,11 @@ class Kernel extends HttpKernel
         \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
         \App\Http\Middleware\TrimStrings::class,
         \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
+        // Defence-in-depth response headers (XFO, nosniff, Referrer-Policy,
+        // Permissions-Policy, HSTS). Set on every response so the
+        // protection survives env changes (CyberPanel/OLS, future Nginx,
+        // local XAMPP) instead of relying on webserver config.
+        \App\Http\Middleware\SecurityHeaders::class,
     ];
 
     /**

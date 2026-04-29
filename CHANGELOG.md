@@ -1,5 +1,54 @@
 # Release Notes
 
+## Jambo
+
+### 1.5.14 — security pass + diagnostics
+
+Pre-launch hardening sweep. No data migrations, no module changes — all
+changes are code/config/views; existing movies, episodes, payment
+orders, users, settings, branding, and gallery files are untouched.
+
+Security
+- Pesapal IPN/callback no longer trust the `OrderTrackingId` from the
+  request — re-poll always uses the tracking ID stored at order
+  creation. Closes the order-forging path where an attacker paired
+  their own pending merchant_reference with someone else's completed
+  tracking ID. `payment/ipn` is POST-only.
+- `db:seed` no longer creates `admin@demo.com / 12345678` unless
+  `IS_DUMMY_DATA=true`.
+- `confirm-password` is rate-limited (`throttle:6,1`).
+- Notifications Guest model uses an explicit `$fillable = ['id']`.
+- `SystemUpdate.allow_users_id` reads from `JAMBO_UPDATER_USER_IDS`
+  env so production can pin updater access to specific user IDs.
+- New `App\Http\Middleware\SecurityHeaders` adds X-Frame-Options,
+  X-Content-Type-Options, Referrer-Policy, Permissions-Policy, and
+  HSTS to every response.
+- CORS narrowed to the production origin (and localhost dev hosts),
+  configurable via `CORS_ALLOWED_ORIGINS` env. No more wildcard.
+- SVG dropped from branding (logo/favicon/preloader) and Files Gallery
+  upload allowlists. Existing SVG files keep displaying — only new
+  uploads are blocked.
+- SEO verification file upload rejects bodies containing
+  script/iframe/event-handler patterns or `javascript:` URIs.
+- New `App\Support\HtmlSanitizer` cleans Quill-authored Pages content
+  on save (allow-list of safe tags + attributes, drops `on*=`,
+  `javascript:`, etc.). No new composer dependency.
+- `axios` bumped to `^1.7.7+` (resolved at `^1.15.x`) to clear the
+  CVE-2023-45857 / CVE-2024-39338 class.
+- SystemUpdate verifies the downloaded archive's SHA-256 against the
+  manifest when present, and the zip extractor enforces a realpath /
+  no-`..` containment check (zip-slip guard).
+- Socialite `same-email` merge now auto-sets `email_verified_at` when
+  matching an unverified local row, since Google has already verified
+  the address — closes the email-squatting takeover path.
+
+Admin
+- New "Error Log" admin page (after SEO menu): tail any file under
+  `storage/logs/` with a per-file Clear button.
+- New "System Status" admin page: app/Laravel/PHP versions, debug
+  flag, environment, runtime drivers, DB connectivity, free disk,
+  storage symlink presence, PHP extensions, and module enable map.
+
 ## [Unreleased](https://github.com/laravel/laravel/compare/v10.2.7...10.x)
 
 ## [v10.2.7](https://github.com/laravel/laravel/compare/v10.2.6...v10.2.7) - 2023-10-31

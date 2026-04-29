@@ -46,9 +46,14 @@ return [
     // of defense — a compromised admin account should not be able to
     // drop a PHP shell into /storage/gallery/. Defense in depth: the
     // gallery's own .htaccess also blocks PHP execution regardless of
-    // what was uploaded. Widen this list if a legitimate asset type is
-    // being rejected — don't switch back to ''.
-    'upload_allowed_file_types' => 'image/*, video/*, audio/*, .pdf, .srt, .vtt, .webvtt, .zip',
+    // what was uploaded.
+    //
+    // `image/svg+xml` is intentionally excluded from `image/*`: SVG can
+    // carry inline <script> that runs in the app origin when the URL is
+    // opened directly, turning a benign-looking logo upload into stored
+    // XSS. List the safe raster types explicitly. Widen this list if a
+    // legitimate asset type is being rejected — don't switch back to ''.
+    'upload_allowed_file_types' => '.png, .jpg, .jpeg, .gif, .webp, .ico, video/*, audio/*, .pdf, .srt, .vtt, .webvtt, .zip',
 
     // Use ImageMagick for JPEG/PNG resizing when available — better downscaling
     // for large movie posters than PHP GD's default imagecopyresampled.

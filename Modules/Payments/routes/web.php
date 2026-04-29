@@ -31,7 +31,13 @@ Route::get('payment/status/{ref}', [PaymentController::class, 'status'])
 Route::get('payment/callback', [PaymentController::class, 'callback'])
     ->name('payment.callback');
 
-Route::match(['get', 'post'], 'payment/ipn', [PaymentController::class, 'ipn'])
+// POST-only: PesaPal posts the IPN server-to-server. Allowing GET
+// would let any browser request (e.g. an <img src=...> tag on an
+// attacker-influenced page) trigger order reconciliation. The
+// controller authoritatively re-polls the gateway using the
+// tracking ID we stored at order creation, so an attacker cannot
+// substitute someone else's tracking ID via the body either.
+Route::post('payment/ipn', [PaymentController::class, 'ipn'])
     ->name('payment.ipn');
 
 Route::get('payment/complete', [PaymentController::class, 'complete'])
