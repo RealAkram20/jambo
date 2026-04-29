@@ -159,6 +159,18 @@
                     </div>
                 @endif
             </div>
+
+            {{-- Build credit. White but pale enough not to compete
+                 with the copyright line — site visitors who notice
+                 it can click through to the studio site. --}}
+            <div class="row mt-3">
+                <div class="col-12 text-center">
+                    <small class="jambo-footer-credit">
+                        Developed by
+                        <a href="https://armgenius.com/" target="_blank" rel="noopener">ArmGenius</a>
+                    </small>
+                </div>
+            </div>
         </div>
     </div>
 </footer>
@@ -195,5 +207,27 @@
     }
     .footer-menu.footer-menu--scroll::-webkit-scrollbar-thumb:hover {
         background: rgba(255, 255, 255, 0.32);
+    }
+
+    /* Build credit — white but heavily faded so it's discoverable
+       without competing with the copyright line for attention.
+       Hover lifts the opacity so visitors who notice it know it's
+       interactive. */
+    .jambo-footer-credit {
+        display: inline-block;
+        font-size: 12px;
+        letter-spacing: 0.02em;
+        color: rgba(255, 255, 255, 0.40);
+    }
+    .jambo-footer-credit a {
+        color: rgba(255, 255, 255, 0.55);
+        text-decoration: none;
+        transition: color 0.18s ease;
+    }
+    .jambo-footer-credit a:hover,
+    .jambo-footer-credit a:focus {
+        color: rgba(255, 255, 255, 0.90);
+        text-decoration: underline;
+        text-underline-offset: 2px;
     }
 </style>
