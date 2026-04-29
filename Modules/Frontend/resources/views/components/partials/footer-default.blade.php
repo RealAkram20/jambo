@@ -48,6 +48,14 @@
                 @foreach ($columns as $col)
                     @php
                         $links = collect($col['links'] ?? [])->filter(fn ($l) => !empty($l['label']) || !empty($l['url']))->values();
+                        // Columns longer than 4 links collapse into a
+                        // fixed-height scroller showing ~4 entries with
+                        // the rest accessible via a thin scrollbar.
+                        // Lets a column be used for VJ lists (which can
+                        // grow to dozens) without blowing out the footer
+                        // layout. No admin opt-in needed — the threshold
+                        // does the right thing for short columns too.
+                        $isScrollable = $links->count() > 4;
                     @endphp
                     @if (!empty($col['title']) || $links->isNotEmpty())
                         <div class="col-lg-2 col-sm-6">
@@ -55,7 +63,7 @@
                                 <h4 class="footer-link-title text-capitalize">{{ $col['title'] }}</h4>
                             @endif
                             @if ($links->isNotEmpty())
-                                <ul class="list-unstyled footer-menu mb-0">
+                                <ul class="list-unstyled footer-menu mb-0 @if ($isScrollable) footer-menu--scroll @endif">
                                     @foreach ($links as $link)
                                         <li>
                                             <a href="{{ $link['url'] ?? '#' }}" class="text-capitalize">{{ $link['label'] ?? '' }}</a>
@@ -154,3 +162,38 @@
         </div>
     </div>
 </footer>
+
+{{-- Scoped CSS for the scrollable footer column variant. Inlined
+     here rather than in the SCSS bundle so deploys don't need a
+     Vite rebuild to pick up changes. The .footer-menu--scroll class
+     is only added when a column has more than 4 links (see the
+     $isScrollable Blade flag above). --}}
+<style>
+    .footer-menu.footer-menu--scroll {
+        /* Show roughly four links worth of height. The exact value
+           is forgiving — the scrollbar appears once content overflows,
+           which it will at >4 entries given footer-menu's line height. */
+        max-height: 8.5rem;
+        overflow-y: auto;
+        padding-right: 6px;
+
+        /* Thin, brand-coloured scrollbar. Firefox honours
+           `scrollbar-width` + `scrollbar-color`; everything else uses
+           the -webkit-* selectors below. Same visual on both. */
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+    }
+    .footer-menu.footer-menu--scroll::-webkit-scrollbar {
+        width: 4px;
+    }
+    .footer-menu.footer-menu--scroll::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .footer-menu.footer-menu--scroll::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.18);
+        border-radius: 2px;
+    }
+    .footer-menu.footer-menu--scroll::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.32);
+    }
+</style>
