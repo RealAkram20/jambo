@@ -33,27 +33,29 @@ class RouteServiceProvider extends ServiceProvider
     /**
      * /sitemap.xml + /robots.txt — public crawler endpoints.
      *
-     * Registered under the `api` middleware group instead of `web`
-     * because this app's `web` group quietly redirects unauthenticated
-     * requests to /login (we never managed to pin down which middleware
-     * does it — possibly an undocumented fork of MaintenanceMode or a
-     * leftover from the auth-related additions). The 1.5.3 attempt to
-     * use `Route::middleware([])` did not strip the redirect, suggesting
-     * something downstream still forces the web stack on bare routes.
+     * Registered with empty middleware. Crawler endpoints don't need
+     * sessions, CSRF, or auth — and we explicitly don't want to use
+     * the `web` group (which would redirect unauthenticated requests
+     * via the auth-aware middleware) OR the `api` group (which on
+     * this app references a `localization` alias whose class doesn't
+     * exist in the codebase, throwing a ReflectionException when
+     * Laravel tries to instantiate it).
      *
-     * The `api` group is known to have only ThrottleRequests +
-     * localization + SubstituteBindings — none of those redirect, none
-     * touch sessions, none enforce auth. Crawler endpoints need exactly
-     * none of the things `web` provides anyway (no CSRF on GET, no
-     * sessions in a public XML response, no cookies).
+     * The earlier 302→/login behavior that this provider previously
+     * tried to work around with `api` was actually caused by a route
+     * precedence collision with the /{username} profile route — fixed
+     * in 1.5.6 by tightening that route's regex to exclude paths
+     * ending in known static-file extensions. With that fix in place,
+     * our routes win the match cleanly, and an empty middleware list
+     * means nothing in the request pipeline can intercept.
      *
-     * The throttle rate-limit is api default (60/min) which is way more
-     * than any real crawler will request — Googlebot averages a request
-     * every few seconds at most.
+     * Global middleware (TrustProxies, TrimStrings, etc. from the
+     * $middleware array in Kernel.php) still runs on every request —
+     * none of those redirect.
      */
     protected function mapPublicRoutes(): void
     {
-        Route::middleware('api')
+        Route::middleware([])
             ->namespace($this->moduleNamespace)
             ->group(module_path('Seo', '/routes/public.php'));
     }
