@@ -4,6 +4,132 @@
 <div class="container-fluid">
     <div class="row">
         <div class="col-lg-10 mx-auto">
+
+            {{-- ─── Sitemap preview ────────────────────────────────────────
+                 Lets the operator confirm what /sitemap.xml is publishing
+                 right now without having to read XML. Counts per group +
+                 a few recent samples per type. Backed by the same
+                 SitemapController::entries() the live XML uses, so what
+                 you see here is exactly what Google sees. --}}
+            @php
+                $totalUrls = collect($sitemapEntries)->sum(fn ($g) => $g->count());
+                $groupMeta = [
+                    'static'   => ['label' => 'Landing pages',   'icon' => 'ph-house-simple', 'color' => 'primary'],
+                    'pages'    => ['label' => 'System pages',    'icon' => 'ph-file-text',    'color' => 'info'],
+                    'movies'   => ['label' => 'Movies',          'icon' => 'ph-film-strip',   'color' => 'success'],
+                    'shows'    => ['label' => 'Series',          'icon' => 'ph-television',   'color' => 'warning'],
+                    'episodes' => ['label' => 'Episodes',        'icon' => 'ph-list-numbers', 'color' => 'secondary'],
+                    'vjs'      => ['label' => 'VJs',             'icon' => 'ph-microphone',   'color' => 'danger'],
+                ];
+            @endphp
+            <div class="card mb-4">
+                <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <div>
+                        <h4 class="card-title mb-0">
+                            <i class="ph ph-magnifying-glass-plus me-1"></i>
+                            Sitemap preview
+                        </h4>
+                        <p class="text-muted mb-0 mt-1" style="font-size:13px;">
+                            What <code>/sitemap.xml</code> is currently publishing — compare against your
+                            published movies, episodes, and pages. The same data Google sees, served fresh
+                            from the database (no caching on this view).
+                        </p>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="{{ url('/sitemap.xml') }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">
+                            <i class="ph ph-arrow-square-out me-1"></i> Open sitemap.xml
+                        </a>
+                        <a href="{{ url('/robots.txt') }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">
+                            <i class="ph ph-arrow-square-out me-1"></i> robots.txt
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {{-- Top-line stat row --}}
+                    <div class="row g-2 mb-3">
+                        @foreach ($groupMeta as $key => $meta)
+                            @php $count = $sitemapEntries[$key]->count(); @endphp
+                            <div class="col-6 col-md-4 col-xl-2">
+                                <div class="border rounded p-3 text-center h-100" style="background: rgba(255,255,255,0.02);">
+                                    <i class="ph {{ $meta['icon'] }} text-{{ $meta['color'] }} d-block mb-1" style="font-size: 22px;"></i>
+                                    <div class="fw-semibold" style="font-size: 22px;">{{ $count }}</div>
+                                    <div class="text-muted" style="font-size: 12px;">{{ $meta['label'] }}</div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <div class="d-flex align-items-center justify-content-between mb-2 pt-2 border-top">
+                        <span class="text-muted" style="font-size: 12px;">
+                            <strong class="text-white">{{ $totalUrls }}</strong> URLs total
+                        </span>
+                        @if (!setting('seo.sitemap_enabled', true))
+                            <span class="badge bg-warning-subtle text-warning">
+                                <i class="ph ph-warning"></i> Sitemap publishing is OFF — the live <code>/sitemap.xml</code> is empty
+                            </span>
+                        @endif
+                    </div>
+
+                    {{-- Per-group sample lists. Collapsible so the page stays compact when libraries grow. --}}
+                    <div class="accordion" id="sitemapPreviewAccordion">
+                        @foreach ($groupMeta as $key => $meta)
+                            @continue($sitemapEntries[$key]->isEmpty())
+                            @php
+                                $items = $sitemapEntries[$key];
+                                $sampleSize = 12;
+                                $sample = $items->take($sampleSize);
+                                $more = max(0, $items->count() - $sampleSize);
+                                $accId = 'sitemap-group-' . $key;
+                            @endphp
+                            <div class="accordion-item" style="background: transparent; border-color: rgba(255,255,255,0.06);">
+                                <h2 class="accordion-header" id="heading-{{ $accId }}">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                            data-bs-target="#collapse-{{ $accId }}" aria-expanded="false"
+                                            aria-controls="collapse-{{ $accId }}"
+                                            style="background: rgba(255,255,255,0.02); color: var(--bs-body-color); font-size: 14px;">
+                                        <i class="ph {{ $meta['icon'] }} text-{{ $meta['color'] }} me-2"></i>
+                                        <strong>{{ $meta['label'] }}</strong>
+                                        <span class="badge bg-{{ $meta['color'] }}-subtle text-{{ $meta['color'] }} ms-2">{{ $items->count() }}</span>
+                                    </button>
+                                </h2>
+                                <div id="collapse-{{ $accId }}" class="accordion-collapse collapse"
+                                     aria-labelledby="heading-{{ $accId }}" data-bs-parent="#sitemapPreviewAccordion">
+                                    <div class="accordion-body py-2">
+                                        <ul class="list-unstyled mb-0">
+                                            @foreach ($sample as $entry)
+                                                <li class="d-flex align-items-center justify-content-between py-1 border-bottom" style="border-color: rgba(255,255,255,0.04) !important;">
+                                                    <div class="me-2" style="min-width: 0; flex: 1 1 auto;">
+                                                        <div class="text-truncate" style="font-size: 13px;">{{ $entry['label'] ?? $entry['loc'] }}</div>
+                                                        <div class="text-truncate text-muted" style="font-size: 11px;">{{ $entry['loc'] }}</div>
+                                                    </div>
+                                                    <a href="{{ $entry['loc'] }}" target="_blank" rel="noopener"
+                                                       class="text-decoration-none flex-shrink-0" title="Open">
+                                                        <i class="ph ph-arrow-square-out"></i>
+                                                    </a>
+                                                </li>
+                                            @endforeach
+                                        </ul>
+                                        @if ($more > 0)
+                                            <p class="text-muted mb-0 mt-2" style="font-size: 12px;">
+                                                + {{ $more }} more {{ \Illuminate\Support\Str::plural('entry', $more) }} in the live sitemap
+                                            </p>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    @if ($totalUrls === 0)
+                        <div class="text-center py-3 text-muted" style="font-size: 13px;">
+                            <i class="ph ph-info text-secondary d-block mb-2" style="font-size: 28px;"></i>
+                            No published content yet — the sitemap will be empty until movies, series, or
+                            episodes are published.
+                        </div>
+                    @endif
+                </div>
+            </div>
+
             <div class="card mb-4">
                 <div class="card-header">
                     <h4 class="card-title mb-0">SEO &amp; Analytics</h4>

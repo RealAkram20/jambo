@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\View\View;
+use Modules\Seo\app\Http\Controllers\Public\SitemapController;
 
 /**
  * Admin form for analytics IDs, Search Console verification, and
@@ -25,6 +26,19 @@ class SeoSettingsController extends Controller
 {
     public function index(): View
     {
+        // Pull live sitemap entries so the admin sees exactly what
+        // /sitemap.xml is publishing — counts plus a few sample
+        // titles per group. Wrapped in try/catch because we don't
+        // want the admin form to 500 if the sitemap build itself is
+        // broken; an empty $entries renders cleanly and the operator
+        // can still configure the rest of SEO.
+        $entries = ['static' => collect(), 'pages' => collect(), 'movies' => collect(), 'shows' => collect(), 'episodes' => collect(), 'vjs' => collect()];
+        try {
+            $entries = app(SitemapController::class)->entries();
+        } catch (\Throwable $e) {
+            \Log::warning('[seo] preview build failed', ['err' => $e->getMessage()]);
+        }
+
         return view('seo::admin.settings', [
             'tracking' => [
                 'enabled'           => (bool) setting('seo.tracking_enabled', false),
@@ -40,6 +54,7 @@ class SeoSettingsController extends Controller
                 'twitter_handle'         => setting('seo.twitter_handle', ''),
             ],
             'verificationFiles' => $this->listVerificationFiles(),
+            'sitemapEntries'    => $entries,
         ]);
     }
 

@@ -4,19 +4,22 @@ namespace Modules\Seo\app\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Movie;
 use Modules\Content\app\Models\Show;
 use Modules\Content\app\Models\Vj;
 
 /**
  * Generates /sitemap.xml on demand. Cached for 6 hours so a Googlebot
- * burst doesn't re-scan the published table on every hit. The DB
- * itself caches its own queries, but XML serialisation isn't free
- * and the result rarely changes within a 6-hour window for a small
- * library.
+ * burst doesn't re-scan the published table on every hit.
+ *
+ * The entries() method is reused by the admin SEO settings page so
+ * operators can see exactly what the sitemap is publishing without
+ * having to read XML.
  *
  * Returns an empty <urlset> when:
  *   - The seo.sitemap_enabled setting is off, OR
@@ -29,21 +32,20 @@ class SitemapController extends Controller
 {
     public function index(): Response
     {
-        // Operator kill-switch. Default is on — a sitemap is harmless
-        // even when content is sparse, and missing one is a missed
-        // discovery opportunity for new uploads.
         if (!setting('seo.sitemap_enabled', true)) {
             return $this->emptySitemap();
         }
 
-        // Outer try/catch: anything inside buildXml or the cache driver
-        // that throws (rare cache backend failure, an unexpected DB
-        // shape, an unloaded route, etc.) is logged but doesn't bubble
-        // up as a 500. Crawlers see an empty but valid sitemap; we see
-        // the stack trace in storage/logs/laravel.log.
         try {
             $xml = Cache::remember('seo.sitemap.xml', now()->addHours(6), function () {
-                return $this->buildXml();
+                $entries = $this->entries();
+                $flat = collect();
+                foreach ($entries as $group) {
+                    foreach ($group as $entry) {
+                        $flat->push($entry);
+                    }
+                }
+                return $this->renderXml($flat);
             });
         } catch (\Throwable $e) {
             Log::warning('[seo] sitemap build failed; serving empty', [
@@ -60,102 +62,205 @@ class SitemapController extends Controller
         ]);
     }
 
-    private function buildXml(): string
+    /**
+     * Public entry-point used by both the XML output and the admin
+     * preview. Returns a structured array grouped by content type so
+     * the admin form can render counts + samples per group.
+     *
+     * Each section is wrapped in try/catch so one bad table or
+     * missing route doesn't take out the whole sitemap. Errors are
+     * logged with file:line for diagnosis.
+     *
+     * @return array{static: Collection, movies: Collection, shows: Collection, episodes: Collection, vjs: Collection, pages: Collection}
+     */
+    public function entries(): array
     {
-        $urls = collect();
+        return [
+            'static'   => $this->buildStatic(),
+            'pages'    => $this->buildPages(),
+            'movies'   => $this->buildMovies(),
+            'shows'    => $this->buildShows(),
+            'episodes' => $this->buildEpisodes(),
+            'vjs'      => $this->buildVjs(),
+        ];
+    }
 
-        // Static high-value entry points. Only include routes that
-        // actually exist — a 404 in the sitemap looks broken to
-        // crawlers and dings perceived site quality.
-        $staticRoutes = [
+    /**
+     * High-traffic static landing pages (home, /movie, /series,
+     * /upcoming). These don't change often but they're the front
+     * door — having them in the sitemap helps Google index priority.
+     */
+    private function buildStatic(): Collection
+    {
+        $rows = collect();
+        $defs = [
             ['name' => 'frontend.ott',      'priority' => '1.0', 'changefreq' => 'daily'],
             ['name' => 'frontend.movie',    'priority' => '0.9', 'changefreq' => 'daily'],
             ['name' => 'frontend.series',   'priority' => '0.9', 'changefreq' => 'daily'],
             ['name' => 'frontend.upcoming', 'priority' => '0.7', 'changefreq' => 'weekly'],
         ];
-
-        foreach ($staticRoutes as $row) {
+        foreach ($defs as $def) {
             try {
-                $urls->push([
-                    'loc'        => route($row['name']),
-                    'changefreq' => $row['changefreq'],
-                    'priority'   => $row['priority'],
+                $rows->push([
+                    'loc'        => route($def['name']),
+                    'changefreq' => $def['changefreq'],
+                    'priority'   => $def['priority'],
+                    'label'      => $def['name'],
                 ]);
             } catch (\Throwable $e) {
-                Log::debug('[seo] static route skipped', ['name' => $row['name'], 'err' => $e->getMessage()]);
+                Log::debug('[seo] static route skipped', ['name' => $def['name'], 'err' => $e->getMessage()]);
             }
         }
-
-        // Movies. published() scope already enforces status=published
-        // + published_at <= now(), so we won't leak draft / scheduled
-        // titles into the sitemap.
-        if (Schema::hasTable('movies')) {
-            try {
-                Movie::published()
-                    ->select(['slug', 'updated_at'])
-                    ->orderByDesc('updated_at')
-                    ->chunk(500, function ($chunk) use ($urls) {
-                        foreach ($chunk as $movie) {
-                            $urls->push([
-                                'loc'        => route('frontend.movie_detail', $movie->slug),
-                                'lastmod'    => optional($movie->updated_at)->toAtomString(),
-                                'changefreq' => 'weekly',
-                                'priority'   => '0.8',
-                            ]);
-                        }
-                    });
-            } catch (\Throwable $e) {
-                Log::warning('[seo] sitemap section failed', ['section' => 'movies', 'err' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()]);
-            }
-        }
-
-        // Shows.
-        if (Schema::hasTable('shows')) {
-            try {
-                Show::published()
-                    ->select(['slug', 'updated_at'])
-                    ->orderByDesc('updated_at')
-                    ->chunk(500, function ($chunk) use ($urls) {
-                        foreach ($chunk as $show) {
-                            $urls->push([
-                                'loc'        => route('frontend.series_detail', $show->slug),
-                                'lastmod'    => optional($show->updated_at)->toAtomString(),
-                                'changefreq' => 'weekly',
-                                'priority'   => '0.8',
-                            ]);
-                        }
-                    });
-            } catch (\Throwable $e) {
-                Log::warning('[seo] sitemap section failed', ['section' => 'shows', 'err' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()]);
-            }
-        }
-
-        // VJs (translators / narrators) — high-traffic personas in
-        // Jambo's audience, worth surfacing as standalone URLs.
-        if (Schema::hasTable('vjs')) {
-            try {
-                Vj::query()
-                    ->select(['slug', 'updated_at'])
-                    ->orderByDesc('updated_at')
-                    ->chunk(500, function ($chunk) use ($urls) {
-                        foreach ($chunk as $vj) {
-                            $urls->push([
-                                'loc'        => route('frontend.vj_detail', $vj->slug),
-                                'lastmod'    => optional($vj->updated_at)->toAtomString(),
-                                'changefreq' => 'weekly',
-                                'priority'   => '0.6',
-                            ]);
-                        }
-                    });
-            } catch (\Throwable $e) {
-                Log::warning('[seo] sitemap section failed', ['section' => 'vjs', 'err' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()]);
-            }
-        }
-
-        return $this->renderXml($urls);
+        return $rows;
     }
 
-    private function renderXml($urls): string
+    /**
+     * System content pages (About, Contact, FAQ, Terms, Privacy,
+     * Pricing). All are admin-managed via the Pages module but
+     * surfaced via well-known route names.
+     */
+    private function buildPages(): Collection
+    {
+        $rows = collect();
+        $defs = [
+            ['name' => 'frontend.about_us',         'priority' => '0.5', 'changefreq' => 'monthly', 'label' => 'About'],
+            ['name' => 'frontend.contact_us',       'priority' => '0.5', 'changefreq' => 'monthly', 'label' => 'Contact'],
+            ['name' => 'frontend.faq_page',         'priority' => '0.5', 'changefreq' => 'monthly', 'label' => 'FAQ'],
+            ['name' => 'frontend.terms-and-policy', 'priority' => '0.3', 'changefreq' => 'yearly',  'label' => 'Terms'],
+            ['name' => 'frontend.privacy-policy',   'priority' => '0.3', 'changefreq' => 'yearly',  'label' => 'Privacy'],
+            ['name' => 'frontend.pricing-page',     'priority' => '0.6', 'changefreq' => 'monthly', 'label' => 'Pricing'],
+        ];
+        foreach ($defs as $def) {
+            try {
+                $rows->push([
+                    'loc'        => route($def['name']),
+                    'changefreq' => $def['changefreq'],
+                    'priority'   => $def['priority'],
+                    'label'      => $def['label'],
+                ]);
+            } catch (\Throwable $e) {
+                Log::debug('[seo] page route skipped', ['name' => $def['name'], 'err' => $e->getMessage()]);
+            }
+        }
+        return $rows;
+    }
+
+    private function buildMovies(): Collection
+    {
+        if (!Schema::hasTable('movies')) return collect();
+
+        $rows = collect();
+        try {
+            Movie::published()
+                ->select(['id', 'slug', 'title', 'updated_at'])
+                ->orderByDesc('updated_at')
+                ->chunk(500, function ($chunk) use ($rows) {
+                    foreach ($chunk as $movie) {
+                        $rows->push([
+                            'loc'        => route('frontend.movie_detail', $movie->slug),
+                            'lastmod'    => optional($movie->updated_at)->toAtomString(),
+                            'changefreq' => 'weekly',
+                            'priority'   => '0.8',
+                            'label'      => $movie->title,
+                        ]);
+                    }
+                });
+        } catch (\Throwable $e) {
+            Log::warning('[seo] sitemap movies failed', ['err' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()]);
+        }
+        return $rows;
+    }
+
+    private function buildShows(): Collection
+    {
+        if (!Schema::hasTable('shows')) return collect();
+
+        $rows = collect();
+        try {
+            Show::published()
+                ->select(['id', 'slug', 'title', 'updated_at'])
+                ->orderByDesc('updated_at')
+                ->chunk(500, function ($chunk) use ($rows) {
+                    foreach ($chunk as $show) {
+                        $rows->push([
+                            'loc'        => route('frontend.series_detail', $show->slug),
+                            'lastmod'    => optional($show->updated_at)->toAtomString(),
+                            'changefreq' => 'weekly',
+                            'priority'   => '0.8',
+                            'label'      => $show->title,
+                        ]);
+                    }
+                });
+        } catch (\Throwable $e) {
+            Log::warning('[seo] sitemap shows failed', ['err' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()]);
+        }
+        return $rows;
+    }
+
+    /**
+     * Episodes — eager-load the season + show so we can build the
+     * pretty /episode/<slug>/s<num>/ep<num> URL via the model's
+     * frontendUrl() helper. That helper handles orphans (missing
+     * season / show) gracefully so we don't have to filter here.
+     */
+    private function buildEpisodes(): Collection
+    {
+        if (!Schema::hasTable('episodes')) return collect();
+
+        $rows = collect();
+        try {
+            Episode::query()
+                ->whereNotNull('published_at')
+                ->where('published_at', '<=', now())
+                ->with(['season.show'])
+                ->select(['id', 'season_id', 'number', 'title', 'updated_at', 'published_at'])
+                ->orderByDesc('updated_at')
+                ->chunk(500, function ($chunk) use ($rows) {
+                    foreach ($chunk as $episode) {
+                        $url = $episode->frontendUrl();
+                        if ($url === '#') continue; // orphan — skip
+                        $rows->push([
+                            'loc'        => $url,
+                            'lastmod'    => optional($episode->updated_at)->toAtomString(),
+                            'changefreq' => 'weekly',
+                            'priority'   => '0.7',
+                            'label'      => trim(($episode->season?->show?->title ?? '') . ' — ' . ($episode->title ?? ('Ep ' . $episode->number)), ' —'),
+                        ]);
+                    }
+                });
+        } catch (\Throwable $e) {
+            Log::warning('[seo] sitemap episodes failed', ['err' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()]);
+        }
+        return $rows;
+    }
+
+    private function buildVjs(): Collection
+    {
+        if (!Schema::hasTable('vjs')) return collect();
+
+        $rows = collect();
+        try {
+            Vj::query()
+                ->select(['id', 'slug', 'name', 'updated_at'])
+                ->orderByDesc('updated_at')
+                ->chunk(500, function ($chunk) use ($rows) {
+                    foreach ($chunk as $vj) {
+                        $rows->push([
+                            'loc'        => route('frontend.vj_detail', $vj->slug),
+                            'lastmod'    => optional($vj->updated_at)->toAtomString(),
+                            'changefreq' => 'weekly',
+                            'priority'   => '0.6',
+                            'label'      => $vj->name ?? $vj->slug,
+                        ]);
+                    }
+                });
+        } catch (\Throwable $e) {
+            Log::warning('[seo] sitemap vjs failed', ['err' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()]);
+        }
+        return $rows;
+    }
+
+    private function renderXml(Collection $urls): string
     {
         $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
         $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
