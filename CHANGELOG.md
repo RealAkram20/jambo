@@ -2,6 +2,30 @@
 
 ## Jambo
 
+### 1.5.18 — password reset 405 fix + queue worker for verify-email
+
+Two pre-existing production bugs (both predate the recent security
+work; just only got noticed now).
+
+- **Password reset returned 405 Method Not Allowed.** The
+  `auth/reset-password.blade.php` form posted to `password.update`
+  (a PUT route used for in-app password change from the security
+  tab) instead of `password.store` (the public reset POST handler).
+  Fixed.
+- **Email verification mail wasn't reaching new signups.** The
+  `QueuedVerifyEmail` notification implements `ShouldQueue` so the
+  email goes onto the `jobs` table; without a queue worker draining
+  it, the row sits forever. Forgot-password and the other
+  ChannelGated notifications send synchronously which is why those
+  worked. Added a scheduled `queue:work --stop-when-empty
+  --max-time=55` running every minute via the existing scheduler
+  cron (no supervisord setup needed).
+
+After deploy: drain the existing backlog once with
+`php artisan queue:work --stop-when-empty` so any verify-emails
+queued while the worker was missing actually go out, then the
+new scheduler line keeps it draining automatically.
+
 ### 1.5.17 — WhatsApp / Telegram social-preview reliability
 
 WhatsApp + Telegram are stricter than LinkedIn / Facebook on the

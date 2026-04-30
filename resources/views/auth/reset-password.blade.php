@@ -17,7 +17,11 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('password.update') }}" novalidate>
+        {{-- password.store handles the reset token + new-password POST.
+             password.update is a different route (PUT) used by signed-in
+             users updating their own password from the security tab —
+             posting here used to 405. --}}
+        <form method="POST" action="{{ route('password.store') }}" novalidate>
             @csrf
             <input type="hidden" name="token" value="{{ $request->route('token') }}">
 
