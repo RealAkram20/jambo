@@ -72,6 +72,34 @@
 <meta property="og:site_name" content="{{ app_name() }}">
 @if ($ogImage)
     <meta property="og:image" content="{{ $ogImage }}">
+    {{-- WhatsApp + Telegram are noticeably pickier than LinkedIn /
+         Facebook: they often drop the image when the supplementary
+         tags are missing. secure_url pins the HTTPS variant; image
+         type lets the scraper short-circuit a HEAD request. We can
+         derive the type from the URL's extension; if it doesn't
+         match a known image extension we omit the tag rather than
+         lie about the MIME. Width/height are intentionally NOT
+         emitted — they'd be wrong for arbitrary admin-pasted URLs
+         (Dropbox / Contabo / external CDN). Operators who want them
+         can override per-page via @push('seo:head', ...) below. --}}
+    <meta property="og:image:secure_url" content="{{ $ogImage }}">
+    @php
+        $ogImageExt = strtolower((string) pathinfo(parse_url($ogImage, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION));
+        $ogImageType = match ($ogImageExt) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png'         => 'image/png',
+            'webp'        => 'image/webp',
+            'gif'         => 'image/gif',
+            default       => null,
+        };
+    @endphp
+    @if ($ogImageType)
+        <meta property="og:image:type" content="{{ $ogImageType }}">
+    @endif
+    {{-- Alt text is not strictly required but Facebook's Sharing
+         Debugger flags its absence as a warning. Use the page title
+         as a sensible default. --}}
+    <meta property="og:image:alt" content="{{ $ogTitle }}">
 @endif
 
 {{-- Twitter Card. summary_large_image is the rich preview that shows

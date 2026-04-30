@@ -2,6 +2,27 @@
 
 ## Jambo
 
+### 1.5.17 — WhatsApp / Telegram social-preview reliability
+
+WhatsApp + Telegram are stricter than LinkedIn / Facebook on the
+Open Graph image tag set. Without the supplementary tags they
+sometimes silently drop the image. Added:
+
+- `og:image:secure_url` — pins the HTTPS variant
+- `og:image:type` — derived from the URL's file extension
+  (jpg/jpeg/png/webp/gif → standard MIME)
+- `og:image:alt` — defaults to the page title
+
+Width/height are intentionally not emitted — admin-pasted URLs
+(Dropbox / Contabo / external CDNs) make accurate dimensions
+impossible without an extra HEAD request per pageview. Pages that
+need them can `@push('seo:head', ...)` per-template.
+
+Also: WhatsApp caches link previews for ~7 days. To force a
+re-scrape, paste the URL through Facebook's Sharing Debugger
+(developers.facebook.com/tools/debug) and click "Scrape Again",
+or share with a `?v=N` query param to fool the cache.
+
 ### 1.5.16 — three quality fixes
 
 - Subscription-expired notification (and any other ChannelGated
