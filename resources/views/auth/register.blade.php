@@ -93,6 +93,8 @@
                 <a href="{{ route('frontend.privacy-policy') }}" class="text-primary text-decoration-none">Privacy Policy</a>.
             </div>
 
+            <x-auth.bot-defence action="register" />
+
             <button type="submit" class="jambo-auth-btn mt-4">Create account</button>
         </form>
 

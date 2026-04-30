@@ -213,6 +213,7 @@ Route::middleware(['auth', 'role:admin'])
         Route::post('settings/smtp-test', [AdminSettingController::class, 'sendTestEmail'])->name('settings.smtp-test');
         Route::post('settings/vapid', [AdminSettingController::class, 'updateVapid'])->name('settings.vapid');
         Route::post('settings/vapid-generate', [AdminSettingController::class, 'generateVapid'])->name('settings.vapid-generate');
+        Route::post('settings/recaptcha', [AdminSettingController::class, 'updateRecaptcha'])->name('settings.recaptcha');
         Route::post('settings/maintenance', [AdminSettingController::class, 'updateMaintenance'])->name('settings.maintenance');
 
         // Diagnostics: error log tail + system status snapshot. Both

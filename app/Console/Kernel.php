@@ -12,7 +12,14 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // $schedule->command('inspire')->hourly();
+        // Sweep out bot signups that never confirmed their email.
+        // 7 days is plenty of grace for a real user; bot accounts
+        // never come back to verify so they pile up indefinitely
+        // without this. Runs at 03:10 UTC — off-peak.
+        $schedule->command('jambo:purge-unverified --days=7')
+            ->dailyAt('03:10')
+            ->withoutOverlapping()
+            ->onOneServer();
     }
 
     /**

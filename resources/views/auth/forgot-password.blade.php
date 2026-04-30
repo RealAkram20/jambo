@@ -30,6 +30,8 @@
                        autocomplete="email" autofocus required placeholder="you@example.com">
             </div>
 
+            <x-auth.bot-defence action="forgot_password" />
+
             <button type="submit" class="jambo-auth-btn mt-3">Send reset link</button>
         </form>
 

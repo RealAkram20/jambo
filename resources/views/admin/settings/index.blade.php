@@ -454,11 +454,137 @@
                 </div>
             </div>
 
+            {{-- reCAPTCHA ============================================ --}}
+            {{-- Optional bot protection on register / login / forgot-
+                 password forms. Off by default — the honeypot field
+                 and rate limit defences are unconditional and usually
+                 enough. Enable here if you start seeing organised
+                 signup spam that bypasses both. --}}
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="card-title mb-0">Google reCAPTCHA</h4>
+                    @php $rc = (bool) setting('recaptcha_enabled'); @endphp
+                    <span class="badge bg-{{ $rc ? 'success' : 'secondary' }}">
+                        {{ $rc ? 'enabled' : 'disabled' }}
+                    </span>
+                </div>
+
+                @if (session('status_recaptcha'))
+                    <div class="alert alert-success rounded-0 mb-0">
+                        <i class="ph ph-check-circle me-1"></i> {{ session('status_recaptcha') }}
+                    </div>
+                @endif
+
+                <div class="card-body">
+                    <p class="text-secondary small mb-3">
+                        Get keys from
+                        <a href="https://www.google.com/recaptcha/admin" target="_blank" rel="noopener">Google reCAPTCHA admin</a>.
+                        Pick <strong>v2 "I'm not a robot"</strong> for a visible checkbox, or
+                        <strong>v3</strong> for invisible scoring (no UX friction).
+                    </p>
+
+                    <form action="{{ route('admin.settings.recaptcha') }}" method="POST">
+                        @csrf
+
+                        <div class="form-check form-switch mb-3">
+                            <input type="hidden" name="recaptcha_enabled" value="0">
+                            <input type="checkbox"
+                                   class="form-check-input"
+                                   id="recaptcha_enabled"
+                                   name="recaptcha_enabled"
+                                   value="1"
+                                   {{ setting('recaptcha_enabled') ? 'checked' : '' }}>
+                            <label class="form-check-label" for="recaptcha_enabled">
+                                Enable reCAPTCHA on register / login / forgot-password forms
+                            </label>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Version</label>
+                            @php $rcVersion = setting('recaptcha_version') === 'v3' ? 'v3' : 'v2'; @endphp
+                            <div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="recaptcha_version"
+                                           id="recaptcha_v2" value="v2" {{ $rcVersion === 'v2' ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="recaptcha_v2">
+                                        v2 ("I'm not a robot" checkbox)
+                                    </label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="recaptcha_version"
+                                           id="recaptcha_v3" value="v3" {{ $rcVersion === 'v3' ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="recaptcha_v3">
+                                        v3 (invisible, score-based)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="recaptcha_site_key" class="form-label">Site key (public)</label>
+                                <input type="text"
+                                       class="form-control"
+                                       id="recaptcha_site_key"
+                                       name="recaptcha_site_key"
+                                       value="{{ setting('recaptcha_site_key') }}"
+                                       placeholder="6Lc...">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="recaptcha_secret_key" class="form-label">
+                                    Secret key
+                                    @if (setting('recaptcha_secret_key'))
+                                        <small class="text-success">(currently set — leave blank to keep)</small>
+                                    @endif
+                                </label>
+                                <input type="password"
+                                       class="form-control"
+                                       id="recaptcha_secret_key"
+                                       name="recaptcha_secret_key"
+                                       value=""
+                                       placeholder="6Lc..."
+                                       autocomplete="off">
+                            </div>
+                            <div class="col-md-6" id="recaptcha-threshold-row" style="{{ $rcVersion === 'v3' ? '' : 'display:none' }}">
+                                <label for="recaptcha_score_threshold" class="form-label">
+                                    v3 score threshold
+                                </label>
+                                <input type="number"
+                                       step="0.05"
+                                       min="0.1"
+                                       max="0.9"
+                                       class="form-control"
+                                       id="recaptcha_score_threshold"
+                                       name="recaptcha_score_threshold"
+                                       value="{{ setting('recaptcha_score_threshold', '0.5') }}">
+                                <small class="text-secondary">
+                                    Submissions scoring below this are rejected. Google's recommended default is 0.5.
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="text-end mt-3">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="ph ph-check me-1"></i> Save reCAPTCHA
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
             <div class="mb-5"></div>
         </div>
     </div>
 
     <script>
+        // Show / hide v3 score threshold based on version radio
+        document.querySelectorAll('input[name="recaptcha_version"]').forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                var row = document.getElementById('recaptcha-threshold-row');
+                if (row) row.style.display = this.value === 'v3' ? '' : 'none';
+            });
+        });
+
         document.querySelectorAll('[data-branding-url]').forEach(function (input) {
             input.addEventListener('input', function () {
                 const key = input.getAttribute('data-branding-url');

@@ -2,6 +2,39 @@
 
 ## Jambo
 
+### 1.5.15 — anti-bot signup defences + admin reCAPTCHA toggle
+
+Production was seeing low-volume but persistent automated signups
+(~1/hr) that never confirmed their email. None ever exploited
+anything — they just polluted the users table. Layered defences,
+no schema changes, no module changes.
+
+Defences (all unconditional, free, zero UX friction)
+- **Honeypot field** in register / forgot-password / login forms.
+  Hidden from humans (CSS off-screen + tabindex=-1 + autocomplete=off
+  + aria-hidden); bots fill it. Server silently accepts the request
+  but creates no user / sends no reset link.
+- **Throttle** on `POST /register` and `POST /forgot-password` —
+  5 attempts per IP per 10 minutes.
+- **Nightly cleanup** `jambo:purge-unverified --days=7` runs at
+  03:10 UTC and deletes accounts with `email_verified_at IS NULL`
+  older than 7 days. Skips anyone with the `admin` role for safety.
+  `--dry-run` lists candidates without deleting.
+
+Optional reCAPTCHA (v2 + v3, configurable from admin)
+- New "Google reCAPTCHA" card in `/admin/settings`: enable toggle,
+  v2/v3 selector, site key, secret key (encrypted at rest), v3
+  score threshold.
+- Site key + secret are stored in the settings table. Secret is
+  Crypt-encrypted on save like the SMTP password. Blank secret on
+  re-save = "keep existing".
+- Verifies on register / login / forgot-password when enabled. When
+  disabled (the default), pass-through — only honeypot + throttle
+  run. No code changes needed to enable, just paste keys in admin.
+- New `App\Services\RecaptchaService`, new
+  `<x-auth.bot-defence />` blade component shared across the three
+  forms.
+
 ### 1.5.14 — security pass + diagnostics
 
 Pre-launch hardening sweep. No data migrations, no module changes — all

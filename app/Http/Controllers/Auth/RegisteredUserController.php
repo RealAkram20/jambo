@@ -5,12 +5,15 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Rules\ReservedUsername;
+use App\Services\RecaptchaService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class RegisteredUserController extends Controller
@@ -30,6 +33,27 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        // Honeypot. The hidden `website` field is invisible to humans
+        // (CSS + tabindex=-1 + autocomplete=off + aria-hidden) but
+        // visible in the DOM, so naive bots happily fill it. A
+        // non-empty value here is a bot signature: we silently
+        // succeed (so the bot scoring engine moves on) without
+        // creating any row. Real users never see this field.
+        if (filled($request->input('website'))) {
+            Log::info('[register] honeypot triggered', ['ip' => $request->ip()]);
+            return redirect('/')->with('status', 'Welcome to ' . config('app.name') . '!');
+        }
+
+        // Optional reCAPTCHA — only enforced when the admin has wired
+        // a key pair via /admin/settings. With keys absent, this is a
+        // pass-through and the honeypot + throttle do the heavy
+        // lifting alone.
+        if (!RecaptchaService::verify($request->input('g-recaptcha-response'), 'register')) {
+            throw ValidationException::withMessages([
+                'email' => 'reCAPTCHA verification failed. Please try again.',
+            ]);
+        }
+
         $data = $request->validate([
             'first_name' => ['required', 'string', 'max:100'],
             'last_name'  => ['required', 'string', 'max:100'],

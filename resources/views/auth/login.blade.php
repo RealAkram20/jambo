@@ -57,6 +57,8 @@
                 @endif
             </div>
 
+            <x-auth.bot-defence action="login" />
+
             <button type="submit" class="jambo-auth-btn mt-4">Sign in</button>
         </form>
 

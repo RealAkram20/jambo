@@ -215,6 +215,38 @@ class SettingController extends Controller
      * middleware entirely, so this controller stays reachable while
      * the site is dark.
      */
+    /**
+     * Save Google reCAPTCHA configuration. Site key is public (it ends
+     * up in the rendered HTML); secret is encrypted at rest like the
+     * SMTP password / Pesapal consumer secret. Sending a blank secret
+     * means "keep the current value" — the same UX as updateSmtp().
+     */
+    public function updateRecaptcha(Request $request)
+    {
+        $data = $request->validate([
+            'recaptcha_enabled'         => ['required', 'boolean'],
+            'recaptcha_version'         => ['nullable', 'in:v2,v3'],
+            'recaptcha_site_key'        => ['nullable', 'string', 'max:255'],
+            'recaptcha_secret_key'      => ['nullable', 'string', 'max:255'],
+            'recaptcha_score_threshold' => ['nullable', 'numeric', 'min:0.1', 'max:0.9'],
+        ]);
+
+        Setting::set('recaptcha_enabled', $data['recaptcha_enabled'] ? '1' : '0', 'boolean');
+        Setting::set('recaptcha_version', $data['recaptcha_version'] ?? 'v2');
+        Setting::set('recaptcha_site_key', trim((string) ($data['recaptcha_site_key'] ?? '')));
+        Setting::set('recaptcha_score_threshold', (string) ($data['recaptcha_score_threshold'] ?? '0.5'));
+
+        // Blank secret = keep existing. Non-blank = encrypt and overwrite.
+        if (!empty($data['recaptcha_secret_key'])) {
+            Setting::set('recaptcha_secret_key', Crypt::encryptString($data['recaptcha_secret_key']));
+        }
+
+        Setting::flushCache();
+
+        return redirect()->route('admin.settings.index')
+            ->with('status_recaptcha', 'reCAPTCHA settings saved.');
+    }
+
     public function updateMaintenance(Request $request)
     {
         $data = $request->validate([

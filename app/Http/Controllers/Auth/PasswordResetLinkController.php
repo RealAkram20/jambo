@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Services\RecaptchaService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class PasswordResetLinkController extends Controller
@@ -25,6 +28,20 @@ class PasswordResetLinkController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        // Honeypot — see RegisteredUserController for the rationale.
+        // Mirror behavior so a bot probing both endpoints sees an
+        // identical "successful" response shape.
+        if (filled($request->input('website'))) {
+            Log::info('[forgot-password] honeypot triggered', ['ip' => $request->ip()]);
+            return back()->with('status', __(Password::RESET_LINK_SENT));
+        }
+
+        if (!RecaptchaService::verify($request->input('g-recaptcha-response'), 'forgot_password')) {
+            throw ValidationException::withMessages([
+                'email' => 'reCAPTCHA verification failed. Please try again.',
+            ]);
+        }
+
         $request->validate([
             'email' => ['required', 'email'],
         ]);

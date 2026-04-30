@@ -20,7 +20,14 @@ Route::middleware('guest')->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])
                 ->name('register');
 
-    Route::post('register', [RegisteredUserController::class, 'store']);
+    // Throttle the unauthenticated write endpoints to neutralise the
+    // signup-spam pattern we saw in production: ~1/hr automated POSTs
+    // from random IPs scanning generic Laravel/Streamit registration
+    // endpoints. Real users never hit 5/10min on any of these. The
+    // honeypot field in the form (see auth/register.blade.php +
+    // RegisteredUserController) catches the rest.
+    Route::post('register', [RegisteredUserController::class, 'store'])
+                ->middleware('throttle:5,10');
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
                 ->name('login');
@@ -31,6 +38,7 @@ Route::middleware('guest')->group(function () {
                 ->name('password.request');
 
     Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
+                ->middleware('throttle:5,10')
                 ->name('password.email');
 
     Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
