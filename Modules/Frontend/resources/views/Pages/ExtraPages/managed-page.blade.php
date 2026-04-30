@@ -1,5 +1,14 @@
 @extends('frontend::layouts.master', ['isBreadCrumb' => true, 'title' => $page->title])
 
+{{-- Social-preview metadata. Falls back through the SEO partial's
+     defaults if the page has no featured image or no meta description. --}}
+@if ($page->featured_image_url)
+    @section('seo:image', $page->featured_image_url)
+@endif
+@if ($page->meta_description)
+    @section('seo:description', $page->meta_description)
+@endif
+
 @section('content')
     {{-- Scope Quill heading output to the system's smaller heading
          sizes so the rich-text body matches the legacy templates'

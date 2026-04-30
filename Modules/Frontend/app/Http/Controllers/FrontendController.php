@@ -1792,6 +1792,23 @@ class FrontendController extends Controller
      */
     public function contact_us_submit(Request $request)
     {
+        // Honeypot — same field name as the auth forms (see
+        // resources/views/components/auth/bot-defence.blade.php).
+        // Bots fill the hidden `website` input; we silently flash the
+        // success state without sending mail so the bot moves on.
+        if (filled($request->input('website'))) {
+            \Illuminate\Support\Facades\Log::info('[contact-form] honeypot triggered', ['ip' => $request->ip()]);
+            return back()->with('contact_success', 'Thanks — your message has been sent. We\'ll be in touch shortly.');
+        }
+
+        // Optional reCAPTCHA, configurable from /admin/settings.
+        // Pass-through when admin hasn't wired keys.
+        if (!\App\Services\RecaptchaService::verify($request->input('g-recaptcha-response'), 'contact')) {
+            return back()
+                ->withInput()
+                ->withErrors(['g-recaptcha-response' => 'reCAPTCHA verification failed. Please try again.']);
+        }
+
         $data = $request->validate([
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',

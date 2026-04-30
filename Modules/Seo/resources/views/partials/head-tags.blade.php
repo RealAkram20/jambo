@@ -45,6 +45,18 @@
     $ogTitle = trim((string) ($__env->yieldContent('seo:title')
         ?: (($title ?? null) ? $title . ' - ' . app_name() : app_name())));
     $canonical = url()->current();
+
+    // Open Graph and Twitter Card both require absolute URLs for the
+    // image; relative paths like "/storage/foo.jpg" silently get
+    // ignored by Facebook's scraper. Normalise here so admins can paste
+    // any of:
+    //   /storage/branding/logo.png         (relative)
+    //   storage/branding/logo.png          (no leading slash)
+    //   https://jambofilms.com/...         (absolute)
+    // and the meta tag always renders an absolute URL.
+    if ($ogImage !== '' && !preg_match('#^https?://#i', $ogImage)) {
+        $ogImage = url(ltrim($ogImage, '/'));
+    }
 @endphp
 
 {{-- Canonical URL: tells Google which copy of duplicate content to

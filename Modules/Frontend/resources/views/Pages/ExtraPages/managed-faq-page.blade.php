@@ -1,5 +1,13 @@
 @extends('frontend::layouts.master', ['isBreadCrumb' => true, 'title' => $page->title])
 
+{{-- Social-preview metadata. --}}
+@if ($page->featured_image_url)
+    @section('seo:image', $page->featured_image_url)
+@endif
+@if ($page->meta_description)
+    @section('seo:description', $page->meta_description)
+@endif
+
 @php
     // Drop empty rows so an admin who left a slot blank doesn't get an
     // empty accordion bar on the public page.

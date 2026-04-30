@@ -2,6 +2,26 @@
 
 ## Jambo
 
+### 1.5.16 — three quality fixes
+
+- Subscription-expired notification (and any other ChannelGated
+  notification) now addresses the recipient by their first name —
+  "Hi Akram," rather than "Hi there," — and the admin-facing
+  message names the affected user ("Jane Smith's subscription has
+  expired") instead of the legacy "User #11" label. Falls back
+  through username and email-local-part if first/last aren't set.
+- Open Graph / Twitter Card image now renders correctly on shared
+  links. Previously even with a featured image set, the meta tag
+  was empty: managed Pages, Movie detail, and TV-show detail views
+  weren't yielding `seo:image`. They do now (movies + shows prefer
+  the wider backdrop_url for `summary_large_image`). The head-tags
+  partial also force-converts relative paths to absolute URLs since
+  Facebook silently drops relative `og:image` values.
+- Contact form now ships the same honeypot + reCAPTCHA defence as
+  register/login/forgot-password. Throttle was already in place; the
+  bot-defence component is now rendered in the form and the controller
+  silently flashes success on honeypot trigger.
+
 ### 1.5.15 — anti-bot signup defences + admin reCAPTCHA toggle
 
 Production was seeing low-volume but persistent automated signups

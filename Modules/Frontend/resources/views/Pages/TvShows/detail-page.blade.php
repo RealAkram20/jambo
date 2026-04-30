@@ -5,6 +5,16 @@
     'bodyClass' => 'custom-header-relative',
 ])
 
+{{-- Social-preview metadata for the show detail page. Same approach
+     as Movies/detail-page: backdrop wins, poster fallback, site-wide
+     default last. --}}
+@if ($show->backdrop_url ?: $show->poster_url)
+    @section('seo:image', $show->backdrop_url ?: $show->poster_url)
+@endif
+@if (!empty($show->description ?? null))
+    @section('seo:description', \Illuminate\Support\Str::limit(strip_tags((string) $show->description), 200))
+@endif
+
 @php
     $backdrop = $show->backdrop_url ?: $show->poster_url;
     $posterSrc = media_url($backdrop, 'media/vikings.webp');

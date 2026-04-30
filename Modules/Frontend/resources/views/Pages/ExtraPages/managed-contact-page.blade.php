@@ -1,5 +1,13 @@
 @extends('frontend::layouts.master', ['isBreadCrumb' => true, 'title' => $page->title])
 
+{{-- Social-preview metadata for the Contact page. --}}
+@if ($page->featured_image_url)
+    @section('seo:image', $page->featured_image_url)
+@endif
+@if ($page->meta_description)
+    @section('seo:description', $page->meta_description)
+@endif
+
 @php
     $cards = collect($page->metaValue('cards', []))->filter(fn ($c) => !empty($c['title']) || !empty($c['link_value']))->values();
 
@@ -133,6 +141,9 @@
                                     <div class="col-md-12 mb-4">
                                         <textarea name="message" class="form-control font-size-14 rounded-3" cols="40" rows="10"
                                                   placeholder="Your Message" required>{{ old('message') }}</textarea>
+                                    </div>
+                                    <div class="col-md-12">
+                                        <x-auth.bot-defence action="contact" />
                                     </div>
                                     <div class="col-md-12 mt-4 pt-2">
                                         <div class="iq-button">

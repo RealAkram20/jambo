@@ -83,7 +83,7 @@ abstract class ChannelGatedNotification extends Notification
 
         $mail = (new MailMessage())
             ->subject($payload['title'] ?? 'Notification from Jambo')
-            ->greeting('Hi there,')
+            ->greeting($this->mailGreeting($notifiable))
             ->line($payload['message'] ?? '');
 
         if (!empty($payload['action_url'])) {
@@ -91,6 +91,25 @@ abstract class ChannelGatedNotification extends Notification
         }
 
         return $mail->salutation('— The Jambo team');
+    }
+
+    /**
+     * Address the recipient by their first name when we have one
+     * (e.g. "Hi Akram,"), then username, then the generic fallback.
+     * Subclasses can override if they need a notification-specific
+     * tone.
+     */
+    protected function mailGreeting($notifiable): string
+    {
+        $first = trim((string) ($notifiable->first_name ?? ''));
+        if ($first !== '') {
+            return "Hi {$first},";
+        }
+        $username = trim((string) ($notifiable->username ?? ''));
+        if ($username !== '') {
+            return "Hi {$username},";
+        }
+        return 'Hi there,';
     }
 
     public function toWebPush($notifiable, $notification): WebPushMessage

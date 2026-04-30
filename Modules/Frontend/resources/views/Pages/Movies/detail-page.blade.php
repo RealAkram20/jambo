@@ -1,5 +1,16 @@
 @extends('frontend::layouts.master', ['isSwiperSlider' => true, 'isVideoJs' => true, 'bodyClass' => 'custom-header-relative', 'isSelect2' => true])
 
+{{-- Social-preview metadata: prefer the (typically wider) backdrop
+     for og:image since most platforms render summary_large_image as
+     a wide card. Falls back to the poster, then to the site-wide
+     default in head-tags. --}}
+@if ($movie->backdrop_url ?: $movie->poster_url)
+    @section('seo:image', $movie->backdrop_url ?: $movie->poster_url)
+@endif
+@if (!empty($movie->description ?? null))
+    @section('seo:description', \Illuminate\Support\Str::limit(strip_tags((string) $movie->description), 200))
+@endif
+
 @php
     $backdrop = $movie->backdrop_url ?: $movie->poster_url;
     $posterSrc = media_url($backdrop, 'media/gameofhero.webp');
