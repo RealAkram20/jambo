@@ -250,9 +250,16 @@ class FrontendController extends Controller
 
         $html = '';
         foreach ($vjs as $vj) {
+            // The view variable is `items`, not `movies` — mismatch
+            // here was the root of an "Undefined variable $items"
+            // 500 every time someone clicked Load More on /movie.
+            // The three sibling load-more endpoints (genreVjs,
+            // genreVjsShows, moreVjsForShowsPage) already do this
+            // correctly; this one had drifted.
             $html .= view('frontend::components.sections.vj-carousel', [
                 'vj' => $vj,
-                'movies' => $vj->movies,
+                'items' => $vj->movies,
+                'contentKind' => 'movie',
             ])->render();
         }
 

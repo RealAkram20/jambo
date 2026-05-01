@@ -2,6 +2,20 @@
 
 ## Jambo
 
+### 1.5.20 — fix "Undefined variable $items" on /movie Load More
+
+`FrontendController::moreVjsForMoviesPage()` (the AJAX endpoint
+behind the Load More button on /movie) was passing the wrong
+variable name to the `vj-carousel` partial — `'movies'` instead
+of `'items'`. The partial uses `@forelse ($items as $item)`, so
+every Load More click 500'd with "Undefined variable $items"
+deep in `storage/framework/views/...`.
+
+Three sibling endpoints (genreVjs, genreVjsShows,
+moreVjsForShowsPage) were already correct; only this one had
+drifted. Fixed; also added `contentKind => 'movie'` for parity
+with the others, even though the partial defaults to that.
+
 ### 1.5.19 — spam-folder notices during sender-reputation warm-up
 
 We're sending mail from a brand-new VPS IP, so Gmail / Outlook / etc.
