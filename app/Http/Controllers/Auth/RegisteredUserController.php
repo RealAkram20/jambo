@@ -82,8 +82,14 @@ class RegisteredUserController extends Controller
 
         // New signups are always regular users (the 'admin' role is
         // hand-assigned only), so we send them to the public frontend,
-        // never to the admin dashboard.
+        // never to the admin dashboard. The status flash mentions the
+        // verification email AND reminds them to check spam — during
+        // our launch phase Gmail / Outlook frequently fold our mail
+        // there until our sender reputation builds. The verify-email
+        // page itself carries the same notice for users who hit it.
         return redirect('/')
-            ->with('status', 'Welcome to ' . config('app.name') . '!');
+            ->with('status', "Welcome to " . config('app.name') . '! '
+                . "We've sent a verification link to {$user->email} — "
+                . "if you don't see it in a couple of minutes, check your Spam folder.");
     }
 }

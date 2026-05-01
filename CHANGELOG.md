@@ -2,6 +2,29 @@
 
 ## Jambo
 
+### 1.5.19 — spam-folder notices during sender-reputation warm-up
+
+We're sending mail from a brand-new VPS IP, so Gmail / Outlook / etc.
+spam-fold our verification + reset-link emails until reputation
+builds (typically 2–4 weeks of users marking "Not spam"). SPF, DKIM,
+DMARC and rDNS are all correctly configured — this is purely IP
+reputation cold-start, not a misconfiguration.
+
+To stop new signups bouncing off "I never got the email":
+
+- `auth/verify-email` shows a prominent yellow notice: *"Don't see it
+  within a minute? Check your Spam or Junk folder. Marking it 'Not
+  spam' tells your provider to deliver future emails to your inbox."*
+- `auth/forgot-password` shows the same notice immediately after a
+  reset-link is requested (only when the success flash is present so
+  the empty initial state stays clean).
+- The post-registration welcome flash now names the email address and
+  prompts the user to check spam if it doesn't arrive in a couple of
+  minutes.
+
+These notices have an inline comment with a removal hint: *"once
+we've been live ~6 weeks and the bounce-to-spam rate has dropped"*.
+
 ### 1.5.18 — password reset 405 fix + queue worker for verify-email
 
 Two pre-existing production bugs (both predate the recent security
