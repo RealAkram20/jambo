@@ -2,6 +2,37 @@
 
 ## Jambo
 
+### 1.5.32 — SEO: live diagnostic for "tag not detected on website"
+
+The Google Tag field already accepted `G-XXXXXXXXXX` IDs and the
+controller already extracted the ID when an admin pasted the
+entire `<!-- Google tag (gtag.js) -->` snippet — so storage was
+fine. The recurring "Google says my tag isn't detected" issue
+was almost always one of two silent gates:
+
+1. **Master switch is OFF** (the default). Saving a tag ID alone
+   doesn't render anything; you also have to flip "Enable
+   analytics tracking" on.
+2. **You're testing it logged in as admin** while "Don't track
+   logged-in admins" is ON (also default). The tag IS being
+   rendered for anonymous visitors, but suppressed in your own
+   browser, so View Source comes up empty.
+
+Added a live diagnostic block at the top of the Analytics card
+that shows, at a glance:
+
+- ✓/✗ Tag ID saved (and the value)
+- ✓/✗ Master switch ON/OFF
+- ✓/✗ Whether an anonymous visitor would see the tag right now
+- ✓/✗ Whether you (the logged-in admin) would see it, with an
+  explicit incognito hint when admin exclusion is hiding it
+- A collapsible "Show the exact snippet being injected" panel
+  with the rendered gtag.js snippet for copy/paste verification
+
+Also relabelled the field from "Google Analytics 4 — Measurement
+ID" to "Google Tag (gtag.js) — Measurement ID" and clarified in
+the help text that pasting the entire snippet works too.
+
 ### 1.5.31 — Notifications: use "series" not "shows" + fix dead URLs
 
 The notification copy still said "show" / "shows" in places

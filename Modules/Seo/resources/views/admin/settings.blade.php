@@ -150,6 +150,91 @@
                         </div>
                     @endif
 
+                    {{-- ─── Live diagnostic ──────────────────────────────────
+                         The single biggest source of "Google Tag Assistant
+                         says my tag isn't there" tickets has been not
+                         spotting that one of the silent gates is closed:
+                         (a) the master switch is OFF, or (b) the viewer
+                         testing it is an admin and exclude_admins is ON
+                         (default). This block makes both visible without
+                         the admin needing to read source. --}}
+                    @php $diag = $gtagDiagnostic; @endphp
+                    <div class="border rounded p-3 mb-4"
+                         style="background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.08) !important;">
+                        <h6 class="mb-3" style="font-size: 14px;">
+                            <i class="ph ph-pulse me-1"></i>
+                            Tag delivery — what's loading right now
+                        </h6>
+
+                        <div class="d-flex flex-column gap-2" style="font-size: 13px;">
+                            {{-- Configured tag ID --}}
+                            <div class="d-flex align-items-center gap-2">
+                                @if ($diag['id'])
+                                    <i class="ph ph-check-circle text-success"></i>
+                                    <span>Tag ID saved: <code>{{ $diag['id'] }}</code></span>
+                                @else
+                                    <i class="ph ph-x-circle text-danger"></i>
+                                    <span>No tag ID saved — paste it in the field below.</span>
+                                @endif
+                            </div>
+
+                            {{-- Master switch --}}
+                            <div class="d-flex align-items-center gap-2">
+                                @if ($diag['tracking_enabled'])
+                                    <i class="ph ph-check-circle text-success"></i>
+                                    <span>Master switch: <strong>ON</strong></span>
+                                @else
+                                    <i class="ph ph-x-circle text-danger"></i>
+                                    <span>Master switch: <strong>OFF</strong> — even with the ID saved, no tag is being emitted on any page.</span>
+                                @endif
+                            </div>
+
+                            {{-- Anonymous visitor view --}}
+                            <div class="d-flex align-items-center gap-2">
+                                @if ($diag['renders_for_anon'])
+                                    <i class="ph ph-check-circle text-success"></i>
+                                    <span>An anonymous visitor (incognito / Google Tag Assistant): <strong>tag is rendered</strong>.</span>
+                                @else
+                                    <i class="ph ph-x-circle text-danger"></i>
+                                    <span>An anonymous visitor: <strong>no tag</strong> ({{ implode(', ', $diag['reasons_blocking']) }}).</span>
+                                @endif
+                            </div>
+
+                            {{-- Admin view (only meaningful if at least it would render for anon) --}}
+                            <div class="d-flex align-items-center gap-2">
+                                @if ($diag['renders_for_you'])
+                                    <i class="ph ph-check-circle text-success"></i>
+                                    <span>You, viewing the site logged in as admin: <strong>tag is rendered</strong>.</span>
+                                @elseif ($diag['renders_for_anon'] && $diag['viewer_is_admin'] && $diag['exclude_admins'])
+                                    <i class="ph ph-warning-circle text-warning"></i>
+                                    <span>
+                                        You, viewing the site logged in as admin: <strong>tag is suppressed</strong> by the
+                                        "Don't track logged-in admins" toggle below — open <code>{{ url('/') }}</code>
+                                        in an <strong>incognito window</strong> (or log out) to see it.
+                                    </span>
+                                @else
+                                    <i class="ph ph-x-circle text-danger"></i>
+                                    <span>You, viewing the site logged in as admin: <strong>no tag</strong> for the same reason as anonymous above.</span>
+                                @endif
+                            </div>
+                        </div>
+
+                        @if ($diag['id'] && $diag['tracking_enabled'])
+                            <details class="mt-3">
+                                <summary class="text-muted" style="font-size: 12px; cursor: pointer;">
+                                    Show the exact snippet being injected
+                                </summary>
+                                <pre class="bg-dark text-light p-2 mt-2 mb-0 rounded" style="font-size: 11px; line-height: 1.4; overflow-x: auto;">&lt;script async src=&quot;https://www.googletagmanager.com/gtag/js?id={{ $diag['id'] }}&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', '{{ $diag['id'] }}');
+&lt;/script&gt;</pre>
+                            </details>
+                        @endif
+                    </div>
+
                     {{-- ─── Analytics + Search Console ──────────────────────── --}}
                     <h5 class="mb-3 mt-1">Analytics &amp; Search Console</h5>
 
@@ -188,13 +273,17 @@
 
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label class="form-label" for="ga4_id">Google Analytics 4 — Measurement ID</label>
+                                <label class="form-label" for="ga4_id">Google Tag (gtag.js) — Measurement ID</label>
                                 <input type="text" class="form-control @error('ga4_id') is-invalid @enderror"
                                        id="ga4_id" name="ga4_id" value="{{ $tracking['ga4_id'] }}"
                                        placeholder="G-XXXXXXXXXX" autocomplete="off">
                                 <div class="form-text">
-                                    Find this in GA4 → Admin → Data Streams → your stream → Measurement ID.
+                                    From GA4 → Admin → Data Streams → your stream → Measurement ID.
                                     Looks like <code>G-AB12CD34EF</code>.
+                                    You can also paste the <strong>entire</strong>
+                                    <code>&lt;!-- Google tag (gtag.js) --&gt;</code> snippet —
+                                    we'll pull the ID out for you and inject the standard
+                                    loader on every public page.
                                 </div>
                                 @error('ga4_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>

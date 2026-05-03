@@ -39,11 +39,41 @@ class SeoSettingsController extends Controller
             \Log::warning('[seo] preview build failed', ['err' => $e->getMessage()]);
         }
 
+        // Live diagnostic — same gates as Modules/Seo/resources/views/
+        // partials/head-tags.blade.php so the admin can see, at a glance,
+        // exactly why the Google tag is or isn't rendering on the live
+        // pages right now. Without this, the most common confusion was
+        // "I saved the ID but Google Tag Assistant says it's not there"
+        // — almost always because the master switch defaults OFF, or
+        // the admin testing it is filtered out by exclude_admins.
+        $ga4Id          = (string) setting('seo.ga4_id', '');
+        $trackEnabled   = (bool) setting('seo.tracking_enabled', false);
+        $excludeAdmins  = (bool) setting('seo.exclude_admins', true);
+        $viewerIsAdmin  = auth()->check()
+            && method_exists(auth()->user(), 'hasRole')
+            && auth()->user()->hasRole('admin');
+
+        $reasons = [];
+        if ($ga4Id === '')        $reasons[] = 'no Google Tag ID is saved yet';
+        if (! $trackEnabled)      $reasons[] = '"Enable analytics tracking" is OFF (master switch)';
+        $rendersAnon  = $ga4Id !== '' && $trackEnabled;
+        $rendersAdmin = $rendersAnon && ! ($excludeAdmins && $viewerIsAdmin);
+
+        $gtagDiagnostic = [
+            'id'                => $ga4Id,
+            'tracking_enabled'  => $trackEnabled,
+            'exclude_admins'    => $excludeAdmins,
+            'viewer_is_admin'   => $viewerIsAdmin,
+            'renders_for_anon'  => $rendersAnon,
+            'renders_for_you'   => $rendersAdmin,
+            'reasons_blocking'  => $reasons,
+        ];
+
         return view('seo::admin.settings', [
             'tracking' => [
-                'enabled'           => (bool) setting('seo.tracking_enabled', false),
-                'exclude_admins'    => (bool) setting('seo.exclude_admins', true),
-                'ga4_id'            => setting('seo.ga4_id', ''),
+                'enabled'           => $trackEnabled,
+                'exclude_admins'    => $excludeAdmins,
+                'ga4_id'            => $ga4Id,
                 'gtm_id'            => setting('seo.gtm_id', ''),
                 'gsc_verification'  => setting('seo.gsc_verification', ''),
                 'sitemap_enabled'   => (bool) setting('seo.sitemap_enabled', true),
@@ -55,6 +85,7 @@ class SeoSettingsController extends Controller
             ],
             'verificationFiles' => $this->listVerificationFiles(),
             'sitemapEntries'    => $entries,
+            'gtagDiagnostic'    => $gtagDiagnostic,
         ]);
     }
 
