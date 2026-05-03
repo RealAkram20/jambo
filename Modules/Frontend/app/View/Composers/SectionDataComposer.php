@@ -157,7 +157,7 @@ class SectionDataComposer
                 })
                 ->withCount([
                     'movies as movies_count' => fn ($q) => $q->published(),
-                    'shows  as shows_count'  => fn ($q) => $q->published(),
+                    'shows as shows_count' => fn ($q) => $q->published(),
                 ])
                 ->orderByRaw('(movies_count + shows_count) DESC')
                 ->orderBy('id')

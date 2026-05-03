@@ -2,6 +2,19 @@
 
 ## Jambo
 
+### 1.5.25 — Hotfix: homepage 500 from misaligned withCount key
+
+The homeVjs query in 1.5.24 had two spaces between "shows" and
+"as" in the withCount alias key (`'shows  as shows_count'`),
+visually aligning it with the `'movies as movies_count'` line
+above. Production Laravel parsed the literal string as the
+relation method name, throwing:
+
+> Call to undefined method
+> Modules\\Content\\app\\Models\\Vj::shows  as shows_count()
+
+Collapsed to a single space. No other functional change.
+
 ### 1.5.24 — VJs: homepage slider + combined overview at /vj/{slug}
 
 Two related changes that together promote VJs from a hidden
