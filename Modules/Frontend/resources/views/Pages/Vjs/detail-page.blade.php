@@ -103,7 +103,7 @@
 
     <script>
     (function () {
-        var endpoint = {{ Js::from(route('frontend.vj_genre_more', ['slug' => $vj->slug])) }};
+        var endpoint = {{ Js::from(route('frontend.vj_movie_genre_more', ['slug' => $vj->slug])) }};
         var LIMIT = 15;
 
         /**

@@ -479,11 +479,76 @@ class FrontendController extends Controller
     }
 
     /**
-     * VJ detail page — organises that VJ's catalogue by genre. Each
-     * genre section gets an initial slice of movies; Load More in the
-     * UI pulls additional pages via vjGenreLoadMore() below.
+     * Combined VJ overview at /vj/{slug} — surfaces this VJ's movies
+     * AND series in one place. Hero rotates through their newest
+     * titles regardless of type, then two horizontal rails (Movies +
+     * Series) link off to the type-scoped detail pages
+     * (/vj-movie/{slug}, /vj-series/{slug}) for the deep-dive views.
+     *
+     * The two type-specific pages live at vjMovieDetail() and
+     * vjSeriesDetail() — both organise the catalogue by genre with
+     * Load More, which would be too dense for an overview landing
+     * page where most users just want to pick a title and go.
      */
-    public function vjDetail(string $slug)
+    public function vjOverview(string $slug)
+    {
+        $vj = Vj::where('slug', $slug)->firstOrFail();
+
+        // Hero — newest 3 titles across both pools, type-tagged so
+        // the banner partial (and downstream cards) can branch
+        // without instance checks.
+        $heroMovies = $vj->movies()->published()
+            ->with('genres')
+            ->orderByDesc('published_at')
+            ->take(3)
+            ->get()
+            ->each(fn ($m) => $m->_isShow = false);
+
+        $heroShows = $vj->shows()->published()
+            ->with(['genres', 'seasons'])
+            ->orderByDesc('published_at')
+            ->take(3)
+            ->get()
+            ->each(fn ($s) => $s->_isShow = true);
+
+        $heroItems = $heroMovies->concat($heroShows)
+            ->sortByDesc(fn ($i) => optional($i->published_at)->getTimestamp() ?? 0)
+            ->values()
+            ->take(5);
+
+        // Movies + series rails — capped at 20 each so the overview
+        // is a quick browse, not a full catalogue. "View All" links
+        // off to the type-scoped detail pages for the rest.
+        $movies = $vj->movies()->published()
+            ->with('genres')
+            ->orderByDesc('published_at')
+            ->take(20)
+            ->get();
+
+        $shows = $vj->shows()->published()
+            ->with(['genres', 'seasons'])
+            ->orderByDesc('published_at')
+            ->take(20)
+            ->get();
+
+        $moviesTotal = $vj->movies()->published()->count();
+        $showsTotal  = $vj->shows()->published()->count();
+
+        return view('frontend::Pages.Vjs.overview-page', compact(
+            'vj', 'heroItems', 'movies', 'shows', 'moviesTotal', 'showsTotal'
+        ));
+    }
+
+    /**
+     * Movies-only VJ detail page — organises this VJ's movie
+     * catalogue by genre. Each genre section gets an initial slice
+     * of movies; Load More in the UI pulls additional pages via
+     * vjMovieGenreLoadMore() below.
+     *
+     * Reachable at /vj-movie/{slug}. The combined overview lives at
+     * /vj/{slug} (vjOverview).
+     */
+    public function vjMovieDetail(string $slug)
     {
         $vj = Vj::where('slug', $slug)->firstOrFail();
 
@@ -523,11 +588,12 @@ class FrontendController extends Controller
     }
 
     /**
-     * Load-more endpoint for a single genre within a VJ's catalogue.
-     * Appends to an existing grid — returns rendered movie-card HTML
-     * so the client JS just needs to insertAdjacentHTML.
+     * Load-more endpoint for a single genre within a VJ's movie
+     * catalogue. Appends to an existing grid — returns rendered
+     * movie-card HTML so the client JS just needs to
+     * insertAdjacentHTML. Paired with vjMovieDetail() above.
      */
-    public function vjGenreLoadMore(string $slug, Request $request): \Illuminate\Http\Response
+    public function vjMovieGenreLoadMore(string $slug, Request $request): \Illuminate\Http\Response
     {
         $vj = Vj::where('slug', $slug)->firstOrFail();
         $genreSlug = (string) $request->query('genre', '');

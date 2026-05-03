@@ -29,8 +29,18 @@ Route::group([], function () {
     Route::get('/upcoming', [FrontendController::class, 'upcomingPage'])->name('frontend.upcoming');
     Route::get('/upcoming/load-more', [FrontendController::class, 'upcomingLoadMore'])->name('frontend.upcoming_load_more');
     Route::get('/movie/more-vjs', [FrontendController::class, 'moreVjsForMoviesPage'])->name('frontend.movie_more_vjs');
-    Route::get('/vj/{slug}', [FrontendController::class, 'vjDetail'])->name('frontend.vj_detail');
-    Route::get('/vj/{slug}/more', [FrontendController::class, 'vjGenreLoadMore'])->name('frontend.vj_genre_more');
+    // Combined overview — movies + series for one VJ. The two
+    // type-scoped detail pages live at /vj-movie/{slug} and
+    // /vj-series/{slug} below.
+    Route::get('/vj/{slug}', [FrontendController::class, 'vjOverview'])->name('frontend.vj_detail');
+    // Movies-only VJ catalogue (formerly at /vj/{slug}). Renamed so
+    // /vj/{slug} could host the combined overview. The 301 below
+    // covers any old links pointing at /vj/{slug}/more.
+    Route::get('/vj-movie/{slug}', [FrontendController::class, 'vjMovieDetail'])->name('frontend.vj_movie_detail');
+    Route::get('/vj-movie/{slug}/more', [FrontendController::class, 'vjMovieGenreLoadMore'])->name('frontend.vj_movie_genre_more');
+    Route::get('/vj/{slug}/more', function (string $slug) {
+        return redirect()->route('frontend.vj_movie_genre_more', ['slug' => $slug] + request()->query(), 301);
+    });
     Route::get('/series', [FrontendController::class, 'tv_show'])->name('frontend.series');
     // NOTE: /series/more-vjs must be registered before /series/{slug}
     // below, otherwise Laravel matches it as a show slug.

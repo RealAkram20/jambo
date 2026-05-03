@@ -10,6 +10,7 @@ use Modules\Content\app\Models\Genre;
 use Modules\Content\app\Models\Movie;
 use Modules\Content\app\Models\Person;
 use Modules\Content\app\Models\Show;
+use Modules\Content\app\Models\Vj;
 use Modules\Frontend\app\Services\TopPicksRecommender;
 use Modules\Streaming\app\Models\WatchHistoryItem;
 use Modules\Streaming\app\Models\WatchlistItem;
@@ -141,6 +142,26 @@ class SectionDataComposer
             'homeGenres' => Genre::withCount(['movies', 'shows'])
                 ->orderByDesc('movies_count')
                 ->take(10)
+                ->get(),
+
+            // Home VJs rail — narrators ranked by combined catalogue
+            // size, but filtered to only VJs with at least one
+            // *published* movie or show (otherwise the slider would
+            // surface VJs whose entire catalogue is still draft).
+            // Card thumbnails use Vj::featured_image_url, which falls
+            // back through the VJ's most recent published title.
+            'homeVjs' => Vj::query()
+                ->where(function ($q) {
+                    $q->whereHas('movies', fn ($mq) => $mq->published())
+                      ->orWhereHas('shows',  fn ($sq) => $sq->published());
+                })
+                ->withCount([
+                    'movies as movies_count' => fn ($q) => $q->published(),
+                    'shows  as shows_count'  => fn ($q) => $q->published(),
+                ])
+                ->orderByRaw('(movies_count + shows_count) DESC')
+                ->orderBy('id')
+                ->take(12)
                 ->get(),
 
             // Your Favourite Personality — top cast by appearance count

@@ -14,7 +14,11 @@
 
     $isMovies = in_array($current, [
         'frontend.movie', 'frontend.movie_detail',
-        'frontend.movie_more_vjs', 'frontend.vj_detail', 'frontend.vj_genre_more',
+        'frontend.movie_more_vjs',
+        // /vj/{slug} (combined overview) and /vj-movie/{slug}
+        // (movies-only catalogue) both light the Movies tab —
+        // there's no neutral "VJs" tab.
+        'frontend.vj_detail', 'frontend.vj_movie_detail', 'frontend.vj_movie_genre_more',
         'frontend.watch', 'frontend.watchlist_play',
     ], true);
 

@@ -2,6 +2,52 @@
 
 ## Jambo
 
+### 1.5.24 — VJs: homepage slider + combined overview at /vj/{slug}
+
+Two related changes that together promote VJs from a hidden
+secondary axis (only reachable from the per-row "View All" links
+on /movie and /series) to a first-class browse axis with its own
+landing page.
+
+**1. New homepage VJs slider.** Inserted into `ott-page` (the
+homepage) between **Top 10 Series to Watch** and **Only on Jambo**.
+Mirrors the existing genres slider pixel-for-pixel — same
+`card-genres-grid` partial, same swiper config, same View All
+behaviour. Cards link to the new combined VJ overview page below.
+Data wired by `SectionDataComposer` as `$homeVjs` (top 12 VJs
+ranked by combined published movies + shows count). Each card uses
+the new `Vj::featured_image_url` accessor, which falls back through
+the VJ's most recent published movie / show backdrop / poster —
+mirrors the `Genre::featured_image_url` accessor exactly.
+
+**2. Route restructure — `/vj/{slug}` is now the combined overview.**
+
+- `/vj/{slug}` (NEW) → `vjOverview()` → hero rotating through the
+  VJ's newest titles regardless of type (movies + series mixed),
+  then a Movies rail and a Series rail below it. Each rail caps at
+  20 with View All linking to the type-scoped catalogue page.
+- `/vj-movie/{slug}` (formerly `/vj/{slug}`) → `vjMovieDetail()`
+  → unchanged movies-only catalogue, organised by genre with
+  Load More.
+- `/vj-movie/{slug}/more` (formerly `/vj/{slug}/more`) →
+  `vjMovieGenreLoadMore()`.
+- `/vj-series/{slug}` → unchanged.
+- `/vj/{slug}/more` 301-redirects to `/vj-movie/{slug}/more` so
+  any external bookmarks pointing at the old movies-only Load
+  More endpoint keep working.
+
+The route name `frontend.vj_detail` was kept on the new combined
+overview, so the ~5 internal callers that already used it (homepage
+sitemap, mobile-footer, vj-carousel) all naturally land on the
+combined page now — which is what every caller actually wanted
+("show me this VJ"). The one place that genuinely needed
+movies-only — vj-carousel's "View All" link on a movies row — was
+explicitly switched to `frontend.vj_movie_detail`.
+
+No DB migration; no data backfill; existing bookmarks at the old
+`/vj/{slug}` URL now land on the more-useful combined overview
+instead of the movies-only page.
+
 ### 1.5.23 — Cast: add "Actress" alongside "Actor" everywhere
 
 Admin cast rows only had a single "Actor" option for performers,
