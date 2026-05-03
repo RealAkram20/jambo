@@ -19,7 +19,7 @@ class WelcomeUserNotification extends ChannelGatedNotification
     {
         return [
             'title'        => 'Welcome to Jambo 🎬',
-            'message'      => 'Thanks for signing up — start exploring movies, shows, and add favourites to your watchlist.',
+            'message'      => 'Thanks for signing up — start exploring movies, series, and add favourites to your watchlist.',
             'icon'         => 'ph-hand-waving',
             'colour'       => 'primary',
             'image'        => null,

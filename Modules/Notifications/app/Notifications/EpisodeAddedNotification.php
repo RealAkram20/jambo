@@ -30,9 +30,11 @@ class EpisodeAddedNotification extends ChannelGatedNotification
             'icon'         => 'ph-play-circle',
             'colour'       => 'primary',
             'image'        => $this->poster,
+            // Routes use /series/{slug}; /tv-shows (plural) is a
+            // 404, /tv-show-detail/{slug} 301s but adds an extra hop.
             'action_url'   => $this->showSlug
-                ? url('/tv-show-detail/' . $this->showSlug)
-                : url('/tv-shows'),
+                ? url('/series/' . $this->showSlug)
+                : url('/series'),
             'action_label' => 'Watch now',
             'show_title'   => $this->showTitle,
             'season_number'=> $this->seasonNumber,

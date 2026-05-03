@@ -132,8 +132,8 @@ class NotificationSetting extends Model
                 'icon'  => 'ph-film-slate',
                 'items' => [
                     ['key' => 'movie_added',         'label' => 'Movie added',        'description' => 'New movie appears in the catalogue.',           'icon' => 'ph-film-strip',        'colour' => 'primary', 'audience' => 'User'],
-                    ['key' => 'show_added',          'label' => 'TV show added',      'description' => 'New TV show appears in the catalogue.',         'icon' => 'ph-television',        'colour' => 'primary', 'audience' => 'User'],
-                    ['key' => 'season_added',        'label' => 'Season added',       'description' => 'A new season was added to an existing show.',   'icon' => 'ph-stack',             'colour' => 'primary', 'audience' => 'User'],
+                    ['key' => 'show_added',          'label' => 'TV series added',    'description' => 'New TV series appears in the catalogue.',       'icon' => 'ph-television',        'colour' => 'primary', 'audience' => 'User'],
+                    ['key' => 'season_added',        'label' => 'Season added',       'description' => 'A new season was added to an existing series.', 'icon' => 'ph-stack',             'colour' => 'primary', 'audience' => 'User'],
                     ['key' => 'episode_added',       'label' => 'Episode added',      'description' => 'A new episode was added to a tracked season.',  'icon' => 'ph-play-circle',       'colour' => 'primary', 'audience' => 'User'],
                     ['key' => 'watchlist_available', 'label' => 'Watchlist available','description' => 'An item on the user\'s watchlist is now live.', 'icon' => 'ph-bookmark-simple',   'colour' => 'info',    'audience' => 'User'],
                 ],

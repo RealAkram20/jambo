@@ -20,15 +20,19 @@ class ShowAddedNotification extends ChannelGatedNotification
     public function toDatabase($notifiable): array
     {
         return [
-            'title'        => 'New show added',
+            'title'        => 'New series added',
             'message'      => "“{$this->showTitle}” is now streaming on Jambo.",
             'icon'         => 'ph-television',
             'colour'       => 'primary',
             'image'        => $this->poster,
+            // Routes use /series/{slug} (movie+show URL conventions
+            // were normalised to /series/, with /tv-show 301'ing).
+            // The fallback now points at /series rather than the
+            // non-existent /tv-shows that produced a 404.
             'action_url'   => $this->showSlug
-                ? url('/tv-show-detail/' . $this->showSlug)
-                : url('/tv-shows'),
-            'action_label' => 'Open show',
+                ? url('/series/' . $this->showSlug)
+                : url('/series'),
+            'action_label' => 'Open series',
             'show_id'      => $this->showId,
             'show_title'   => $this->showTitle,
         ];

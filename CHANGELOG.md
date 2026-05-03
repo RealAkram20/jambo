@@ -2,6 +2,35 @@
 
 ## Jambo
 
+### 1.5.31 — Notifications: use "series" not "shows" + fix dead URLs
+
+The notification copy still said "show" / "shows" in places
+that reach end users, even though every other surface of the
+app calls them "series". Fixed:
+
+- **ShowAddedNotification** — title "New **show** added" →
+  "New **series** added"; action button label "Open show" →
+  "Open series".
+- **NotificationSetting::definitions()** (admin Settings tab) —
+  the toggle labelled "TV **show** added" → "TV **series**
+  added"; description "...existing **show**" → "...existing
+  **series**".
+- **WelcomeUserNotification** — "movies, **shows**, and add
+  favourites" → "movies, **series**, and add favourites".
+
+While editing the same notification classes, fixed a related
+URL bug: action_url on Show/Episode/Season-added notifications
+pointed at `/tv-show-detail/{slug}` (which 301-redirects, an
+extra hop) and fell back to `/tv-shows` (which doesn't exist —
+404). Rewrote both to `/series/{slug}` and `/series` so the
+"Open series" button lands cleanly.
+
+Note for ops: existing notification rows in the database have
+the OLD title/message baked in at the time they were sent —
+this release only affects notifications dispatched from now on.
+The admin Settings tab labels update immediately because they
+render live from PHP rather than storage.
+
 ### 1.5.30 — VJ pages: use "series" instead of "shows"
 
 The VJ overview (`/vj/{slug}`) and the VJ series-detail
