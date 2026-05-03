@@ -47,7 +47,7 @@
                         @endif
                     </div>
                     <span class="text-muted">
-                        {{ $buckets->sum('total') }} {{ __('streamTag.shows') ?? 'series' }}
+                        {{ $buckets->sum('total') }} {{ __('streamTag.series') }}
                     </span>
                 </div>
             </section>

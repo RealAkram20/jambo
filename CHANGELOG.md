@@ -2,6 +2,14 @@
 
 ## Jambo
 
+### 1.5.30 — VJ pages: use "series" instead of "shows"
+
+The VJ overview (`/vj/{slug}`) and the VJ series-detail
+(`/vj-series/{slug}`) pages were rendering "shows" via
+`__('streamTag.shows')`. Site-wide convention is "series" — the
+matching key `streamTag.series` already exists in
+`lang/en/streamTag.php`. Switched both call sites.
+
 ### 1.5.29 — Share-link previews on the watch + watchlist-play pages
 
 Follow-up to 1.5.28: extended the per-page SEO metadata to the

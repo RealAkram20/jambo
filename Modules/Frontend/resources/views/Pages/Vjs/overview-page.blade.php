@@ -68,7 +68,7 @@
                     <span class="text-muted">
                         {{ $moviesTotal }} {{ __('streamTag.movies') ?? 'movies' }}
                         &middot;
-                        {{ $showsTotal }} {{ __('streamTag.shows') ?? 'series' }}
+                        {{ $showsTotal }} {{ __('streamTag.series') ?? 'series' }}
                     </span>
                 </div>
             </section>
@@ -122,7 +122,7 @@
             @if ($shows->isNotEmpty())
                 <section class="related-movie-block mt-5">
                     <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
-                        <h4 class="main-title text-capitalize mb-0">{{ __('streamTag.shows') ?? 'Series' }}</h4>
+                        <h4 class="main-title text-capitalize mb-0">{{ __('streamTag.series') ?? 'Series' }}</h4>
                         <a href="{{ route('frontend.vj_series_detail', $vj->slug) }}"
                            class="text-primary iq-view-all text-decoration-none flex-none">
                             {{ __('streamButtons.view_all') ?? 'View All' }}
