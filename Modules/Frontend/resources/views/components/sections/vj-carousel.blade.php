@@ -15,6 +15,11 @@
         ? route('frontend.vj_series_detail', $vj->slug)
         : route('frontend.vj_detail', $vj->slug);
     $fallbackPoster = $isShow ? 'media/vikings-portrait.webp' : 'media/rabbit-portrait.webp';
+    // Per-VJ display cap. The eager-loads in FrontendController
+    // intentionally don't `->limit()` (Eloquent applies it to the
+    // combined query and starves all but the first VJ), so we
+    // slice here. View All link goes to the full per-VJ page.
+    $items = $items->take(20);
 @endphp
 <section class="related-movie-block mt-5 jambo-vj-row" data-kind="{{ $contentKind }}">
     <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">

@@ -276,14 +276,15 @@ class FrontendController extends Controller
      */
     private function topVjsForPage(int $offset, int $limit)
     {
-        // Per-VJ carousel shows up to 20 latest titles. The desktop
-        // breakpoint of swiper-card surfaces 7 per view, so anything
-        // <= 7 leaves nothing to slide and the row looks dead. 20
-        // gives ~3 swipe pages and matches the four sibling loaders
-        // (topVjsForGenre / topVjsForShowsByGenre / topVjsForShowsPage).
+        // No `->limit()` inside the eager-load closure: Eloquent
+        // applies it to the *combined* `WHERE vj_id IN (...)` query,
+        // so one VJ hogs the rows and every other VJ comes back
+        // empty (which surfaces as "Nothing here yet." on the
+        // carousel even though that VJ has published movies). The
+        // per-VJ cap lives in the vj-carousel partial instead.
         return Vj::whereHas('movies', fn ($q) => $q->published())
             ->withCount(['movies as movies_count' => fn ($q) => $q->published()])
-            ->with(['movies' => fn ($q) => $q->published()->with('genres')->orderByDesc('published_at')->limit(20)])
+            ->with(['movies' => fn ($q) => $q->published()->with('genres')->orderByDesc('published_at')])
             ->orderByDesc('movies_count')
             ->orderBy('id')
             ->skip($offset)
@@ -302,11 +303,14 @@ class FrontendController extends Controller
         $inGenre = fn ($q) => $q->published()
             ->whereHas('genres', fn ($gq) => $gq->where('genres.id', $genreId));
 
+        // No per-relation limit here — Eloquent would apply it to
+        // the combined eager-load query and starve all but the
+        // first VJ. Cap lives in the vj-carousel partial.
         return Vj::whereHas('movies', $inGenre)
             ->withCount(['movies as movies_count' => $inGenre])
             ->with(['movies' => function ($q) use ($inGenre) {
                 $inGenre($q);
-                $q->with('genres')->orderByDesc('published_at')->limit(20);
+                $q->with('genres')->orderByDesc('published_at');
             }])
             ->orderByDesc('movies_count')
             ->orderBy('id')
@@ -324,11 +328,12 @@ class FrontendController extends Controller
         $inGenre = fn ($q) => $q->published()
             ->whereHas('genres', fn ($gq) => $gq->where('genres.id', $genreId));
 
+        // See topVjsForGenre — same eager-load-limit gotcha.
         return Vj::whereHas('shows', $inGenre)
             ->withCount(['shows as shows_count' => $inGenre])
             ->with(['shows' => function ($q) use ($inGenre) {
                 $inGenre($q);
-                $q->with('genres')->orderByDesc('published_at')->limit(20);
+                $q->with('genres')->orderByDesc('published_at');
             }])
             ->orderByDesc('shows_count')
             ->orderBy('id')
@@ -462,9 +467,10 @@ class FrontendController extends Controller
      */
     private function topVjsForShowsPage(int $offset, int $limit)
     {
+        // See topVjsForPage — same eager-load-limit gotcha.
         return Vj::whereHas('shows', fn ($q) => $q->published())
             ->withCount(['shows as shows_count' => fn ($q) => $q->published()])
-            ->with(['shows' => fn ($q) => $q->published()->with('genres')->orderByDesc('published_at')->limit(20)])
+            ->with(['shows' => fn ($q) => $q->published()->with('genres')->orderByDesc('published_at')])
             ->orderByDesc('shows_count')
             ->orderBy('id')
             ->skip($offset)

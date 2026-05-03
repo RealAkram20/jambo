@@ -2,6 +2,38 @@
 
 ## Jambo
 
+### 1.5.22 — VJ rails: fix "Nothing here yet" on every VJ except the first
+
+Follow-up to 1.5.21 — that release exposed the underlying bug
+rather than fixing it.
+
+**Symptom:** on `/movie` (and the genre/series twins), only the
+first VJ row rendered cards; every other VJ row showed
+"Nothing here yet." even when those VJs had published movies
+visible on their own `/vj/{slug}` detail page.
+
+**Root cause:** classic Eloquent eager-load gotcha. The four
+`topVjsFor*()` loaders did:
+
+```php
+->with(['movies' => fn ($q) => $q->published()->limit(20)])
+```
+
+Eloquent doesn't loop per parent — it issues a single
+`SELECT … WHERE vj_id IN (1,2,3,…) LIMIT 20`. So the top-ranked
+VJ in the result set hogs all 20 rows; every subsequent VJ's
+relation collection comes back empty, and the carousel partial
+renders its `@empty` branch.
+
+**Fix:**
+- Removed `->limit(20)` from all four `topVjsFor*()` eager-loads.
+- Moved the per-VJ cap into `vj-carousel.blade.php` via
+  `$items = $items->take(20)`, where it actually applies per VJ.
+
+The eager-load now fetches every published title for every
+selected VJ in one query, which is fine at this scale (worst
+case: 100 VJs × ~30 titles = 3 000 small rows).
+
 ### 1.5.21 — VJ rails: render every VJ + bump per-VJ items 10 → 20
 
 Two related bugs on the VJ-rail pages (`/movie`, `/series`,
