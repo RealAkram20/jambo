@@ -1,14 +1,27 @@
-@extends('frontend::layouts.master', ['isSwiperSlider' => true, 'isVideoJs' => true, 'bodyClass' => 'custom-header-relative', 'isSelect2' => true])
+@extends('frontend::layouts.master', [
+    'isSwiperSlider' => true,
+    'isVideoJs' => true,
+    'bodyClass' => 'custom-header-relative',
+    'isSelect2' => true,
+    // Drives both the browser <title> and (via head-tags fallback)
+    // og:title — so a shared link's preview reads "Movie Title - Jambo".
+    'title' => $movie->title,
+])
 
 {{-- Social-preview metadata: prefer the (typically wider) backdrop
      for og:image since most platforms render summary_large_image as
      a wide card. Falls back to the poster, then to the site-wide
-     default in head-tags. --}}
+     default in head-tags. media_url() resolves legacy bare filenames
+     (Streamit-era values like "media/foo.webp") to public asset
+     paths so the head-tags absoluter doesn't produce a 404 URL.
+     The Movie model's prose field is `synopsis`, NOT `description`
+     (the previous version of this block read $movie->description and
+     silently always fell back to the global default). --}}
 @if ($movie->backdrop_url ?: $movie->poster_url)
-    @section('seo:image', $movie->backdrop_url ?: $movie->poster_url)
+    @section('seo:image', media_url($movie->backdrop_url ?: $movie->poster_url))
 @endif
-@if (!empty($movie->description ?? null))
-    @section('seo:description', \Illuminate\Support\Str::limit(strip_tags((string) $movie->description), 200))
+@if (!empty($movie->synopsis))
+    @section('seo:description', \Illuminate\Support\Str::limit(strip_tags((string) $movie->synopsis), 200))
 @endif
 
 @php

@@ -2,6 +2,42 @@
 
 ## Jambo
 
+### 1.5.28 — Share-link previews for movies, series, episodes
+
+Until now, sharing a link to a movie/series/episode page produced
+a generic preview ("Jambo" + the site-wide default image +
+default description) — the per-page SEO meta tags weren't being
+filled in correctly. After this release, a link to e.g.
+`/movie-detail/some-movie` previews on WhatsApp / Telegram /
+Twitter / Facebook with:
+
+- **Title:** "Movie Title - Jambo"
+- **Description:** the movie's synopsis (truncated to 200 chars)
+- **Image:** the movie's backdrop (or poster fallback)
+
+Three concrete fixes:
+
+1. **Movies + Series detail pages had a wrong field name.** They
+   were reading `$movie->description` / `$show->description`,
+   neither of which exists on the model. The actual prose field
+   is `synopsis`. Result: every detail page was silently falling
+   back to the global default description. Now uses `synopsis`.
+
+2. **No `<title>` was set on detail pages.** The browser tab
+   read just "Jambo" and the og:title fallback inherited that.
+   Now passes `'title' => $movie->title` (and `$show->title`)
+   into the layout's `@extends`.
+
+3. **Episode pages had zero SEO metadata.** Added title (formatted
+   as "Show — S01E03: Episode Title"), description (episode
+   synopsis with show synopsis fallback), and image (episode still
+   with show backdrop / poster fallback).
+
+Image URLs now run through `media_url()` before reaching head-tags
+so legacy bare filenames (Streamit-template-era values like
+`media/foo.webp`) get resolved to public asset paths instead of
+becoming broken absolute URLs at the root.
+
 ### 1.5.27 — VJ overview hero showed wrong titles (composer collision)
 
 The combined VJ overview at `/vj/{slug}` (added in 1.5.24) was

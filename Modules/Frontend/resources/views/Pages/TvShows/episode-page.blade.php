@@ -1,4 +1,29 @@
-@extends('frontend::layouts.master', ['isSwiperSlider' => true, 'bodyClass' => 'custom-header-relative', 'isSelect2' => true])
+@extends('frontend::layouts.master', [
+    'isSwiperSlider' => true,
+    'bodyClass' => 'custom-header-relative',
+    'isSelect2' => true,
+    // Browser <title> + og:title fallback. Format mirrors what the
+    // share-link preview should read: "Show — S01E03: Episode Title".
+    'title' => $show->title . ' — '
+        . 'S' . str_pad($episode->season->number, 2, '0', STR_PAD_LEFT)
+        . 'E' . str_pad($episode->number,         2, '0', STR_PAD_LEFT)
+        . ': ' . $episode->title,
+])
+
+{{-- Social-preview metadata. Episode still wins for og:image (it's
+     the most specific image we have), then show backdrop, then
+     poster, then the site-wide default in head-tags. Description
+     prefers episode synopsis, falls back to show synopsis so the
+     preview is never just a generic site blurb. --}}
+@if ($episode->still_url ?: ($show->backdrop_url ?: $show->poster_url))
+    @section('seo:image', media_url($episode->still_url ?: ($show->backdrop_url ?: $show->poster_url)))
+@endif
+@php
+    $epDescSource = $episode->synopsis ?: $show->synopsis;
+@endphp
+@if (!empty($epDescSource))
+    @section('seo:description', \Illuminate\Support\Str::limit(strip_tags((string) $epDescSource), 200))
+@endif
 
 @php
     $poster = $episode->still_url ?: ($show->backdrop_url ?: $show->poster_url);

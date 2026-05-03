@@ -3,16 +3,23 @@
     'isVideoJs' => true,
     'isSelect2' => true,
     'bodyClass' => 'custom-header-relative',
+    // Drives both the browser <title> and og:title (via head-tags
+    // fallback), so shared links preview as "Show Title - Jambo".
+    'title' => $show->title,
 ])
 
 {{-- Social-preview metadata for the show detail page. Same approach
      as Movies/detail-page: backdrop wins, poster fallback, site-wide
-     default last. --}}
+     default last. media_url() resolves legacy bare filenames before
+     head-tags absolutes the URL. The Show model's prose field is
+     `synopsis`, NOT `description` (the previous version of this
+     block read $show->description and silently always fell back to
+     the global default). --}}
 @if ($show->backdrop_url ?: $show->poster_url)
-    @section('seo:image', $show->backdrop_url ?: $show->poster_url)
+    @section('seo:image', media_url($show->backdrop_url ?: $show->poster_url))
 @endif
-@if (!empty($show->description ?? null))
-    @section('seo:description', \Illuminate\Support\Str::limit(strip_tags((string) $show->description), 200))
+@if (!empty($show->synopsis))
+    @section('seo:description', \Illuminate\Support\Str::limit(strip_tags((string) $show->synopsis), 200))
 @endif
 
 @php
