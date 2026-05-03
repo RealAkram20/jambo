@@ -496,7 +496,12 @@ class FrontendController extends Controller
 
         // Hero — newest 3 titles across both pools, type-tagged so
         // the banner partial (and downstream cards) can branch
-        // without instance checks.
+        // without instance checks. Variable named `vjHeroItems` (not
+        // `heroItems`) on purpose: SectionDataComposer registers a
+        // global `heroItems` for every frontend::Pages.* view and
+        // composer data wins over controller data when keys collide,
+        // which silently replaces this VJ-scoped hero with the global
+        // mixed-content one.
         $heroMovies = $vj->movies()->published()
             ->with('genres')
             ->orderByDesc('published_at')
@@ -511,7 +516,7 @@ class FrontendController extends Controller
             ->get()
             ->each(fn ($s) => $s->_isShow = true);
 
-        $heroItems = $heroMovies->concat($heroShows)
+        $vjHeroItems = $heroMovies->concat($heroShows)
             ->sortByDesc(fn ($i) => optional($i->published_at)->getTimestamp() ?? 0)
             ->values()
             ->take(5);
@@ -535,7 +540,7 @@ class FrontendController extends Controller
         $showsTotal  = $vj->shows()->published()->count();
 
         return view('frontend::Pages.Vjs.overview-page', compact(
-            'vj', 'heroItems', 'movies', 'shows', 'moviesTotal', 'showsTotal'
+            'vj', 'vjHeroItems', 'movies', 'shows', 'moviesTotal', 'showsTotal'
         ));
     }
 

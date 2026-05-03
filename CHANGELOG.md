@@ -2,6 +2,22 @@
 
 ## Jambo
 
+### 1.5.27 — VJ overview hero showed wrong titles (composer collision)
+
+The combined VJ overview at `/vj/{slug}` (added in 1.5.24) was
+rendering a hero of titles that didn't belong to the visited VJ.
+Cause: the controller passed `$heroItems` scoped to the VJ, but
+`SectionDataComposer` registers a global `heroItems` for every
+`frontend::Pages.*` view (the homepage's mixed movies+series
+banner). View composer data is merged in **after** controller
+data, so the global feed silently overwrote the VJ's hero.
+
+Renamed the controller variable to `$vjHeroItems` (and updated
+the overview view to consume the new name) so there's no key
+collision. Left a comment at both ends explaining why the
+unusual name matters, since the trap is invisible — you only
+notice when the hero shows wrong content.
+
 ### 1.5.26 — Add missing streamTag.vjs translation key
 
 The new homepage VJs slider header rendered the literal string

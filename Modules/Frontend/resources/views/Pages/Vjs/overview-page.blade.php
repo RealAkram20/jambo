@@ -2,14 +2,19 @@
 
 @section('content')
     {{-- Hero banner — mixes movies + series so the overview surfaces
-         the VJ's most recent work regardless of type. Each $heroItems
-         entry carries an `_isShow` flag set by the controller so the
-         partial doesn't need to do an instanceof check. --}}
+         the VJ's most recent work regardless of type. Each
+         $vjHeroItems entry carries an `_isShow` flag set by the
+         controller so the partial doesn't need an instanceof check.
+         The variable is `vjHeroItems` (not `heroItems`) because
+         SectionDataComposer publishes a global `heroItems` for every
+         frontend::Pages.* view, and composer data overrides
+         controller data — the global mix would silently replace
+         this VJ's titles. --}}
     <section class="banner-container">
         <div class="movie-banner">
             <div class="swiper swiper-banner-container" data-swiper="banner-detail-slider">
                 <div class="swiper-wrapper">
-                    @forelse ($heroItems as $i => $item)
+                    @forelse ($vjHeroItems as $i => $item)
                         @php
                             $isShow = (bool) ($item->_isShow ?? false);
                         @endphp
