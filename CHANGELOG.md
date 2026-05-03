@@ -2,6 +2,16 @@
 
 ## Jambo
 
+### 1.5.26 — Add missing streamTag.vjs translation key
+
+The new homepage VJs slider header rendered the literal string
+"streamTag.vjs" because the translation key was missing. The
+`?? 'VJs'` fallback in the template was dead code — Laravel's
+`__()` returns the key itself (a truthy string) when a
+translation is missing, so the null-coalesce never fires.
+Added `'vjs' => 'VJs'` next to `'genre' => 'Genres'` in
+`lang/en/streamTag.php`.
+
 ### 1.5.25 — Hotfix: homepage 500 from misaligned withCount key
 
 The homeVjs query in 1.5.24 had two spaces between "shows" and

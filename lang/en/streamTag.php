@@ -30,6 +30,7 @@ return [
     'categories' => 'Categories',
     'thriller' => 'Thriller',
     'genre' => 'Genres',
+    'vjs' => 'VJs',
     'recommended' => 'Recommended',
     'starrting' => 'Starting',
 
