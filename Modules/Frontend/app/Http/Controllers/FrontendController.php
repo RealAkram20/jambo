@@ -181,10 +181,14 @@ class FrontendController extends Controller
             ->take(3)
             ->get();
 
-        // Top 5 VJs by catalogue size — most active narrators first.
-        // Additional VJs are fetched via the load-more endpoint below
-        // so the initial payload stays small.
-        $vjs = $this->topVjsForPage(0, 5);
+        // Render all VJs (with at least one published movie) on first
+        // load — content team's expectation is "every VJ I've published
+        // for is visible", and the previous top-5-then-Load-More UX
+        // hid VJs whose catalogues are smaller than the top earners.
+        // Cap at 100 as a safety net so a runaway catalogue can't
+        // produce a huge initial payload; the Load More button below
+        // covers anything beyond.
+        $vjs = $this->topVjsForPage(0, 100);
         $vjsTotal = Vj::whereHas('movies', fn ($q) => $q->published())->count();
 
         return view('frontend::Pages.MainPages.movies-page', compact('featuredMovies', 'vjs', 'vjsTotal'));
@@ -272,9 +276,14 @@ class FrontendController extends Controller
      */
     private function topVjsForPage(int $offset, int $limit)
     {
+        // Per-VJ carousel shows up to 20 latest titles. The desktop
+        // breakpoint of swiper-card surfaces 7 per view, so anything
+        // <= 7 leaves nothing to slide and the row looks dead. 20
+        // gives ~3 swipe pages and matches the four sibling loaders
+        // (topVjsForGenre / topVjsForShowsByGenre / topVjsForShowsPage).
         return Vj::whereHas('movies', fn ($q) => $q->published())
             ->withCount(['movies as movies_count' => fn ($q) => $q->published()])
-            ->with(['movies' => fn ($q) => $q->published()->with('genres')->orderByDesc('published_at')->limit(10)])
+            ->with(['movies' => fn ($q) => $q->published()->with('genres')->orderByDesc('published_at')->limit(20)])
             ->orderByDesc('movies_count')
             ->orderBy('id')
             ->skip($offset)
@@ -297,7 +306,7 @@ class FrontendController extends Controller
             ->withCount(['movies as movies_count' => $inGenre])
             ->with(['movies' => function ($q) use ($inGenre) {
                 $inGenre($q);
-                $q->with('genres')->orderByDesc('published_at')->limit(10);
+                $q->with('genres')->orderByDesc('published_at')->limit(20);
             }])
             ->orderByDesc('movies_count')
             ->orderBy('id')
@@ -319,7 +328,7 @@ class FrontendController extends Controller
             ->withCount(['shows as shows_count' => $inGenre])
             ->with(['shows' => function ($q) use ($inGenre) {
                 $inGenre($q);
-                $q->with('genres')->orderByDesc('published_at')->limit(10);
+                $q->with('genres')->orderByDesc('published_at')->limit(20);
             }])
             ->orderByDesc('shows_count')
             ->orderBy('id')
@@ -344,7 +353,7 @@ class FrontendController extends Controller
             ->take(3)
             ->get();
 
-        $vjs = $this->topVjsForGenre($genre->id, 0, 5);
+        $vjs = $this->topVjsForGenre($genre->id, 0, 100);
         $vjsTotal = Vj::whereHas('movies', fn ($q) => $q->published()
                 ->whereHas('genres', fn ($gq) => $gq->where('genres.id', $genre->id)))
             ->count();
@@ -403,7 +412,7 @@ class FrontendController extends Controller
             ->take(3)
             ->get();
 
-        $vjs = $this->topVjsForShowsByGenre($genre->id, 0, 5);
+        $vjs = $this->topVjsForShowsByGenre($genre->id, 0, 100);
         $vjsTotal = Vj::whereHas('shows', fn ($q) => $q->published()
                 ->whereHas('genres', fn ($gq) => $gq->where('genres.id', $genre->id)))
             ->count();
@@ -455,7 +464,7 @@ class FrontendController extends Controller
     {
         return Vj::whereHas('shows', fn ($q) => $q->published())
             ->withCount(['shows as shows_count' => fn ($q) => $q->published()])
-            ->with(['shows' => fn ($q) => $q->published()->with('genres')->orderByDesc('published_at')->limit(10)])
+            ->with(['shows' => fn ($q) => $q->published()->with('genres')->orderByDesc('published_at')->limit(20)])
             ->orderByDesc('shows_count')
             ->orderBy('id')
             ->skip($offset)
@@ -549,10 +558,11 @@ class FrontendController extends Controller
             ->take(3)
             ->get();
 
-        // Mirrors /movie: top 5 VJs (by published show count), then a
-        // Load More button fetches the rest so the first render stays
-        // lean.
-        $vjs = $this->topVjsForShowsPage(0, 5);
+        // Mirrors /movie: render every VJ with at least one published
+        // show on first load so smaller catalogues aren't hidden
+        // behind a Load More button. Hard cap of 100 keeps the worst
+        // case bounded; the Load More button covers anything beyond.
+        $vjs = $this->topVjsForShowsPage(0, 100);
         $vjsTotal = Vj::whereHas('shows', fn ($q) => $q->published())->count();
 
         return view('frontend::Pages.MainPages.tv-shows-page', compact('featuredShows', 'vjs', 'vjsTotal'));

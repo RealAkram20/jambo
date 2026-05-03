@@ -2,6 +2,40 @@
 
 ## Jambo
 
+### 1.5.21 — VJ rails: render every VJ + bump per-VJ items 10 → 20
+
+Two related bugs on the VJ-rail pages (`/movie`, `/series`,
+`/geners/{slug}/vjs`):
+
+1. **Some VJs never appeared.** The four entry points
+   (`movie()`, `tv_show()`, `genreVjs()`, `genreVjsShows()`)
+   only rendered the **top 5 VJs by catalogue size** server-side,
+   leaving smaller VJs (1–3 titles) reachable only via the Load
+   More button. Content team's expectation is "every VJ I've
+   published for is visible on first load". Bumped the initial
+   render cap to **100 VJs** — covers the foreseeable catalogue
+   while keeping a hard ceiling. The Load More button stays as
+   a safety net for anything beyond.
+
+2. **The carousels that did appear couldn't scroll.** Each VJ
+   row is a swiper-card that surfaces 7 cards per view at
+   desktop. The eager-load on the `topVjsFor*()` loaders capped
+   each VJ at 10 latest titles — which left only 3 hidden cards
+   to swipe to (sometimes zero, since `watchOverflow` disables
+   nav when `slidesPerView >= slides`). Bumped the per-VJ
+   eager-load to **20** in all four sibling loaders so the rails
+   behave consistently and have meaningful slide depth.
+
+Files: `Modules/Frontend/app/Http/Controllers/FrontendController.php`
+(`topVjsForPage`, `topVjsForGenre`, `topVjsForShowsByGenre`,
+`topVjsForShowsPage`, plus the four call sites in `movie()`,
+`tv_show()`, `genreVjs()`, `genreVjsShows()`).
+
+Note for content team: a VJ still only appears when at least one
+of their movies is `status = Published` AND `published_at <= now()`.
+A VJ with assigned-but-draft movies is correctly hidden — publish
+the movies and the VJ row appears.
+
 ### 1.5.20 — fix "Undefined variable $items" on /movie Load More
 
 `FrontendController::moreVjsForMoviesPage()` (the AJAX endpoint
