@@ -301,7 +301,7 @@ class TopPicksRecommender
                 ->all();
         }
 
-        $relations = ['genres', 'cast' => fn ($q) => $q->wherePivotIn('role', ['actor', 'director', 'writer'])];
+        $relations = ['genres', 'cast' => fn ($q) => $q->wherePivotIn('role', ['actor', 'actress', 'director', 'writer'])];
 
         $fresh = Movie::published()
             ->with($relations)
@@ -461,7 +461,7 @@ class TopPicksRecommender
     private function fetchUpcomingPool(): Collection
     {
         return Movie::upcoming()
-            ->with(['genres', 'cast' => fn ($q) => $q->wherePivotIn('role', ['actor', 'director', 'writer'])])
+            ->with(['genres', 'cast' => fn ($q) => $q->wherePivotIn('role', ['actor', 'actress', 'director', 'writer'])])
             ->orderByRaw('CASE WHEN published_at IS NULL THEN 1 ELSE 0 END ASC')
             ->orderBy('published_at')
             ->orderByDesc('created_at')
@@ -807,7 +807,7 @@ class TopPicksRecommender
         $affinity = [];
 
         $movieMorph = (new Movie)->getMorphClass();
-        $roles = ['actor', 'director', 'writer'];
+        $roles = ['actor', 'actress', 'director', 'writer'];
 
         $completions = DB::table('watch_history as wh')
             ->join('movie_person as mp', function ($join) use ($movieMorph) {
@@ -875,7 +875,7 @@ class TopPicksRecommender
             ->when($completedIds, fn ($q) => $q->whereNotIn('id', $completedIds))
             ->with([
                 'genres',
-                'cast' => fn ($q) => $q->wherePivotIn('role', ['actor', 'director', 'writer']),
+                'cast' => fn ($q) => $q->wherePivotIn('role', ['actor', 'actress', 'director', 'writer']),
             ])
             ->get();
     }

@@ -18,7 +18,7 @@
                         // fall back to a Lion King trailer baked into the
                         // template).
                         $heroTrailer = $movie->trailer_url ?: null;
-                        $heroCast = $movie->cast?->filter(fn ($p) => ($p->pivot->role ?? null) === 'actor')->take(3) ?? collect();
+                        $heroCast = $movie->cast?->filter(fn ($p) => in_array(($p->pivot->role ?? null), ['actor', 'actress'], true))->take(3) ?? collect();
                     @endphp
                     <div class="swiper-slide slide s-bg-1 p-0">
                         <div class="banner-home-swiper-image" style="background-image: url('{{ $heroSrc }}');">

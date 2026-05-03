@@ -164,7 +164,7 @@ class SectionDataComposer
         $relations = [
             'genres',
             'tags',
-            'cast' => fn ($q) => $q->wherePivot('role', 'actor')->limit(3),
+            'cast' => fn ($q) => $q->wherePivotIn('role', ['actor', 'actress'])->limit(3),
         ];
 
         $movies = Movie::published()->with($relations)

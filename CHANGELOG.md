@@ -2,6 +2,45 @@
 
 ## Jambo
 
+### 1.5.23 — Cast: add "Actress" alongside "Actor" everywhere
+
+Admin cast rows only had a single "Actor" option for performers,
+which forced female performers to be miscredited. Added "Actress"
+as a second performer role and made every cast/Starring section
+treat the two as one group.
+
+**Admin** (`admin/movies/partials/cast-row.blade.php`):
+- New `<option value="actress">Actress</option>` in the role
+  dropdown, placed right after Actor.
+- Character-name placeholder updated to "actors / actresses".
+
+**Validation** (`StoreMovieRequest`, `StoreShowRequest`):
+- `cast.*.role` `in:` rule now accepts `actress` in addition to
+  the previous five roles.
+
+**Frontend — Starring sections include both:**
+- `Pages/Movies/detail-page.blade.php` and
+  `Pages/TvShows/detail-page.blade.php`: cast filter changed
+  from `role === 'actor'` to
+  `in_array(role, ['actor', 'actress'])`. Per-card fallback
+  label (when no `character_name` is set) now reflects the
+  actual role — an actress without a character name shows
+  "Actress" instead of being mislabeled "Actor".
+- `Pages/TvShows/episode-page.blade.php`: same filter change in
+  the Read-more modal.
+- `Pages/MainPages/index-page.blade.php`: hero banner's
+  `$heroCast` now picks up actresses too.
+
+**Recommendations** (`TopPicksRecommender`,
+`SectionDataComposer`):
+- All four `wherePivotIn('role', […])` eager-loads now include
+  `actress`, so personalised rails and the homepage hero pull
+  actress credits the same way they pull actor credits.
+
+No DB migration — `role` is a free-form string column, so
+existing rows are unaffected and "actress" works the moment the
+admin saves a cast row with that role.
+
 ### 1.5.22 — VJ rails: fix "Nothing here yet" on every VJ except the first
 
 Follow-up to 1.5.21 — that release exposed the underlying bug

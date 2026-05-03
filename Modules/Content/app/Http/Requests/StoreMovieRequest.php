@@ -55,7 +55,7 @@ class StoreMovieRequest extends FormRequest
 
             'cast' => 'nullable|array',
             'cast.*.person_id' => 'nullable|integer|exists:persons,id',
-            'cast.*.role' => 'nullable|string|in:actor,director,writer,producer,cinematographer',
+            'cast.*.role' => 'nullable|string|in:actor,actress,director,writer,producer,cinematographer',
             'cast.*.character_name' => 'nullable|string|max:255',
             'cast.*.display_order' => 'nullable|integer|min:0',
         ];

@@ -20,6 +20,7 @@
         <div class="col-md-3">
             <select class="form-select form-select-sm" name="cast[{{ $i }}][role]">
                 <option value="actor" @selected($role === 'actor')>Actor</option>
+                <option value="actress" @selected($role === 'actress')>Actress</option>
                 <option value="director" @selected($role === 'director')>Director</option>
                 <option value="writer" @selected($role === 'writer')>Writer</option>
                 <option value="producer" @selected($role === 'producer')>Producer</option>
@@ -27,7 +28,7 @@
             </select>
         </div>
         <div class="col-md-3">
-            <input type="text" class="form-control form-control-sm" name="cast[{{ $i }}][character_name]" value="{{ $charName }}" placeholder="Character name (actors)">
+            <input type="text" class="form-control form-control-sm" name="cast[{{ $i }}][character_name]" value="{{ $charName }}" placeholder="Character name (actors / actresses)">
         </div>
         <div class="col-md-1">
             <input type="number" class="form-control form-control-sm" name="cast[{{ $i }}][display_order]" value="{{ $order }}" min="0" title="Order">

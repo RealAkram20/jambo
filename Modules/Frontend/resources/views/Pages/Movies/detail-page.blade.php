@@ -19,7 +19,7 @@
     // (e.g., both 'actor' and 'director' for the same title) which
     // otherwise surfaces them twice in the same rail.
     $cast = $movie->cast
-        ->filter(fn ($p) => ($p->pivot->role ?? null) === 'actor')
+        ->filter(fn ($p) => in_array(($p->pivot->role ?? null), ['actor', 'actress'], true))
         ->unique('id')
         ->values();
     $crew = $movie->cast
@@ -104,7 +104,7 @@
                                 @include('frontend::components.cards.personality-card', [
                                     'castImage' => $actor->photo_url ?: 'olivia-foster.webp',
                                     'castTitle' => trim(($actor->first_name ?? '') . ' ' . ($actor->last_name ?? '')),
-                                    'castCategory' => $actor->pivot->character_name ?: 'Actor',
+                                    'castCategory' => $actor->pivot->character_name ?: ucfirst($actor->pivot->role ?? 'Actor'),
                                     'castLink' => $actor->slug ? route('frontend.cast_details', $actor->slug) : '#',
                                 ])
                             </li>

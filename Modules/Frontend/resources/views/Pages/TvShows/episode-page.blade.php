@@ -514,7 +514,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     // and a director credit) would otherwise show up twice in the
     // Read-more modal's cast / crew lists.
     'cast'          => $show->cast
-        ->filter(fn ($p) => ($p->pivot->role ?? null) === 'actor')
+        ->filter(fn ($p) => in_array(($p->pivot->role ?? null), ['actor', 'actress'], true))
         ->unique('id')
         ->values(),
     'crew'          => $show->cast
