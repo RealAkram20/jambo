@@ -1,5 +1,15 @@
 @extends('frontend::layouts.master', ['isSwiperSlider' => true, 'active' => 'playlist', 'bodyClass' => 'custom-header-relative', 'title' => $title])
 
+{{-- Social-preview metadata — same intent as /watch and /episode:
+     a viewer hitting Share from inside the player gets a preview
+     that names the title they're watching and uses its banner. --}}
+@if (!empty($poster))
+    @section('seo:image', media_url($poster))
+@endif
+@if (!empty($watchable?->synopsis))
+    @section('seo:description', \Illuminate\Support\Str::limit(strip_tags((string) $watchable->synopsis), 200))
+@endif
+
 @section('content')
     {{-- Jambo minimal player assets — mirror /watch and /episode so
          the in-page player behaves identically here. --}}

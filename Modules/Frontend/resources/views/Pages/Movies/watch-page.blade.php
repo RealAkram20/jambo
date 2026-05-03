@@ -1,4 +1,23 @@
-@extends('frontend::layouts.master', ['isSwiperSlider' => true, 'bodyClass' => 'custom-header-relative', 'isSelect2' => true])
+@extends('frontend::layouts.master', [
+    'isSwiperSlider' => true,
+    'bodyClass' => 'custom-header-relative',
+    'isSelect2' => true,
+    // Browser <title> + og:title fallback. A user happy with what
+    // they're watching will share this URL straight from the player,
+    // and the preview should name the movie — not just "Jambo".
+    'title' => $movie->title,
+])
+
+{{-- Social-preview metadata — mirrors the detail page so a share
+     from the player produces the same rich preview as a share from
+     the movie's landing page. media_url() resolves legacy bare
+     filenames before head-tags absolutes the URL. --}}
+@if ($movie->backdrop_url ?: $movie->poster_url)
+    @section('seo:image', media_url($movie->backdrop_url ?: $movie->poster_url))
+@endif
+@if (!empty($movie->synopsis))
+    @section('seo:description', \Illuminate\Support\Str::limit(strip_tags((string) $movie->synopsis), 200))
+@endif
 
 @php
     $poster = $movie->backdrop_url ?: $movie->poster_url;

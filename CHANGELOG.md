@@ -2,6 +2,23 @@
 
 ## Jambo
 
+### 1.5.29 — Share-link previews on the watch + watchlist-play pages
+
+Follow-up to 1.5.28: extended the per-page SEO metadata to the
+two player pages. The realistic share moment isn't from the
+detail page (where the user is just browsing) — it's from the
+player itself, when someone is enjoying a title and wants to
+send it to a friend.
+
+- `/watch/{slug}` (movie player): now sets the same `<title>`,
+  og:image, og:description as the movie detail page, scoped to
+  the movie being watched.
+- `/watchlist/{slug}` (in-playlist movie player): same pattern,
+  reading from `$watchable` (the resolved Movie) and `$poster`
+  (the controller already computes both for the player chrome).
+
+Episode pages (`/episode/...`) were already covered in 1.5.28.
+
 ### 1.5.28 — Share-link previews for movies, series, episodes
 
 Until now, sharing a link to a movie/series/episode page produced
