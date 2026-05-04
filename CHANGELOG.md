@@ -2,6 +2,30 @@
 
 ## Jambo
 
+### 1.7.2 — Cast picker: fix script timing + portal dropdown to body
+
+User report after 1.7.1: cast field rendered as a Select2-styled
+empty trigger but clicking it did nothing — couldn't search,
+couldn't select. Two issues conspiring:
+
+1. **Script-timing race.** The Vite `app.js` bundle (which
+   imports jQuery + Select2) ships as a deferred ES module, so it
+   executes AFTER inline `<script>` tags in the body. The cast
+   picker's synchronous `if (!$.fn.select2) return;` at parse
+   time was always bailing out before the bundle finished
+   loading, so Select2 never initialised at all. Replaced with a
+   100ms-interval poll for `window.jQuery + window.jQuery.fn.select2 + window.bootstrap`,
+   capped at 6 seconds.
+
+2. **Dropdown clipped by parent overflow.** Even when Select2
+   did init, the dropdown panel rendered inside the input-group
+   inside the card-body, both of which have overflow clipping
+   that hid the open results list. Added
+   `dropdownParent: $('body')` so Select2 portals the dropdown
+   to `<body>` and escapes every ancestor's clipping. Combined
+   with the 1080 z-index from 1.7.1, the dropdown is now both
+   above and outside the rest of the page chrome.
+
 ### 1.7.1 — Cast picker: fix Select2 dropdown hidden behind sidebar
 
 User report after 1.7.0 deploy: the Select2 dropdown panel was

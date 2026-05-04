@@ -110,16 +110,45 @@
 </div>
 
 <script>
-(function ($) {
+/* The Vite app.js bundle (which ships jQuery + Select2) is loaded
+   as a deferred ES module, so it executes AFTER this inline script
+   runs — meaning a synchronous Select2 check at parse time would
+   always bail out, even though Select2 is on its way. Poll briefly
+   for jQuery + $.fn.select2 before initialising. */
+(function () {
     'use strict';
 
-    if (!$ || !$.fn.select2) {
-        // Select2 not loaded — fall through quietly. The static
-        // <select> still works (just without search), so the form
-        // remains usable for small datasets.
-        console.warn('[cast-picker] Select2 not loaded; falling back to plain <select>.');
-        return;
+    var ATTEMPTS = 0;
+    var MAX_ATTEMPTS = 60; // 60 * 100ms = 6s ceiling — well past defer load
+
+    function ready() {
+        return window.jQuery
+            && window.jQuery.fn
+            && window.jQuery.fn.select2
+            && window.bootstrap; // also need Bootstrap for the modal
     }
+
+    function waitAndInit() {
+        if (ready()) {
+            initCastPicker(window.jQuery);
+            return;
+        }
+        if (ATTEMPTS++ < MAX_ATTEMPTS) {
+            setTimeout(waitAndInit, 100);
+        } else {
+            console.warn('[cast-picker] jQuery/Select2/Bootstrap not ready after 6s — falling back to plain <select>.');
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', waitAndInit);
+    } else {
+        waitAndInit();
+    }
+})();
+
+function initCastPicker($) {
+    'use strict';
 
     var personsSearchUrl = @json(route('admin.persons.search'));
     var personsQuickUrl  = @json(route('admin.persons.quick'));
@@ -160,6 +189,13 @@
                 placeholder: this.dataset.placeholder || 'Search…',
                 width: '100%',
                 allowClear: true,
+                // Render the dropdown as a child of <body> rather than
+                // inside the cast-row's input-group. The card-body /
+                // input-group ancestors clip overflow, which made the
+                // dropdown panel render but be invisible (the user just
+                // saw an empty Select2 trigger they couldn't search in).
+                // Body-attached + z-index 1080 escapes every clip.
+                dropdownParent: $('body'),
                 ajax: {
                     url: personsSearchUrl,
                     dataType: 'json',
@@ -249,8 +285,8 @@
         initSelect2(scope);
     };
 
-    // Init on initial page load too — the per-form script will
-    // also call this for newly-added rows.
-    $(function () { initSelect2('#cast-rows'); });
-})(window.jQuery);
+    // Init on initial page load — we're already past DOMContentLoaded
+    // by the time waitAndInit runs us, so call directly.
+    initSelect2('#cast-rows');
+}
 </script>
