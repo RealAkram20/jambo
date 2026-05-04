@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use League\Glide\Filesystem\FileNotFoundException;
-use League\Glide\Responses\SymfonyResponseFactory;
 use League\Glide\ServerFactory;
 
 /**
@@ -19,9 +18,19 @@ use League\Glide\ServerFactory;
  *
  * Source root is public/ — admin-uploaded posters at
  * public/frontend/images/... and any other public asset are
- * addressable. External (https://...) URLs are NOT proxied here;
- * the media_img() helper passes them through unchanged because
- * Glide can't fetch remote sources without extra setup.
+ * addressable (the storage symlink at public/storage covers the
+ * FileManager-uploaded posters under storage/app/public/...).
+ * External (https://...) URLs are NOT proxied here; the media_img()
+ * helper passes them through unchanged because Glide can't fetch
+ * remote sources without extra setup.
+ *
+ * Implementation note on response handling:
+ * Core league/glide v2 only ships PsrResponseFactory. Symfony /
+ * Laravel response factories live in separate league/glide-symfony
+ * and league/glide-laravel bridge packages. To avoid pulling another
+ * dep we drive Glide's lower-level makeImage() ourselves and stream
+ * the resulting cached file via Laravel's response()->file() helper.
+ * Same on-disk caching, no missing-class headaches.
  */
 class ImageProxyController extends Controller
 {
@@ -41,14 +50,11 @@ class ImageProxyController extends Controller
 
         $params = $this->sanitiseParams($request->query());
 
+        $cacheRoot = storage_path('app/glide-cache');
+
         $server = ServerFactory::create([
-            // SymfonyResponseFactory is bundled with core league/glide.
-            // Laravel's HTTP Response extends Symfony's, so the
-            // StreamedResponse Glide returns flows through Laravel's
-            // kernel cleanly without a glue package.
-            'response' => new SymfonyResponseFactory($request),
             'source'   => public_path(),
-            'cache'    => storage_path('app/glide-cache'),
+            'cache'    => $cacheRoot,
             // Imagick is faster + higher quality if the extension is
             // available; GD is the universal fallback bundled with
             // PHP on every CyberPanel box.
@@ -64,7 +70,9 @@ class ImageProxyController extends Controller
         ]);
 
         try {
-            return $server->getImageResponse($path, $params);
+            // makeImage() runs the full resize+cache pipeline and
+            // returns the cache filename relative to $cacheRoot.
+            $cacheFilename = $server->makeImage($path, $params);
         } catch (FileNotFoundException) {
             abort(404);
         } catch (\Throwable $e) {
@@ -74,6 +82,42 @@ class ImageProxyController extends Controller
             ]);
             abort(404);
         }
+
+        $absolutePath = $cacheRoot . DIRECTORY_SEPARATOR . $cacheFilename;
+
+        if (!is_file($absolutePath)) {
+            // Defensive — makeImage said it succeeded but we can't
+            // find the file on disk. Likely a permissions / SELinux
+            // edge case. Better to 404 than to crash in response().
+            Log::warning('[image-proxy] cache file missing after makeImage', [
+                'path'     => $path,
+                'expected' => $absolutePath,
+            ]);
+            abort(404);
+        }
+
+        return response()->file($absolutePath, [
+            'Content-Type' => $this->mimeTypeFor($params['fm'] ?? pathinfo($path, PATHINFO_EXTENSION)),
+            // Browsers will cache the resized variant for 7 days. The
+            // /img/ URL itself includes ?w=...&fm=... so changing
+            // either auto-busts. The vhost-level expires rule already
+            // hits image responses too — this header is here for the
+            // cases where the vhost rule doesn't apply (different
+            // path, different match) so the behaviour is consistent.
+            'Cache-Control' => 'public, max-age=604800',
+        ]);
+    }
+
+    private function mimeTypeFor(string $format): string
+    {
+        return match (strtolower($format)) {
+            'webp'                => 'image/webp',
+            'png'                 => 'image/png',
+            'gif'                 => 'image/gif',
+            'jpg', 'jpeg', 'pjpg' => 'image/jpeg',
+            'avif'                => 'image/avif',
+            default               => 'application/octet-stream',
+        };
     }
 
     /**
