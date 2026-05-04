@@ -37,7 +37,10 @@
   <div class="block-images position-relative w-100">
     <div class="img-box w-100">
       <a href="{{ $cardPath }}" class="position-relative top-0 bottom-0 start-0 end-0">
-        <img src="{{ $imgSrc }}" alt="movie-card"
+        <img src="{{ media_img($cardImage, 640) }}"
+          srcset="{{ media_srcset($cardImage, [320, 640]) }}"
+          sizes="(max-width: 768px) 320px, 640px"
+          alt="movie-card"
           class="img-fluid object-cover w-100 d-block border-0 rounded-3"
           loading="lazy" decoding="async">
       </a>
@@ -107,7 +110,10 @@
   <div class="block-images position-relative w-100">
     <div class="img-box w-100">
       <a href="{{ $cardPath }}" class="position-relative top-0 bottom-0 start-0 end-0">
-        <img src="{{ $imgSrc }}" alt="movie-card"
+        <img src="{{ media_img($cardImage, 640) }}"
+          srcset="{{ media_srcset($cardImage, [320, 640]) }}"
+          sizes="(max-width: 768px) 320px, 640px"
+          alt="movie-card"
           class="img-fluid object-cover w-100 d-block border-0 rounded-3"
           loading="lazy" decoding="async">
       </a>

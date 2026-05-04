@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ImageProxyController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\RolePermission;
 use App\Http\Controllers\RoleController;
@@ -20,6 +21,17 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "web" middleware group. Make something great!
 |
 */
+
+// On-the-fly image resize + WebP transcode. Each device gets the
+// pixel size it actually needs instead of the original upload —
+// poster cards drop ~95%, hero backdrops ~90%. First request to a
+// given size resizes; subsequent requests come from disk cache.
+// Path is greedy (`.*`) so nested `/img/frontend/images/media/x.jpg`
+// works. See media_img() / media_srcset() in app/helpers.php for
+// the consumer side.
+Route::get('/img/{path}', [ImageProxyController::class, 'show'])
+    ->where('path', '.*')
+    ->name('image.proxy');
 
 Route::get('/', function () {
     return view('welcome');

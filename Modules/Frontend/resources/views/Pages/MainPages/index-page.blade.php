@@ -9,9 +9,13 @@
                 @foreach ($heroMovies ?? collect() as $movie)
                     @php
                         $heroBg = $movie->backdrop_url ?: $movie->poster_url;
-                        $heroSrc = $heroBg && \Illuminate\Support\Str::startsWith($heroBg, ['http://', 'https://'])
-                            ? $heroBg
-                            : ($heroBg ? asset('frontend/images/' . $heroBg) : asset('frontend/images/media/krishna.webp'));
+                        // Hero backdrops were the heaviest assets on
+                        // the home page (4K source files × 5 slides
+                        // ~= 20MB by themselves). Routing through the
+                        // /img proxy at 1920w WebP cuts each ~90% with
+                        // no visible difference at TV / desktop res.
+                        // External URLs pass through unchanged.
+                        $heroSrc = media_img($heroBg, 1920, 'media/krishna.webp');
                         // Trailer is per-movie. When a movie has none we hide
                         // the floating "Watch Trailer" button entirely rather
                         // than playing a hardcoded placeholder (this used to
