@@ -1,4 +1,5 @@
-@extends('layouts.app', ['module_title' => 'Edit Series'])
+{{-- isSelect2 flag — see movies/create.blade.php for rationale. --}}
+@extends('layouts.app', ['module_title' => 'Edit Series', 'isSelect2' => true])
 
 @section('content')
 <div class="container-fluid">
