@@ -2,6 +2,21 @@
 
 ## Jambo
 
+### 1.7.1 — Cast picker: fix Select2 dropdown hidden behind sidebar
+
+User report after 1.7.0 deploy: the Select2 dropdown panel was
+opening below the form layer — the input itself worked, results
+streamed in, but the visible options list was hidden behind the
+publishing-sidebar card and the sticky admin header. Default
+Select2 z-index is 1051 which loses to most admin chrome.
+
+Bumped both `.select2-container--open` and the dropdown itself
+to 1080 (above Bootstrap's modal layer at 1060) in
+[cast-picker-helpers.blade.php](Modules/Content/resources/views/admin/persons/partials/cast-picker-helpers.blade.php).
+Also added a 1090 ceiling for Select2 used inside an open
+Bootstrap modal so future modal-hosted pickers don't repeat
+this issue.
+
 ### 1.7.0 — Cast picker: AJAX search + inline person create
 
 The cast row on the movie and series forms used to render every

@@ -47,6 +47,25 @@
         color: #e6e9ef;
         border-color: #1f2738;
     }
+
+    /* z-index — Select2's default 1051 loses to the sticky admin
+       header (~1020) and Bootstrap dropdowns/popovers, and most
+       importantly to the publishing-sidebar card column which lives
+       in a side flex track that visually overlaps the dropdown
+       panel. Bump everything above the modal layer (1055-1060) so
+       the open dropdown is always on top of admin chrome. */
+    .select2-container--open,
+    .select2-container--open .select2-dropdown {
+        z-index: 1080;
+    }
+    /* When Select2 is rendered inside an open Bootstrap modal
+       (future use — quick-create modal currently uses plain inputs)
+       Bootstrap modals are 1060, so we bump the in-modal Select2
+       higher still. */
+    .modal.show .select2-container--open,
+    .modal.show .select2-container--open .select2-dropdown {
+        z-index: 1090;
+    }
 </style>
 
 {{-- Quick-create modal — single instance per page; the active row
