@@ -21,3 +21,29 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+# ---- Browser caching for static assets ----
+# Repeat-page-load bandwidth was the dominant cost on Android TV / weak-
+# network clients — every navigation re-downloaded every asset. Hashed
+# Vite output gets a 1-year immutable cache (the filename changes on
+# each release, so it self-invalidates), and admin-uploaded images get
+# a 7-day window. HTML / Laravel responses are deliberately untouched:
+# the framework manages its own per-request cache headers around
+# session state.
+<IfModule mod_expires.c>
+    ExpiresActive On
+    <FilesMatch "\.(js|css|woff2?|ttf|eot|otf)$">
+        ExpiresDefault "access plus 1 year"
+    </FilesMatch>
+    <FilesMatch "\.(jpe?g|png|gif|webp|svg|ico|avif)$">
+        ExpiresDefault "access plus 7 days"
+    </FilesMatch>
+</IfModule>
+<IfModule mod_headers.c>
+    <FilesMatch "\.(js|css|woff2?|ttf|eot|otf)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+    <FilesMatch "\.(jpe?g|png|gif|webp|svg|ico|avif)$">
+        Header set Cache-Control "public, max-age=604800"
+    </FilesMatch>
+</IfModule>

@@ -2,6 +2,32 @@
 
 ## Jambo
 
+### 1.5.33 — Perf: browser caching, lazy-load posters, drop dead deps
+
+Targeted fixes for users on weak networks (Android TV being the
+loudest complaint) where every navigation was re-downloading every
+asset.
+
+1. **Browser-cache static assets via `public/.htaccess`.** Hashed
+   Vite output (`/build/assets/*.js`, `*.css`, fonts) now ships with
+   a 1-year `Cache-Control: public, max-age=31536000, immutable` —
+   safe because the filename hash changes on every release, so it
+   self-invalidates. Static images get a 7-day window. HTML/Laravel
+   responses are deliberately untouched so per-user session state
+   keeps working. Wrapped in `<IfModule>` blocks so the file no-ops
+   if `mod_expires` / `mod_headers` aren't loaded.
+
+2. **Lazy-load below-the-fold poster images.** `card-style` (the
+   most-used poster card on the home page) and `genres-card` now
+   carry `loading="lazy" decoding="async"`. Existing `top-ten-card`,
+   `continue-watch-card`, `personality-card`, and `episode-card`
+   already had it, so the home page is now consistent.
+
+3. **Dropped two unused dependencies from package.json.**
+   `popper.js@1.16` (legacy v1, superseded by `@popperjs/core@2`
+   which `app.js` actually imports) and the typo `i@0.3.7`. Run
+   `npm install` to update lockfile.
+
 ### 1.5.32 — SEO: live diagnostic for "tag not detected on website"
 
 The Google Tag field already accepted `G-XXXXXXXXXX` IDs and the

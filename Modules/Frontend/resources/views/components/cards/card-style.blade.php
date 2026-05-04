@@ -38,7 +38,8 @@
     <div class="img-box w-100">
       <a href="{{ $cardPath }}" class="position-relative top-0 bottom-0 start-0 end-0">
         <img src="{{ $imgSrc }}" alt="movie-card"
-          class="img-fluid object-cover w-100 d-block border-0 rounded-3">
+          class="img-fluid object-cover w-100 d-block border-0 rounded-3"
+          loading="lazy" decoding="async">
       </a>
     </div>
     <div class="card-description with-transition">
@@ -107,7 +108,8 @@
     <div class="img-box w-100">
       <a href="{{ $cardPath }}" class="position-relative top-0 bottom-0 start-0 end-0">
         <img src="{{ $imgSrc }}" alt="movie-card"
-          class="img-fluid object-cover w-100 d-block border-0 rounded-3">
+          class="img-fluid object-cover w-100 d-block border-0 rounded-3"
+          loading="lazy" decoding="async">
       </a>
     </div>
     <div class="card-description with-transition">
