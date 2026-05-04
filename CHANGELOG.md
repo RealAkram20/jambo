@@ -2,6 +2,33 @@
 
 ## Jambo
 
+### 1.7.5 — Cast picker: drop `required` on hidden modal inputs
+
+Follow-up to 1.7.4. After fixing the nested-form bug, saving a
+movie/series with a cast row added still failed silently in
+Chrome with the console error:
+
+> An invalid form control with name='first_name' is not focusable.
+
+The cast-picker modal's `first_name` and `last_name` inputs had
+`required` attributes. Once the modal is part of the outer movie
+form's DOM (which it is — it's a `<div>` inside that `<form>`
+since 1.7.4), every required input participates in the outer
+form's submit validation. Chrome can't focus a required input
+inside a hidden modal, so it aborts the submit with this error
+instead of saving the movie.
+
+Removed `required` from both fields. The JS `savePerson()`
+handler already validates them with an `if (!first || !last)`
+check before AJAX, and the server-side `quickStore()` validation
+catches anything the client misses. The red asterisk in the
+label is preserved so the UX still signals "this is required".
+
+Episode saves were a red herring — episode views don't include
+the cast-picker partial, but the original report bundled both
+because the user happened to test them together. With this fix
+movie + series + episode saves should all work.
+
 ### 1.7.4 — Cast picker: fix nested-form bug breaking outer Save button
 
 User report: after 1.7.x cast-picker work, the "Save movie" /

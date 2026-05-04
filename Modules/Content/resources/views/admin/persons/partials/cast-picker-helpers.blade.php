@@ -93,13 +93,24 @@
             </div>
             <div class="modal-body">
                 <div class="row g-3">
+                    {{-- No `required` attribute on these inputs — they live
+                         inside the outer movie/series <form>, and the
+                         browser tries to validate ALL required inputs on
+                         form submit. Inputs inside a hidden modal can't
+                         be focused for validation, so Chrome aborts with
+                         "An invalid form control with name='first_name' is
+                         not focusable." (and the same for last_name).
+                         The savePerson() JS handler validates these
+                         server-side AND with a JS pre-check before AJAX,
+                         so the red asterisk + JS check carry the same UX
+                         weight without breaking the parent form. --}}
                     <div class="col-md-6">
                         <label class="form-label">First name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="first_name" required maxlength="255" autocomplete="off">
+                        <input type="text" class="form-control" name="first_name" maxlength="255" autocomplete="off">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Last name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="last_name" required maxlength="255" autocomplete="off">
+                        <input type="text" class="form-control" name="last_name" maxlength="255" autocomplete="off">
                     </div>
                     <div class="col-12">
                         <label class="form-label">Known for <small class="text-muted">(optional)</small></label>
