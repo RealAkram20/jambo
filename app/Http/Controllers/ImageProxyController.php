@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use League\Glide\Filesystem\FileNotFoundException;
-use League\Glide\Responses\LaravelResponseFactory;
+use League\Glide\Responses\SymfonyResponseFactory;
 use League\Glide\ServerFactory;
 
 /**
@@ -42,7 +42,11 @@ class ImageProxyController extends Controller
         $params = $this->sanitiseParams($request->query());
 
         $server = ServerFactory::create([
-            'response' => new LaravelResponseFactory($request),
+            // SymfonyResponseFactory is bundled with core league/glide.
+            // Laravel's HTTP Response extends Symfony's, so the
+            // StreamedResponse Glide returns flows through Laravel's
+            // kernel cleanly without a glue package.
+            'response' => new SymfonyResponseFactory($request),
             'source'   => public_path(),
             'cache'    => storage_path('app/glide-cache'),
             // Imagick is faster + higher quality if the extension is
