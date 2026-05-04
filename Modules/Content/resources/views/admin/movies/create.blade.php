@@ -1,4 +1,8 @@
-@extends('layouts.app', ['module_title' => 'Add Movie'])
+{{-- isSelect2 flag is required for the Streamit layout to load
+     dashboard/vendor/select2/dist/js/select2.min.js — without it
+     the cast picker's jQuery.fn.select2 is undefined and the
+     dropdown can't initialise. --}}
+@extends('layouts.app', ['module_title' => 'Add Movie', 'isSelect2' => true])
 
 @section('content')
 <div class="container-fluid">

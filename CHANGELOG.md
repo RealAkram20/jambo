@@ -2,6 +2,35 @@
 
 ## Jambo
 
+### 1.7.3 — Cast picker: pass `isSelect2 => true` to layouts.app
+
+Real root cause of the empty Select2 trigger from 1.7.2: the
+Streamit admin layout (`resources/views/layouts/app.blade.php`)
+gates the Select2 library load behind an `'isSelect2' => true`
+flag passed via `@extends`. Both `select2.min.js` (the library)
+and `dashboard/js/plugins/select2.js` (Streamit's init for
+`.select2-basic-*` classes) live inside that flag block.
+
+The movie + show CRUD pages were never passing `isSelect2`, so
+the library never loaded. The console error
+`$(...).select2 is not a function at select2.js:31` was
+Streamit's init script firing without the library — the page
+must have been getting the init from somewhere else (likely
+included by a partial or a stale cache). Either way, our
+cast-picker JS poll for `$.fn.select2` timed out at 6 seconds
+because the function was genuinely missing.
+
+Added `'isSelect2' => true` to:
+- `Modules/Content/resources/views/admin/movies/create.blade.php`
+- `Modules/Content/resources/views/admin/movies/edit.blade.php`
+- `Modules/Content/resources/views/admin/shows/create.blade.php`
+- `Modules/Content/resources/views/admin/shows/edit.blade.php`
+
+Now the layout loads Select2's CSS in `<head>` and the library
++ init scripts before our cast-picker code runs. The polling
+fallback from 1.7.2 still protects against future ordering
+surprises.
+
 ### 1.7.2 — Cast picker: fix script timing + portal dropdown to body
 
 User report after 1.7.1: cast field rendered as a Select2-styled
