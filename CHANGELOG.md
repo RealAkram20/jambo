@@ -2,6 +2,38 @@
 
 ## Jambo
 
+### 1.6.2 — Define the missing `.btn-ghost` class
+
+User report: "Mark all as read" button missing from the user
+notifications page — they have to click each notification one by
+one. Investigation showed the button DOES exist in
+[resources/views/profile-hub/notifications.blade.php](resources/views/profile-hub/notifications.blade.php),
+the click handler IS wired to the existing
+`notifications.mark-all-read` endpoint, and the unread-count
+visibility logic IS in place. The issue was purely visual: the
+button uses `class="btn btn-ghost btn-sm"`, but `.btn-ghost` is
+**referenced 30+ times across the codebase and documented in
+docs/ui-guidelines.md as "Ghost = back/cancel only"** —
+yet never actually defined as a CSS rule anywhere. Bootstrap
+doesn't ship it. The button was rendering as un-styled text
+against the dark inbox card, invisible to anyone who wasn't
+hovering over it.
+
+Fix: added a `.btn-ghost` rule at the bottom of
+[public/frontend/css/jambo-header.css](public/frontend/css/jambo-header.css)
+(loaded site-wide by the frontend master layout). Neutral
+transparent → grey-on-hover styling that works on both dark and
+light surfaces. This makes ALL frontend `btn-ghost` usages
+visible at once, not just the notifications button.
+
+Cache-busts via `versioned_asset()` automatically.
+
+Note: admin-side `btn-ghost` buttons (back/cancel in admin
+forms) still render unstyled because admin pages load their
+CSS from `dashboard/*` instead of `frontend/css/`. We'll mirror
+the rule into the admin stylesheet when an admin user reports
+the same issue, or proactively if you want me to do it now.
+
 ### 1.6.1 — Player: fullscreen actually fills the screen on Android TV
 
 User report: clicking fullscreen on the watch page on Android TV

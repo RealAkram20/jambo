@@ -612,4 +612,52 @@
     }
 }
 
+/* ================================================================== */
+/* .btn-ghost — back / cancel / subtle secondary action               */
+/* ================================================================== */
+/*
+ * Used in 30+ places across the app per docs/ui-guidelines.md and
+ * docs/final-polish.md ("Ghost = back/cancel only"), but the class
+ * itself was never defined anywhere — Bootstrap doesn't ship it.
+ * Result: every "Mark all read", "Back to list", "Clear filter"
+ * button rendered as plain unstyled text on dark cards, invisible
+ * to most users.
+ *
+ * Defined here on jambo-header.css because it's loaded site-wide
+ * by Modules/Frontend/.../layouts/master.blade.php — covers the
+ * frontend (user inbox + profile-hub) without a Vite rebuild.
+ * Admin panel uses dashboard/* CSS — admin "Back to list" buttons
+ * are still invisible until we either add this rule there too or
+ * migrate the admin button class.
+ *
+ * Neutral grey hover so the rule works equally well on the dark
+ * theme the streaming pages use AND any light surface.
+ */
+.btn-ghost {
+    background-color: transparent;
+    border: 1px solid transparent;
+    color: inherit;
+}
+
+.btn-ghost:hover,
+.btn-ghost:focus-visible {
+    background-color: rgba(127, 127, 127, 0.14);
+    color: inherit;
+}
+
+.btn-ghost:active {
+    background-color: rgba(127, 127, 127, 0.22);
+}
+
+.btn-ghost:focus-visible {
+    outline: 2px solid var(--bs-primary, #1A98FF);
+    outline-offset: 2px;
+}
+
+.btn-ghost:disabled,
+.btn-ghost.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
 
