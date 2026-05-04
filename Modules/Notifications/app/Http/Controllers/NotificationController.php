@@ -138,6 +138,24 @@ class NotificationController extends Controller
     }
 
     /**
+     * Bulk-delete every notification belonging to the current user.
+     * Symmetric to markAllAsRead() — for users who let months of
+     * notifications pile up and don't want to click 200 trash icons.
+     * Hard delete; there's no soft-deletes column on the
+     * notifications table, so this is irreversible (matching the
+     * single-row destroy() behaviour above).
+     */
+    public function destroyAll(Request $request)
+    {
+        $request->user()->notifications()->delete();
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json(['ok' => true, 'unread_count' => 0]);
+        }
+        return back()->with('success', 'All notifications deleted.');
+    }
+
+    /**
      * Dev-only endpoint: POST /notifications/test-dispatch creates a
      * TestNotification for the current user so we can verify the
      * pipeline end to end. Gated by local-env + auth middleware in

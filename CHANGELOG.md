@@ -2,6 +2,27 @@
 
 ## Jambo
 
+### 1.6.3 — Notifications: bulk "Delete all" button
+
+Pairs with the existing "Mark all read" so users with months of
+piled-up notifications don't have to click 200 trash icons one by
+one. Hard delete (no soft-delete column on the notifications
+table), so the click goes through a `confirm()` first.
+
+- New `destroyAll()` method on `NotificationController`.
+- New route `DELETE /notifications/all`, named
+  `notifications.destroy-all`. Registered BEFORE the
+  `DELETE /notifications/{id}` wildcard so Laravel doesn't match
+  `id=all` against the single-row destroy and 404.
+- "Delete all" button on the user inbox
+  ([resources/views/profile-hub/notifications.blade.php](resources/views/profile-hub/notifications.blade.php))
+  next to "Mark all read" — visible whenever the inbox has any
+  notifications (read or unread).
+- Same button on the admin notifications page
+  ([Modules/Notifications/resources/views/index.blade.php](Modules/Notifications/resources/views/index.blade.php))
+  on the Inbox tab. Both reload the page on success so the
+  empty-state placeholder + bell badge re-render cleanly.
+
 ### 1.6.2 — Define the missing `.btn-ghost` class
 
 User report: "Mark all as read" button missing from the user

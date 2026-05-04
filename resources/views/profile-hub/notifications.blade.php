@@ -16,6 +16,10 @@
                         style="{{ $unreadCount > 0 ? '' : 'display:none;' }}">
                     <i class="ph ph-check-square me-1"></i> Mark all read
                 </button>
+                <button type="button" class="btn btn-outline-danger btn-sm" id="jambo-delete-all"
+                        style="{{ $notifications->total() > 0 ? '' : 'display:none;' }}">
+                    <i class="ph ph-trash-simple me-1"></i> Delete all
+                </button>
                 <i class="ph ph-bell fs-2 text-muted"></i>
             </div>
         </div>
@@ -297,6 +301,22 @@
                 row.querySelector('.jambo-hub-inbox__read')?.remove();
             });
             e.currentTarget.disabled = false;
+        });
+
+        // Bulk delete — destructive, no undo, so we always confirm.
+        // After success we reload so the empty-state and pagination
+        // both re-render correctly without per-element DOM surgery.
+        document.getElementById('jambo-delete-all')?.addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (!confirm('Delete all notifications? This cannot be undone.')) return;
+            e.currentTarget.disabled = true;
+            const res = await post('{{ route('notifications.destroy-all') }}', 'DELETE');
+            if (res.ok) {
+                window.location.reload();
+            } else {
+                e.currentTarget.disabled = false;
+                alert('Could not delete notifications. Please try again.');
+            }
         });
 
         document.querySelectorAll('.jambo-hub-inbox__read').forEach(btn => {

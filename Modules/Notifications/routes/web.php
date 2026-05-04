@@ -22,6 +22,12 @@ Route::middleware('auth')
         Route::get('/dropdown', [NotificationController::class, 'dropdown'])->name('dropdown');
         Route::post('/{id}/read', [NotificationController::class, 'markAsRead'])->name('read');
         Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('mark-all-read');
+
+        // Bulk delete must come BEFORE the wildcard /{id} below or
+        // Laravel matches DELETE /notifications/all against the
+        // single-row route with id="all" and 404s on findOrFail().
+        Route::delete('/all', [NotificationController::class, 'destroyAll'])->name('destroy-all');
+
         Route::delete('/{id}', [NotificationController::class, 'destroy'])->name('destroy');
 
         // Dev helper: manual smoke-test dispatch. Gated at the route

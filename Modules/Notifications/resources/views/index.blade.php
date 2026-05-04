@@ -35,6 +35,11 @@
                                     <i class="ph ph-check-square me-1"></i> Mark all as read
                                 </button>
                             @endif
+                            @if ($notifications->total() > 0)
+                                <button type="button" class="btn btn-outline-danger btn-sm" id="delete-all-btn">
+                                    <i class="ph ph-trash-simple me-1"></i> Delete all
+                                </button>
+                            @endif
                         </div>
                         <div class="notif-actions-settings" @if ($activeTab !== 'settings') style="display:none;" @endif>
                             <button type="submit" form="notif-settings-form" class="btn btn-primary btn-sm">
@@ -392,6 +397,27 @@
                 headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
             });
             location.reload();
+        });
+    }
+
+    // Bulk delete — confirms, then DELETEs, then reloads so the
+    // empty-state renders correctly. Matches the user-inbox pattern.
+    const deleteAllBtn = document.getElementById('delete-all-btn');
+    const deleteAllUrl = @json(route('notifications.destroy-all'));
+    if (deleteAllBtn) {
+        deleteAllBtn.addEventListener('click', async () => {
+            if (!confirm('Delete all notifications? This cannot be undone.')) return;
+            deleteAllBtn.disabled = true;
+            const res = await fetch(deleteAllUrl, {
+                method: 'DELETE',
+                headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+            });
+            if (res.ok) {
+                location.reload();
+            } else {
+                deleteAllBtn.disabled = false;
+                alert('Could not delete notifications. Please try again.');
+            }
         });
     }
 
