@@ -108,6 +108,78 @@ if (! function_exists('media_url')) {
     }
 }
 
+if (! function_exists('media_img')) {
+    /**
+     * Like media_url() but routes the result through /img/ so the
+     * ImageProxyController resizes + transcodes to WebP at the
+     * requested width on the fly. Pair with media_srcset() to ship
+     * a real responsive image; on its own, returns a single-size URL
+     * suitable for an <img src="..."> attribute.
+     *
+     * External URLs (https://…) are passed through unchanged because
+     * Glide can't proxy remote sources without extra setup. App-
+     * absolute paths (`/foo.jpg`) and legacy bare filenames (resolved
+     * the same way as media_url) are routed through the proxy.
+     *
+     *   media_img($movie->poster_url, 320)
+     *     -> https://jambofilms.com/img/frontend/images/media/foo.jpg?w=320&fm=webp
+     */
+    function media_img(?string $value, int $width, ?string $fallback = null, string $legacyDir = 'frontend/images'): string
+    {
+        if (empty($value)) {
+            if ($fallback !== null) return media_img($fallback, $width, null, $legacyDir);
+            return '';
+        }
+
+        // External — pass through. Glide can't fetch remote sources
+        // and we don't want to silently break a URL the admin pasted.
+        if (preg_match('#^https?://#i', $value)) {
+            return $value;
+        }
+
+        // App-absolute path → already public-relative, just strip the
+        // leading slash. Legacy bare filename → prepend legacyDir
+        // (matches media_url's convention exactly).
+        $path = str_starts_with($value, '/')
+            ? ltrim($value, '/')
+            : trim($legacyDir, '/') . '/' . ltrim($value, '/');
+
+        // Build the proxy URL by hand — url('img/'.$path) collapses
+        // forward slashes inside $path which we want preserved.
+        return url('img/' . $path) . '?w=' . $width . '&fm=webp';
+    }
+}
+
+if (! function_exists('media_srcset')) {
+    /**
+     * Build a `srcset` value with multiple widths so the browser
+     * can pick the right size for the viewport / device pixel ratio.
+     * Pair with `<img sizes="...">` for true responsive selection.
+     *
+     *   <img src="{{ media_img($p, 640) }}"
+     *        srcset="{{ media_srcset($p, [320, 640]) }}"
+     *        sizes="(max-width: 768px) 320px, 640px"
+     *        loading="lazy" decoding="async">
+     *
+     * For external URLs, every width returns the same URL so the
+     * srcset is effectively a no-op — harmless, just doesn't save
+     * bytes (we can't resize images we don't host).
+     */
+    function media_srcset(?string $value, array $widths, ?string $fallback = null, string $legacyDir = 'frontend/images'): string
+    {
+        if (empty($value) && $fallback === null) return '';
+
+        $parts = [];
+        foreach ($widths as $w) {
+            $url = media_img($value, (int) $w, $fallback, $legacyDir);
+            if ($url !== '') {
+                $parts[] = $url . ' ' . ((int) $w) . 'w';
+            }
+        }
+        return implode(', ', $parts);
+    }
+}
+
 if (! function_exists('branding_asset')) {
     /**
      * Resolve a branding asset URL (logo, favicon, preloader).

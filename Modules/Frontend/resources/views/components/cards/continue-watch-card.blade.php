@@ -25,8 +25,11 @@
     <div class="block-images position-relative">
         <div class="iq-image-box overly-images">
             <a href="{{ $cwLink }}" class="d-block" aria-label="Resume watching {{ $cwTitle }}">
-                <img src="{{ $cwSrc }}" alt="{{ $cwTitle }}" class="w-100 d-block border-0 rounded-3 continue-image"
-                    loading="lazy">
+                <img src="{{ media_img($cwImg, 640, 'media/gameofhero.webp', \Illuminate\Support\Str::startsWith($cwImg, ['http://', 'https://', '/', 'media/']) ? 'frontend/images' : 'frontend/images/media') }}"
+                    srcset="{{ media_srcset($cwImg, [320, 640], 'media/gameofhero.webp', \Illuminate\Support\Str::startsWith($cwImg, ['http://', 'https://', '/', 'media/']) ? 'frontend/images' : 'frontend/images/media') }}"
+                    sizes="(max-width: 768px) 320px, 640px"
+                    alt="{{ $cwTitle }}" class="w-100 d-block border-0 rounded-3 continue-image"
+                    loading="lazy" decoding="async">
             </a>
         </div>
         <div class="iq-preogress">

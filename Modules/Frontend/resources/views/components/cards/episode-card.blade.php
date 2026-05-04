@@ -4,7 +4,10 @@
 <div class="episode-block rounded-3">
     <div class="block-image position-relative z-1">
         <a href="{{ $episodePath }}">
-            <img src="{{ $epSrc }}" class="img-fluid img-zoom" alt="showImg-{{ $id ?? '' }}" loading="lazy">
+            <img src="{{ media_img($showImg, 640) }}"
+                 srcset="{{ media_srcset($showImg, [320, 640]) }}"
+                 sizes="(max-width: 768px) 320px, 640px"
+                 class="img-fluid img-zoom" alt="showImg-{{ $id ?? '' }}" loading="lazy" decoding="async">
         </a>
     </div>
 

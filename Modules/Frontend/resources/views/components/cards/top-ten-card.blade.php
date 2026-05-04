@@ -6,7 +6,10 @@
     <div class="block-image position-relative">
         <div class="img-box">
             <a class="overly-images" href="{{ $cardUrlPath }}">
-                <img src="{{ $topTenSrc }}" alt="movie-card" class="object-cover rounded-3" loading="lazy" />
+                <img src="{{ media_img($imagePath, 640, null, 'frontend/images/media') }}"
+                     srcset="{{ media_srcset($imagePath, [320, 640], null, 'frontend/images/media') }}"
+                     sizes="(max-width: 768px) 320px, 640px"
+                     alt="movie-card" class="object-cover rounded-3" loading="lazy" decoding="async" />
             </a>
             <span class="top-ten-numbers texture-text">{{ $countValue }}</span>
         </div>

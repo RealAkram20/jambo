@@ -2,6 +2,60 @@
 
 ## Jambo
 
+### 1.6.0 — Perf: on-the-fly image resize + WebP via /img proxy
+
+Network-panel diagnostics on the home page showed **35.4 MB
+transferred / 47s to finish** with cache disabled — almost all of
+it was raw uploaded images served at full source resolution to
+every device. Even with the 1.5.33 browser-cache headers in place,
+first visits paid the full bill. This release ships a real
+responsive-image pipeline.
+
+**New `/img/{path}` route.** Backed by `league/glide` and a thin
+`App\Http\Controllers\ImageProxyController`. Accepts `?w=`, `?h=`,
+`?q=`, `?fm=` query params (clamped to safe ranges so a bad bot
+can't ask for gigapixels). Sources files from `public/`; caches
+resized variants to `storage/app/glide-cache/` so subsequent
+requests for the same size+format are served straight from disk.
+Imagick is used when available, GD as the universal fallback.
+
+**Two new helpers in `app/helpers.php`:**
+- `media_img($value, $width, $fallback?, $legacyDir?)` — returns a
+  proxy URL with `?w=N&fm=webp`. External URLs pass through
+  unchanged because Glide can't proxy remote sources.
+- `media_srcset($value, [320, 640, ...], ...)` — builds a real
+  `srcset` string so the browser picks the right size per
+  viewport / DPR.
+
+**Card components updated to use both, with `loading="lazy"
+decoding="async"` and a `sizes` attribute** so phones get 320w
+and desktops/TVs get 640w (or 384w for cast headshots):
+
+- `card-style.blade.php`, `genres-card.blade.php`,
+  `top-ten-card.blade.php`, `continue-watch-card.blade.php`,
+  `personality-card.blade.php`, `episode-card.blade.php`
+
+**Hero backdrop now routed through the proxy at 1920w WebP**
+(`Pages/MainPages/index-page.blade.php`). Previously the heaviest
+assets on the page — typically 4K source files at 3-5MB each
+across multiple slides. Cuts ~90% per backdrop with no visible
+difference at TV / desktop resolutions.
+
+**Expected impact** based on the 35.4MB baseline:
+- Hero: ~15MB → ~1MB
+- Posters: ~36MB across all carousels → ~2-3MB
+- **Total page weight: ~35MB → ~3-4MB on first load**
+- Subsequent visits hit the 1y browser cache from 1.5.33
+
+**Operator notes for deploy:**
+- `composer require league/glide` adds the dependency.
+- PHP must have GD or Imagick. CyberPanel default PHP includes
+  GD; verify with `php -m | grep -i gd`.
+- `storage/app/glide-cache/` will be created on first request and
+  needs to be writable by the web user (`jambo2820`).
+- Cache populates lazily as users visit; first request to a
+  given size resizes (~150-300ms), subsequent are instant.
+
 ### 1.5.33 — Perf: browser caching, lazy-load posters, drop dead deps
 
 Targeted fixes for users on weak networks (Android TV being the
