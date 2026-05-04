@@ -6,6 +6,39 @@ video-player {
   display: contents;
 }
 
+/* Fullscreen target. The gesture/keyboard handler in
+   jambo-player-gestures.js calls requestFullscreen() on the
+   <video-player> custom element, not on the .jambo-player-frame
+   wrapper. With `display:contents` the element has no box of its
+   own, so when the browser hoists it into the fullscreen top
+   layer the children inherit no fullscreen dimensions and the
+   page UI behind bleeds through (Android TV symptom: video
+   doesn't fill, titles still visible). Switching to display:block
+   inside :fullscreen gives the element a real box that the
+   browser sizes to the viewport. */
+video-player:fullscreen,
+video-player:-webkit-full-screen {
+  display: block !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: #000;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Children of the fullscreened <video-player> need to fill it —
+   .jambo-player-frame's max-width:1600px would otherwise cap the
+   visible area inside an otherwise-correctly-sized fullscreen
+   shell. */
+video-player:fullscreen > *,
+video-player:-webkit-full-screen > * {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  aspect-ratio: auto !important;
+  border-radius: 0 !important;
+}
+
 /*
 Required to override any default video and image styles (such as
 Tailwind's CSS reset) and ensure they fill the container as expected.
