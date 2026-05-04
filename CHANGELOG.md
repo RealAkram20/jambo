@@ -2,6 +2,30 @@
 
 ## Jambo
 
+### 1.6.1 — Player: fullscreen actually fills the screen on Android TV
+
+User report: clicking fullscreen on the watch page on Android TV
+left ~160px of black on each side instead of filling the panel.
+Root cause was two design constraints leaking into fullscreen
+mode in [public/frontend/css/player.css](public/frontend/css/player.css):
+
+- `.jambo-player-frame { max-width: 1600px; aspect-ratio: 16/9 }`
+- `.jambo-watch-hero  { max-width: 1600px }`
+
+Both kept applying when the element entered `:fullscreen`, so on
+a 1920×1080 TV the player was capped at 1600px wide (black bars
+on either side). Added explicit `:fullscreen` /
+`:-webkit-full-screen` overrides on the frame, the hero wrapper,
+the Media Chrome skin, and the underlying `<video>` element so
+fullscreen really fills the viewport regardless of which element
+the fullscreen API targets. `object-fit: contain` is preserved
+on the video so 21:9 movies still letterboxes cleanly instead
+of stretching.
+
+Browser cache is auto-busted via the existing
+`versioned_asset()` helper that all three watch pages use — the
+mtime change appends a fresh `?v=` to the player.css URL.
+
 ### 1.6.0 — Perf: on-the-fly image resize + WebP via /img proxy
 
 Network-panel diagnostics on the home page showed **35.4 MB

@@ -1166,6 +1166,23 @@ media-tooltip-group {
   overflow: hidden;
 }
 
+/* Fullscreen overrides — without these, the 1600px max-width and
+   16:9 aspect-ratio above keep applying when the frame enters
+   fullscreen, which on a 1920×1080 Android TV leaves ~160px of
+   black on each side. The :-webkit-full-screen variant covers
+   older Chromium WebViews still shipped on some TV stick
+   firmwares. !important is here because Media Chrome's shadow
+   DOM defines its own dimensions that would otherwise win. */
+.jambo-player-frame:fullscreen,
+.jambo-player-frame:-webkit-full-screen {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  aspect-ratio: auto !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+}
+
 /* Hero wrapper: position:relative so the frame can overlay the sentinel
    with inset:0 while the sentinel reserves layout height. */
 .jambo-watch-hero {
@@ -1173,6 +1190,37 @@ media-tooltip-group {
   width: 100%;
   max-width: 1600px;
   margin: 0 auto;
+}
+
+.jambo-watch-hero:fullscreen,
+.jambo-watch-hero:-webkit-full-screen {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  margin: 0 !important;
+}
+
+/* Media Chrome fullscreens its own element (.media-minimal-skin),
+   not always the outer frame — pin its dimensions and drop the
+   pill-radius too, in case the skin itself receives the
+   fullscreen request rather than the wrapper. */
+.media-minimal-skin:fullscreen,
+.media-minimal-skin:-webkit-full-screen {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  border-radius: 0 !important;
+}
+
+/* Final safety net — the underlying <video> element when ANY
+   ancestor is fullscreen. object-fit:contain preserves aspect
+   ratio without cropping (so a 21:9 movie still letterboxes
+   correctly on a 16:9 TV instead of being stretched). */
+:fullscreen video,
+:-webkit-full-screen video {
+  width: 100vw !important;
+  height: 100vh !important;
+  object-fit: contain;
 }
 .jambo-player-frame .media-minimal-skin {
   border-radius: 0.75rem;
