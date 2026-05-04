@@ -2,6 +2,36 @@
 
 ## Jambo
 
+### 1.7.4 — Cast picker: fix nested-form bug breaking outer Save button
+
+User report: after 1.7.x cast-picker work, the "Save movie" /
+"Save series" buttons stopped working — clicking them did
+nothing. Root cause was my own bug from 1.7.0:
+[cast-picker-helpers.blade.php](Modules/Content/resources/views/admin/persons/partials/cast-picker-helpers.blade.php)
+contains a Bootstrap modal whose content was wrapped in a
+`<form id="jambo-quick-person-form">`. The partial is included
+from `movies/form.blade.php` and `shows/form.blade.php`, both of
+which are themselves rendered inside the outer
+`<form action="store/update">` from `create.blade.php` /
+`edit.blade.php`. Result: nested `<form>` tags in the parsed
+HTML.
+
+HTML5 disallows nested forms. When the browser's parser hits the
+inner `<form>` it silently closes the outer one — orphaning the
+"Save" submit button at the bottom of the page from any form.
+The button click then has nowhere to submit to and does nothing.
+
+Fix: switched the modal wrapper from `<form>` to `<div>`,
+changed the inner submit button to `type="button"`, and rewired
+the save flow as a JS click handler. Enter-key submit is
+preserved via a `keydown` listener on the modal inputs. No
+real form, no nesting, the outer movie/series save button works
+again.
+
+The episode save report appears to be unrelated — episode views
+don't include the cast-picker partial — but worth re-testing
+after this fix to confirm.
+
 ### 1.7.3 — Cast picker: pass `isSelect2 => true` to layouts.app
 
 Real root cause of the empty Select2 trigger from 1.7.2: the

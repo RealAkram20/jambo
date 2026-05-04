@@ -71,9 +71,22 @@
 {{-- Quick-create modal — single instance per page; the active row
      is remembered by the helper JS so the new person lands in the
      correct cast slot when the modal saves. --}}
+{{--
+    Modal "form" must be a <div>, NOT a <form>. The cast-picker
+    helpers partial is included from inside the outer movie/show
+    edit <form>, and HTML5 disallows nested forms — the browser
+    parser silently closes the outer form when it hits the inner
+    one, orphaning the outer "Save movie" / "Save series" submit
+    buttons (they end up outside any form, click does nothing).
+
+    We drive the save manually via the button's click handler in
+    the JS below. Enter-key submit is preserved by a keydown
+    listener on the inputs. There is no real <form> here, so no
+    nested form, so the outer save button keeps working.
+--}}
 <div class="modal fade" id="jambo-quick-person-modal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <form id="jambo-quick-person-form" class="modal-content" autocomplete="off">
+        <div id="jambo-quick-person-form" class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Add new person</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -82,15 +95,15 @@
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label">First name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="first_name" required maxlength="255">
+                        <input type="text" class="form-control" name="first_name" required maxlength="255" autocomplete="off">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Last name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="last_name" required maxlength="255">
+                        <input type="text" class="form-control" name="last_name" required maxlength="255" autocomplete="off">
                     </div>
                     <div class="col-12">
                         <label class="form-label">Known for <small class="text-muted">(optional)</small></label>
-                        <input type="text" class="form-control" name="known_for" maxlength="255"
+                        <input type="text" class="form-control" name="known_for" maxlength="255" autocomplete="off"
                                placeholder="e.g. Inception, The Dark Knight">
                     </div>
                 </div>
@@ -101,11 +114,12 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn btn-primary">
+                {{-- type="button" — see modal comment above. Click is wired in JS. --}}
+                <button type="button" id="jambo-quick-person-save" class="btn btn-primary">
                     <i class="ph ph-plus me-1"></i> Add person
                 </button>
             </div>
-        </form>
+        </div>
     </div>
 </div>
 
@@ -217,42 +231,66 @@ function initCastPicker($) {
         });
     }
 
-    /* "+ New person" modal flow ------------------------------------ */
+    /* "+ New person" modal flow ------------------------------------
+     *
+     * The "form" inside the modal is actually a <div> (see modal
+     * markup above for the nested-form rationale) — we manage submit
+     * manually via the save button's click handler. Enter on any
+     * input also triggers save so muscle memory keeps working.
+     */
     var modalEl = document.getElementById('jambo-quick-person-modal');
     var modalInstance = null;
     var $form = $('#jambo-quick-person-form');
+    var $saveBtn = $('#jambo-quick-person-save');
     var activeSelect = null;
 
     if (modalEl && window.bootstrap) {
         modalInstance = new window.bootstrap.Modal(modalEl);
     }
 
+    function resetModal() {
+        $form.find('input[name]').val('');
+        $form.find('.is-invalid').removeClass('is-invalid');
+        $form.find('.invalid-feedback').remove();
+    }
+
     $(document).on('click', '[data-jambo-new-person]', function () {
         var rowEl = this.closest('.cast-row');
         if (!rowEl) return;
         activeSelect = rowEl.querySelector('.jambo-cast-person');
-        // Reset modal form between opens so previous values don't
-        // leak when the admin adds several people in a row.
-        $form[0].reset();
-        $form.find('.is-invalid').removeClass('is-invalid');
-        $form.find('.invalid-feedback').remove();
+        resetModal();
         if (modalInstance) modalInstance.show();
     });
 
-    $form.on('submit', function (e) {
-        e.preventDefault();
-        var $btn = $form.find('button[type=submit]');
-        $btn.prop('disabled', true);
+    function savePerson() {
+        var first = $form.find('[name=first_name]').val();
+        var last  = $form.find('[name=last_name]').val();
+        var known = $form.find('[name=known_for]').val();
+
+        // Clear prior error markers before re-validating server-side.
+        $form.find('.is-invalid').removeClass('is-invalid');
+        $form.find('.invalid-feedback').remove();
+
+        if (!first || !last) {
+            // Mimic native required-field validation since we no
+            // longer have a real <form> doing it for us.
+            ['first_name', 'last_name'].forEach(function (n) {
+                var $el = $form.find('[name=' + n + ']');
+                if (!$el.val()) {
+                    $el.addClass('is-invalid');
+                    $('<div class="invalid-feedback"></div>').text('Required.').insertAfter($el);
+                }
+            });
+            return;
+        }
+
+        $saveBtn.prop('disabled', true);
 
         $.ajax({
             url: personsQuickUrl,
             method: 'POST',
             headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
-            data: {
-                first_name: $form.find('[name=first_name]').val(),
-                last_name: $form.find('[name=last_name]').val(),
-                known_for: $form.find('[name=known_for]').val(),
-            },
+            data: { first_name: first, last_name: last, known_for: known },
         }).done(function (data) {
             if (data && data.person && activeSelect) {
                 // Append the new option and select it. trigger('change')
@@ -276,8 +314,19 @@ function initCastPicker($) {
                 alert('Could not create person. Please try again.');
             }
         }).always(function () {
-            $btn.prop('disabled', false);
+            $saveBtn.prop('disabled', false);
         });
+    }
+
+    $saveBtn.on('click', savePerson);
+
+    // Enter-key on any modal input triggers save — preserves
+    // keyboard-only flow even though the wrapper isn't a <form>.
+    $form.on('keydown', 'input', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            savePerson();
+        }
     });
 
     /* Public entrypoint for the per-form scripts ------------------- */
