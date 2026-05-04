@@ -222,12 +222,20 @@
     @include('content::admin.movies.partials.cast-row', ['i' => '__i__', 'row' => [], 'persons' => $persons])
 </template>
 
+@include('content::admin.persons.partials.cast-picker-helpers')
+
 <script>
 (function () {
     let nextIndex = {{ count(old('cast') ?? $currentCast ?? []) }};
     document.getElementById('add-cast').addEventListener('click', function () {
         const tpl = document.getElementById('cast-row-template').innerHTML.replaceAll('__i__', nextIndex++);
         document.getElementById('cast-rows').insertAdjacentHTML('beforeend', tpl);
+        // Re-init Select2 on the freshly-inserted row's person picker.
+        // The shared cast-picker-helpers partial exposes this entry
+        // point; if it didn't load (Select2 missing) it's a no-op.
+        if (window.jamboInitCastPicker) {
+            window.jamboInitCastPicker('#cast-rows');
+        }
     });
     document.getElementById('cast-rows').addEventListener('click', function (e) {
         if (e.target.closest('.remove-cast')) e.target.closest('.cast-row').remove();

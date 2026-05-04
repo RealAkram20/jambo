@@ -58,6 +58,12 @@ Route::middleware(['auth', 'role:admin'])
             ->scoped(['season' => 'number', 'episode' => 'number'])
             ->except(['show']);
 
+        // Cast-picker AJAX endpoints — registered BEFORE the
+        // resource() below so they aren't shadowed by the wildcard
+        // /persons/{person} routes the resource declares.
+        Route::get('persons/search', [PersonController::class, 'search'])->name('persons.search');
+        Route::post('persons/quick', [PersonController::class, 'quickStore'])->name('persons.quick');
+
         Route::resource('persons', PersonController::class)->except(['show']);
 
         // Taxonomy CRUD (store, update, destroy only — listing is via DashboardController template pages)

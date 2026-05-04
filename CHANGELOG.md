@@ -2,6 +2,63 @@
 
 ## Jambo
 
+### 1.7.0 — Cast picker: AJAX search + inline person create
+
+The cast row on the movie and series forms used to render every
+single Person row as `<option>` elements inside the
+`<select name="cast[i][person_id]">` — fine for the demo dataset
+of a few hundred names, completely unworkable at the scale this
+catalog will reach (millions of rows). Admins reported
+near-impossible scrolling and slow form loads as soon as the
+table grew past a few thousand persons. Adding a missing person
+also forced a full page navigation away from the in-progress
+movie/series edit, losing unsaved fields.
+
+Both problems addressed in this release:
+
+**Backend:**
+- New `PersonController::search()` returning Select2-shaped JSON
+  (`results` + `pagination`). Matches `first_name`, `last_name`,
+  `known_for` with `LIKE` and pages 20 results at a time. Even
+  an empty query is paginated, so the full table is never
+  flattened into a single response.
+- New `PersonController::quickStore()` for the "+ New person"
+  inline flow. Validates first_name + last_name (required), an
+  optional known_for, generates a unique slug, and returns the
+  new person in the same shape the search endpoint emits so the
+  client can drop it straight into the dropdown.
+- Two new routes — `GET /admin/persons/search` and
+  `POST /admin/persons/quick`. Registered BEFORE
+  `Route::resource('persons', ...)` so they aren't shadowed by
+  the resource's wildcard routes.
+
+**Frontend:**
+- `cast-row.blade.php` no longer renders all persons. The
+  `<select>` is empty by default; only the currently-attached
+  person (if any) renders as a single pre-selected option so
+  edit forms display the existing value on first paint without
+  waiting for an AJAX call. Search-as-you-type populates the
+  rest via Select2.
+- New shared `cast-picker-helpers.blade.php` partial pulled in
+  by both `movies/form.blade.php` and `shows/form.blade.php`.
+  Bundles the Select2 stylesheet, the dark-theme overrides, the
+  "+ New person" Bootstrap modal, and the JS that wires the
+  whole pipeline together. One source of truth for both forms.
+- Each cast row gets a "+" button next to the person picker
+  that opens the modal scoped to that row. Modal submit POSTs
+  via AJAX, on success the new person is appended to that row's
+  `<select>` as a pre-selected option and the modal closes —
+  the rest of the form stays intact, no navigation, no lost
+  edits.
+- Validation errors from `quickStore` render as inline
+  `.invalid-feedback` under the offending field rather than a
+  Laravel redirect (since the form doesn't POST normally).
+
+Episodes intentionally excluded: the `persons` Eloquent
+relations (`Person::movies()`, `Person::shows()`) and the
+`movie_person` / `show_person` pivot tables don't include an
+`episode_person` analogue — episodes don't have their own cast.
+
 ### 1.6.3 — Notifications: bulk "Delete all" button
 
 Pairs with the existing "Mark all read" so users with months of
