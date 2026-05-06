@@ -2,6 +2,35 @@
 
 ## Jambo
 
+### 1.7.6 — Notifications: don't alert on episodes whose show is draft
+
+User report: when an episode is published while its parent
+series is still in `draft`, users still get the
+"New episode" notification. Clicking the notification's
+`/series/{slug}` link 404s because the public series detail
+route uses `scopeDetailVisible` — which allows `published` and
+`upcoming` shows but rejects `draft`. Even for `upcoming` shows
+the link lands on a "Coming Soon" stub which is a logical
+dead-end (admin announced an episode the user can't watch).
+
+Fix: gate the `EpisodeAdded` event dispatch in
+[EpisodeController](Modules/Content/app/Http/Controllers/Admin/EpisodeController.php)
+on a new `Show::isPubliclyAvailable()` instance method that
+returns true only when the show's `status === 'published'` AND
+`published_at <= now()`. Both the `store()` and `update()`
+publish-detection paths now check this before firing.
+
+Mirrors the first three conditions of `Show::scopePublished`
+without the `whereHas` episode check (which is redundant at
+the call site since we're in the act of publishing an episode).
+
+**Known follow-up (not in this release):** episodes published
+during a draft window will never trigger a notification, even
+after the show eventually goes public. A retroactive listener
+on Show status changes (draft → published) could fire
+`EpisodeAdded` for any episode whose `published_at` is in the
+past. Worth doing if anyone misses these alerts.
+
 ### 1.7.5 — Cast picker: drop `required` on hidden modal inputs
 
 Follow-up to 1.7.4. After fixing the nested-form bug, saving a

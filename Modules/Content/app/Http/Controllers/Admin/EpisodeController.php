@@ -61,7 +61,12 @@ class EpisodeController extends Controller
             'published_at' => $publishedAt,
         ]);
 
-        if ($episode->published_at) {
+        // Only notify if the show itself is publicly available —
+        // otherwise the action_url on the notification (/series/slug)
+        // 404s for draft shows, or lands on a "Coming Soon" stub for
+        // upcoming shows. Either way the user can't actually watch
+        // the episode the alert announces. See Show::isPubliclyAvailable.
+        if ($episode->published_at && $show->isPubliclyAvailable()) {
             event(new \Modules\Notifications\app\Events\EpisodeAdded(
                 $show->title, $season->number, $episode->number,
                 $episode->title, $show->slug, $episode->still_url ?? $show->poster_url,
@@ -119,7 +124,10 @@ class EpisodeController extends Controller
         $episode->save();
 
         $justPublished = !$wasPublished && $episode->published_at !== null;
-        if ($justPublished) {
+        // Same gate as store(): suppress when the show is still draft
+        // or upcoming so the notification's "/series/slug" link doesn't
+        // 404 / dead-end for the user.
+        if ($justPublished && $show->isPubliclyAvailable()) {
             event(new \Modules\Notifications\app\Events\EpisodeAdded(
                 $show->title, $season->number, $episode->number,
                 $episode->title, $show->slug, $episode->still_url ?? $show->poster_url,

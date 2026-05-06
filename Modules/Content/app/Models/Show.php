@@ -156,6 +156,27 @@ class Show extends Model
     }
 
     /**
+     * Whether this show is currently public-facing — admin status
+     * is `published` AND its release timestamp is in the past.
+     *
+     * Used by notification dispatchers (EpisodeAddedNotification,
+     * SeasonAddedNotification) to suppress alerts that would land
+     * users on a 404 (draft show) or a "Coming Soon" stub page
+     * (upcoming show) when they expect to watch the announced
+     * episode. Mirrors the first three conditions of
+     * scopePublished above without the whereHas episode count
+     * (the dispatcher itself implies an episode exists, so the
+     * whereHas check is redundant at call sites that fire from
+     * an episode publish path).
+     */
+    public function isPubliclyAvailable(): bool
+    {
+        return $this->status === self::STATUS_PUBLISHED
+            && $this->published_at !== null
+            && $this->published_at->lessThanOrEqualTo(now());
+    }
+
+    /**
      * Announced / scheduled series — visible in the Upcoming rail only.
      * `published_at` here is the intended release date (may be null if
      * the admin hasn't picked one yet).
