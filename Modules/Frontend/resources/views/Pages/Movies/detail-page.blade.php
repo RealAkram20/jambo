@@ -26,7 +26,10 @@
 
 @php
     $backdrop = $movie->backdrop_url ?: $movie->poster_url;
-    $posterSrc = media_url($backdrop, 'media/gameofhero.webp');
+    // Route the 21:9 backdrop through the /img proxy at 1920w WebP.
+    // This page is the highest-traffic detail surface; serving the
+    // raw upload was the dominant byte cost per visit.
+    $posterSrc = media_img($backdrop, 1920, 'media/gameofhero.webp');
     $trailer = $movie->trailer_url;
     // Dedupe by person id — a person may have multiple pivot rows
     // (e.g., both 'actor' and 'director' for the same title) which

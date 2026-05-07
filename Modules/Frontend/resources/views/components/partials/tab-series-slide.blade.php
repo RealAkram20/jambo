@@ -9,7 +9,9 @@
      *   $rank   int, 1-based position in the Top 10
      */
     $bg = $item->backdrop_url ?: $item->poster_url;
-    $bgSrc = media_url($bg, 'media/pirates-ofdayones-orignal.webp');
+    // Route through the /img proxy at 1920w WebP — Trending tab
+    // backdrop. See 1.8.2 changelog for the full backdrop sweep.
+    $bgSrc = media_img($bg, 1920, 'media/pirates-ofdayones-orignal.webp');
 
     $detailUrl = route('frontend.series_detail', $item->slug);
     $releaseLabel = ($item->published_at ?? $item->created_at)?->format('F Y') ?? '';

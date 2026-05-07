@@ -24,7 +24,9 @@
 
 @php
     $backdrop = $show->backdrop_url ?: $show->poster_url;
-    $posterSrc = media_url($backdrop, 'media/vikings.webp');
+    // Route the 21:9 backdrop through the /img proxy at 1920w WebP.
+    // Mirrors the Movies/detail-page change in 1.8.2.
+    $posterSrc = media_img($backdrop, 1920, 'media/vikings.webp');
     $trailer = $show->trailer_url;
     // Dedupe by person id — a person may have multiple pivot rows
     // (e.g., both 'actor' and 'director' for the same series) which

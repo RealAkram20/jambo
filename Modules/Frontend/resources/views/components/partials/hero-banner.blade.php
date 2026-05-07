@@ -10,7 +10,10 @@
 
     // Background: backdrop → poster fallback → template default
     $bg = $item->backdrop_url ?: $item->poster_url;
-    $bgSrc = media_url($bg, 'media/gameofhero.webp');
+    // Route through the /img proxy at 1920w WebP. This partial is
+    // included from the OTT home rotator, so every signed-in
+    // visitor's first paint depended on the raw upload size.
+    $bgSrc = media_img($bg, 1920, 'media/gameofhero.webp');
 
     // Detail URL
     $detailUrl = $isShow
