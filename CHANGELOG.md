@@ -2,6 +2,26 @@
 
 ## Jambo
 
+### 1.8.3 — Home: Smart Shuffle promoted to position 2
+
+User asked for Continue Watching → Smart Shuffle → Top 10 as the
+new attention sequence on the OTT home page (the post-login
+landing). Smart Shuffle was rendering near the bottom of the
+page, below Genres — meaning users had to scroll past every
+other rail before seeing the personalised half-familiar /
+half-discovery shelf that's most likely to surface a tap.
+
+Moved the `@include('frontend::components.sections.recommended',
+['recommended' => __('sectionTitle.smart_shuffle'), 'viewAllBtn' => true])`
+up to right after `continue-watching` in
+[Pages/MainPages/ott-page.blade.php](Modules/Frontend/resources/views/Pages/MainPages/ott-page.blade.php).
+Top 10 Movies and Top 10 TV Shows now follow Smart Shuffle.
+Every other rail (VJs, Only on Streamit, Fresh Picks, Upcoming,
+Vertical Slider, Personalities, Popular Movies, Tab Slider,
+Genres, Top Pick) keeps its existing position.
+
+No data, no controller, no service change — pure ordering.
+
 ### 1.8.2 — Perf: route the remaining full-screen backdrops through /img
 
 User report: poster cards load fine, but the **big background

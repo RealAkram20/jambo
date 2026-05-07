@@ -47,6 +47,14 @@
      /movie, /series, /upcoming, /genres/*. --}}
 <div class="container-fluid">
     @include('frontend::components.sections.continue-watching', ['value' => '6', 'sectionPaddingClass' => true])
+    {{-- Smart Shuffle promoted to second position (was bottom of
+         page) so the personalised half-familiar / half-discovery
+         shelf is visible above the fold for returning users.
+         Continue Watching → Smart Shuffle → Top 10 is the new
+         attention sequence. --}}
+    @include('frontend::components.sections.recommended', [
+        'recommended' => __('sectionTitle.smart_shuffle'), 'viewAllBtn' => true,
+    ])
     @include('frontend::components.sections.top-ten-block')
     @include('frontend::components.sections.top-ten-tvshow')
     @include('frontend::components.sections.vjs')
@@ -67,9 +75,8 @@
 <div class="container-fluid">
     @include('frontend::components.sections.geners')
 
-    @include('frontend::components.sections.recommended', [
-    'recommended' => __('sectionTitle.smart_shuffle'), 'viewAllBtn' => true,
-    ])
+    {{-- Smart Shuffle moved up to right after Continue Watching;
+         see the higher block in this file. --}}
 
     @include('frontend::components.sections.top-pict')
 </div>
