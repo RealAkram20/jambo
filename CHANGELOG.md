@@ -2,6 +2,23 @@
 
 ## Jambo
 
+### 1.8.1 — Sidebar: group operational pages under "System info"
+
+The four admin-side operational pages — System Updates, Error log,
+System status, Signup attempts — were either scattered as separate
+top-level links (Updates) or sitting awkwardly between Settings and
+SEO (Logs, Status). With the 1.8.0 addition of Signup attempts,
+the sidebar started feeling crowded.
+
+Bundled all four under a new collapsible **"System info"** group
+in [resources/views/components/partials/vertical-nav.blade.php](resources/views/components/partials/vertical-nav.blade.php),
+matching the existing Payments group pattern at line ~234. The
+group auto-expands when the active route is one of its children
+and highlights the parent as active. Mirrors the pattern admins
+already know from Payments / Movies / Series / Person submenus.
+
+No route or controller changes — purely a navigation tidy-up.
+
 ### 1.8.0 — Signup diagnostics + friendly 419 retry
 
 User reports of "I tried to sign up and got an error, no account

@@ -311,18 +311,9 @@
             <span class="item-name">{{ __('sidebar.access_control') }}</span>
         </a>
     </li>
-    @if (Route::has('admin.updates.index'))
-        <li class="nav-item">
-            <a class="nav-link {{ request()->routeIs('admin.updates.*') ? 'active' : '' }}"
-                href="{{ route('admin.updates.index') }}">
-                <i class="icon" title="System Updates" data-bs-toggle="tooltip" data-bs-placement="right"
-                    aria-label="System Updates" data-bs-original-title="System Updates">
-                    <i class="ph ph-download-simple fs-4"></i>
-                </i>
-                <span class="item-name">System Updates</span>
-            </a>
-        </li>
-    @endif
+    {{-- System Updates moved into the System info collapsible group
+         further down (inside @role('admin')) — see the group that
+         includes Error log / System status / Signup attempts. --}}
     @if (Route::has('notifications.index'))
         <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}"
@@ -383,28 +374,84 @@
                 </a>
             </li>
         @endif
-        @if (Route::has('admin.diagnostics.logs'))
+        {{-- "System info" — collapsible group bundling the four
+             admin-side operational pages: System Updates, Error log,
+             System status, Signup attempts. Was four separate
+             top-level links, now grouped because they all answer
+             the same question ("how is the system doing right
+             now") and the sidebar was getting crowded. --}}
+        @if (Route::has('admin.updates.index')
+            || Route::has('admin.diagnostics.logs')
+            || Route::has('admin.diagnostics.status')
+            || Route::has('admin.diagnostics.signups'))
             <li class="nav-item">
-                <a class="nav-link {{ request()->routeIs('admin.diagnostics.logs') ? 'active' : '' }}"
-                    href="{{ route('admin.diagnostics.logs') }}">
-                    <i class="icon" title="Error log" data-bs-toggle="tooltip" data-bs-placement="right"
-                        aria-label="Error log" data-bs-original-title="Error log">
-                        <i class="ph ph-file-text fs-4"></i>
+                <a class="nav-link {{ request()->routeIs('admin.updates.*') || request()->routeIs('admin.diagnostics.*') ? 'active' : '' }}"
+                    data-bs-toggle="collapse" href="#sidebar-system-info" role="button"
+                    aria-expanded="{{ request()->routeIs('admin.updates.*') || request()->routeIs('admin.diagnostics.*') ? 'true' : 'false' }}"
+                    aria-controls="sidebar-system-info">
+                    <i class="icon" data-bs-toggle="tooltip" title="System info" data-bs-placement="right"
+                        aria-label="System info" data-bs-original-title="System info">
+                        <i class="ph ph-monitor fs-4"></i>
                     </i>
-                    <span class="item-name">Error log</span>
-                </a>
-            </li>
-        @endif
-        @if (Route::has('admin.diagnostics.status'))
-            <li class="nav-item">
-                <a class="nav-link {{ request()->routeIs('admin.diagnostics.status') ? 'active' : '' }}"
-                    href="{{ route('admin.diagnostics.status') }}">
-                    <i class="icon" title="System status" data-bs-toggle="tooltip" data-bs-placement="right"
-                        aria-label="System status" data-bs-original-title="System status">
-                        <i class="ph ph-gauge fs-4"></i>
+                    <span class="item-name">System info</span>
+                    <i class="right-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" class="icon-18" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
                     </i>
-                    <span class="item-name">System status</span>
                 </a>
+                <ul class="sub-nav collapse {{ request()->routeIs('admin.updates.*') || request()->routeIs('admin.diagnostics.*') ? 'show' : '' }}"
+                    id="sidebar-system-info" data-bs-parent="#sidebar-menu">
+                    @if (Route::has('admin.updates.index'))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.updates.*') ? 'active' : '' }}"
+                                href="{{ route('admin.updates.index') }}">
+                                <i class="icon" data-bs-toggle="tooltip" title="System Updates" data-bs-placement="right"
+                                    aria-label="System Updates" data-bs-original-title="System Updates">
+                                    <i class="ph ph-download-simple fs-5"></i>
+                                </i>
+                                <span class="item-name">System Updates</span>
+                            </a>
+                        </li>
+                    @endif
+                    @if (Route::has('admin.diagnostics.logs'))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.diagnostics.logs') ? 'active' : '' }}"
+                                href="{{ route('admin.diagnostics.logs') }}">
+                                <i class="icon" data-bs-toggle="tooltip" title="Error log" data-bs-placement="right"
+                                    aria-label="Error log" data-bs-original-title="Error log">
+                                    <i class="ph ph-file-text fs-5"></i>
+                                </i>
+                                <span class="item-name">Error log</span>
+                            </a>
+                        </li>
+                    @endif
+                    @if (Route::has('admin.diagnostics.status'))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.diagnostics.status') ? 'active' : '' }}"
+                                href="{{ route('admin.diagnostics.status') }}">
+                                <i class="icon" data-bs-toggle="tooltip" title="System status" data-bs-placement="right"
+                                    aria-label="System status" data-bs-original-title="System status">
+                                    <i class="ph ph-gauge fs-5"></i>
+                                </i>
+                                <span class="item-name">System status</span>
+                            </a>
+                        </li>
+                    @endif
+                    @if (Route::has('admin.diagnostics.signups'))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.diagnostics.signups') ? 'active' : '' }}"
+                                href="{{ route('admin.diagnostics.signups') }}">
+                                <i class="icon" data-bs-toggle="tooltip" title="Signup attempts" data-bs-placement="right"
+                                    aria-label="Signup attempts" data-bs-original-title="Signup attempts">
+                                    <i class="ph ph-user-plus fs-5"></i>
+                                </i>
+                                <span class="item-name">Signup attempts</span>
+                            </a>
+                        </li>
+                    @endif
+                </ul>
             </li>
         @endif
     @endrole
