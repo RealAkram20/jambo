@@ -116,6 +116,7 @@ return [
 
     "season3" => "3 Season",
     "series_today" => "in Series Today",
+    "movies_today" => "in Movies Today",
 
     "sonil" => "sonil",
     "sonil_desc" => "sonil",
