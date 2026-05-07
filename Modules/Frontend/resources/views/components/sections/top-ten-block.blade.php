@@ -14,6 +14,7 @@
                             'countValue' => $i + 1,
                             'cardUrlPath' => route('frontend.movie_detail', $movie->slug),
                             'productPremium' => (bool) $movie->tier_required,
+                            'badgeLabel' => __('streamMovies.movies_today'),
                         ])
                     </li>
                 @empty

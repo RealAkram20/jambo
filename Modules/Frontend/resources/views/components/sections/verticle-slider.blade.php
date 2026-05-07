@@ -1,9 +1,4 @@
-@php
-    // Vertical slider doubles as the Top 10 Movies hero — same data set
-    // as the rail above so the badge ("#X in Movies Today") lines up with
-    // the actual ranking.
-    $items = $topMovies ?? collect();
-@endphp
+@php $items = $verticalFeatured ?? collect(); @endphp
 <div class="verticle-slider section-padding-bottom">
     <div class="slider">
         <div class="slider-flex position-relative">
@@ -24,7 +19,7 @@
                 <div class="swiper-container" data-swiper="slider-images-inner">
                     <div class="swiper-wrapper">
                         @foreach ($items as $item)
-                            @include('frontend::components.partials.vertical-banner', ['item' => $item, 'rank' => $loop->iteration])
+                            @include('frontend::components.partials.vertical-banner', ['item' => $item])
                         @endforeach
                         <div class="swiper-button swiper-button-next"></div>
                         <div class="swiper-button swiper-button-prev"></div>
