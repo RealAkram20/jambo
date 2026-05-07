@@ -11,27 +11,11 @@ use Illuminate\Support\Facades\Cache;
  * browse rails immediately instead of after the
  * `TopPicksRecommender` per-user TTL expires.
  *
- * The companion `PersonalisationCacheObserver` only flushes when a
- * user produces a watch / rating / watchlist signal — it doesn't
- * know about admin-side publishes. Without this class, an admin can
- * publish a series, see it linked from the notification (which
- * doesn't go through any cache), and still have it absent from the
- * personalised home rails for up to an hour. That's the
- * "underperformance" gap.
- *
- * Implementation note: we call `Cache::flush()` rather than
- * iterating user-by-user TopPicks keys. The flush is O(1) regardless
- * of user count, and since admin publishes are rare events (handful
- * per day, not per request), the marginal cost of re-warming
- * unrelated caches on the next page load is negligible. Iterating
- * per-user keys would scale linearly with users and need queueing
- * to avoid blocking the admin save response under file cache.
- *
- * Sessions are NOT affected — Laravel's default config puts sessions
- * on the SESSION_DRIVER store (typically file), distinct from the
- * CACHE_DRIVER store this method targets, so users stay logged in.
- * Rate-limiter counters do reset, which on this rare-event surface
- * is harmless.
+ * Full architecture, including the rule that mutations MUST go
+ * through Eloquent (not query-builder mass updates) for this to
+ * fire, is in docs/architecture/content-cache-invalidation.md.
+ * The Show / Movie / Episode model docblocks carry a copy of that
+ * rule so anyone editing the models sees it immediately.
  */
 class CatalogCacheObserver
 {

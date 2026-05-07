@@ -2,6 +2,45 @@
 
 ## Jambo
 
+### 1.7.8 — Cache invalidation: contributor docs + model warnings
+
+Follow-up to 1.7.7. The fix is correct, but it has one prerequisite
+that the codebase wasn't enforcing: every mutation of `status` or
+`published_at` on `Show`, `Movie`, `Episode` must go through Eloquent
+so the `CatalogCacheObserver` actually fires. Query-builder mass
+updates (`Show::query()->update([...])`, `DB::table()->update([...])`)
+silently bypass model events — and a future contributor who doesn't
+know that could re-introduce the "new content not appearing" bug
+without realising it.
+
+Three layers of defense added so this can't happen again:
+
+1. **Inline warnings on the model docblocks** —
+   [Show](Modules/Content/app/Models/Show.php),
+   [Movie](Modules/Content/app/Models/Movie.php),
+   [Episode](Modules/Content/app/Models/Episode.php) now each carry
+   an `IMPORTANT — content-cache invalidation contract:` paragraph
+   right at the top of the class docblock. Anyone editing these
+   files sees the rule before they touch any code.
+
+2. **Architecture doc** at
+   [docs/architecture/content-cache-invalidation.md](docs/architecture/content-cache-invalidation.md).
+   Comprehensive walk-through: every cache layer + key + TTL, both
+   invalidation observers (Catalog + Personalisation), the rationale
+   for `Cache::flush()` over surgical forgetting, operator escape
+   hatches, and a 5-step diagnostic checklist for "new content not
+   appearing" reports. ~150 lines, indexed in the docs/ folder for
+   onboarding.
+
+3. **Cross-references** — the `CatalogCacheObserver` docblock now
+   points at the architecture doc; the doc points back at every
+   related file in a "File map" table at the bottom. Anyone who
+   touches one piece of this system can find every other piece in
+   two clicks.
+
+No behaviour change in this release — purely defensive. The runtime
+fix in 1.7.7 still does all the work.
+
 ### 1.7.7 — Newly-published content visible immediately on home rails
 
 User report: publishing a fully-stocked series doesn't make it

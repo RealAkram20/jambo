@@ -27,6 +27,16 @@ use Modules\Content\database\factories\ShowFactory;
  * @property string $status
  * @property ?\Illuminate\Support\Carbon $published_at
  * @property int $views_count
+ *
+ * IMPORTANT — content-cache invalidation contract:
+ * When mutating `status` or `published_at`, ALWAYS use Eloquent
+ * (`$show->save()`, `$show->update([...])`, `$show->fill().save()`).
+ * Do NOT use `Show::query()->update([...])` or `DB::table('shows')->update([...])`
+ * — those bypass model events, which prevents
+ * `Modules\Frontend\app\Observers\CatalogCacheObserver` from firing,
+ * which leaves the personalised home rails (Top Picks, Smart Shuffle,
+ * Fresh Picks, Upcoming) showing stale content until TTL expiry.
+ * Full architecture: docs/architecture/content-cache-invalidation.md
  */
 class Show extends Model
 {

@@ -28,6 +28,16 @@ use Modules\Content\database\factories\MovieFactory;
  * @property string $status
  * @property ?\Illuminate\Support\Carbon $published_at
  * @property int $views_count
+ *
+ * IMPORTANT — content-cache invalidation contract:
+ * When mutating `status` or `published_at`, ALWAYS use Eloquent
+ * (`$movie->save()`, `$movie->update([...])`, `$movie->fill().save()`).
+ * Do NOT use `Movie::query()->update([...])` or `DB::table('movies')->update([...])`
+ * — those bypass model events, which prevents
+ * `Modules\Frontend\app\Observers\CatalogCacheObserver` from firing,
+ * which leaves the personalised home rails (Top Picks, Smart Shuffle,
+ * Fresh Picks, Upcoming) showing stale content until TTL expiry.
+ * Full architecture: docs/architecture/content-cache-invalidation.md
  */
 class Movie extends Model
 {

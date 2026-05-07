@@ -24,6 +24,17 @@ use Modules\Content\database\factories\EpisodeFactory;
  * @property ?string $video_url
  * @property ?string $tier_required
  * @property ?\Illuminate\Support\Carbon $published_at
+ *
+ * IMPORTANT — content-cache invalidation contract:
+ * When mutating `published_at`, ALWAYS use Eloquent
+ * (`$episode->save()`, `$episode->update([...])`, `$episode->fill().save()`).
+ * Do NOT use `Episode::query()->update([...])` or
+ * `DB::table('episodes')->update([...])` — those bypass model events,
+ * which prevents `Modules\Frontend\app\Observers\CatalogCacheObserver`
+ * from firing. The parent show's `Show::scopePublished` requires at
+ * least one published episode, so a bypassed publish here ALSO leaves
+ * the parent series invisible on cached home rails until TTL expiry.
+ * Full architecture: docs/architecture/content-cache-invalidation.md
  */
 class Episode extends Model
 {
