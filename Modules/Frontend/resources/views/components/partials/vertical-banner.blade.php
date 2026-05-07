@@ -13,8 +13,11 @@
         ? floor($item->runtime_minutes / 60) . 'hr : ' . ($item->runtime_minutes % 60) . 'm'
         : null;
 
-    // 5-star display from average rating (0-5 scale).
-    $avg = $item->ratings()->avg('stars');
+    // 5-star display from average rating (0-5 scale). Prefer the
+    // eager-loaded `ratings_avg_stars` from SectionDataComposer's
+    // loadAvg() so we don't N+1 once per slide; fall back to a lazy
+    // ratings()->avg() if some other caller skipped the eager load.
+    $avg = $item->ratings_avg_stars ?? $item->ratings()->avg('stars');
     $avg = $avg !== null ? max(0, min(5, (float) $avg)) : 5;
 
     // IMDB-style numeric score (display to 1 dp, 0–5 range to match stars).
@@ -28,6 +31,16 @@
     </div>
     <div class="description">
         <div class="block-description">
+            {{-- "Top 10" rank badge — same gold trending-label tile + label
+                 pill the series tab-slider uses, so the vertical movie hero
+                 communicates the same Top-10-of-the-day intent. --}}
+            @isset($rank)
+                <div class="d-flex align-items-center gap-3 mb-3 justify-content-center justify-content-lg-start">
+                    <img src="{{ asset('frontend/images/pages/trending-label.webp') }}"
+                         class="img-fluid trending-label-img rounded-3" alt="{{ __('sectionTitle.top_ten') }}">
+                    <span class="text-gold fw-bold font-size-18">#{{ $rank }} {{ __('streamMovies.movies_today') }}</span>
+                </div>
+            @endisset
             @if ($genres->count())
                 <ul class="ps-0 mb-2 pb-1 list-inline d-flex flex-wrap align-items-center movie-tag justify-content-center justify-content-lg-start genres-list gap-1 gap-sm-0">
                     @foreach ($genres as $g)

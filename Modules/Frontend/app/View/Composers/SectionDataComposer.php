@@ -87,11 +87,17 @@ class SectionDataComposer
         $movieBase = fn () => Movie::published()->with('genres');
         $showBase = fn () => Show::published()->with('genres');
 
+        // Compute Top 10 Movies once and reuse: the top-ten rail uses the
+        // full set, the vertical hero slider uses the top 5 (so its
+        // "#X in Movies Today" rank badge is honest without doubling the
+        // per-slide work the right banner does).
+        $topMovies = app(TopPicksRecommender::class)->globalTopPicks(Movie::class, 10);
+
         return [
             // Movies
             'latestMovies'   => $movieBase()->orderByDesc('published_at')->take(10)->get(),
             'popularMovies'  => $movieBase()->orderByDesc('views_count')->take(10)->get(),
-            'topMovies'      => app(TopPicksRecommender::class)->globalTopPicks(Movie::class, 10),
+            'topMovies'      => $topMovies,
             // Upcoming — driven by the STATUS_UPCOMING flag, not a future
             // published_at (the old query was unsatisfiable because the
             // published() scope already forces published_at <= now).
@@ -111,13 +117,12 @@ class SectionDataComposer
             'heroMovies'     => $movieBase()->orderByDesc('published_at')->take(3)->get(),
             'heroItems'      => $this->buildHero(),
 
-            // Vertical slider (editorial feature, movies only)
-            'verticalFeatured' => Movie::published()
-                ->with('genres')
-                ->orderByDesc('views_count')
-                ->orderByDesc('rating')
-                ->take(5)
-                ->get(),
+            // Vertical slider — top 5 of the Top 10 Movies of the Day so
+            // the "#X in Movies Today" badge on each slide is accurate.
+            // loadAvg() pre-computes ratings_avg_stars in a single batch
+            // query so vertical-banner doesn't N+1 a ratings()->avg() call
+            // per slide.
+            'verticalFeatured' => $topMovies->take(5)->loadAvg('ratings', 'stars'),
 
             // Tab slider — Top 10 Series of the Day: ranked by distinct 24h
             // viewers, cached on a per-date key so the shelf is stable within

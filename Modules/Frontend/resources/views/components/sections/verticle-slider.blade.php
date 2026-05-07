@@ -1,4 +1,9 @@
-@php $items = $verticalFeatured ?? collect(); @endphp
+@php
+    // $verticalFeatured is the top 5 of the Top 10 Movies of the Day
+    // (see SectionDataComposer). Passing $loop->iteration as $rank to the
+    // banner partial so the "#X in Movies Today" badge labels each slide.
+    $items = $verticalFeatured ?? collect();
+@endphp
 <div class="verticle-slider section-padding-bottom">
     <div class="slider">
         <div class="slider-flex position-relative">
@@ -19,7 +24,7 @@
                 <div class="swiper-container" data-swiper="slider-images-inner">
                     <div class="swiper-wrapper">
                         @foreach ($items as $item)
-                            @include('frontend::components.partials.vertical-banner', ['item' => $item])
+                            @include('frontend::components.partials.vertical-banner', ['item' => $item, 'rank' => $loop->iteration])
                         @endforeach
                         <div class="swiper-button swiper-button-next"></div>
                         <div class="swiper-button swiper-button-prev"></div>
