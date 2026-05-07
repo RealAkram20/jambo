@@ -5,7 +5,11 @@ namespace Modules\Frontend\app\Providers;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use Modules\Content\app\Models\Episode;
+use Modules\Content\app\Models\Movie;
 use Modules\Content\app\Models\Rating;
+use Modules\Content\app\Models\Show;
+use Modules\Frontend\app\Observers\CatalogCacheObserver;
 use Modules\Frontend\app\Observers\PersonalisationCacheObserver;
 use Modules\Frontend\app\View\Composers\HeaderComposer;
 use Modules\Frontend\app\View\Composers\SectionDataComposer;
@@ -31,6 +35,7 @@ class FrontendServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom(module_path($this->moduleName, 'database/migrations'));
         $this->registerViewComposers();
         $this->registerPersonalisationObservers();
+        $this->registerCatalogCacheObservers();
     }
 
     /**
@@ -44,6 +49,24 @@ class FrontendServiceProvider extends ServiceProvider
         WatchHistoryItem::observe(PersonalisationCacheObserver::class);
         Rating::observe(PersonalisationCacheObserver::class);
         WatchlistItem::observe(PersonalisationCacheObserver::class);
+    }
+
+    /**
+     * Admin-side content writes (Show / Movie / Episode publish or
+     * unpublish, plus creates and deletes) flush the application
+     * cache so freshly-published items appear on home rails the
+     * moment they go live, without admins having to run
+     * `optimize:clear` after each publish. The companion
+     * PersonalisationCacheObserver only fires on user-side signals
+     * (watch / rate / watchlist) and would otherwise let the
+     * personalised shelves sit on yesterday's pool until TTL
+     * expiry — exactly the lag users were observing post-publish.
+     */
+    protected function registerCatalogCacheObservers(): void
+    {
+        Show::observe(CatalogCacheObserver::class);
+        Movie::observe(CatalogCacheObserver::class);
+        Episode::observe(CatalogCacheObserver::class);
     }
 
     /**

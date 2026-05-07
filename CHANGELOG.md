@@ -2,6 +2,47 @@
 
 ## Jambo
 
+### 1.7.7 — Newly-published content visible immediately on home rails
+
+User report: publishing a fully-stocked series doesn't make it
+appear on the home page or browsable rails for up to an hour —
+yet the click-through from the episode notification works fine,
+producing inconsistent perception of "is this live or not". On
+2026-05-06 the workaround was a manual `optimize:clear` on the
+VPS. Risk for end users: they trust the notification, browse for
+the same content elsewhere, can't find it, churn.
+
+Root cause traced in conversation:
+
+- The notification path goes `EpisodeAdded → /series/{slug} → scopeDetailVisible`
+  — a permissive query, no caching, always fresh.
+- The home / browse path goes through
+  `TopPicksRecommender` (Top Picks, Smart Shuffle, Fresh Picks,
+  Upcoming) which caches per-user shelves under
+  `user:{id}:top_picks:v1` etc., TTL 30-60 minutes.
+- The existing `PersonalisationCacheObserver` only flushes those
+  keys when the *user* takes a signal action (watch / rate /
+  watchlist). Admin-side publishes never triggered an
+  invalidation, so the cache sat on yesterday's candidate pool.
+
+Fix: new `Modules\Frontend\app\Observers\CatalogCacheObserver`
+attached to `Show`, `Movie` and `Episode`. On `created` /
+`deleted` it always flushes; on `updated` it flushes only when
+`status` or `published_at` actually changed (so saving an
+episode's description or runtime doesn't pointlessly trash the
+cache). Calls `Cache::flush()` — O(1) regardless of user count,
+much simpler than iterating per-user keys, and acceptable
+because admin publishes are rare events. Wrapped in a
+`try/catch` so a transient cache outage during admin save can't
+500 the request.
+
+Sessions are unaffected — Laravel's default config puts sessions
+on the SESSION_DRIVER store, distinct from CACHE_DRIVER. Rate
+limiter counters do reset, which on this surface is harmless.
+
+Registered in `FrontendServiceProvider::boot()` next to the
+existing `PersonalisationCacheObserver` registration.
+
 ### 1.7.6 — Notifications: don't alert on episodes whose show is draft
 
 User report: when an episode is published while its parent
