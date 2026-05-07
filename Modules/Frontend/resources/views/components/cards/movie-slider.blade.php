@@ -1,5 +1,10 @@
 @php
-    $sliderImg = media_url($imagePath);
+    // Route the banner backdrop through the /img proxy at 1920w
+    // WebP. This component is reused across every listing page
+    // (movies, series, upcoming, genres, VJ pages) — letting it
+    // serve raw uploaded backdrops would mean every navigation
+    // pays the full multi-MB download. See 1.8.2 changelog.
+    $sliderImg = media_img($imagePath, 1920);
     // Optional override so callers like the Upcoming hero can swap
     // "Play Now" for a context-appropriate label without a second
     // partial. Existing callers that don't pass one get the default.

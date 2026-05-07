@@ -2,6 +2,46 @@
 
 ## Jambo
 
+### 1.8.2 — Perf: route the remaining full-screen backdrops through /img
+
+User report: poster cards load fine, but the **big background
+images** on detail pages, listing pages, and the home hero feel
+slow. Code review confirmed the gap: the 1.6.0 image-proxy work
+optimized poster CARDS via `media_img()` + `srcset`, but five
+templates that paint full-screen `background-image` backdrops
+were still calling raw `media_url()` and serving the original
+uploaded file (often 4K source, 3-5MB) to every visitor.
+
+Five one-liner swaps to `media_img($value, 1920, $fallback)` so
+every full-screen backdrop now goes through the same Glide
+proxy as the cards (WebP, q=80, 7-day disk + browser cache):
+
+- [movie-slider.blade.php](Modules/Frontend/resources/views/components/cards/movie-slider.blade.php) —
+  banner reused across **TV shows / Movies / Upcoming / Genres
+  / every VJ page**. The single biggest fix.
+- [Pages/Movies/detail-page.blade.php](Modules/Frontend/resources/views/Pages/Movies/detail-page.blade.php) —
+  21:9 backdrop on movie detail.
+- [Pages/TvShows/detail-page.blade.php](Modules/Frontend/resources/views/Pages/TvShows/detail-page.blade.php) —
+  21:9 backdrop on series detail.
+- [hero-banner.blade.php](Modules/Frontend/resources/views/components/partials/hero-banner.blade.php) —
+  OTT home page hero rotator.
+- [tab-series-slide.blade.php](Modules/Frontend/resources/views/components/partials/tab-series-slide.blade.php) —
+  Trending tab slider.
+
+Expected impact per affected page: **~5MB → ~150KB** per
+backdrop, identical visual quality (WebP q=80). External URLs
+(TMDB / IMDB / etc.) pass through unchanged because
+`media_img()` bails to the original URL when the value starts
+with `http(s)://` — see [app/helpers.php](app/helpers.php).
+
+First visit per unique backdrop pays a one-time ~200ms resize
+cost while Glide caches the WebP variant; subsequent hits are
+served straight from disk + the 7-day browser cache from the
+1.5.33 vhost rule.
+
+No deploy steps beyond `git pull` + `php artisan view:clear`.
+No new dependency, no migration, no DB change.
+
 ### 1.8.1 — Sidebar: group operational pages under "System info"
 
 The four admin-side operational pages — System Updates, Error log,
