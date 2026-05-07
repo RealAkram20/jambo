@@ -239,6 +239,9 @@ Route::middleware(['auth', 'role:admin'])
             ->name('diagnostics.logs.clear');
         Route::get('diagnostics/status', [AdminDiagnosticsController::class, 'statusIndex'])
             ->name('diagnostics.status');
+        // Signup attempts triage — see docs/architecture/signup-diagnostics.md
+        Route::get('diagnostics/signups', [AdminDiagnosticsController::class, 'signupsIndex'])
+            ->name('diagnostics.signups');
     });
 
 require __DIR__ . '/auth.php';

@@ -12,6 +12,17 @@
         <h1>Create your account</h1>
         <p class="jambo-auth-card__subtitle">It's free to start — pick a plan once you're in.</p>
 
+        {{-- Friendly retry message after a 419 / CSRF expiry. The
+             handler in App\Exceptions\Handler catches CSRF mismatches
+             on POST /register, logs a SignupAttempt row, and bounces
+             back here with this flash so the user knows what happened
+             instead of staring at Laravel's generic "Page Expired". --}}
+        @if (session('error'))
+            <div class="jambo-auth-alert">
+                {{ session('error') }}
+            </div>
+        @endif
+
         @if ($errors->any())
             <div class="jambo-auth-alert">
                 @if ($errors->count() === 1)

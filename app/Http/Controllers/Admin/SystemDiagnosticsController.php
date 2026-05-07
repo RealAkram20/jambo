@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\SignupAttempt;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -83,6 +84,73 @@ class SystemDiagnosticsController extends Controller
 
         return redirect()->route('admin.diagnostics.logs', ['file' => $file])
             ->with('success', "Cleared $file.");
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Signup attempts                                                    */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Read-only view of the most recent public signup attempts. Each
+     * row in `signup_attempts` is one POST to /register, success or
+     * failure. When a community member reports "I tried to sign up
+     * and got an error", filter by their email or IP and the
+     * outcome column tells you instantly which of the five failure
+     * paths they hit (CSRF expired, throttle, recaptcha, validation,
+     * honeypot, exception). See docs/architecture/signup-diagnostics.md.
+     */
+    public function signupsIndex(Request $request): View
+    {
+        $outcome = (string) $request->query('outcome', '');
+        $search  = trim((string) $request->query('q', ''));
+
+        $query = SignupAttempt::query()->orderByDesc('id');
+
+        if ($outcome !== '') {
+            $query->where('outcome', $outcome);
+        }
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('email_attempted', 'like', "%$search%")
+                    ->orWhere('username_attempted', 'like', "%$search%")
+                    ->orWhere('ip', 'like', "%$search%");
+            });
+        }
+
+        $attempts = $query->paginate(50)->withQueryString();
+
+        // Per-outcome counts in the last 7 days — quick "is this
+        // class of failure trending" answer at the top of the page.
+        $since = now()->subDays(7);
+        $countsByOutcome = SignupAttempt::query()
+            ->where('created_at', '>=', $since)
+            ->selectRaw('outcome, COUNT(*) as total')
+            ->groupBy('outcome')
+            ->pluck('total', 'outcome')
+            ->all();
+
+        // Totals over the same window so the page can show
+        // success-rate at a glance.
+        $totalSuccess = $countsByOutcome[SignupAttempt::OUTCOME_SUCCESS] ?? 0;
+        $totalAll     = array_sum($countsByOutcome);
+
+        return view('admin.diagnostics.signups', [
+            'attempts'        => $attempts,
+            'outcome'         => $outcome,
+            'search'          => $search,
+            'countsByOutcome' => $countsByOutcome,
+            'totalSuccess'    => $totalSuccess,
+            'totalAll'        => $totalAll,
+            'allOutcomes'     => [
+                SignupAttempt::OUTCOME_SUCCESS         => 'Success',
+                SignupAttempt::OUTCOME_HONEYPOT        => 'Honeypot',
+                SignupAttempt::OUTCOME_RECAPTCHA_FAIL  => 'reCAPTCHA failed',
+                SignupAttempt::OUTCOME_VALIDATION      => 'Validation error',
+                SignupAttempt::OUTCOME_CSRF_EXPIRED    => 'CSRF / 419 expired',
+                SignupAttempt::OUTCOME_THROTTLE        => 'Throttled (429)',
+                SignupAttempt::OUTCOME_EXCEPTION       => 'Server exception',
+            ],
+        ]);
     }
 
     /* ------------------------------------------------------------------ */

@@ -2,6 +2,61 @@
 
 ## Jambo
 
+### 1.8.0 — Signup diagnostics + friendly 419 retry
+
+User reports of "I tried to sign up and got an error, no account
+appeared in your admin list" turned out — after deep audit — to be
+**CSRF token expiry (HTTP 419 "Page Expired")**. Users were leaving
+the `/register` form open for hours and submitting after their
+session token had rolled. Laravel's generic 419 page told them
+nothing; they reported it as a 404 and gave up. Worse: we had no
+way to tell *which* of the signup form's six outcomes (success +
+five failure modes) each user actually hit, so support was
+guessing.
+
+Three changes in this release:
+
+1. **`signup_attempts` log table.** Every public POST to
+   `/register` now writes one row recording the outcome
+   (`success` | `honeypot` | `recaptcha_fail` | `validation_error`
+   | `csrf_expired` | `throttle` | `exception`) plus IP, user-agent,
+   email, username and a JSON `details` blob (validation messages,
+   exception details, etc.). Writes are wrapped in try/catch so a
+   diagnostic write can never crash the actual signup it's
+   describing.
+
+2. **Friendly 419 handler.** `App\Exceptions\Handler` now catches
+   `TokenMismatchException` on POST `/register` and bounces the
+   user back to the form with a flash message: *"Your session
+   expired before you could sign up — please try again."* The
+   `register.blade.php` view renders the flash as a soft alert so
+   the user knows what happened instead of staring at the generic
+   "Page Expired" wall. `ThrottleRequestsException` is also caught
+   so 429s get logged (default 429 page still shows; we just gain
+   visibility).
+
+3. **Admin triage page** at `/admin/diagnostics/signups` (gated to
+   `role:admin`). Shows a last-7-days success-rate summary, filters
+   by outcome, free-text search over email/username/IP. Now when
+   any user reports "signup is broken", it's a 30-second admin-page
+   lookup instead of guessing.
+
+Architecture doc:
+[docs/architecture/signup-diagnostics.md](docs/architecture/signup-diagnostics.md)
+— covers every logging entry point, the privacy notes, and a
+"triage checklist" mapping each outcome to the corresponding
+support response.
+
+Operator notes for deploy:
+- `php artisan migrate` runs the new
+  `2026_05_07_120000_create_signup_attempts_table.php` migration.
+- No code changes to the signup happy-path behaviour — successful
+  signups proceed exactly as before, just with one extra row
+  written to `signup_attempts`.
+- Consider bumping `SESSION_LIFETIME` in `.env` from the default
+  120 minutes to ~720 (12 hours) to cover the most common
+  long-idle-tab signup case so 419s become genuinely rare.
+
 ### 1.7.8 — Cache invalidation: contributor docs + model warnings
 
 Follow-up to 1.7.7. The fix is correct, but it has one prerequisite
