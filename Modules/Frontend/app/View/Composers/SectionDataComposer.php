@@ -111,13 +111,9 @@ class SectionDataComposer
             'heroMovies'     => $movieBase()->orderByDesc('published_at')->take(3)->get(),
             'heroItems'      => $this->buildHero(),
 
-            // Vertical slider (editorial feature, movies only)
-            'verticalFeatured' => Movie::published()
-                ->with('genres')
-                ->orderByDesc('views_count')
-                ->orderByDesc('rating')
-                ->take(5)
-                ->get(),
+            // Vertical slider now reuses $topMovies (Top 10 Movies of the
+            // Day) so the new "#X in Movies Today" badge is honest. The old
+            // editorial 5-movie query was retired here.
 
             // Tab slider — Top 10 Series of the Day: ranked by distinct 24h
             // viewers, cached on a per-date key so the shelf is stable within

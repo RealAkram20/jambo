@@ -28,6 +28,16 @@
     </div>
     <div class="description">
         <div class="block-description">
+            {{-- "Top 10" rank badge — same gold trending-label tile + label pill
+                 used by the series tab-slider, applied here so the vertical
+                 movie hero communicates the same Top-10-of-the-day intent. --}}
+            @isset($rank)
+                <div class="d-flex align-items-center gap-3 mb-3 justify-content-center justify-content-lg-start">
+                    <img src="{{ asset('frontend/images/pages/trending-label.webp') }}"
+                         class="img-fluid trending-label-img rounded-3" alt="{{ __('sectionTitle.top_ten') }}">
+                    <span class="text-gold fw-bold font-size-18">#{{ $rank }} {{ __('streamMovies.movies_today') }}</span>
+                </div>
+            @endisset
             @if ($genres->count())
                 <ul class="ps-0 mb-2 pb-1 list-inline d-flex flex-wrap align-items-center movie-tag justify-content-center justify-content-lg-start genres-list gap-1 gap-sm-0">
                     @foreach ($genres as $g)
