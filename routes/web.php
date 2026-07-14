@@ -247,6 +247,7 @@ Route::middleware(['auth', 'role:admin'])
         Route::post('settings/maintenance', [AdminSettingController::class, 'updateMaintenance'])->name('settings.maintenance');
         Route::post('settings/access', [AdminSettingController::class, 'updateAccess'])->name('settings.access');
         Route::post('settings/google', [AdminSettingController::class, 'updateGoogleAuth'])->name('settings.google');
+        Route::post('settings/video-cdn', [AdminSettingController::class, 'updateVideoCdn'])->name('settings.video-cdn');
 
         // Diagnostics: error log tail + system status snapshot. Both
         // are read-only views; only `logs.clear` mutates state (it

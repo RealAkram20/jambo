@@ -376,10 +376,12 @@ class ProfileHubController extends Controller
     {
         $user = $this->resolveOwn($request, $username);
 
+        // Oldest saved first, so the page reads top-to-bottom in the exact
+        // order the player will walk it. See WatchlistItem::scopeInPlayOrder.
         $movies = WatchlistItem::where('user_id', $user->id)
             ->where('watchable_type', (new Movie)->getMorphClass())
             ->with('watchable.genres')
-            ->latest('added_at')
+            ->inPlayOrder()
             ->get()
             ->pluck('watchable')
             ->filter();
@@ -391,7 +393,7 @@ class ProfileHubController extends Controller
             ->with(['watchable' => function ($q) {
                 $q->with('genres')->withCount('seasons');
             }])
-            ->latest('added_at')
+            ->inPlayOrder()
             ->get()
             ->pluck('watchable')
             ->filter();

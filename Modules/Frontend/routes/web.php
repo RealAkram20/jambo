@@ -170,6 +170,14 @@ Route::group([], function () {
     Route::get('/categories', [FrontendController::class, 'all_categories'])->name('frontend.all-categories');
     Route::get('/categories/{slug}', [FrontendController::class, 'category'])->name('frontend.category');
 
+    // Load More for the VJ rows on the taxonomy archives. One endpoint
+    // serves /categories/{slug}, /geners/{slug} and /tag/{slug}, for both
+    // movies and series (?kind=movie|show) — the archives all render the
+    // same page, so they share the same pagination too.
+    Route::get('/archive/{taxonomy}/{slug}/more-vjs', [FrontendController::class, 'taxonomyMoreVjs'])
+        ->whereIn('taxonomy', ['categories', 'genres', 'tags'])
+        ->name('frontend.taxonomy_more_vjs');
+
     // Notifications live in the Notifications module — its routes
     // are `notifications.index`, `notifications.read`,
     // `notifications.mark-all-read`, `notifications.destroy`. The

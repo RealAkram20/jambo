@@ -3,6 +3,7 @@
 namespace Modules\Streaming\app\Models;
 
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -40,6 +41,26 @@ class WatchlistItem extends Model
     public function watchable(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    /**
+     * The one true watchlist order: oldest saved first.
+     *
+     * A watchlist is a queue you work through, so the first title you
+     * saved plays first and "Next" walks *down* the list to the newest.
+     * This used to be `latest('added_at')` — newest at index 0 — which
+     * put the queue in reverse: the player's Next button stepped
+     * backwards through what you'd saved, and viewers had to press
+     * Previous to reach the title they expected next.
+     *
+     * Every surface that lists or plays the watchlist goes through this
+     * scope. Ordering it ad-hoc at the call site is what let the queue,
+     * the player sidebar and the profile page drift apart in the first
+     * place — keep it here.
+     */
+    public function scopeInPlayOrder(Builder $query): Builder
+    {
+        return $query->oldest('added_at')->oldest('id');
     }
 
     /**

@@ -91,11 +91,25 @@
                                 <small class="text-muted">A paid user must watch this share of a title to credit it.</small>
                             </div>
                             <div class="col-md-4">
+                                <label class="form-label">Free titles earn</label>
+                                <select name="free_content_earns" class="form-select">
+                                    <option value="1" @selected(old('free_content_earns', $values['free_content_earns']) === '1')>Yes — whole catalogue</option>
+                                    <option value="0" @selected(old('free_content_earns', $values['free_content_earns']) === '0')>No — premium titles only</option>
+                                </select>
+                                <small class="text-muted">Whether watch-time on titles with no tier requirement pays partners.</small>
+                            </div>
+                            <div class="col-md-4">
                                 <label class="form-label">Daily minutes cap / user</label>
                                 <input type="number" step="1" min="60" max="1440" name="daily_minutes_cap" class="form-control"
                                        value="{{ old('daily_minutes_cap', $values['daily_minutes_cap']) }}">
                                 <small class="text-muted">Anti-farming: max payable minutes one account can credit per day.</small>
                             </div>
+                        </div>
+                        <div class="alert alert-warning py-2 mb-4" style="font-size:13px;">
+                            <i class="ph ph-shield-check me-1"></i>
+                            While free titles earn, they also count against each viewer's concurrent-device limit —
+                            otherwise one paid account could farm minutes from unlimited free tabs. Free viewers with
+                            no paid subscription never earn partners anything either way.
                         </div>
 
                         <h6 class="text-uppercase text-muted mb-3" style="font-size:11px;letter-spacing:.5px;">Withdrawals</h6>

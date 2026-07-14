@@ -9,8 +9,10 @@ use Illuminate\Support\Facades\Schema;
  * single table covers movies, series, episodes, live events, etc.
  *
  * `added_at` is a domain-meaningful timestamp separate from the Eloquent
- * `created_at`; it's set explicitly by the model on insert and is what the
- * UI sorts by for "my watchlist, newest first".
+ * `created_at`; it's set explicitly by the model on insert and is the only
+ * ordering signal the watchlist has. Everything that lists or plays the
+ * watchlist sorts by it *ascending* — oldest saved first — so the list is a
+ * queue the viewer works forward through. See WatchlistItem::scopeInPlayOrder.
  */
 return new class extends Migration {
     public function up(): void
@@ -33,7 +35,7 @@ return new class extends Migration {
             // One row per (user, item) — prevents duplicates.
             $t->unique(['user_id', 'watchable_type', 'watchable_id']);
 
-            // "My watchlist, newest first".
+            // "My watchlist, in play order" — serves the ASC sort.
             $t->index(['user_id', 'added_at']);
         });
     }

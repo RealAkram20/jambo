@@ -1,23 +1,30 @@
 {{--
-    Renders a single VJ's carousel. Used by /movie (initial top-5 +
-    load-more) and /series (same flow, just scoped to shows).
+    Renders a single VJ's carousel. Used by /movie and /series (initial
+    render + load-more) and by every taxonomy archive
+    (/categories/{slug}, /geners/{slug}, /tag/{slug}), so all of them
+    group their catalogue the same way.
 
     Expects:
-      $vj          : Vj model (needs ->name, ->slug)
+      $vj          : Vj model (needs ->name, ->slug), or null for the
+                     trailing "Other" row of titles no VJ is credited on
       $items       : Collection of Movie OR Show models (with `genres` loaded)
       $contentKind : 'movie' (default) or 'show' — drives which detail
                      URL and which View-All URL the card / header link to.
+      $rowTitle    : optional header override; required when $vj is null.
 --}}
 @php
     $contentKind = $contentKind ?? 'movie';
     $isShow = $contentKind === 'show';
+    $vj = $vj ?? null;
+    $rowTitle = $rowTitle ?? $vj?->name;
     // The movies "View All" goes to /vj-movie/{slug} (movies-only
     // catalogue). /vj/{slug} is reserved for the combined overview
     // and isn't what the user wants to land on after clicking
-    // "View All" on a movies-row.
-    $viewAllUrl = $isShow
+    // "View All" on a movies-row. A VJ-less row has no per-VJ page to
+    // drill into, so it renders without the link.
+    $viewAllUrl = ! $vj ? null : ($isShow
         ? route('frontend.vj_series_detail', $vj->slug)
-        : route('frontend.vj_movie_detail', $vj->slug);
+        : route('frontend.vj_movie_detail', $vj->slug));
     $fallbackPoster = $isShow ? 'media/vikings-portrait.webp' : 'media/rabbit-portrait.webp';
     // Per-VJ display cap. The eager-loads in FrontendController
     // intentionally don't `->limit()` (Eloquent applies it to the
@@ -27,11 +34,13 @@
 @endphp
 <section class="related-movie-block mt-5 jambo-vj-row" data-kind="{{ $contentKind }}">
     <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
-        <h4 class="main-title text-capitalize mb-0">{{ $vj->name }}</h4>
-        <a href="{{ $viewAllUrl }}"
-           class="text-primary iq-view-all text-decoration-none flex-none">
-            {{ __('streamButtons.view_all') ?? 'View All' }}
-        </a>
+        <h4 class="main-title text-capitalize mb-0">{{ $rowTitle }}</h4>
+        @if ($viewAllUrl)
+            <a href="{{ $viewAllUrl }}"
+               class="text-primary iq-view-all text-decoration-none flex-none">
+                {{ __('streamButtons.view_all') ?? 'View All' }}
+            </a>
+        @endif
     </div>
     <div class="card-style-slider">
         <div class="position-relative swiper swiper-card"

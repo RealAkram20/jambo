@@ -205,6 +205,117 @@
                 </div>
             </form>
 
+            {{-- Video CDN ========================================== --}}
+            @php
+                $b2Host   = config('streaming.cdn.zones.backblaze.hostname');
+                $b2Signed = (bool) config('streaming.cdn.zones.backblaze.token_key');
+                $dbxHost  = config('streaming.cdn.zones.dropbox.hostname');
+                $dbxSigned = (bool) config('streaming.cdn.zones.dropbox.token_key');
+            @endphp
+            <form action="{{ route('admin.settings.video-cdn') }}" method="POST" class="mt-4">
+                @csrf
+
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="card-title mb-0">
+                                <i class="ph ph-broadcast me-1"></i> Video CDN
+                                @if ($b2Host)
+                                    <span class="badge bg-success ms-2">Backblaze live</span>
+                                @endif
+                                @if ($b2Signed)
+                                    <span class="badge bg-primary ms-1">Signed URLs</span>
+                                @endif
+                            </h4>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="ph ph-check me-1"></i> Save CDN
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        @if (session('status_video_cdn'))
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                <i class="ph ph-check-circle me-1"></i> {{ session('status_video_cdn') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        @endif
+
+                        <p class="text-secondary mb-3" style="font-size:13px;">
+                            A pull zone fronts one origin. The Backblaze zone accelerates every B2 movie you upload.
+                            Adding a <strong>token key</strong> makes stream links expire (security) — it does not
+                            change speed. The Dropbox zone stays off until you create a Dropbox pull zone and enter
+                            its hostname.
+                        </p>
+
+                        {{-- Backblaze zone --}}
+                        <h6 class="text-uppercase text-muted mb-2" style="font-size:11px;letter-spacing:.5px;">Backblaze zone</h6>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label" for="cdn_b2_hostname">Pull-zone hostname</label>
+                                <input type="text" name="cdn_b2_hostname" id="cdn_b2_hostname"
+                                    class="form-control @error('cdn_b2_hostname') is-invalid @enderror"
+                                    value="{{ old('cdn_b2_hostname', $b2Host) }}"
+                                    placeholder="jambofilms.b-cdn.net" autocomplete="off">
+                                @error('cdn_b2_hostname')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="cdn_b2_bucket">B2 bucket</label>
+                                <input type="text" name="cdn_b2_bucket" id="cdn_b2_bucket"
+                                    class="form-control @error('cdn_b2_bucket') is-invalid @enderror"
+                                    value="{{ old('cdn_b2_bucket', config('streaming.cdn.zones.backblaze.bucket')) }}"
+                                    placeholder="JamboFilms" autocomplete="off">
+                                @error('cdn_b2_bucket')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="cdn_b2_token_ttl">Token TTL (sec)</label>
+                                <input type="number" name="cdn_b2_token_ttl" id="cdn_b2_token_ttl"
+                                    class="form-control @error('cdn_b2_token_ttl') is-invalid @enderror"
+                                    value="{{ old('cdn_b2_token_ttl', config('streaming.cdn.zones.backblaze.token_ttl')) }}"
+                                    placeholder="28800">
+                                @error('cdn_b2_token_ttl')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="cdn_b2_token_key">Token authentication key</label>
+                                <input type="password" name="cdn_b2_token_key" id="cdn_b2_token_key"
+                                    class="form-control" value="" autocomplete="new-password"
+                                    placeholder="{{ $b2Signed ? '••••••••  saved — leave blank to keep' : 'Bunny → Security → Token Authentication key' }}">
+                                <small class="text-secondary">Turns on expiring signed URLs. Must match Token Authentication in the Bunny zone.</small>
+                            </div>
+                        </div>
+
+                        {{-- Dropbox zone --}}
+                        <h6 class="text-uppercase text-muted mb-2" style="font-size:11px;letter-spacing:.5px;">
+                            Dropbox zone
+                            @if ($dbxHost)<span class="badge bg-success ms-1">live</span>@else<span class="badge bg-secondary ms-1">normalize only</span>@endif
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="cdn_dropbox_hostname">Pull-zone hostname</label>
+                                <input type="text" name="cdn_dropbox_hostname" id="cdn_dropbox_hostname"
+                                    class="form-control @error('cdn_dropbox_hostname') is-invalid @enderror"
+                                    value="{{ old('cdn_dropbox_hostname', $dbxHost) }}"
+                                    placeholder="empty until a Dropbox pull zone exists" autocomplete="off">
+                                @error('cdn_dropbox_hostname')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="cdn_dropbox_token_ttl">Token TTL (sec)</label>
+                                <input type="number" name="cdn_dropbox_token_ttl" id="cdn_dropbox_token_ttl"
+                                    class="form-control @error('cdn_dropbox_token_ttl') is-invalid @enderror"
+                                    value="{{ old('cdn_dropbox_token_ttl', config('streaming.cdn.zones.dropbox.token_ttl')) }}"
+                                    placeholder="28800">
+                                @error('cdn_dropbox_token_ttl')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="cdn_dropbox_token_key">Token key</label>
+                                <input type="password" name="cdn_dropbox_token_key" id="cdn_dropbox_token_key"
+                                    class="form-control" value="" autocomplete="new-password"
+                                    placeholder="{{ $dbxSigned ? '••••••••  saved' : 'optional' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
             {{-- General ============================================ --}}
             <form action="{{ route('admin.settings.general') }}" method="POST" class="mt-4">
                 @csrf

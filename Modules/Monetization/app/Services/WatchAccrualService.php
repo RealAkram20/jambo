@@ -25,6 +25,9 @@ use Modules\Subscriptions\app\Models\UserSubscription;
  *  - Qualification requires an ACTIVE PAID subscription at that moment,
  *    is denied to the title's own split-partners (self-farming), and is
  *    capped per user per day (a looping account plateaus).
+ *  - Free titles mint minutes only when `free_content_earns` is on, and
+ *    when it is, ActiveStream counts them against the device cap too —
+ *    earning outside the cap is exactly the tab-farming hole.
  *  - The unique key on qualified_views makes the whole thing
  *    replay/concurrency idempotent: one payable fact per
  *    (user, title, month), ever.
@@ -105,7 +108,27 @@ class WatchAccrualService
             return;
         }
 
+        // Free titles only mint payable minutes when the program says
+        // they do. Checked BEFORE qualify() so a free title under an
+        // "premium catalogue only" deal never touches the daily cap —
+        // otherwise free viewing would eat the budget that a partner's
+        // premium titles are supposed to spend.
+        //
+        // Note watch_progress_monthly above was still written: the
+        // watch-time is recorded either way, so you can always answer
+        // "what would my free catalogue have earned?" without having
+        // to flip the switch on to find out.
+        if (self::isFreeContent($beat->item) && !MonetizationSettings::freeContentEarns()) {
+            return;
+        }
+
         $this->qualify($beat, $row, $runtimeMinutes);
+    }
+
+    /** A title with no tier_required sits on the free shelf. */
+    public static function isFreeContent($item): bool
+    {
+        return blank($item->tier_required ?? null);
     }
 
     /**
@@ -162,6 +185,7 @@ class WatchAccrualService
             'period_month' => $row->period_month->toDateString(),
             'minutes_credited' => $runtimeMinutes,
             'runtime_minutes_snapshot' => $runtimeMinutes,
+            'content_was_free' => self::isFreeContent($beat->item),
             'user_subscription_id' => $subscription->id,
             'session_id' => $beat->sessionId,
             'ip' => $beat->ip,

@@ -14,10 +14,7 @@
             @if ($items->count())
                 <div class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-7 g-3">
                     @foreach ($items as $item)
-                        {{-- type 'mixed' (category archives) carries movies AND
-                             series in one grid; each item is tagged _isShow by
-                             the controller, same convention as the hero rail. --}}
-                        @php $isShow = $type === 'show' || ($type === 'mixed' && (bool) ($item->_isShow ?? false)); @endphp
+                        @php $isShow = $type === 'show'; @endphp
                         <div class="col">
                             @include('frontend::components.cards.card-style', [
                                 'cardImage' => $item->poster_url ?: ($isShow ? 'media/vikings-portrait.webp' : 'media/rabbit-portrait.webp'),

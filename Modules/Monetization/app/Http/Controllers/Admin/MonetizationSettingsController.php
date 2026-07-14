@@ -30,6 +30,7 @@ class MonetizationSettingsController extends Controller
             'gateway_fee_percent' => 'required|numeric|min:0|max:100',
             'infra_cost_monthly' => 'required|numeric|min:0',
             'qualify_threshold_percent' => 'required|integer|min:1|max:100',
+            'free_content_earns' => 'required|boolean',
             'min_withdrawal' => 'required|numeric|min:0',
             'daily_minutes_cap' => 'required|integer|min:60|max:1440',
             'payout_change_cooldown_days' => 'required|integer|min:0|max:90',
@@ -50,6 +51,10 @@ class MonetizationSettingsController extends Controller
         setting(['monetization.gateway_fee_percent', (string) $data['gateway_fee_percent']]);
         setting(['monetization.infra_cost_monthly', (string) $data['infra_cost_monthly']]);
         setting(['monetization.qualify_threshold_percent', (string) $data['qualify_threshold_percent']]);
+        // Turning this on also tightens the concurrent-device cap onto
+        // free titles — see ActiveStream::countsFreeContent(). The two
+        // are one decision, not two.
+        setting(['monetization.free_content_earns', $data['free_content_earns'] ? '1' : '0']);
         setting(['monetization.min_withdrawal', (string) $data['min_withdrawal']]);
         setting(['monetization.daily_minutes_cap', (string) $data['daily_minutes_cap']]);
         setting(['monetization.payout_change_cooldown_days', (string) $data['payout_change_cooldown_days']]);
@@ -75,6 +80,7 @@ class MonetizationSettingsController extends Controller
             'gateway_fee_percent' => MonetizationSettings::gatewayFeePercent(),
             'infra_cost_monthly' => MonetizationSettings::infraCostMonthly(),
             'qualify_threshold_percent' => (string) MonetizationSettings::qualifyThresholdPercent(),
+            'free_content_earns' => MonetizationSettings::freeContentEarns() ? '1' : '0',
             'min_withdrawal' => MonetizationSettings::minWithdrawal(),
             'daily_minutes_cap' => (string) MonetizationSettings::dailyMinutesCap(),
             'payout_change_cooldown_days' => (string) MonetizationSettings::payoutChangeCooldownDays(),

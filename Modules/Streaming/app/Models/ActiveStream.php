@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Modules\Monetization\app\Services\MonetizationSettings;
 
 /**
  * Live per-device streaming session for the concurrent-streams cap.
@@ -60,6 +61,52 @@ class ActiveStream extends Model
     }
 
     /**
+     * Do free titles count against the concurrent-device cap?
+     *
+     * They do exactly when they can EARN — this is the safety interlock
+     * on `monetization.free_content_earns`. Anything that mints money
+     * has to sit inside the device cap, or a single paid account can
+     * open ten tabs of free content, walk away, and farm ten streams'
+     * worth of watch-minutes in parallel with nothing to stop it.
+     *
+     * Historically free content was cap-exempt (generous to free
+     * viewers, and nothing was earning yet). That stays the behaviour
+     * whenever free content isn't paying anyone.
+     *
+     * Fails open to premium-only on error, and that's the correct
+     * direction: if Monetization can't answer, it isn't accruing, so
+     * there are no minutes to farm and no reason to tighten the cap on
+     * real viewers. Streaming must never break because Monetization is
+     * unhappy — same doctrine as RecordWatchAccrual.
+     */
+    public static function countsFreeContent(): bool
+    {
+        try {
+            return MonetizationSettings::accruing()
+                && MonetizationSettings::freeContentEarns();
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * The morph constraint shared by activeCount() and activeFor(), so
+     * the two can never disagree about what "an active stream" is —
+     * a picker that lists three devices while the counter says two is
+     * a support ticket that cannot be resolved.
+     */
+    protected static function cappedContentConstraint(): callable
+    {
+        $countsFree = static::countsFreeContent();
+
+        return function ($mq) use ($countsFree) {
+            if (!$countsFree) {
+                $mq->whereNotNull('tier_required');
+            }
+        };
+    }
+
+    /**
      * Upsert a live heartbeat for (user, session, title). Returns the
      * row so the caller can inspect `terminated_at` in the same
      * request cycle. Does NOT clear terminated_at on its own — a
@@ -95,13 +142,12 @@ class ActiveStream extends Model
 
     /**
      * How many distinct sessions for this user are currently streaming
-     * premium content. Optionally excludes a session id — call with
+     * capped content. Optionally excludes a session id — call with
      * the current session when asking "how many OTHER devices are
      * streaming right now".
      *
-     * "Premium" is derived by joining through the polymorphic target
-     * and requiring tier_required IS NOT NULL — free content doesn't
-     * count against the cap.
+     * What counts is decided by cappedContentConstraint(): premium
+     * titles always, plus free titles whenever free content can earn.
      */
     public static function activeCount(int $userId, ?string $excludeSessionId = null): int
     {
@@ -115,7 +161,7 @@ class ActiveStream extends Model
                     \Modules\Content\app\Models\Movie::class,
                     \Modules\Content\app\Models\Episode::class,
                 ],
-                fn ($mq) => $mq->whereNotNull('tier_required')
+                static::cappedContentConstraint()
             );
 
         if ($excludeSessionId !== null) {
@@ -126,10 +172,12 @@ class ActiveStream extends Model
     }
 
     /**
-     * Hydrated list of the user's currently-active premium streams
-     * for the device-limit picker. One entry per distinct session
-     * (the most recent beating row for each session, so if the same
-     * device is mid-title-change we still only show one device).
+     * Hydrated list of the user's currently-active capped streams
+     * for the device-limit picker. Uses the same content constraint as
+     * activeCount(), so the picker always lists exactly the sessions
+     * the counter counted. One entry per distinct session (the most
+     * recent beating row for each session, so if the same device is
+     * mid-title-change we still only show one device).
      *
      * Each row gets two virtual attributes populated from the
      * Laravel `sessions` table so the picker can render
@@ -149,7 +197,7 @@ class ActiveStream extends Model
                     \Modules\Content\app\Models\Movie::class,
                     \Modules\Content\app\Models\Episode::class,
                 ],
-                fn ($mq) => $mq->whereNotNull('tier_required')
+                static::cappedContentConstraint()
             )
             ->with('watchable')
             ->orderByDesc('last_beat_at')

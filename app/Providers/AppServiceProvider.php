@@ -38,6 +38,62 @@ class AppServiceProvider extends ServiceProvider
         $this->overrideMailConfigFromSettings();
         $this->overrideWebPushConfigFromSettings();
         $this->overrideGoogleAuthConfigFromSettings();
+        $this->overrideVideoCdnConfigFromSettings();
+    }
+
+    /**
+     * Video CDN pull-zone credentials saved via /admin/settings take
+     * precedence over the .env fallbacks baked into
+     * Modules/Streaming/config/config.php. CdnUrlResolver reads
+     * config('streaming.cdn.zones'), so overriding it here is what makes
+     * an admin-entered hostname or token key take effect with no deploy.
+     *
+     * Token keys are Crypt-encrypted at rest; a decrypt failure (APP_KEY
+     * rotated since save) falls through to the .env value rather than
+     * 500-ing playback. Empty settings never override — the zone keeps
+     * whatever config/.env already provided.
+     */
+    private function overrideVideoCdnConfigFromSettings(): void
+    {
+        try {
+            if (!Schema::hasTable('settings')) {
+                return;
+            }
+        } catch (\Throwable $e) {
+            return;
+        }
+
+        $this->applyCdnZoneSettings('backblaze', 'cdn_b2_', ['bucket' => 'cdn_b2_bucket']);
+        $this->applyCdnZoneSettings('dropbox', 'cdn_dropbox_');
+    }
+
+    /**
+     * Push one zone's saved settings onto config('streaming.cdn.zones.*').
+     * $extra maps additional plain (non-secret) config keys to their
+     * setting name — e.g. the Backblaze bucket.
+     */
+    private function applyCdnZoneSettings(string $zone, string $prefix, array $extra = []): void
+    {
+        $base = "streaming.cdn.zones.$zone";
+
+        if ($hostname = Setting::get($prefix.'hostname')) {
+            Config::set("$base.hostname", trim($hostname));
+        }
+        if ($ttl = Setting::get($prefix.'token_ttl')) {
+            Config::set("$base.token_ttl", (int) $ttl);
+        }
+        foreach ($extra as $configKey => $settingName) {
+            if ($value = Setting::get($settingName)) {
+                Config::set("$base.$configKey", trim($value));
+            }
+        }
+        if ($encKey = Setting::get($prefix.'token_key')) {
+            try {
+                Config::set("$base.token_key", Crypt::decryptString($encKey));
+            } catch (\Throwable $e) {
+                // APP_KEY rotated since save — leave the .env fallback.
+            }
+        }
     }
 
     /**

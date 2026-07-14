@@ -292,6 +292,50 @@ class SettingController extends Controller
     }
 
     /**
+     * Video CDN pull-zone credentials. AppServiceProvider overrides
+     * config('streaming.cdn.zones.*') from these at boot, so a saved
+     * hostname/key takes effect on the next request — no .env edit, no
+     * deploy. Token keys are Crypt-encrypted at rest (same as the SMTP
+     * password): a blank key field leaves the stored one untouched.
+     *
+     * Setting a hostname is what turns a zone ON. The Dropbox zone
+     * hostname stays empty until a Dropbox pull zone actually exists;
+     * blank means Dropbox links are only normalized, never CDN-routed.
+     */
+    public function updateVideoCdn(Request $request)
+    {
+        $data = $request->validate([
+            'cdn_b2_hostname'       => ['nullable', 'string', 'max:255'],
+            'cdn_b2_bucket'         => ['nullable', 'string', 'max:255'],
+            'cdn_b2_token_ttl'      => ['nullable', 'integer', 'min:60', 'max:604800'],
+            'cdn_b2_token_key'      => ['nullable', 'string', 'max:255'],
+            'cdn_dropbox_hostname'  => ['nullable', 'string', 'max:255'],
+            'cdn_dropbox_token_ttl' => ['nullable', 'integer', 'min:60', 'max:604800'],
+            'cdn_dropbox_token_key' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        Setting::set('cdn_b2_hostname', trim((string) ($data['cdn_b2_hostname'] ?? '')));
+        Setting::set('cdn_b2_bucket', trim((string) ($data['cdn_b2_bucket'] ?? '')));
+        Setting::set('cdn_b2_token_ttl', (string) ($data['cdn_b2_token_ttl'] ?? 28800));
+        Setting::set('cdn_dropbox_hostname', trim((string) ($data['cdn_dropbox_hostname'] ?? '')));
+        Setting::set('cdn_dropbox_token_ttl', (string) ($data['cdn_dropbox_token_ttl'] ?? 28800));
+
+        // Secrets: only overwrite when a new value is actually typed, so
+        // re-saving the card without re-entering the key keeps it.
+        if (!empty($data['cdn_b2_token_key'])) {
+            Setting::set('cdn_b2_token_key', Crypt::encryptString(trim($data['cdn_b2_token_key'])));
+        }
+        if (!empty($data['cdn_dropbox_token_key'])) {
+            Setting::set('cdn_dropbox_token_key', Crypt::encryptString(trim($data['cdn_dropbox_token_key'])));
+        }
+
+        Setting::flushCache();
+
+        return redirect()->route('admin.settings.index')
+            ->with('status_video_cdn', 'Video CDN settings saved.');
+    }
+
+    /**
      * Viewing-access switch: when require_signup_to_watch is ON,
      * guests can browse the catalogue but must sign in before any
      * playback (enforced in FrontendController::userCanWatch and the
