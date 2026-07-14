@@ -1,4 +1,45 @@
-@extends('frontend::layouts.master', ['isSwiperSlider' => true, 'isFslightbox' => true, 'bodyClass' => 'custom-header-relative', 'isSweetalert' => true])
+@extends('frontend::layouts.master', [
+    'isSwiperSlider' => true,
+    'isFslightbox' => true,
+    'bodyClass' => 'custom-header-relative',
+    'isSweetalert' => true,
+    // "VJ Junior Movies" — the spoken word order people actually search, not
+    // "VJ Junior — Movies". This page had no title at all before.
+    'title' => $vj->display_name . ' Movies',
+])
+
+@php
+    $vjMoviesDescription = 'Watch ' . $vj->display_name
+        . ' translated movies free on ' . app_name() . '.';
+@endphp
+
+@section('seo:description', $vjMoviesDescription)
+@section('seo:type', 'profile')
+
+@if ($vj->featured_image_url)
+    @section('seo:image', media_url($vj->featured_image_url))
+@endif
+
+{{-- CollectionPage of this VJ's movies, pointing back at the Person node the
+     hub page declares (same #person @id), so the three VJ pages read as one
+     entity to Google instead of three unrelated grids. --}}
+@push('seo:head')
+    @include('seo::partials.json-ld', [
+        'schemas' => [
+            \Modules\Seo\app\Support\StructuredData::vjCollection(
+                $vj,
+                route('frontend.vj_movie_detail', $vj->slug),
+                $vj->display_name . ' Movies',
+                collect($buckets ?? [])->flatMap(fn ($b) => $b->movies)->all(),
+            ),
+            \Modules\Seo\app\Support\StructuredData::breadcrumbs([
+                ['name' => 'Home', 'url' => route('frontend.ott')],
+                ['name' => $vj->display_name, 'url' => route('frontend.vj_detail', $vj->slug)],
+                ['name' => 'Movies', 'url' => route('frontend.vj_movie_detail', $vj->slug)],
+            ]),
+        ],
+    ])
+@endpush
 
 @section('content')
     {{-- Hero banner — mirrors /movie's hero structure so the page
@@ -43,7 +84,9 @@
             <section class="related-movie-block mt-5 mb-2">
                 <div class="d-flex align-items-center justify-content-between px-1 pb-2 border-bottom border-dark">
                     <div>
-                        <h3 class="main-title text-capitalize mb-1">{{ $vj->name }}</h3>
+                        {{-- Page <h1>, in the spoken keyword order: "VJ Junior
+                             Movies". Was an <h3>; the page had no <h1> at all. --}}
+                        <h1 class="main-title text-capitalize mb-1">{{ $vj->display_name }} Movies</h1>
                         @if ($vj->description)
                             <p class="text-muted mb-0 small">{{ $vj->description }}</p>
                         @endif

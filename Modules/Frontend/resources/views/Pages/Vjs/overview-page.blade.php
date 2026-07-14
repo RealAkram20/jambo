@@ -1,4 +1,57 @@
-@extends('frontend::layouts.master', ['isSwiperSlider' => true, 'isFslightbox' => true, 'bodyClass' => 'custom-header-relative', 'isSweetalert' => true])
+@extends('frontend::layouts.master', [
+    'isSwiperSlider' => true,
+    'isFslightbox' => true,
+    'bodyClass' => 'custom-header-relative',
+    'isSweetalert' => true,
+    // The VJ hub is the landing page for the site's highest-volume query
+    // ("vj junior"). It previously shipped no title at all — the browser tab
+    // and the Google result both read a bare "Jambo Films" — so it ranked on
+    // the strength of the catalogue alone, with nothing on the page naming
+    // the thing people searched for. display_name normalises "Vj" -> "VJ",
+    // which is how the audience actually writes it.
+    'title' => $vj->display_name,
+])
+
+@php
+    // Prefer whatever an admin has written about this VJ. The generated
+    // fallback still differs per VJ (the name is in it), so it is not the
+    // duplicate-description problem the movie pages had — but a real bio is
+    // better, and this is the string that becomes the search snippet.
+    $vjMetaDescription = trim(strip_tags((string) $vj->description)) !== ''
+        ? \Illuminate\Support\Str::limit(strip_tags((string) $vj->description), 160)
+        : 'Watch ' . $vj->display_name . ' translated movies and series free on ' . app_name() . '.';
+@endphp
+
+@section('seo:description', $vjMetaDescription)
+@section('seo:type', 'profile')
+
+@if ($vj->featured_image_url)
+    @section('seo:image', media_url($vj->featured_image_url))
+@endif
+
+{{-- Person + CollectionPage. The Person node is the entity anchor for every
+     "vj junior ..." query; the CollectionPage points back at it by @id so
+     Google reads this page as "VJ Junior's work" rather than as a loose grid
+     of films that happen to share a page. --}}
+@push('seo:head')
+    @include('seo::partials.json-ld', [
+        'schemas' => [
+            \Modules\Seo\app\Support\StructuredData::vjPerson($vj),
+            \Modules\Seo\app\Support\StructuredData::vjCollection(
+                $vj,
+                route('frontend.vj_detail', $vj->slug),
+                $vj->display_name,
+                // The real catalogue the page renders, not $vjHeroItems —
+                // those are just the banner slides.
+                collect($movies ?? [])->concat($shows ?? [])->all(),
+            ),
+            \Modules\Seo\app\Support\StructuredData::breadcrumbs([
+                ['name' => 'Home', 'url' => route('frontend.ott')],
+                ['name' => $vj->display_name, 'url' => route('frontend.vj_detail', $vj->slug)],
+            ]),
+        ],
+    ])
+@endpush
 
 @section('content')
     {{-- Hero banner — mixes movies + series so the overview surfaces
@@ -60,10 +113,16 @@
             <section class="related-movie-block mt-5 mb-2">
                 <div class="d-flex align-items-center justify-content-between px-1 pb-2 border-bottom border-dark">
                     <div>
-                        <h3 class="main-title text-capitalize mb-1">{{ $vj->name }}</h3>
-                        @if ($vj->description)
-                            <p class="text-muted mb-0 small">{{ $vj->description }}</p>
-                        @endif
+                        {{-- The page's one and only <h1>. It was an <h3>, which
+                             left the page with no primary heading at all — the
+                             keyword it ranks for was stated nowhere in the
+                             markup. Same classes, so the styling is unchanged. --}}
+                        <h1 class="main-title text-capitalize mb-1">{{ $vj->display_name }}</h1>
+                        {{-- The bio used to be repeated here as a muted one-liner.
+                             It now lives in the About card at the foot of the page,
+                             where it sits alongside the photo and the social links —
+                             printing the same prose twice on one page helps neither
+                             the reader nor Google. --}}
                     </div>
                 </div>
             </section>
@@ -162,6 +221,13 @@
                     <p class="text-muted">This VJ doesn't have any published titles yet.</p>
                 </section>
             @endif
+
+            {{-- "About <VJ>" — photo, bio, social links. Sits below the catalogue
+                 so the posters stay above the fold. This is the only unique prose
+                 on the page; without it every VJ page is a poster grid that reads
+                 as a clone of the other 35. Renders nothing when the VJ has no
+                 photo, bio or socials. --}}
+            @include('frontend::components.sections.vj-bio-card', ['vj' => $vj])
         </div>
     </div>
 

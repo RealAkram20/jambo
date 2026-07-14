@@ -7,6 +7,7 @@ use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Movie;
 use Modules\Content\app\Models\Season;
 use Modules\Content\app\Models\Show;
+use Modules\Content\app\Models\Vj;
 use Tests\TestCase;
 
 /**
@@ -254,6 +255,197 @@ class StructuredDataTest extends TestCase
         $this->assertArrayHasKey('Organization', $graphs);
         $this->assertArrayHasKey('WebSite', $graphs);
         $this->assertSame(app_name(), $graphs['Organization']['name']);
+    }
+
+    // -----------------------------------------------------------------
+    // VJ pages — the site's highest-value queries ("vj junior", "vj
+    // junior movies"). All three shipped <title>Jambo Films</title>, no
+    // <h1> and no schema, so the keyword they rank for was stated
+    // nowhere in the markup.
+    // -----------------------------------------------------------------
+
+    private function vjWithMovie(array $attrs = []): Vj
+    {
+        $vj = Vj::create(array_merge([
+            'name' => 'Vj Junior', // as admins actually type it — see display_name
+            'slug' => 'vj-junior',
+        ], $attrs));
+
+        $vj->movies()->attach($this->publishedMovie()->id);
+
+        return $vj;
+    }
+
+    /**
+     * The DB stores "Vj Junior"; the audience searches "VJ Junior". The CSS
+     * capitalize on the cards fixed the look but not the markup, and a crawler
+     * reads markup.
+     */
+    public function test_vj_name_is_normalised_to_uppercase_vj_for_title_and_heading(): void
+    {
+        $vj = $this->vjWithMovie();
+
+        $html = $this->get(route('frontend.vj_detail', $vj->slug))->assertOk()->getContent();
+
+        $this->assertStringContainsString('<title>VJ Junior', $html);
+        $this->assertStringContainsString('>VJ Junior</h1>', $html);
+    }
+
+    /**
+     * Spoken word order: "VJ Junior Movies", not "VJ Junior — Movies".
+     */
+    public function test_vj_movie_and_series_pages_use_spoken_keyword_order(): void
+    {
+        $vj = $this->vjWithMovie();
+
+        $this->get(route('frontend.vj_movie_detail', $vj->slug))
+            ->assertOk()
+            ->assertSee('<title>VJ Junior Movies', false)
+            ->assertSee('VJ Junior Movies</h1>', false);
+
+        $this->get(route('frontend.vj_series_detail', $vj->slug))
+            ->assertOk()
+            ->assertSee('<title>VJ Junior Series', false)
+            ->assertSee('VJ Junior Series</h1>', false);
+    }
+
+    /**
+     * The Person node is the entity anchor every "vj junior ..." query hangs
+     * off, and the collection points back at it by @id so the three VJ pages
+     * read as one entity rather than three unrelated grids.
+     */
+    public function test_vj_hub_emits_a_person_entity_linked_to_its_collection(): void
+    {
+        $vj = $this->vjWithMovie();
+
+        $graphs = $this->graphsFrom(
+            $this->get(route('frontend.vj_detail', $vj->slug))->getContent()
+        );
+
+        $this->assertArrayHasKey('Person', $graphs);
+        $this->assertSame('VJ Junior', $graphs['Person']['name']);
+
+        $personId = route('frontend.vj_detail', $vj->slug) . '#person';
+        $this->assertSame($personId, $graphs['Person']['@id']);
+        $this->assertSame($personId, $graphs['CollectionPage']['about']['@id']);
+    }
+
+    /**
+     * sameAs is the strongest entity signal available, but the social columns
+     * land in a later migration. Until they exist the builder must simply omit
+     * the key rather than emit an empty array or blow up.
+     */
+    public function test_vj_person_omits_same_as_until_social_columns_exist(): void
+    {
+        $vj = $this->vjWithMovie();
+
+        $graphs = $this->graphsFrom(
+            $this->get(route('frontend.vj_detail', $vj->slug))->getContent()
+        );
+
+        $this->assertArrayNotHasKey('sameAs', $graphs['Person']);
+    }
+
+    /**
+     * 36 VJs sharing one templated bio is the thin-content problem we are
+     * trying to avoid. An omitted description beats a duplicated one.
+     */
+    public function test_vj_person_omits_description_when_no_bio_is_written(): void
+    {
+        $vj = $this->vjWithMovie(['description' => null]);
+
+        $graphs = $this->graphsFrom(
+            $this->get(route('frontend.vj_detail', $vj->slug))->getContent()
+        );
+
+        $this->assertArrayNotHasKey('description', $graphs['Person']);
+    }
+
+    /**
+     * The About card is the ONLY unique prose on a VJ page. Without it every VJ
+     * page is a poster grid that reads as a clone of the other 35 — which is the
+     * thin-content problem, and it gets worse once VJ x genre pages sit on top.
+     */
+    public function test_vj_hub_renders_the_about_card_with_bio_photo_and_socials(): void
+    {
+        $vj = $this->vjWithMovie([
+            'description' => 'Luganda film narration by VJ Junior.',
+            'photo_url'   => 'https://cdn.example.com/junior.jpg',
+            'youtube_url' => 'https://youtube.com/@vjjunior',
+        ]);
+
+        $this->get(route('frontend.vj_detail', $vj->slug))
+            ->assertOk()
+            ->assertSee('vj-about__card', false)   // the card rendered
+            ->assertSee('Narrated by')             // its eyebrow
+            ->assertSee('Luganda film narration by VJ Junior.')
+            ->assertSee('https://youtube.com/@vjjunior', false);
+    }
+
+    /**
+     * An empty "About" shell on 36 pages is the same thin-content problem in
+     * nicer packaging. Nothing to say -> no card.
+     */
+    public function test_vj_hub_omits_the_about_card_entirely_when_there_is_nothing_to_show(): void
+    {
+        $vj = $this->vjWithMovie(['description' => null]);
+
+        $this->get(route('frontend.vj_detail', $vj->slug))
+            ->assertOk()
+            ->assertDontSee('vj-about-heading', false);
+    }
+
+    /**
+     * The bio used to also print as a muted one-liner under the <h1>. Printing
+     * the same prose twice on one page helps neither the reader nor Google.
+     */
+    public function test_vj_bio_appears_only_once_in_the_page_body(): void
+    {
+        $bio = 'Luganda film narration by VJ Junior.';
+        $vj  = $this->vjWithMovie(['description' => $bio]);
+
+        $html = $this->get(route('frontend.vj_detail', $vj->slug))->getContent();
+
+        // Body only — the <head> legitimately repeats it across meta
+        // description / og:description / twitter:description / JSON-LD.
+        $body = preg_replace('#.*<body[^>]*>#is', '', $html);
+        $body = preg_replace('#<script.*?</script>#s', '', $body);
+
+        $this->assertSame(1, substr_count($body, e($bio)), 'The VJ bio is rendered more than once in the body.');
+    }
+
+    /**
+     * Exactly one <h1> per page. This is invisible in the UI and had already
+     * rotted in both directions: the home page emitted TEN (one per hero
+     * slide) while every other page had none at all.
+     */
+    public function test_every_page_type_has_exactly_one_h1(): void
+    {
+        $vj      = $this->vjWithMovie();
+        $movie   = $this->publishedMovie();
+        [$show, $episode] = $this->publishedEpisode();
+
+        $urls = [
+            'home'         => route('frontend.ott'),
+            'movies list'  => route('frontend.movie'),
+            'series list'  => route('frontend.series'),
+            'movie detail' => route('frontend.movie_detail', $movie->slug),
+            'show detail'  => route('frontend.series_detail', $show->slug),
+            'episode'      => $episode->frontendUrl($show),
+            'vj hub'       => route('frontend.vj_detail', $vj->slug),
+            'vj movies'    => route('frontend.vj_movie_detail', $vj->slug),
+            'vj series'    => route('frontend.vj_series_detail', $vj->slug),
+        ];
+
+        foreach ($urls as $label => $url) {
+            $html = $this->get($url)->assertOk()->getContent();
+
+            $this->assertSame(
+                1,
+                preg_match_all('#<h1[^>]*>#', $html),
+                "The {$label} page must have exactly one <h1>."
+            );
+        }
     }
 
     public function test_sitemap_is_well_formed_and_advertises_poster_images(): void

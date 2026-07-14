@@ -10,6 +10,20 @@
 @section('seo:title', 'Watch Free VJ Translated Movies & Series — ' . app_name())
 
 @section('content')
+{{-- The page's single <h1>.
+
+     The home page used to carry TEN — components/partials/tab-series-slide
+     emitted one per slide, so the "primary heading" was ten different film
+     titles and none of them described the page. Those are now <h2>, which
+     left the front door with no <h1> at all.
+
+     It is visually hidden because the hero is a full-bleed slider with no
+     room for a heading in the design. This is the accessible fix, not a
+     trick: the text matches the page's <title> and its actual subject, and a
+     screen reader announces it exactly as a sighted user would read the page.
+     Hiding text that contradicts the page would be cloaking; this does not. --}}
+<h1 class="visually-hidden">Watch Free VJ Translated Movies &amp; Series on {{ app_name() }}</h1>
+
 <div class="iq-banner-thumb-slider overflow-hidden">
     <div class="slider">
         <div class="position-relative slider-bg my-auto">

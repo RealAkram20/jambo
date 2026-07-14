@@ -210,8 +210,8 @@ class FrontendController extends Controller
         // Cap at 100 as a safety net so a runaway catalogue can't
         // produce a huge initial payload; the Load More button below
         // covers anything beyond.
-        $vjs = $this->topVjsForPage(0, 100);
-        $vjsTotal = Vj::whereHas('movies', fn ($q) => $q->published())->count();
+        $vjs = $this->topVjs('movies', 0, 100);
+        $vjsTotal = $this->countVjs('movies');
 
         return view('frontend::Pages.MainPages.movies-page', compact('featuredMovies', 'vjs', 'vjsTotal'));
     }
@@ -269,10 +269,9 @@ class FrontendController extends Controller
         $offset = max(0, (int) $request->query('offset', 0));
         $limit  = min(10, max(1, (int) $request->query('limit', 5)));
 
-        $vjs = $this->topVjsForPage($offset, $limit);
+        $vjs = $this->topVjs('movies', $offset, $limit);
 
-        $total = Vj::whereHas('movies', fn ($q) => $q->published())->count();
-        $hasMore = ($offset + $vjs->count()) < $total;
+        $hasMore = ($offset + $vjs->count()) < $this->countVjs('movies');
 
         $html = '';
         foreach ($vjs as $vj) {
@@ -293,21 +292,51 @@ class FrontendController extends Controller
     }
 
     /**
-     * Shared loader so /movie's initial render and the load-more
-     * endpoint walk the exact same ordering.
+     * The scope every VJ-grouped page applies to a VJ's titles:
+     * published only, and — on the taxonomy archives — narrowed to one
+     * term, so a VJ's row on /categories/trending holds only their
+     * trending titles rather than their whole catalogue.
+     *
+     * $taxonomy is the relation name on Movie/Show ('categories',
+     * 'genres', 'tags'), which doubles as the pivot's table name in the
+     * qualified `where`.
      */
-    private function topVjsForPage(int $offset, int $limit)
+    private function vjTitleScope(?string $taxonomy, ?int $termId): \Closure
     {
-        // No `->limit()` inside the eager-load closure: Eloquent
-        // applies it to the *combined* `WHERE vj_id IN (...)` query,
-        // so one VJ hogs the rows and every other VJ comes back
-        // empty (which surfaces as "Nothing here yet." on the
-        // carousel even though that VJ has published movies). The
-        // per-VJ cap lives in the vj-carousel partial instead.
-        return Vj::whereHas('movies', fn ($q) => $q->published())
-            ->withCount(['movies as movies_count' => fn ($q) => $q->published()])
-            ->with(['movies' => fn ($q) => $q->published()->with('genres')->orderByDesc('created_at')])
-            ->orderByDesc('movies_count')
+        return function ($q) use ($taxonomy, $termId) {
+            $q->published();
+
+            if ($taxonomy !== null && $termId !== null) {
+                $q->whereHas($taxonomy, fn ($tq) => $tq->where("{$taxonomy}.id", $termId));
+            }
+        };
+    }
+
+    /**
+     * The single VJ loader behind /movie, /series, the genre VJ pages
+     * and every taxonomy archive — so all of them share one ordering
+     * rule ("most titles in scope first") and can't drift apart.
+     *
+     * $kind picks the relation on Vj ('movies' | 'shows'); passing a
+     * $taxonomy + $termId scopes the rows to one genre/category/tag.
+     *
+     * No `->limit()` inside the eager-load closure: Eloquent applies it
+     * to the *combined* `WHERE vj_id IN (...)` query, so one VJ hogs the
+     * rows and every other VJ comes back empty (which surfaces as
+     * "Nothing here yet." on their carousel even though they have
+     * published titles). The per-VJ cap lives in the vj-carousel partial.
+     */
+    private function topVjs(string $kind, int $offset, int $limit, ?string $taxonomy = null, ?int $termId = null)
+    {
+        $inScope = $this->vjTitleScope($taxonomy, $termId);
+
+        return Vj::whereHas($kind, $inScope)
+            ->withCount(["{$kind} as {$kind}_count" => $inScope])
+            ->with([$kind => function ($q) use ($inScope) {
+                $inScope($q);
+                $q->with('genres')->orderByDesc('created_at');
+            }])
+            ->orderByDesc("{$kind}_count")
             ->orderBy('id')
             ->skip($offset)
             ->take($limit)
@@ -315,53 +344,12 @@ class FrontendController extends Controller
     }
 
     /**
-     * Genre-scoped variant of topVjsForPage(). Same ordering rule
-     * ("most productive VJ first") but both the inclusion check and
-     * the eager-loaded movies are filtered to the given genre so
-     * each carousel contains only titles from that genre.
+     * How many VJs topVjs() can return for the same scope — drives the
+     * Load More button's visibility and its X-Has-More header.
      */
-    private function topVjsForGenre(int $genreId, int $offset, int $limit)
+    private function countVjs(string $kind, ?string $taxonomy = null, ?int $termId = null): int
     {
-        $inGenre = fn ($q) => $q->published()
-            ->whereHas('genres', fn ($gq) => $gq->where('genres.id', $genreId));
-
-        // No per-relation limit here — Eloquent would apply it to
-        // the combined eager-load query and starve all but the
-        // first VJ. Cap lives in the vj-carousel partial.
-        return Vj::whereHas('movies', $inGenre)
-            ->withCount(['movies as movies_count' => $inGenre])
-            ->with(['movies' => function ($q) use ($inGenre) {
-                $inGenre($q);
-                $q->with('genres')->orderByDesc('created_at');
-            }])
-            ->orderByDesc('movies_count')
-            ->orderBy('id')
-            ->skip($offset)
-            ->take($limit)
-            ->get();
-    }
-
-    /**
-     * Shows/series twin of topVjsForGenre(). Orders VJs by how many
-     * shows they have in the genre, and eager-loads only those shows.
-     */
-    private function topVjsForShowsByGenre(int $genreId, int $offset, int $limit)
-    {
-        $inGenre = fn ($q) => $q->published()
-            ->whereHas('genres', fn ($gq) => $gq->where('genres.id', $genreId));
-
-        // See topVjsForGenre — same eager-load-limit gotcha.
-        return Vj::whereHas('shows', $inGenre)
-            ->withCount(['shows as shows_count' => $inGenre])
-            ->with(['shows' => function ($q) use ($inGenre) {
-                $inGenre($q);
-                $q->with('genres')->orderByDesc('created_at');
-            }])
-            ->orderByDesc('shows_count')
-            ->orderBy('id')
-            ->skip($offset)
-            ->take($limit)
-            ->get();
+        return Vj::whereHas($kind, $this->vjTitleScope($taxonomy, $termId))->count();
     }
 
     /**
@@ -380,10 +368,8 @@ class FrontendController extends Controller
             ->take(3)
             ->get();
 
-        $vjs = $this->topVjsForGenre($genre->id, 0, 100);
-        $vjsTotal = Vj::whereHas('movies', fn ($q) => $q->published()
-                ->whereHas('genres', fn ($gq) => $gq->where('genres.id', $genre->id)))
-            ->count();
+        $vjs = $this->topVjs('movies', 0, 100, 'genres', $genre->id);
+        $vjsTotal = $this->countVjs('movies', 'genres', $genre->id);
 
         return view('frontend::Pages.geners-vjs-page', [
             'genre' => $genre,
@@ -404,12 +390,9 @@ class FrontendController extends Controller
         $offset = max(0, (int) $request->query('offset', 0));
         $limit  = min(10, max(1, (int) $request->query('limit', 5)));
 
-        $vjs = $this->topVjsForGenre($genre->id, $offset, $limit);
+        $vjs = $this->topVjs('movies', $offset, $limit, 'genres', $genre->id);
 
-        $total = Vj::whereHas('movies', fn ($q) => $q->published()
-                ->whereHas('genres', fn ($gq) => $gq->where('genres.id', $genre->id)))
-            ->count();
-        $hasMore = ($offset + $vjs->count()) < $total;
+        $hasMore = ($offset + $vjs->count()) < $this->countVjs('movies', 'genres', $genre->id);
 
         $html = '';
         foreach ($vjs as $vj) {
@@ -439,10 +422,8 @@ class FrontendController extends Controller
             ->take(3)
             ->get();
 
-        $vjs = $this->topVjsForShowsByGenre($genre->id, 0, 100);
-        $vjsTotal = Vj::whereHas('shows', fn ($q) => $q->published()
-                ->whereHas('genres', fn ($gq) => $gq->where('genres.id', $genre->id)))
-            ->count();
+        $vjs = $this->topVjs('shows', 0, 100, 'genres', $genre->id);
+        $vjsTotal = $this->countVjs('shows', 'genres', $genre->id);
 
         return view('frontend::Pages.geners-vjs-page', [
             'genre' => $genre,
@@ -463,12 +444,9 @@ class FrontendController extends Controller
         $offset = max(0, (int) $request->query('offset', 0));
         $limit  = min(10, max(1, (int) $request->query('limit', 5)));
 
-        $vjs = $this->topVjsForShowsByGenre($genre->id, $offset, $limit);
+        $vjs = $this->topVjs('shows', $offset, $limit, 'genres', $genre->id);
 
-        $total = Vj::whereHas('shows', fn ($q) => $q->published()
-                ->whereHas('genres', fn ($gq) => $gq->where('genres.id', $genre->id)))
-            ->count();
-        $hasMore = ($offset + $vjs->count()) < $total;
+        $hasMore = ($offset + $vjs->count()) < $this->countVjs('shows', 'genres', $genre->id);
 
         $html = '';
         foreach ($vjs as $vj) {
@@ -480,24 +458,6 @@ class FrontendController extends Controller
         }
 
         return response($html)->header('X-Has-More', $hasMore ? '1' : '0');
-    }
-
-    /**
-     * Shows-side twin of topVjsForPage(). Keeps the two endpoints
-     * (/series initial render and /series/more-vjs) in lockstep on
-     * ordering.
-     */
-    private function topVjsForShowsPage(int $offset, int $limit)
-    {
-        // See topVjsForPage — same eager-load-limit gotcha.
-        return Vj::whereHas('shows', fn ($q) => $q->published())
-            ->withCount(['shows as shows_count' => fn ($q) => $q->published()])
-            ->with(['shows' => fn ($q) => $q->published()->with('genres')->orderByDesc('created_at')])
-            ->orderByDesc('shows_count')
-            ->orderBy('id')
-            ->skip($offset)
-            ->take($limit)
-            ->get();
     }
 
     /**
@@ -661,8 +621,8 @@ class FrontendController extends Controller
         // show on first load so smaller catalogues aren't hidden
         // behind a Load More button. Hard cap of 100 keeps the worst
         // case bounded; the Load More button covers anything beyond.
-        $vjs = $this->topVjsForShowsPage(0, 100);
-        $vjsTotal = Vj::whereHas('shows', fn ($q) => $q->published())->count();
+        $vjs = $this->topVjs('shows', 0, 100);
+        $vjsTotal = $this->countVjs('shows');
 
         return view('frontend::Pages.MainPages.tv-shows-page', compact('featuredShows', 'vjs', 'vjsTotal'));
     }
@@ -677,10 +637,9 @@ class FrontendController extends Controller
         $offset = max(0, (int) $request->query('offset', 0));
         $limit  = min(10, max(1, (int) $request->query('limit', 5)));
 
-        $vjs = $this->topVjsForShowsPage($offset, $limit);
+        $vjs = $this->topVjs('shows', $offset, $limit);
 
-        $total = Vj::whereHas('shows', fn ($q) => $q->published())->count();
-        $hasMore = ($offset + $vjs->count()) < $total;
+        $hasMore = ($offset + $vjs->count()) < $this->countVjs('shows');
 
         $html = '';
         foreach ($vjs as $vj) {
@@ -1504,7 +1463,7 @@ class FrontendController extends Controller
         $items = WatchlistItem::where('user_id', auth()->id())
             ->whereIn('watchable_type', [$movieClass, $showClass])
             ->with(['watchable.genres'])
-            ->latest('added_at')
+            ->inPlayOrder()
             ->get();
 
         $movies = $items->where('watchable_type', $movieClass)->values();
@@ -1623,12 +1582,14 @@ class FrontendController extends Controller
 
         $items = WatchlistItem::where('user_id', auth()->id())
             ->with(['watchable.genres'])
-            ->latest('added_at')
+            ->inPlayOrder()
             ->get();
 
         // Prev/next navigation — limited to Movies because only those
         // play through this queue. We find the current movie in the
-        // movie-only slice; the adjacent Movies become prev/next.
+        // movie-only slice; the adjacent Movies become prev/next. The
+        // queue is oldest-saved-first, so `+1` is genuinely the next
+        // title the viewer expects rather than the one before it.
         $movieClass = (new Movie)->getMorphClass();
         $movieItems = $items->where('watchable_type', $movieClass)->values();
         $currentMovieIndex = $movieItems->search(fn ($i) => $i->watchable_id === $watchable->id);
@@ -1753,10 +1714,13 @@ class FrontendController extends Controller
         $poster = $movie->backdrop_url ?: $movie->poster_url;
 
         $movieClass = (new Movie)->getMorphClass();
+        // Same order as the page and the sidebar — this endpoint feeds the
+        // in-place fullscreen swap and autoplay-on-end, so if it disagreed
+        // with watchlistPlay() the queue would jump around mid-session.
         $items = WatchlistItem::where('user_id', auth()->id())
             ->where('watchable_type', $movieClass)
             ->with(['watchable'])
-            ->latest('added_at')
+            ->inPlayOrder()
             ->get();
 
         $idx = $items->search(fn ($i) => $i->watchable_id === $movie->id);
@@ -1938,35 +1902,120 @@ class FrontendController extends Controller
         ];
     }
 
-    // Genres Pages Routes
-    public function genres(?string $slug = null)
-    {
-        if ($slug) {
-            $genre = Genre::where('slug', $slug)->firstOrFail();
-            $movies = $genre->movies()->published()->with('genres')->orderByDesc('movies.created_at')->get();
-            $shows = $genre->shows()->published()->with('genres')->orderByDesc('shows.created_at')->get();
-            $featured = $this->featuredForGenre($genre->id);
-            return view('frontend::Pages.geners-page', compact('genre', 'movies', 'shows', 'featured'));
-        }
+    /* ---------------------------------------------------------------
+     | Taxonomy archives — /categories/{slug}, /geners/{slug} and
+     | /tag/{slug}. All three render through taxonomyArchive() so an
+     | archive is grouped by VJ exactly like /movie and /series; they
+     | used to be flat grids, which made them read nothing like the two
+     | pages visitors actually browse.
+     | --------------------------------------------------------------- */
 
-        $genres = Genre::withCount(['movies', 'shows'])->orderBy('name')->get();
-        return view('frontend::Pages.geners-page', compact('genres'));
+    /**
+     * Shared renderer for the three taxonomy archives. Movies and series
+     * each get their own block of VJ carousels — the same split /movie
+     * and /series already establish — plus a trailing row of titles no
+     * VJ is credited on.
+     *
+     * The 100-VJ initial cap matches /movie and /series: show every VJ
+     * on first load so smaller catalogues aren't buried, but keep the
+     * worst-case payload bounded. Load More covers anything beyond.
+     */
+    private function taxonomyArchive(string $taxonomy, $term): View
+    {
+        return view('frontend::Pages.MainPages.taxonomy-archive', [
+            'taxonomy'      => $taxonomy,
+            'term'          => $term,
+            'featured'      => $this->featuredForTaxonomy($taxonomy, $term->id),
+            'movieVjs'      => $this->topVjs('movies', 0, 100, $taxonomy, $term->id),
+            'movieVjsTotal' => $this->countVjs('movies', $taxonomy, $term->id),
+            'showVjs'       => $this->topVjs('shows', 0, 100, $taxonomy, $term->id),
+            'showVjsTotal'  => $this->countVjs('shows', $taxonomy, $term->id),
+            'looseMovies'   => $this->untaggedTitles('movies', $taxonomy, $term->id),
+            'looseShows'    => $this->untaggedTitles('shows', $taxonomy, $term->id),
+        ]);
     }
 
     /**
-     * Up to 3 movies + 3 shows in the given genre, interleaved (movie,
-     * show, movie, show, …) for the hero carousel. Mirrors the
-     * mixed-hero pattern SectionDataComposer::buildHero() uses on the
-     * home page so the visual rhythm is consistent. Each item is
-     * tagged `_isShow` so the blade can pick the right detail route
-     * and relations without a separate instance check.
+     * AJAX twin of taxonomyArchive() — one endpoint for all three
+     * taxonomies and both content kinds (?kind=movie|show), so the
+     * archives don't each need their own pair of load-more routes.
      */
-    private function featuredForGenre(int $genreId)
+    public function taxonomyMoreVjs(string $taxonomy, string $slug, Request $request): \Illuminate\Http\Response
     {
-        $inGenre = fn ($q) => $q->where('genres.id', $genreId);
+        $term = $this->taxonomyTerm($taxonomy, $slug);
+        $kind = $request->query('kind') === 'show' ? 'shows' : 'movies';
+
+        $offset = max(0, (int) $request->query('offset', 0));
+        $limit  = min(10, max(1, (int) $request->query('limit', 5)));
+
+        $vjs = $this->topVjs($kind, $offset, $limit, $taxonomy, $term->id);
+        $hasMore = ($offset + $vjs->count()) < $this->countVjs($kind, $taxonomy, $term->id);
+
+        $html = '';
+        foreach ($vjs as $vj) {
+            // The partial's variable is `items`, not `movies`/`shows` —
+            // that mismatch was the root of an "Undefined variable $items"
+            // 500 on the /movie Load More once already.
+            $html .= view('frontend::components.sections.vj-carousel', [
+                'vj' => $vj,
+                'items' => $vj->{$kind},
+                'contentKind' => $kind === 'shows' ? 'show' : 'movie',
+            ])->render();
+        }
+
+        return response($html)->header('X-Has-More', $hasMore ? '1' : '0');
+    }
+
+    /**
+     * Resolves a taxonomy URL segment + slug to its term. The route
+     * constrains {taxonomy} to these three keys, so an unknown one here
+     * means the route list and this map have drifted apart.
+     */
+    private function taxonomyTerm(string $taxonomy, string $slug)
+    {
+        $model = match ($taxonomy) {
+            'categories' => Category::class,
+            'genres'     => Genre::class,
+            'tags'       => Tag::class,
+            default      => abort(404),
+        };
+
+        return $model::where('slug', $slug)->firstOrFail();
+    }
+
+    /**
+     * Titles in the archive that no VJ is credited on. /movie and
+     * /series never surface these — those pages are built from the Vj
+     * table outward — but an archive is a curated shelf: an untagged
+     * movie an admin dropped into "Trending" should still show up on
+     * Trending rather than silently vanishing.
+     */
+    private function untaggedTitles(string $kind, string $taxonomy, int $termId)
+    {
+        $model = $kind === 'shows' ? Show::class : Movie::class;
+
+        return $model::published()
+            ->whereHas($taxonomy, fn ($q) => $q->where("{$taxonomy}.id", $termId))
+            ->whereDoesntHave('vjs')
+            ->with('genres')
+            ->orderByDesc('created_at')
+            ->get();
+    }
+
+    /**
+     * Up to 3 movies + 3 shows in the term, interleaved (movie, show,
+     * movie, show, …) for the hero carousel. Mirrors the mixed-hero
+     * pattern SectionDataComposer::buildHero() uses on the home page so
+     * the visual rhythm is consistent. Each item is tagged `_isShow` so
+     * the blade can pick the right detail route and relations without a
+     * separate instance check.
+     */
+    private function featuredForTaxonomy(string $taxonomy, int $termId)
+    {
+        $inTerm = fn ($q) => $q->where("{$taxonomy}.id", $termId);
 
         $movies = Movie::published()
-            ->whereHas('genres', $inGenre)
+            ->whereHas($taxonomy, $inTerm)
             ->with('genres')
             ->orderByDesc('created_at')
             ->take(3)
@@ -1974,7 +2023,7 @@ class FrontendController extends Controller
             ->each(fn ($m) => $m->_isShow = false);
 
         $shows = Show::published()
-            ->whereHas('genres', $inGenre)
+            ->whereHas($taxonomy, $inTerm)
             ->with(['genres', 'seasons'])
             ->orderByDesc('created_at')
             ->take(3)
@@ -1989,6 +2038,23 @@ class FrontendController extends Controller
         }
 
         return $items;
+    }
+
+    // Genres Pages Routes
+    public function genres(?string $slug = null)
+    {
+        if ($slug) {
+            return $this->taxonomyArchive('genres', Genre::where('slug', $slug)->firstOrFail());
+        }
+
+        $genres = Genre::withCount(['movies', 'shows'])->orderBy('name')->get();
+        return view('frontend::Pages.geners-page', compact('genres'));
+    }
+
+    public function all_genres()
+    {
+        $genres = Genre::withCount(['movies', 'shows'])->orderBy('name')->get();
+        return view('frontend::Pages.all-geners-page', compact('genres'));
     }
 
     /* ---------------------------------------------------------------
@@ -2006,58 +2072,16 @@ class FrontendController extends Controller
         return view('frontend::Pages.categories-page', compact('categories'));
     }
 
-    /**
-     * Single category — rendered as a dedicated archive page (same
-     * design as the /collection/{rail} pages), so the homepage's
-     * category-rail "View All" lands on a proper paginated grid.
-     * Movies and series are merged newest-first, mirroring the order
-     * of the homepage rail itself; each item is tagged _isShow so the
-     * archive blade routes every card to the right detail page.
-     */
     public function category(string $slug)
     {
-        $category = Category::where('slug', $slug)->firstOrFail();
-
-        $movies = $category->movies()->published()->with('genres')->get()
-            ->each(fn ($m) => $m->_isShow = false);
-        $shows = $category->shows()->published()->with('genres')->get()
-            ->each(fn ($s) => $s->_isShow = true);
-
-        $merged = $movies->concat($shows)->sortByDesc('created_at')->values();
-
-        $perPage = 20;
-        $page = \Illuminate\Pagination\Paginator::resolveCurrentPage();
-        $items = new \Illuminate\Pagination\LengthAwarePaginator(
-            $merged->forPage($page, $perPage)->values(),
-            $merged->count(),
-            $perPage,
-            $page,
-            ['path' => \Illuminate\Pagination\Paginator::resolveCurrentPath()],
-        );
-
-        return view('frontend::Pages.MainPages.rail-archive', [
-            'railKey' => 'category-' . $category->slug,
-            'title'   => $category->name,
-            'tagline' => $category->description,
-            'type'    => 'mixed',
-            'items'   => $items,
-        ]);
-    }
-
-    public function all_genres()
-    {
-        $genres = Genre::withCount(['movies', 'shows'])->orderBy('name')->get();
-        return view('frontend::Pages.all-geners-page', compact('genres'));
+        return $this->taxonomyArchive('categories', Category::where('slug', $slug)->firstOrFail());
     }
 
     // tag Pages Routes
     public function tag(?string $slug = null)
     {
         if ($slug) {
-            $tag = Tag::where('slug', $slug)->firstOrFail();
-            $movies = $tag->movies()->published()->with('genres')->orderByDesc('movies.created_at')->get();
-            $shows = $tag->shows()->published()->with('genres')->orderByDesc('shows.created_at')->get();
-            return view('frontend::Pages.tags-page', compact('tag', 'movies', 'shows'));
+            return $this->taxonomyArchive('tags', Tag::where('slug', $slug)->firstOrFail());
         }
 
         $tags = Tag::withCount(['movies', 'shows'])->orderBy('name')->get();

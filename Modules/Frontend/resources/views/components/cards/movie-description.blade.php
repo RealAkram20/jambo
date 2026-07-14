@@ -30,10 +30,19 @@
             {{ $moveName }}
         </h5>
     @else
-        <h3 class="trending-text fw-bold texture-text text-uppercase my-0 fadeInLeft animated d-inline-block"
+        {{-- <h1>, not <h3>. This branch is the page's main title and renders
+             exactly once on each of the movie detail, movie watch, show detail
+             and episode pages — those pages previously had NO <h1> at all, so
+             the title they rank for was never stated as a heading. The <h5>
+             branch above is the in-card variant ($isnotmovieTitle) and stays a
+             heading-of-a-card, not a heading-of-the-page.
+
+             Same classes: .trending-text sets an explicit font-size at every
+             breakpoint, so the tag swap changes the semantics, not the look. --}}
+        <h1 class="trending-text fw-bold texture-text text-uppercase my-0 fadeInLeft animated d-inline-block"
             data-animation-in="fadeInLeft" data-delay-in="0.6" style="opacity: 1; animation-delay: 0.6s">
             {{ $moveName }}
-        </h3>
+        </h1>
     @endif
 </div>
 @if(isset($isVideoPageData) && $isVideoPageData)

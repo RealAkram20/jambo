@@ -1,4 +1,42 @@
-@extends('frontend::layouts.master', ['isSwiperSlider' => true, 'isFslightbox' => true, 'bodyClass' => 'custom-header-relative', 'isSweetalert' => true])
+@extends('frontend::layouts.master', [
+    'isSwiperSlider' => true,
+    'isFslightbox' => true,
+    'bodyClass' => 'custom-header-relative',
+    'isSweetalert' => true,
+    // "VJ Junior Series" — spoken order. See Vjs/detail-page for the movies
+    // counterpart; this page likewise shipped no title at all.
+    'title' => $vj->display_name . ' Series',
+])
+
+@php
+    $vjSeriesDescription = 'Watch ' . $vj->display_name
+        . ' translated series free on ' . app_name() . '.';
+@endphp
+
+@section('seo:description', $vjSeriesDescription)
+@section('seo:type', 'profile')
+
+@if ($vj->featured_image_url)
+    @section('seo:image', media_url($vj->featured_image_url))
+@endif
+
+@push('seo:head')
+    @include('seo::partials.json-ld', [
+        'schemas' => [
+            \Modules\Seo\app\Support\StructuredData::vjCollection(
+                $vj,
+                route('frontend.vj_series_detail', $vj->slug),
+                $vj->display_name . ' Series',
+                collect($buckets ?? [])->flatMap(fn ($b) => $b->shows)->all(),
+            ),
+            \Modules\Seo\app\Support\StructuredData::breadcrumbs([
+                ['name' => 'Home', 'url' => route('frontend.ott')],
+                ['name' => $vj->display_name, 'url' => route('frontend.vj_detail', $vj->slug)],
+                ['name' => 'Series', 'url' => route('frontend.vj_series_detail', $vj->slug)],
+            ]),
+        ],
+    ])
+@endpush
 
 @section('content')
     {{-- Hero banner — mirrors /vj/{slug} for movies, scoped to this
@@ -41,7 +79,8 @@
             <section class="related-movie-block mt-5 mb-2">
                 <div class="d-flex align-items-center justify-content-between px-1 pb-2 border-bottom border-dark">
                     <div>
-                        <h3 class="main-title text-capitalize mb-1">{{ $vj->name }}</h3>
+                        {{-- Page <h1>: "VJ Junior Series". Was an <h3>. --}}
+                        <h1 class="main-title text-capitalize mb-1">{{ $vj->display_name }} Series</h1>
                         @if ($vj->description)
                             <p class="text-muted mb-0 small">{{ $vj->description }}</p>
                         @endif

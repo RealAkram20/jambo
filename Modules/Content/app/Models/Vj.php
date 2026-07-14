@@ -11,7 +11,13 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property string $name
  * @property string $slug
  * @property ?string $colour
+ * @property ?string $photo_url
  * @property ?string $description
+ * @property ?string $youtube_url
+ * @property ?string $tiktok_url
+ * @property ?string $facebook_url
+ * @property ?string $instagram_url
+ * @property ?string $website_url
  */
 class Vj extends Model
 {
@@ -21,8 +27,49 @@ class Vj extends Model
         'name',
         'slug',
         'colour',
+        'photo_url',
         'description',
+        // Feed schema.org `sameAs` on the Person node — see
+        // Modules\Seo\app\Support\StructuredData::vjPerson().
+        'youtube_url',
+        'tiktok_url',
+        'facebook_url',
+        'instagram_url',
+        'website_url',
     ];
+
+    /**
+     * The social URLs, in the order they should be shown. Keyed by column so
+     * both the admin form and the public bio card can iterate one list instead
+     * of each hard-coding the same five fields.
+     */
+    public const SOCIAL_FIELDS = [
+        'youtube_url'   => 'YouTube',
+        'tiktok_url'    => 'TikTok',
+        'facebook_url'  => 'Facebook',
+        'instagram_url' => 'Instagram',
+        'website_url'   => 'Website',
+    ];
+
+    /**
+     * The VJ's name as it should be written for a human — and for Google.
+     *
+     * The `name` column holds values like "Vj Junior" / "vj junior", and the
+     * cards render them through CSS `text-transform: capitalize`, which fixes
+     * the look but not the markup: a crawler reads the raw HTML, so it sees
+     * "Vj Junior". The audience searches "VJ Junior", and the <title>/<h1>/
+     * schema should say exactly that.
+     *
+     * Only the leading VJ token is normalised — the rest of the name is left
+     * exactly as the admin typed it, because we cannot know whether "Ice P"
+     * or "Heavy-K" is meant to be cased some other way.
+     */
+    public function getDisplayNameAttribute(): string
+    {
+        $name = trim((string) $this->name);
+
+        return preg_replace('/^vj\b/i', 'VJ', $name) ?? $name;
+    }
 
     public function movies(): BelongsToMany
     {

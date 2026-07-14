@@ -33,9 +33,14 @@
                                 </a>
                                 <span class="text-gold fw-bold font-size-18">#{{ $rank }} {{ __('streamMovies.series_today') }}</span>
                             </div>
-                            <h1 class="mb-2 fw-500 text-capitalize texture-text">
+                            {{-- <h2>, not <h1>. This partial renders once per slide,
+                                 so as an <h1> it gave the home page ten of them —
+                                 ten competing "primary headings", none of which
+                                 described the page. A slide is a list item within
+                                 the page, not the page's subject. --}}
+                            <h2 class="mb-2 fw-500 text-capitalize texture-text">
                                 <a href="{{ $detailUrl }}" class="text-decoration-none text-reset">{{ $item->title }}</a>
-                            </h1>
+                            </h2>
                             @if ($item->synopsis)
                                 <p class="mb-0 font-size-14 line-count-3">{{ $item->synopsis }}</p>
                             @endif

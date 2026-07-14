@@ -144,6 +144,19 @@ if (! function_exists('media_img')) {
             ? ltrim($value, '/')
             : trim($legacyDir, '/') . '/' . ltrim($value, '/');
 
+        // When the app lives in a subdirectory (XAMPP: APP_URL =
+        // http://localhost/Jambo), the FileManager stores paths WITH the
+        // base segment — "/Jambo/storage/gallery/x.png". Glide's source
+        // root is public/, so it must receive "storage/gallery/x.png",
+        // not "Jambo/storage/...". Left unstripped, url('img/'.$path)
+        // yields .../Jambo/img/Jambo/storage/... and every locally-picked
+        // image 404s. media_url() doesn't hit this because it returns the
+        // app-absolute value untouched for the browser to resolve.
+        $basePath = trim((string) parse_url((string) config('app.url'), PHP_URL_PATH), '/');
+        if ($basePath !== '' && str_starts_with($path, $basePath . '/')) {
+            $path = substr($path, strlen($basePath) + 1);
+        }
+
         // Build the proxy URL by hand — url('img/'.$path) collapses
         // forward slashes inside $path which we want preserved.
         return url('img/' . $path) . '?w=' . $width . '&fm=webp';

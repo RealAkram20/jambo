@@ -7,6 +7,7 @@ use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Movie;
 use Modules\Content\app\Models\Season;
 use Modules\Content\app\Models\Show;
+use Modules\Content\app\Models\Vj;
 
 /**
  * Builds schema.org JSON-LD graphs for the public content pages.
@@ -227,6 +228,127 @@ class StructuredData
             '@type'           => 'BreadcrumbList',
             'itemListElement' => $items,
         ];
+    }
+
+    /**
+     * The VJ as a schema.org Person.
+     *
+     * This is the entity node for the site's highest-value queries ("vj
+     * junior", "vj junior movies"). The point of it is `sameAs`: linking this
+     * page to the VJ's YouTube / TikTok / Facebook profiles is what tells
+     * Google that the "VJ Junior" here is the same entity as the "VJ Junior"
+     * with an existing audience elsewhere. Without it, the name is just a
+     * string on a page; with it, it is a known entity that we are the
+     * canonical home for.
+     *
+     * The social columns do not exist yet (they land with the bio-card work),
+     * so socialProfilesFor() reads them defensively and simply returns [] until
+     * they do — array_filter then drops `sameAs` entirely rather than emitting
+     * an empty array.
+     */
+    public static function vjPerson(Vj $vj): array
+    {
+        $url = route('frontend.vj_detail', $vj->slug);
+
+        return array_filter([
+            '@context'    => 'https://schema.org',
+            '@type'       => 'Person',
+            '@id'         => $url . '#person',
+            'url'         => $url,
+            'name'        => $vj->display_name,
+            'description' => self::vjDescription($vj),
+            'image'       => self::images($vj->photo_url ?? null),
+            'jobTitle'    => 'Video Jockey',
+            'sameAs'      => self::socialProfilesFor($vj),
+        ], static fn ($v) => $v !== null && $v !== [] && $v !== '');
+    }
+
+    /**
+     * A VJ listing page (the hub, or its movies/series split) as a
+     * CollectionPage whose mainEntity is an ItemList of the titles on it.
+     *
+     * `about` points back at the Person node by @id, which is the link that
+     * makes Google read this page as "the collection of VJ Junior's work"
+     * rather than as an unrelated grid of films.
+     *
+     * @param iterable $items  Movie and/or Show models actually rendered
+     */
+    public static function vjCollection(Vj $vj, string $pageUrl, string $name, iterable $items): array
+    {
+        $listItems = [];
+        $position  = 0;
+
+        foreach ($items as $item) {
+            if (!$item instanceof Movie && !$item instanceof Show) {
+                continue;
+            }
+
+            $itemUrl = $item instanceof Movie
+                ? route('frontend.movie_detail', $item->slug)
+                : route('frontend.series_detail', $item->slug);
+
+            $listItems[] = array_filter([
+                '@type'    => 'ListItem',
+                'position' => ++$position,
+                'url'      => $itemUrl,
+                'name'     => $item->title,
+            ]);
+
+            // Google ignores the long tail of an ItemList and these pages can
+            // carry hundreds of titles; keep the payload sane.
+            if ($position >= 50) {
+                break;
+            }
+        }
+
+        return array_filter([
+            '@context'   => 'https://schema.org',
+            '@type'      => 'CollectionPage',
+            '@id'        => $pageUrl . '#collection',
+            'url'        => $pageUrl,
+            'name'       => $name,
+            'description' => self::vjDescription($vj),
+            'about'      => ['@id' => route('frontend.vj_detail', $vj->slug) . '#person'],
+            'mainEntity' => $listItems === [] ? null : [
+                '@type'           => 'ItemList',
+                'itemListElement' => $listItems,
+            ],
+        ], static fn ($v) => $v !== null && $v !== [] && $v !== '');
+    }
+
+    /**
+     * The VJ's own words if an admin has written them, otherwise nothing.
+     *
+     * Deliberately does NOT synthesise a filler sentence: 36 VJs sharing one
+     * templated description is the thin-content problem we are trying to avoid,
+     * and an omitted `description` is strictly better than a duplicated one.
+     */
+    private static function vjDescription(Vj $vj): ?string
+    {
+        $bio = trim(strip_tags((string) $vj->description));
+
+        return $bio !== '' ? Str::limit(preg_replace('/\s+/', ' ', $bio), 300) : null;
+    }
+
+    /**
+     * Social profile URLs for a VJ -> schema `sameAs`.
+     *
+     * Reads the columns defensively because they are added in a later
+     * migration; until then every lookup misses and this returns [].
+     */
+    private static function socialProfilesFor(Vj $vj): array
+    {
+        $keys = ['youtube_url', 'tiktok_url', 'facebook_url', 'instagram_url', 'website_url'];
+
+        $out = [];
+        foreach ($keys as $key) {
+            $value = trim((string) ($vj->{$key} ?? ''));
+            if ($value !== '' && preg_match('#^https?://#i', $value) && !in_array($value, $out, true)) {
+                $out[] = $value;
+            }
+        }
+
+        return $out;
     }
 
     /**

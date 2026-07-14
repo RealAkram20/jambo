@@ -42,7 +42,7 @@ class SitemapController extends Controller
             // would otherwise keep serving the old imageless XML from
             // cache for up to 6 hours. Bump the suffix on any future
             // change to the output format.
-            $xml = Cache::remember('seo.sitemap.xml.v2', now()->addHours(6), function () {
+            $xml = Cache::remember('seo.sitemap.xml.v3', now()->addHours(6), function () {
                 $entries = $this->entries();
                 $flat = collect();
                 foreach ($entries as $group) {
@@ -258,16 +258,50 @@ class SitemapController extends Controller
         try {
             Vj::query()
                 ->select(['id', 'slug', 'name', 'updated_at'])
+                ->withCount(['movies', 'shows'])
                 ->orderByDesc('updated_at')
                 ->chunk(500, function ($chunk) use ($rows) {
                     foreach ($chunk as $vj) {
+                        $lastmod = optional($vj->updated_at)->toAtomString();
+                        $label   = $vj->name ?? $vj->slug;
+
+                        // The hub. Highest-value VJ page — it targets the bare
+                        // "vj junior" query.
                         $rows->push([
                             'loc'        => route('frontend.vj_detail', $vj->slug),
-                            'lastmod'    => optional($vj->updated_at)->toAtomString(),
+                            'lastmod'    => $lastmod,
                             'changefreq' => 'weekly',
-                            'priority'   => '0.6',
-                            'label'      => $vj->name ?? $vj->slug,
+                            'priority'   => '0.8',
+                            'label'      => $label,
                         ]);
+
+                        // The type-scoped spokes ("vj junior movies" / "vj junior
+                        // series"). These were reachable but absent from the
+                        // sitemap, so Google had no discovery path to them.
+                        //
+                        // Only listed when the VJ actually HAS content of that
+                        // type: a VJ with no series would otherwise get a
+                        // /vj-series/ URL advertised to Google with nothing on it,
+                        // which is the thin-page problem in miniature.
+                        if ($vj->movies_count > 0) {
+                            $rows->push([
+                                'loc'        => route('frontend.vj_movie_detail', $vj->slug),
+                                'lastmod'    => $lastmod,
+                                'changefreq' => 'weekly',
+                                'priority'   => '0.7',
+                                'label'      => $label . ' — Movies',
+                            ]);
+                        }
+
+                        if ($vj->shows_count > 0) {
+                            $rows->push([
+                                'loc'        => route('frontend.vj_series_detail', $vj->slug),
+                                'lastmod'    => $lastmod,
+                                'changefreq' => 'weekly',
+                                'priority'   => '0.7',
+                                'label'      => $label . ' — Series',
+                            ]);
+                        }
                     }
                 });
         } catch (\Throwable $e) {
