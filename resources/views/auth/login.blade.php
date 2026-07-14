@@ -28,13 +28,13 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('login') }}" novalidate>
+        <form method="POST" action="{{ route('login') }}" novalidate autocomplete="off">
             @csrf
 
             <div class="jambo-field">
                 <label for="email">Email</label>
                 <input id="email" type="email" name="email" value="{{ old('email') }}"
-                       autocomplete="email" autofocus required placeholder="you@example.com">
+                       autocomplete="off" autofocus required placeholder="you@example.com">
             </div>
 
             <div class="jambo-field jambo-field--with-toggle">

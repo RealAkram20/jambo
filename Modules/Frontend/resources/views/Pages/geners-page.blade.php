@@ -77,7 +77,7 @@
                             {{ __('streamButtons.view_all') }}
                         </a>
                     </div>
-                    <div class="row row-cols-xl-5 row-cols-md-3 row-cols-3 g-3">
+                    <div class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-7 g-3">
                         @foreach ($movies as $movie)
                             <div class="col">
                                 @include('frontend::components.cards.card-style', [
@@ -104,7 +104,7 @@
                             {{ __('streamButtons.view_all') }}
                         </a>
                     </div>
-                    <div class="row row-cols-xl-5 row-cols-md-3 row-cols-3 g-3">
+                    <div class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-7 g-3">
                         @foreach ($shows as $show)
                             <div class="col">
                                 @include('frontend::components.cards.card-style', [
@@ -132,7 +132,6 @@
                     <div class="col-sm-12 my-4">
                         <div class="d-flex align-items-center justify-content-between">
                             <h5 class="main-title text-capitalize mb-0">{{ __('frontendheader.geners') }}</h5>
-                            <span class="text-muted">{{ $genres->count() }}</span>
                         </div>
                     </div>
                 </div>

@@ -71,10 +71,6 @@
                        placeholder="e.g. Quick Links">
             </div>
 
-            <p class="text-secondary small mb-3">
-                Drag <i class="ph ph-list-dashes"></i> to reorder, <i class="ph ph-trash-simple"></i> to remove.
-            </p>
-
             <ul class="list-unstyled mb-0 footer-link-list" data-footer-links data-col-index="{{ $ci }}">
                 @foreach (($col['links'] ?? []) as $li => $link)
                     <li class="border rounded p-3 mb-2 footer-link-row" data-footer-link style="background:rgba(255,255,255,0.02);">
@@ -166,10 +162,6 @@
                    placeholder="Follow Us">
         </div>
 
-        <p class="text-secondary small mb-3">
-            Drag to reorder. Icon class accepts Phosphor (<code>ph ph-instagram-logo</code>, <code>ph ph-x-logo</code>, <code>ph-fill ph-linkedin-logo</code>) or the bundled icon font (<code>icon icon-facebook-share</code>, <code>icon icon-youtube-share</code>).
-        </p>
-
         <ul class="list-unstyled mb-0" data-socials-list>
             @foreach ($socials as $si => $social)
                 <li class="border rounded p-2 mb-2 d-flex align-items-center gap-2 social-row" data-social-row>
@@ -205,7 +197,6 @@
         <textarea class="form-control" rows="2"
                   name="meta[copyright]"
                   placeholder="&copy; 2026 JAMBO. All rights reserved.">{{ old('meta.copyright', $page->metaValue('copyright')) }}</textarea>
-        <small class="text-secondary">HTML allowed (use <code>&amp;copy;</code> for ©, wrap brand text in <code>&lt;span class="text-primary"&gt;</code>).</small>
     </div>
 </div>
 
@@ -236,7 +227,6 @@
                 @error('meta.app_store_url') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
         </div>
-        <small class="text-secondary d-block mt-2">Leave a URL blank to hide that badge. Badge images are bundled with the theme — <code>frontend/images/footer/play-store.webp</code> and <code>app-store.webp</code>.</small>
     </div>
 </div>
 

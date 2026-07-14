@@ -14,6 +14,9 @@
     }
     $isShow = $relatedUpcoming;
     $fallbackImg = $isShow ? 'media/vikings-portrait.webp' : 'media/rabbit-portrait.webp';
+    // Callers can point View All at a dedicated rail archive
+    // (/collection/{rail}); default stays the generic listing page.
+    $viewAllRoute = $viewAllRoute ?? ($isShow ? route('frontend.series') : route('frontend.movie'));
     $sectionClass = $downloadUpcoming ? 'recommended-block section-padding-top' : 'recommended-block section-wraper';
 @endphp
 
@@ -21,7 +24,7 @@
     <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
         <h4 class="main-title text-capitalize mb-0">{{ $recommended }}</h4>
         @if ($viewAllBtn)
-            <a href="{{ $isShow ? route('frontend.series') : route('frontend.movie') }}" class="text-primary iq-view-all text-decoration-none">{{ __('streamButtons.view_all') }}</a>
+            <a href="{{ $viewAllRoute }}" class="text-primary iq-view-all text-decoration-none">{{ __('streamButtons.view_all') }}</a>
         @endif
     </div>
     <div class="card-style-slider">

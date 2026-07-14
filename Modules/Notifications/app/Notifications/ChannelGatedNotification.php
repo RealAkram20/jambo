@@ -5,21 +5,28 @@ namespace Modules\Notifications\app\Notifications;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Modules\Notifications\app\Models\NotificationAudienceSetting;
+use Modules\Notifications\app\Models\NotificationPreference;
 use Modules\Notifications\app\Models\NotificationSetting;
 use NotificationChannels\WebPush\WebPushChannel;
 use NotificationChannels\WebPush\WebPushMessage;
 
 /**
- * Base class for every Jambo notification. Encapsulates the two-layer
- * channel gate:
+ * Base class for every Jambo notification. Encapsulates the four-layer
+ * channel gate — a channel fires only when EVERY layer allows it:
  *
- *   1. Admin-global switch (NotificationSetting::channelsFor($key))
- *   2. Per-user preference (users.*_notifications_enabled columns)
+ *   1. Super-admin per-audience switch
+ *      (NotificationAudienceSetting::channelsFor($key, $audience)), where
+ *      $audience is the recipient's highest role. Falls back to layer 2
+ *      when no audience row exists (personal, single-recipient types).
+ *   2. Site-wide per-type switch (NotificationSetting::channelsFor($key)).
+ *   3. This recipient's per-type opt-out (notification_preferences).
+ *   4. This recipient's global per-channel toggle
+ *      (users.*_notifications_enabled columns).
  *
- * Whichever is stricter wins. Subclasses only need to declare their
- * setting key and supply the database payload; toMail / toWebPush have
- * sensible defaults derived from the same payload, which any subclass
- * can override.
+ * Strictest layer wins. Subclasses only declare their setting key and the
+ * database payload; toMail / toWebPush have sensible defaults derived from
+ * the same payload, which any subclass can override.
  */
 abstract class ChannelGatedNotification extends Notification
 {
@@ -49,15 +56,44 @@ abstract class ChannelGatedNotification extends Notification
 
     public function via($notifiable): array
     {
-        $global = NotificationSetting::channelsFor($this->settingKey());
+        $key = $this->settingKey();
+
+        // Layer 1+2: the super-admin per-audience switch, falling back to
+        // the flat site-wide switch when this type has no audience row
+        // (personal, single-recipient types). channelsFor() returns keys
+        // in_app/email/push; the flat row uses system/push/email — map it.
+        $audience = NotificationAudienceSetting::audienceFor($notifiable);
+        $allow = NotificationAudienceSetting::channelsFor($key, $audience);
+        if ($allow === null) {
+            if (NotificationAudienceSetting::keyIsAudienceControlled($key)) {
+                // Role-targeted type, but this audience was deliberately
+                // left out of its matrix → deny every channel.
+                $allow = ['in_app' => false, 'email' => false, 'push' => false];
+            } else {
+                // Personal, single-recipient type (no audience concept) →
+                // fall back to the flat site-wide switch.
+                $flat = NotificationSetting::channelsFor($key);
+                $allow = [
+                    'in_app' => $flat['system'],
+                    'email'  => $flat['email'],
+                    'push'   => $flat['push'],
+                ];
+            }
+        }
+
         $channels = [];
 
-        if ($global['system'] && ($notifiable->in_app_notifications_enabled ?? true)) {
+        if (
+            $allow['in_app']
+            && NotificationPreference::allows($notifiable, $key, 'in_app')
+            && ($notifiable->in_app_notifications_enabled ?? true)
+        ) {
             $channels[] = 'database';
         }
 
         if (
-            $global['email']
+            $allow['email']
+            && NotificationPreference::allows($notifiable, $key, 'email')
             && ($notifiable->email_notifications_enabled ?? true)
             && !empty($notifiable->email)
         ) {
@@ -65,7 +101,8 @@ abstract class ChannelGatedNotification extends Notification
         }
 
         if (
-            $global['push']
+            $allow['push']
+            && NotificationPreference::allows($notifiable, $key, 'push')
             && ($notifiable->push_notifications_enabled ?? false)
             && method_exists($notifiable, 'pushSubscriptions')
             && $notifiable->pushSubscriptions()->exists()

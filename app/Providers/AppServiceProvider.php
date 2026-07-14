@@ -37,6 +37,45 @@ class AppServiceProvider extends ServiceProvider
 
         $this->overrideMailConfigFromSettings();
         $this->overrideWebPushConfigFromSettings();
+        $this->overrideGoogleAuthConfigFromSettings();
+    }
+
+    /**
+     * Google OAuth (Socialite) credentials saved via /admin/settings
+     * take precedence over the .env fallbacks. The login/register
+     * views show the "Continue with Google" button whenever
+     * config('services.google.client_id') is non-empty, so this also
+     * drives button visibility: switch OFF → button hidden even if
+     * .env still carries credentials.
+     */
+    private function overrideGoogleAuthConfigFromSettings(): void
+    {
+        try {
+            if (!Schema::hasTable('settings')) {
+                return;
+            }
+        } catch (\Throwable $e) {
+            return;
+        }
+
+        // Explicit OFF (saved as false) hides Google sign-in entirely.
+        // Never-saved (null) leaves whatever .env provides untouched.
+        $enabled = Setting::get('google_auth_enabled');
+        if ($enabled === false) {
+            Config::set('services.google.client_id', null);
+            return;
+        }
+
+        if ($clientId = Setting::get('google_client_id')) {
+            Config::set('services.google.client_id', trim($clientId));
+        }
+        if ($encSecret = Setting::get('google_client_secret')) {
+            try {
+                Config::set('services.google.client_secret', Crypt::decryptString($encSecret));
+            } catch (\Throwable $e) {
+                // APP_KEY rotated since save — leave the .env fallback.
+            }
+        }
     }
 
     /**

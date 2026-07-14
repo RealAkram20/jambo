@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Content\app\Models\Concerns\TracksContentActivity;
 use Modules\Content\database\factories\SeasonFactory;
 
 /**
@@ -20,6 +21,23 @@ use Modules\Content\database\factories\SeasonFactory;
 class Season extends Model
 {
     use HasFactory;
+    use TracksContentActivity;
+
+    public function activityType(): string
+    {
+        return 'season';
+    }
+
+    public function activityTitle(): string
+    {
+        $showTitle = $this->show?->title ?? 'Show';
+        return $showTitle . ' — Season ' . ($this->number ?? '?');
+    }
+
+    public function activityMeta(): ?array
+    {
+        return ['show_id' => $this->show_id, 'season_number' => $this->number];
+    }
 
     protected $table = 'seasons';
 

@@ -18,15 +18,7 @@
     @include('frontend::components.partials.head.plugins')
     {{-- Vite CSS --}}
     {{ module_vite('build-frontend', 'resources/assets/sass/app.scss') }}
-    <style>
-        :root {
-            --bs-primary: #1A98FF;
-            --bs-primary-rgb: 26, 152, 255;
-            --bs-link-color: #1A98FF;
-            --bs-link-color-rgb: 26, 152, 255;
-            --bs-link-hover-color: #147acc;
-        }
-    </style>
+    @include('components.partials.theme-tokens')
 
     <!-- Google Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -62,8 +54,6 @@
 </head>
 
 <body class="{{ $bodyClass ?? '' }}">
-
-    @include('components.partials.verify-email-banner')
 
     @if (Route::currentRouteName() === 'frontend.ott')
         @include('frontend::components.loader-component')

@@ -44,7 +44,11 @@ Route::middleware('guest')->group(function () {
     Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
                 ->name('password.reset');
 
+    // Throttled like the other unauthenticated writes: the token is
+    // 64 random chars so guessing is hopeless anyway, but unlimited
+    // tries would still let a bot hammer bcrypt + DB for free.
     Route::post('reset-password', [NewPasswordController::class, 'store'])
+                ->middleware('throttle:6,1')
                 ->name('password.store');
 
     // Social sign-in (Socialite). Provider is whitelisted in the

@@ -110,6 +110,13 @@
                                 </a>
                             @else
                                 @php $jamboHubUser = auth()->user()->username; @endphp
+                                {{-- Monetization partners get their earnings
+                                     console first — it's why they log in. --}}
+                                @if (auth()->user()->hasRole('partner') && Route::has('partner.dashboard'))
+                                    <a href="{{ route('partner.dashboard') }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
+                                        <i class="ph ph-hand-coins text-warning"></i> Creator Studio
+                                    </a>
+                                @endif
                                 <a href="{{ route('profile.show', ['username' => $jamboHubUser]) }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
                                     <i class="ph ph-user-circle"></i> Profile
                                 </a>

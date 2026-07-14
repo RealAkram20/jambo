@@ -38,6 +38,13 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\EncryptCookies::class,
             \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
             \Illuminate\Session\Middleware\StartSession::class,
+            // Ties each session to the password hash it authenticated
+            // with: when the password changes (user-initiated or via
+            // reset), every OTHER session sees a stale hash on its
+            // next request and is logged out. No effect on guests;
+            // existing sessions just adopt the current hash on their
+            // first request after deploy (no mass logout).
+            \Illuminate\Session\Middleware\AuthenticateSession::class,
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,

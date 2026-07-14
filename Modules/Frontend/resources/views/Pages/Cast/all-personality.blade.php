@@ -7,7 +7,6 @@
                 <div class="col-sm-12 my-4">
                     <div class="d-flex align-items-center justify-content-between">
                         <h5 class="main-title text-capitalize mb-0">{{ __('streamMovies.your_personality') }}</h5>
-                        <span class="text-muted">{{ $persons->count() }}</span>
                     </div>
                 </div>
             </div>

@@ -19,15 +19,7 @@
 
     <!-- Scripts -->
     @vite(['resources/css/app.scss', 'public/dashboard/scss/streamit.scss', 'public/dashboard/scss/dashboard-custom.scss', 'public/dashboard/scss/customizer.scss', 'public/dashboard/scss/pro.scss', 'public/dashboard/scss/custom.scss', 'resources/js/app.js'])
-    <style>
-        :root {
-            --bs-primary: #1A98FF;
-            --bs-primary-rgb: 26, 152, 255;
-            --bs-link-color: #1A98FF;
-            --bs-link-color-rgb: 26, 152, 255;
-            --bs-link-hover-color: #147acc;
-        }
-    </style>
+    @include('components.partials.theme-tokens')
 
 </head>
 

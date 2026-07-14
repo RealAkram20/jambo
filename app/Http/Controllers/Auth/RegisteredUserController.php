@@ -115,6 +115,11 @@ class RegisteredUserController extends Controller
         event(new Registered($user));
 
         Auth::login($user);
+        // Rotate the session ID so a session token planted before
+        // signup (session fixation) can't ride into the authed session.
+        // Login and the 2FA challenge already do this; registration
+        // must too.
+        $request->session()->regenerate();
 
         SignupAttempt::log($request, SignupAttempt::OUTCOME_SUCCESS, [
             'user_id' => $user->id,

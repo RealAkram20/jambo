@@ -5,6 +5,7 @@ namespace Modules\Frontend\app\View\Composers;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
+use Modules\Content\app\Models\Category;
 use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Genre;
 use Modules\Content\app\Models\Movie;
@@ -93,9 +94,21 @@ class SectionDataComposer
         // per-slide work the right banner does).
         $topMovies = app(TopPicksRecommender::class)->globalTopPicks(Movie::class, 10);
 
+        // Homepage category shelves — ONE pool: every category the admin
+        // marked "Visible Home" (with published content), in sort_order.
+        // The first holds the fixed shelf slot; the rest rotate through
+        // the three random slots, drawn fresh per page load. Nothing
+        // outside this pool ever reaches the homepage, so the admin flag
+        // is the single source of truth.
+        $categoryShelves = $this->shapeCategoryRails(
+            Category::visibleHome()
+                ->orderBy('sort_order')
+                ->orderBy('name')
+        );
+
         return [
             // Movies
-            'latestMovies'   => $movieBase()->orderByDesc('published_at')->take(10)->get(),
+            'latestMovies'   => $movieBase()->orderByDesc('created_at')->take(10)->get(),
             'popularMovies'  => $movieBase()->orderByDesc('views_count')->take(10)->get(),
             'topMovies'      => $topMovies,
             // Upcoming — driven by the STATUS_UPCOMING flag, not a future
@@ -103,18 +116,18 @@ class SectionDataComposer
             // published() scope already forces published_at <= now).
             'upcomingMovies' => app(TopPicksRecommender::class)->upcoming(auth()->id(), 10),
             'recommendedMovies' => app(TopPicksRecommender::class)->smartShuffle(auth()->id(), 10),
-            'specialsMovies' => $movieBase()->orderByDesc('published_at')->take(10)->get(),
+            'specialsMovies' => $movieBase()->orderByDesc('created_at')->take(10)->get(),
             'freshMovies'    => app(TopPicksRecommender::class)->freshPicks(auth()->id(), 10),
 
             // Shows
-            'latestShows'    => $showBase()->orderByDesc('published_at')->take(10)->get(),
+            'latestShows'    => $showBase()->orderByDesc('created_at')->take(10)->get(),
             'popularShows'   => $showBase()->orderByDesc('views_count')->take(10)->get(),
             'topShows'       => app(TopPicksRecommender::class)->globalTopPicks(Show::class, 10),
             'recommendedShows' => $showBase()->inRandomOrder()->take(10)->get(),
             'internationalShows' => $showBase()->inRandomOrder()->take(10)->get(),
 
             // Hero
-            'heroMovies'     => $movieBase()->orderByDesc('published_at')->take(3)->get(),
+            'heroMovies'     => $movieBase()->orderByDesc('created_at')->take(3)->get(),
             'heroItems'      => $this->buildHero(),
 
             // Vertical slider — top 5 of the Top 10 Movies of the Day so
@@ -134,7 +147,7 @@ class SectionDataComposer
             'exclusiveMovies' => Movie::published()
                 ->with('genres')
                 ->whereNotNull('tier_required')
-                ->orderByDesc('published_at')
+                ->orderByDesc('created_at')
                 ->take(8)
                 ->get(),
 
@@ -177,7 +190,54 @@ class SectionDataComposer
                 ->get(),
 
             'continueWatching' => $this->continueWatchingForUser(),
+
+            // Fixed category shelf — the first Visible Home category by
+            // sort_order (empty categories are dropped so a freshly
+            // toggled category never shows a blank rail).
+            'homeCategories' => $categoryShelves->take(1),
+
+            // Rotating category shelves — fill the slots left by the
+            // retired algorithmic rails (Top Picks / Popular Movies /
+            // Fresh Picks). The remaining Visible Home categories,
+            // shuffled per page load, three drawn per page; slice(1)
+            // guarantees they never duplicate the fixed shelf above.
+            'randomHomeCategories' => $categoryShelves->slice(1)->shuffle()->take(3)->values(),
         ];
+    }
+
+    /**
+     * Categories opted into the homepage (visible_home), each carrying
+     * a ready-to-render `railItems` collection: published movies +
+     * shows merged, newest first, capped at 12. Items are tagged with
+     * `_isShow` (same convention as buildHero) so the rail blade can
+     * pick the right detail route per card.
+     */
+    /**
+     * Runs a category query and attaches `railItems` to each result:
+     * published movies + shows merged, newest-added first, capped at
+     * 12, tagged `_isShow` (same convention as buildHero) so the rail
+     * blade can pick the right detail route per card. Categories that
+     * end up with no items are dropped.
+     */
+    private function shapeCategoryRails($query): Collection
+    {
+        return $query
+            ->with([
+                'movies' => fn ($q) => $q->published()->with('genres'),
+                'shows'  => fn ($q) => $q->published()->with('genres'),
+            ])
+            ->get()
+            ->each(function (Category $cat) {
+                $movies = $cat->movies->each(fn ($m) => $m->_isShow = false);
+                $shows  = $cat->shows->each(fn ($s) => $s->_isShow = true);
+
+                $cat->railItems = $movies->concat($shows)
+                    ->sortByDesc('created_at')
+                    ->take(12)
+                    ->values();
+            })
+            ->filter(fn (Category $cat) => $cat->railItems->isNotEmpty())
+            ->values();
     }
 
     /**
@@ -195,14 +255,14 @@ class SectionDataComposer
 
         $movies = Movie::published()->with($relations)
             ->orderByDesc('views_count')
-            ->orderByDesc('published_at')
+            ->orderByDesc('created_at')
             ->take(3)
             ->get()
             ->each(fn ($m) => $m->_isShow = false);
 
         $shows = Show::published()->with(array_merge($relations, ['seasons']))
             ->orderByDesc('views_count')
-            ->orderByDesc('published_at')
+            ->orderByDesc('created_at')
             ->take(3)
             ->get()
             ->each(fn ($s) => $s->_isShow = true);

@@ -72,10 +72,12 @@ class AuthenticatedSessionController extends Controller
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
 
-        // Admins land on the admin dashboard; regular users land on
-        // the public frontend. The two profiles never share a home
-        // page — see memory/feedback_admin_vs_user_separation.md.
-        $destination = $user->hasRole('admin') ? '/app' : '/';
+        // Admins land on the admin dashboard; monetization partners
+        // land on their earnings console; regular users land on the
+        // public frontend. Admin/user separation — see
+        // memory/feedback_admin_vs_user_separation.md.
+        $destination = $user->hasRole('admin') ? '/app'
+            : ($user->hasRole('partner') ? '/partner' : '/');
 
         return redirect()->intended($destination);
     }

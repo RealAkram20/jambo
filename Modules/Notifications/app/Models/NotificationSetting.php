@@ -138,6 +138,18 @@ class NotificationSetting extends Model
                     ['key' => 'watchlist_available', 'label' => 'Watchlist available','description' => 'An item on the user\'s watchlist is now live.', 'icon' => 'ph-bookmark-simple',   'colour' => 'info',    'audience' => 'User'],
                 ],
             ],
+            'monetization' => [
+                'label' => 'Monetization & Payouts',
+                'icon'  => 'ph-hand-coins',
+                'items' => [
+                    ['key' => 'earnings_credited',       'label' => 'Earnings credited',       'description' => 'Monthly statement released to a partner wallet.',   'icon' => 'ph-coins',        'colour' => 'success', 'audience' => 'User'],
+                    ['key' => 'withdrawal_requested',    'label' => 'Withdrawal requested',    'description' => 'A partner asked to withdraw from their wallet.',    'icon' => 'ph-hand-coins',   'colour' => 'warning', 'audience' => 'Admin'],
+                    ['key' => 'withdrawal_approved',     'label' => 'Withdrawal approved',     'description' => 'Finance approved a withdrawal for manual payout.',  'icon' => 'ph-check-circle', 'colour' => 'primary', 'audience' => 'User'],
+                    ['key' => 'withdrawal_paid',         'label' => 'Withdrawal paid',         'description' => 'Mobile-money payout sent and reference recorded.',  'icon' => 'ph-money',        'colour' => 'success', 'audience' => 'User'],
+                    ['key' => 'withdrawal_rejected',     'label' => 'Withdrawal rejected',     'description' => 'A withdrawal was rejected and funds returned.',     'icon' => 'ph-x-circle',     'colour' => 'danger',  'audience' => 'User'],
+                    ['key' => 'payout_profile_verified', 'label' => 'Payout profile verified', 'description' => 'Partner payout details were verified by an admin.', 'icon' => 'ph-seal-check',   'colour' => 'success', 'audience' => 'User'],
+                ],
+            ],
             'admin' => [
                 'label' => 'Admin & Moderation',
                 'icon'  => 'ph-shield-check',

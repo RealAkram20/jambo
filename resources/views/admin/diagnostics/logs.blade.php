@@ -18,10 +18,6 @@
                 <h4 class="card-title mb-0">
                     <i class="ph ph-file-text me-1"></i> Error log
                 </h4>
-                <small class="text-secondary">
-                    Showing the last
-                    {{ number_format($tailLimitBytes / 1024) }} KB of each file.
-                </small>
             </div>
 
             <div class="card-body">

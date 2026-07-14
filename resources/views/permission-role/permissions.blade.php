@@ -199,9 +199,6 @@
                         <label class="form-label" for="jambo-new-role-title">Role name <span class="text-danger">*</span></label>
                         <input type="text" name="title" id="jambo-new-role-title" class="form-control"
                             placeholder="e.g. Moderator" required maxlength="60">
-                        <div class="form-text" style="font-size:11px;">
-                            Stored lowercase with underscores. "Content Editor" becomes <code>content_editor</code>.
-                        </div>
                     </div>
                     <div class="mb-0">
                         <label class="form-label" for="jambo-new-role-import">Copy permissions from</label>

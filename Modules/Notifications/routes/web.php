@@ -52,16 +52,26 @@ Route::prefix('notifications')
             ->name('push.unsubscribe');
     });
 
-// Admin-only: bulk update for the global notification switches shown
-// inside the Settings tab of /notifications. The GET render stays on
+// Admin notification actions. The GET render stays on
 // NotificationController@index so the Inbox + Settings tabs share one
 // page and one URL.
 Route::middleware(['auth', 'role:admin'])
     ->prefix('admin/notifications')
     ->name('admin.notifications.')
     ->group(function () {
+        // Global switches + per-audience routing matrix are owner-level
+        // controls: they decide, platform-wide, who receives what. Gate
+        // to super-admin only. Individual admins tune their OWN delivery
+        // on the self-service preferences page (role:admin), not here.
         Route::put('/settings', [NotificationSettingsController::class, 'update'])
+            ->middleware('role:super-admin')
             ->name('settings.update');
+
+        // Each admin's OWN per-type opt-outs (the "My preferences" tab).
+        // role:admin — every admin manages their own delivery here; it
+        // can never affect anyone else, so no super-admin gate.
+        Route::put('/my-preferences', [NotificationSettingsController::class, 'updateMyPreferences'])
+            ->name('my-preferences.update');
 
         // Fire a one-off test notification through a single channel so
         // the admin can sanity-check each transport. Channel must be

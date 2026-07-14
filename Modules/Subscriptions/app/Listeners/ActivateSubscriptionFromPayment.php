@@ -37,6 +37,30 @@ class ActivateSubscriptionFromPayment
             return;
         }
 
+        // Price backstop: the pricing-page flow copies amount + currency
+        // straight off the tier, so a completed order for this tier must
+        // have paid at least the tier's price in its currency. If it
+        // didn't, the order was assembled through some path that bypassed
+        // that copy — refuse to grant premium rather than honour an
+        // under-payment. `price`/`amount` are decimal:2 (string-cast), so
+        // compare as floats. Expected currency mirrors createOrder's
+        // `$tier->currency ?: config default` fallback so a tier with a
+        // blank currency doesn't wrongly reject a legitimate order.
+        $expectedCurrency = $tier->currency ?: config('payments.currency', 'UGX');
+        if ((float) $order->amount < (float) $tier->price
+            || strcasecmp((string) $order->currency, (string) $expectedCurrency) !== 0) {
+            Log::warning('[subscriptions] activation refused: order underpays tier', [
+                'order_id' => $order->id,
+                'order_amount' => $order->amount,
+                'order_currency' => $order->currency,
+                'tier_id' => $tier->id,
+                'tier_price' => $tier->price,
+                'expected_currency' => $expectedCurrency,
+                'source' => $source,
+            ]);
+            return;
+        }
+
         DB::transaction(function () use ($order, $tier, $source) {
             // Idempotency: if we've already activated this order, stop.
             $existing = UserSubscription::where('payment_order_id', $order->id)->first();

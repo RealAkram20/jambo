@@ -25,9 +25,6 @@
                                     <span class="badge bg-warning text-dark ms-2">Active</span>
                                 @endif
                             </h4>
-                            <small class="text-secondary">
-                                When ON, only admins can use the site. Everyone else sees the maintenance page.
-                            </small>
                         </div>
                         <button type="submit" class="btn btn-primary btn-sm">
                             <i class="ph ph-check me-1"></i> Save maintenance
@@ -52,9 +49,6 @@
                                         Enable maintenance mode
                                     </label>
                                 </div>
-                                <small class="text-secondary d-block mt-1">
-                                    The /login page stays open so you can sign back in if you log out by mistake.
-                                </small>
                             </div>
 
                             <div class="col-md-12">
@@ -67,9 +61,6 @@
                                 @error('maintenance_message')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
-                                <small class="text-secondary">
-                                    Plain text. Shown below the headline on the maintenance page.
-                                </small>
                             </div>
 
                             <div class="col-md-6">
@@ -82,8 +73,131 @@
                                 @error('maintenance_until')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            {{-- Viewing access ====================================== --}}
+            <form action="{{ route('admin.settings.access') }}" method="POST" class="mt-4">
+                @csrf
+
+                @php
+                    $signupToWatch = (bool) setting('require_signup_to_watch');
+                @endphp
+
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="card-title mb-0">
+                                <i class="ph ph-play-circle me-1"></i> Viewing access
+                                @if ($signupToWatch)
+                                    <span class="badge bg-info ms-2">Sign-up required</span>
+                                @endif
+                            </h4>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="ph ph-check me-1"></i> Save access
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        @if (session('status_access'))
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                {{ session('status_access') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        @endif
+
+                        <div class="form-check form-switch">
+                            <input type="hidden" name="require_signup_to_watch" value="0">
+                            <input type="checkbox" class="form-check-input" role="switch"
+                                id="require_signup_to_watch" name="require_signup_to_watch" value="1"
+                                {{ $signupToWatch ? 'checked' : '' }}>
+                            <label class="form-check-label" for="require_signup_to_watch">
+                                Require sign-up to watch
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            {{-- Google sign-in ====================================== --}}
+            <form action="{{ route('admin.settings.google') }}" method="POST" class="mt-4">
+                @csrf
+
+                @php
+                    $googleOn = (bool) setting('google_auth_enabled');
+                    $googleHasSecret = (bool) setting('google_client_secret');
+                @endphp
+
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="card-title mb-0">
+                                <i class="ph ph-google-logo me-1"></i> Google sign-in
+                                @if ($googleOn)
+                                    <span class="badge bg-success ms-2">Enabled</span>
+                                @endif
+                            </h4>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="ph ph-check me-1"></i> Save Google
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        @if (session('status_google'))
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                {{ session('status_google') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        @endif
+                        @if (session('google_error'))
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                {{ session('google_error') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        @endif
+
+                        <div class="row g-3">
+                            <div class="col-md-12">
+                                <div class="form-check form-switch">
+                                    <input type="hidden" name="google_auth_enabled" value="0">
+                                    <input type="checkbox" class="form-check-input" role="switch"
+                                        id="google_auth_enabled" name="google_auth_enabled" value="1"
+                                        {{ $googleOn ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="google_auth_enabled">
+                                        Show "Continue with Google" on the login and sign-up pages
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label" for="google_client_id">Client ID</label>
+                                <input type="text" name="google_client_id" id="google_client_id"
+                                    class="form-control @error('google_client_id') is-invalid @enderror"
+                                    value="{{ old('google_client_id', setting('google_client_id')) }}"
+                                    placeholder="1234567890-xxxx.apps.googleusercontent.com"
+                                    autocomplete="off">
+                                @error('google_client_id')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label" for="google_client_secret">Client secret</label>
+                                <input type="password" name="google_client_secret" id="google_client_secret"
+                                    class="form-control" value="" autocomplete="new-password"
+                                    placeholder="{{ $googleHasSecret ? '••••••••  saved — leave blank to keep' : 'GOCSPX-…' }}">
+                            </div>
+
+                            <div class="col-md-12">
+                                <label class="form-label" for="google_redirect_uri">Authorized redirect URI</label>
+                                <input type="text" id="google_redirect_uri" class="form-control" readonly
+                                    value="{{ url('auth/google/callback') }}" onclick="this.select()">
                                 <small class="text-secondary">
-                                    Drives the countdown on the maintenance page. Leave blank for "soon".
+                                    Add this URL to your OAuth client in the
+                                    <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Google Cloud Console</a>.
                                 </small>
                             </div>
                         </div>
@@ -99,7 +213,6 @@
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <div>
                             <h4 class="card-title mb-0">General</h4>
-                            <small class="text-secondary">Application identity and SEO</small>
                         </div>
                         <button type="submit" class="btn btn-primary btn-sm">
                             <i class="ph ph-check me-1"></i> Save general
@@ -133,7 +246,6 @@
                                 @error('meta_description')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
-                                <small class="text-secondary">Recommended: 150–160 characters.</small>
                             </div>
                         </div>
                     </div>
@@ -148,7 +260,6 @@
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <div>
                             <h4 class="card-title mb-0">Branding</h4>
-                            <small class="text-secondary">Logo, favicon and preloader</small>
                         </div>
                         <button type="submit" class="btn btn-primary btn-sm">
                             <i class="ph ph-check me-1"></i> Save branding
@@ -246,10 +357,6 @@
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <div>
                             <h4 class="card-title mb-0">Email (SMTP)</h4>
-                            <small class="text-secondary">
-                                Outgoing mail server used for user notifications, receipts, and password resets.
-                                Leave the password blank when re-saving other fields to keep the existing password.
-                            </small>
                         </div>
                         <button type="submit" class="btn btn-primary btn-sm">
                             <i class="ph ph-check me-1"></i> Save SMTP
@@ -340,10 +447,7 @@
                             </div>
                         </div>
 
-                        <div class="d-flex align-items-center gap-2 mt-3 pt-3 border-top">
-                            <small class="text-secondary flex-grow-1">
-                                Save first, then send a test to verify delivery.
-                            </small>
+                        <div class="d-flex justify-content-end mt-3 pt-3 border-top">
                             <button type="submit"
                                     formaction="{{ route('admin.settings.smtp-test') }}"
                                     class="btn btn-outline-primary btn-sm">
@@ -359,11 +463,6 @@
                 <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <div>
                         <h4 class="card-title mb-0">Web Push (VAPID)</h4>
-                        <small class="text-secondary">
-                            Credentials used to sign browser push payloads. Paste a pair you already generated,
-                            or use the server-side generator. Changing the public key invalidates every existing
-                            subscription — users must re-enable push on their devices.
-                        </small>
                     </div>
                     <form action="{{ route('admin.settings.vapid-generate') }}" method="POST"
                           onsubmit="return confirm('Generate fresh VAPID keys? All existing push subscriptions will stop working until users resubscribe.');"
@@ -413,7 +512,6 @@
                                     placeholder="mailto:admin@example.com"
                                     required>
                                 @error('vapid_subject')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                                <small class="text-secondary" style="font-size:11px;">Must start with <code>mailto:</code> or <code>https://</code>.</small>
                             </div>
                             <div class="col-12">
                                 @php
@@ -436,16 +534,10 @@
                                     style="font-size:12px;"
                                 />
                                 @error('vapid_private_key')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
-                                <small class="text-secondary" style="font-size:11px;">
-                                    Stored encrypted at rest (Laravel Crypt). Never leaves the server after save.
-                                </small>
                             </div>
                         </div>
 
-                        <div class="d-flex align-items-center gap-2 mt-3 pt-3 border-top">
-                            <small class="text-secondary flex-grow-1">
-                                After saving, open <a href="{{ route('notifications.index', ['tab' => 'settings']) }}">Notifications → Settings</a> to run a push test.
-                            </small>
+                        <div class="d-flex justify-content-end mt-3 pt-3 border-top">
                             <button type="submit" class="btn btn-primary btn-sm">
                                 <i class="ph ph-check me-1"></i> Save VAPID
                             </button>
@@ -477,10 +569,8 @@
 
                 <div class="card-body">
                     <p class="text-secondary small mb-3">
-                        Get keys from
+                        Get keys from the
                         <a href="https://www.google.com/recaptcha/admin" target="_blank" rel="noopener">Google reCAPTCHA admin</a>.
-                        Pick <strong>v2 "I'm not a robot"</strong> for a visible checkbox, or
-                        <strong>v3</strong> for invisible scoring (no UX friction).
                     </p>
 
                     <form action="{{ route('admin.settings.recaptcha') }}" method="POST">
@@ -557,9 +647,6 @@
                                        id="recaptcha_score_threshold"
                                        name="recaptcha_score_threshold"
                                        value="{{ setting('recaptcha_score_threshold', '0.5') }}">
-                                <small class="text-secondary">
-                                    Submissions scoring below this are rejected. Google's recommended default is 0.5.
-                                </small>
                             </div>
                         </div>
 

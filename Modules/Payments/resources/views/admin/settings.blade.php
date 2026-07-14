@@ -49,7 +49,6 @@
                             <div class="col-md-6">
                                 <label class="form-label" for="currency">Currency</label>
                                 <input type="text" class="form-control" id="currency" name="currency" value="{{ $values['currency'] }}" maxlength="3" placeholder="KES">
-                                <div class="form-text">ISO 4217 code. KES, USD, EUR, etc.</div>
                             </div>
                         </div>
 
@@ -65,7 +64,6 @@
                                 placeholder="{{ $values['pesapal_consumer_secret_set'] ? '•••••• (leave blank to keep current)' : 'Enter secret' }}"
                                 autocomplete="new-password"
                             />
-                            <div class="form-text">Stored encrypted. Leave blank to keep the current secret unchanged.</div>
                         </div>
 
                         <div class="form-row mt-3">
@@ -73,7 +71,6 @@
                             <div class="d-flex gap-2 align-items-center">
                                 <input type="text" class="form-control" value="{{ $values['pesapal_ipn_id'] ?: 'not registered' }}" readonly style="background:#0b0f17;color:#adafb8;">
                             </div>
-                            <div class="form-text">Register your IPN with PesaPal after saving credentials. Uses <code>{{ route('payment.ipn') }}</code> as the notification URL.</div>
                         </div>
 
                         <div class="d-flex gap-2 mt-4 pt-3 border-top">

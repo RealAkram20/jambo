@@ -82,6 +82,8 @@ Route::middleware(['auth', 'role:admin'])
         Route::post('categories', [CategoryController::class, 'store'])->name('categories.store');
         Route::put('categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
         Route::delete('categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+        // Homepage-rail switch for the admin table (flips visible_home).
+        Route::patch('categories/{category}/toggle-home', [CategoryController::class, 'toggleHome'])->name('categories.toggle-home');
 
         // Moderation: ratings, reviews, comments (listing via DashboardController template pages)
         Route::patch('ratings/{rating}', [RatingController::class, 'update'])->name('ratings.update');

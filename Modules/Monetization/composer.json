@@ -1,0 +1,31 @@
+{
+    "name": "nwidart/monetization",
+    "description": "",
+    "authors": [
+        {
+            "name": "Nicolas Widart",
+            "email": "n.widart@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {
+
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Monetization\\": "",
+            "Modules\\Monetization\\App\\": "app/",
+            "Modules\\Monetization\\Database\\Factories\\": "database/factories/",
+            "Modules\\Monetization\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Monetization\\Tests\\": "tests/"
+        }
+    }
+}

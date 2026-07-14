@@ -19,8 +19,6 @@
         </button>
     </div>
     <div class="card-body">
-        <p class="text-secondary small mb-4">Each entry becomes one collapsible row in the public accordion. Leave both fields blank and the row is dropped on save.</p>
-
         <div id="faq-rows">
             @foreach ($questions as $i => $row)
                 <div class="border rounded p-3 mb-3 faq-row" style="background:rgba(255,255,255,0.02);" data-faq-row>

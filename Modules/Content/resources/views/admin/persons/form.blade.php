@@ -22,7 +22,6 @@
                 <div class="mt-3">
                     <label for="known_for" class="form-label">Known for</label>
                     <input type="text" class="form-control @error('known_for') is-invalid @enderror" id="known_for" name="known_for" value="{{ old('known_for', $person->known_for) }}" placeholder="actor, director, writer">
-                    <div class="form-text">Comma-separated list of roles.</div>
                     @error('known_for') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
 
@@ -48,7 +47,6 @@
                         <label for="death_date" class="form-label">Death date</label>
                         <input type="date" class="form-control @error('death_date') is-invalid @enderror" id="death_date" name="death_date"
                             value="{{ old('death_date', optional($person->death_date)->format('Y-m-d')) }}">
-                        <div class="form-text">Leave blank if still alive.</div>
                         @error('death_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                 </div>

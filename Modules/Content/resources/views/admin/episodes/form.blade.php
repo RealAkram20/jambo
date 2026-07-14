@@ -103,13 +103,6 @@
                     <input type="datetime-local" class="form-control @error('published_at') is-invalid @enderror"
                            id="published_at" name="published_at"
                            value="{{ old('published_at', $existingPublishedAt ? \Illuminate\Support\Carbon::parse($existingPublishedAt)->format('Y-m-d\TH:i') : '') }}">
-                    <div class="form-text" data-jambo-release-hint>
-                        @if ($resolvedStatus === 'upcoming')
-                            Scheduled air date — episode appears as "Coming soon" until it arrives.
-                        @else
-                            When this episode went live. Leave blank to auto-stamp on save.
-                        @endif
-                    </div>
                     @error('published_at') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
 
@@ -132,9 +125,8 @@
     var statusSel = document.querySelector('[data-jambo-status]');
     var wrap      = document.querySelector('[data-jambo-release-wrap]');
     var label     = document.querySelector('[data-jambo-release-label]');
-    var hint      = document.querySelector('[data-jambo-release-hint]');
     var dateInput = document.getElementById('published_at');
-    if (!statusSel || !wrap || !label || !hint || !dateInput) return;
+    if (!statusSel || !wrap || !label || !dateInput) return;
 
     function nowLocalForInput() {
         var d = new Date();
@@ -152,10 +144,8 @@
             wrap.style.display = '';
             if (s === 'upcoming') {
                 label.textContent = 'Release date';
-                hint.textContent = 'Scheduled air date — episode appears as "Coming soon" until it arrives.';
             } else {
                 label.textContent = 'Published at';
-                hint.textContent = 'When this episode went live. Leave blank to auto-stamp on save.';
                 // When admin flips to Published, prefill the field with
                 // "now" so the saved row actually reflects the intent.
                 // The controller would also fall back to now() on its

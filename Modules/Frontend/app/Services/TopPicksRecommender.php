@@ -171,8 +171,8 @@ class TopPicksRecommender
         $fresh = Movie::published()
             ->with('genres')
             ->when(!empty($usedIds), fn ($q) => $q->whereNotIn('id', $usedIds))
-            ->where('published_at', '>=', now()->subDays($recencyDays))
-            ->orderByDesc('published_at')
+            ->where('created_at', '>=', now()->subDays($recencyDays))
+            ->orderByDesc('created_at')
             ->take($poolSize)
             ->get()
             ->shuffle()
@@ -306,8 +306,8 @@ class TopPicksRecommender
         $fresh = Movie::published()
             ->with($relations)
             ->when(!empty($excludeIds), fn ($q) => $q->whereNotIn('id', $excludeIds))
-            ->where('published_at', '>=', now()->subDays($recencyDays))
-            ->orderByDesc('published_at')
+            ->where('created_at', '>=', now()->subDays($recencyDays))
+            ->orderByDesc('created_at')
             ->take($poolSize)
             ->get();
 
@@ -321,7 +321,7 @@ class TopPicksRecommender
         $backfill = Movie::published()
             ->with($relations)
             ->when(!empty($usedIds), fn ($q) => $q->whereNotIn('id', $usedIds))
-            ->orderByDesc('published_at')
+            ->orderByDesc('created_at')
             ->take($deficit)
             ->get();
 

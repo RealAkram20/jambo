@@ -247,6 +247,73 @@ class SettingController extends Controller
             ->with('status_recaptcha', 'reCAPTCHA settings saved.');
     }
 
+    /**
+     * Save Google sign-in (OAuth) credentials. Client ID is public
+     * (it appears in the OAuth redirect URL anyway); the secret is
+     * Crypt-encrypted at rest like the SMTP password. Blank secret =
+     * keep the current one. AppServiceProvider overrides
+     * config('services.google.*') from these at boot, so saving here
+     * takes effect immediately — no .env edit, no deploy.
+     */
+    public function updateGoogleAuth(Request $request)
+    {
+        $data = $request->validate([
+            'google_auth_enabled'  => ['required', 'boolean'],
+            'google_client_id'     => ['nullable', 'string', 'max:255'],
+            'google_client_secret' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $clientId = trim((string) ($data['google_client_id'] ?? ''));
+
+        // Refuse to enable with incomplete credentials — otherwise the
+        // button renders and every click dies on Google's error page.
+        if ($data['google_auth_enabled']) {
+            $hasSecret = !empty($data['google_client_secret']) || !empty(Setting::get('google_client_secret'));
+            if ($clientId === '' || !$hasSecret) {
+                return redirect()->route('admin.settings.index')->with('google_error',
+                    'To enable Google sign-in, fill in both the Client ID and Client secret first.');
+            }
+        }
+
+        Setting::set('google_auth_enabled', $data['google_auth_enabled'] ? '1' : '0', 'boolean');
+        Setting::set('google_client_id', $clientId);
+
+        if (!empty($data['google_client_secret'])) {
+            Setting::set('google_client_secret', Crypt::encryptString(trim($data['google_client_secret'])));
+        }
+
+        Setting::flushCache();
+
+        $msg = $data['google_auth_enabled']
+            ? 'Google sign-in is ON — the "Continue with Google" button is now live on the login and sign-up pages.'
+            : 'Google sign-in is OFF — the button is hidden.';
+
+        return redirect()->route('admin.settings.index')->with('status_google', $msg);
+    }
+
+    /**
+     * Viewing-access switch: when require_signup_to_watch is ON,
+     * guests can browse the catalogue but must sign in before any
+     * playback (enforced in FrontendController::userCanWatch and the
+     * Streaming TierGate middleware). Premium/tier gating is separate
+     * and applies regardless of this switch.
+     */
+    public function updateAccess(Request $request)
+    {
+        $data = $request->validate([
+            'require_signup_to_watch' => ['required', 'boolean'],
+        ]);
+
+        Setting::set('require_signup_to_watch', $data['require_signup_to_watch'] ? '1' : '0', 'boolean');
+        Setting::flushCache();
+
+        $msg = $data['require_signup_to_watch']
+            ? 'Sign-up requirement is ON — visitors must create an account before they can watch.'
+            : 'Sign-up requirement is OFF — anyone can watch free content without an account.';
+
+        return redirect()->route('admin.settings.index')->with('status_access', $msg);
+    }
+
     public function updateMaintenance(Request $request)
     {
         $data = $request->validate([

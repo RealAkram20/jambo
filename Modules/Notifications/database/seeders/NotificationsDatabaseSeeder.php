@@ -13,6 +13,7 @@ class NotificationsDatabaseSeeder extends Seeder
     {
         $this->call([
             NotificationSettingsSeeder::class,
+            NotificationAudienceSettingsSeeder::class,
         ]);
     }
 }

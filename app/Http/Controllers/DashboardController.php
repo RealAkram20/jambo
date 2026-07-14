@@ -495,7 +495,7 @@ class DashboardController extends Controller
 
     public function personCategories(Request $request)
     {
-        $title = __('sidebar.Person-Category');
+        $title = __('sidebar.categories');
         $categories = Category::withCount(['movies', 'shows'])->orderBy('name')->get();
         return view('DashboardPages.persons.PersonCategoies', compact('title', 'categories'));
     }

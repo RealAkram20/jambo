@@ -122,13 +122,6 @@
                     <input type="datetime-local" name="published_at" id="published_at"
                            class="form-control"
                            value="{{ old('published_at', $movie->published_at?->format('Y-m-d\TH:i')) }}">
-                    <div class="form-text" data-jambo-release-hint>
-                        @if (old('status', $movie->status) === 'upcoming')
-                            Scheduled release date. Surfaced on the detail page and the home "Upcoming" slider.
-                        @else
-                            When this title went live. Leave blank to auto-stamp on save.
-                        @endif
-                    </div>
                 </div>
 
                 @if ($movie->exists && $movie->published_at)
@@ -180,6 +173,17 @@
                         No Vjs yet. <a href="{{ route('dashboard.vjs') }}">Add one →</a>
                     </div>
                 @endforelse
+
+                {{-- VJ checkboxes are display credits only; earning
+                     attribution lives in the Monetization split editor. --}}
+                @hasanyrole('super-admin')
+                @if (Route::has('admin.monetization.splits.edit') && isset($movie) && $movie->exists)
+                    <hr class="my-2">
+                    <a href="{{ route('admin.monetization.splits.edit', ['type' => 'movie', 'id' => $movie->id]) }}" class="small">
+                        <i class="ph ph-hand-coins me-1"></i>Monetization splits →
+                    </a>
+                @endif
+                @endhasanyrole
             </div>
         </div>
 
@@ -248,21 +252,14 @@
     const statusSel = document.querySelector('[data-jambo-status]');
     const wrap = document.querySelector('[data-jambo-release-wrap]');
     const label = document.querySelector('[data-jambo-release-label]');
-    const hint = document.querySelector('[data-jambo-release-hint]');
-    if (statusSel && wrap && label && hint) {
+    if (statusSel && wrap && label) {
         const apply = () => {
             const s = statusSel.value;
             if (s === 'draft') {
                 wrap.style.display = 'none';
             } else {
                 wrap.style.display = '';
-                if (s === 'upcoming') {
-                    label.textContent = 'Release date';
-                    hint.textContent = 'Scheduled release date. Surfaced on the detail page and the home "Upcoming" slider.';
-                } else {
-                    label.textContent = 'Published at';
-                    hint.textContent = 'When this title went live. Leave blank to auto-stamp on save.';
-                }
+                label.textContent = s === 'upcoming' ? 'Release date' : 'Published at';
             }
         };
         statusSel.addEventListener('change', apply);

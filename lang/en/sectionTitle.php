@@ -12,6 +12,7 @@ return [
     "crew" => "Crew",
     "fresh_picks" => "Fresh Picks Just For You",
     "latest_movies" => "Latest Movies",
+    "latest_series" => "Latest Series",
     "membership" => "Membership",
     "more_like_this" => "More Like This",
     "movie_genres" => "Movie Genres",

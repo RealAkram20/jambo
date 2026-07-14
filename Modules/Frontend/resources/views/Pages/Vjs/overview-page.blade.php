@@ -65,11 +65,6 @@
                             <p class="text-muted mb-0 small">{{ $vj->description }}</p>
                         @endif
                     </div>
-                    <span class="text-muted">
-                        {{ $moviesTotal }} {{ __('streamTag.movies') ?? 'movies' }}
-                        &middot;
-                        {{ $showsTotal }} {{ __('streamTag.series') ?? 'series' }}
-                    </span>
                 </div>
             </section>
 

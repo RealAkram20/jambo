@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Facades\DB;
 use Modules\Content\app\Models\Concerns\CleansContentMorphsOnDelete;
+use Modules\Content\app\Models\Concerns\TracksContentActivity;
 use Modules\Content\database\factories\ShowFactory;
 
 /**
@@ -42,6 +43,12 @@ class Show extends Model
 {
     use HasFactory;
     use CleansContentMorphsOnDelete;
+    use TracksContentActivity;
+
+    public function activityType(): string
+    {
+        return 'show';
+    }
 
     protected static function booted(): void
     {

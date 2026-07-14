@@ -7,7 +7,6 @@
                 <div class="col-sm-12 my-4">
                     <div class="d-flex align-items-center justify-content-between">
                         <h5 class="main-title text-capitalize mb-0">{{ __('frontendheader.geners') }}</h5>
-                        <span class="text-muted">{{ $genres->count() }} {{ __('streamTag.genre') }}</span>
                     </div>
                 </div>
             </div>

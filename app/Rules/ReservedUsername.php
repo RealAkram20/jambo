@@ -51,6 +51,9 @@ class ReservedUsername implements ValidationRule
         // Notifications + system
         'notifications', 'view-all', 'upcoming',
 
+        // Monetization partner console (Monetization module routes)
+        'partner', 'partners', 'creator', 'creators',
+
         // Short reserved words worth blocking so we don't paint
         // ourselves into a corner later
         'admin', 'administrator', 'root', 'support', 'help',

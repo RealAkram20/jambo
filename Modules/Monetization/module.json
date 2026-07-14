@@ -1,0 +1,11 @@
+{
+    "name": "Monetization",
+    "alias": "monetization",
+    "description": "Partner (VJ / production company / creator) revenue share: watch-time accrual, monthly pool statements, wallets and manual mobile-money withdrawals.",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Monetization\\app\\Providers\\MonetizationServiceProvider"
+    ],
+    "files": []
+}

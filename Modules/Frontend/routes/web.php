@@ -26,6 +26,13 @@ Route::group([], function () {
     Route::get('/search', [FrontendController::class, 'searchPage'])->name('frontend.search');
     Route::get('/search/suggest', [FrontendController::class, 'searchSuggest'])->name('frontend.search.suggest');
     Route::get('/movie', [FrontendController::class, 'movie'])->name('frontend.movie');
+    // Dedicated archive pages for the homepage rails ("Top Picks for
+    // You", "Popular Movies", "Smart Shuffle", …). Each rail's
+    // "View All" points here instead of the generic /movie or /series
+    // page. Valid keys live in FrontendController::railArchives().
+    Route::get('/collection/{rail}', [FrontendController::class, 'railArchive'])
+        ->where('rail', '[a-z0-9-]+')
+        ->name('frontend.rail_archive');
     Route::get('/upcoming', [FrontendController::class, 'upcomingPage'])->name('frontend.upcoming');
     Route::get('/upcoming/load-more', [FrontendController::class, 'upcomingLoadMore'])->name('frontend.upcoming_load_more');
     Route::get('/movie/more-vjs', [FrontendController::class, 'moreVjsForMoviesPage'])->name('frontend.movie_more_vjs');

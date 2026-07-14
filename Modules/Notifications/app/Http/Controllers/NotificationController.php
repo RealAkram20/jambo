@@ -49,7 +49,35 @@ class NotificationController extends Controller
         $settingRows = NotificationSetting::all()->keyBy('key');
         $definitions = NotificationSetting::definitions();
 
-        $validTabs = ['inbox', 'settings', 'broadcast'];
+        // Per-audience switches for role-targeted types, keyed
+        // "key|audience" so the blade renders the matrix without a query
+        // per cell. Only the super-admin sees/edits this layer.
+        $audienceRows = \Modules\Notifications\app\Models\NotificationAudienceSetting::all()
+            ->keyBy(fn ($r) => $r->notification_key . '|' . $r->audience);
+
+        // "My preferences" tab (every admin): the notification types that
+        // reach the admin audience, so this admin can mute the ones they
+        // don't personally want. Personal account types are excluded —
+        // you don't opt out of your own password-reset email.
+        $myPrefTypes = [];
+        foreach ($definitions as $groupId => $group) {
+            $items = array_values(array_filter(
+                $group['items'],
+                fn ($i) => in_array(
+                    \Modules\Notifications\app\Models\NotificationAudienceSetting::AUDIENCE_ADMIN,
+                    \Modules\Notifications\app\Models\NotificationAudienceSetting::audiencesForTag($i['audience']),
+                    true,
+                ),
+            ));
+            if ($items !== []) {
+                $myPrefTypes[$groupId] = ['label' => $group['label'], 'icon' => $group['icon'], 'items' => $items];
+            }
+        }
+        $myPrefs = \Modules\Notifications\app\Models\NotificationPreference::where('user_id', $user->id)
+            ->get()
+            ->keyBy('notification_key');
+
+        $validTabs = ['inbox', 'my-preferences', 'settings', 'broadcast'];
         $activeTab = in_array($request->query('tab'), $validTabs, true)
             ? $request->query('tab')
             : 'inbox';
@@ -59,6 +87,10 @@ class NotificationController extends Controller
             'unreadCount'   => $user->unreadNotifications()->count(),
             'definitions'   => $definitions,
             'settingRows'   => $settingRows,
+            'audienceRows'  => $audienceRows,
+            'myPrefTypes'   => $myPrefTypes,
+            'myPrefs'       => $myPrefs,
+            'isSuperAdmin'  => $user->hasRole('super-admin'),
             'activeTab'     => $activeTab,
         ]);
     }

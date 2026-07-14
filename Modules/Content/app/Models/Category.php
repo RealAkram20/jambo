@@ -14,6 +14,7 @@ use Modules\Content\database\factories\CategoryFactory;
  * @property ?string $description
  * @property ?string $cover_url
  * @property int $sort_order
+ * @property bool $visible_home
  */
 class Category extends Model
 {
@@ -27,11 +28,19 @@ class Category extends Model
         'description',
         'cover_url',
         'sort_order',
+        'visible_home',
     ];
 
     protected $casts = [
         'sort_order' => 'integer',
+        'visible_home' => 'boolean',
     ];
+
+    /** Categories the admin has opted into the homepage rails. */
+    public function scopeVisibleHome($query)
+    {
+        return $query->where('visible_home', true);
+    }
 
     public function movies(): BelongsToMany
     {

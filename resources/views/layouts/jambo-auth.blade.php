@@ -26,14 +26,8 @@
     <link rel="stylesheet" href="{{ asset('frontend/vendor/phosphor-icons/Fonts/regular/style.css') }}" />
     <link rel="stylesheet" href="{{ asset('frontend/vendor/phosphor-icons/Fonts/fill/style.css') }}" />
 
+    @include('components.partials.theme-tokens')
     <style>
-        :root {
-            --bs-primary: #1A98FF;
-            --bs-primary-rgb: 26, 152, 255;
-            --bs-link-color: #1A98FF;
-            --bs-link-hover-color: #147acc;
-        }
-
         /* ------------------------------------------------------------ */
         /* Streaming-site auth page shell                              */
         /* ------------------------------------------------------------ */

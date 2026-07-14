@@ -168,7 +168,10 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    // Default ON in production so the session cookie never travels
+    // over plain HTTP; stays off in local/dev where there's no TLS.
+    // SESSION_SECURE_COOKIE in .env still overrides either way.
+    'secure' => env('SESSION_SECURE_COOKIE', env('APP_ENV') === 'production'),
 
     /*
     |--------------------------------------------------------------------------

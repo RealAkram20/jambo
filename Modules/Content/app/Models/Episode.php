@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Modules\Content\app\Models\Concerns\CleansContentMorphsOnDelete;
 use Modules\Content\app\Models\Concerns\HasStreamSource;
+use Modules\Content\app\Models\Concerns\TracksContentActivity;
 use Modules\Content\database\factories\EpisodeFactory;
 
 /**
@@ -41,6 +42,26 @@ class Episode extends Model
     use HasFactory;
     use HasStreamSource;
     use CleansContentMorphsOnDelete;
+    use TracksContentActivity;
+
+    public function activityType(): string
+    {
+        return 'episode';
+    }
+
+    public function activityTitle(): string
+    {
+        $season = $this->season;
+        $showTitle = $season?->show?->title ?? 'Show';
+        $seasonNo = $season?->number ?? '?';
+        return $showTitle . ' — S' . $seasonNo . 'E' . ($this->number ?? '?')
+            . ($this->title ? ': ' . $this->title : '');
+    }
+
+    public function activityMeta(): ?array
+    {
+        return ['season_id' => $this->season_id, 'season_number' => $this->season?->number];
+    }
 
     protected static function booted(): void
     {

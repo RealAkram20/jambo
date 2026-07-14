@@ -661,3 +661,15 @@
 }
 
 
+
+/* ================================================================== */
+/* Archive-page poster grid — one universal card size matching the    */
+/* homepage rails (7 across desktop, 4 tablet, 3 mobile). Bootstrap   */
+/* only ships row-cols-*-1..6, so the 7-column step is defined here.  */
+/* ================================================================== */
+@media (min-width: 1200px) {
+    .row-cols-xl-7 > * {
+        flex: 0 0 auto;
+        width: 14.2857143%;
+    }
+}

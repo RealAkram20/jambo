@@ -11,6 +11,11 @@ use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\AdminProfileController;
 use Illuminate\Support\Facades\Route;
 
+// UI Kit demo — local preview only. Safe to delete after review.
+if (app()->environment('local')) {
+    Route::get('/ui-kit', fn () => view('ui-kit-demo'))->name('ui-kit.demo');
+}
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -92,6 +97,19 @@ Route::get('/app/charts/{chart}', [DashboardController::class, 'chartData'])
 Route::group(['as' => 'dashboard.', 'middleware' => ['auth', 'role:admin']], function () {
     // Route::get('static-app', [DashboardController::class, 'index'])->name('home');
     Route::get('rating', [DashboardController::class, 'rating'])->name('rating');
+
+    // Admin Performance — every admin sees their own contribution +
+    // earnings + activity; super-admin additionally sees the all-admin
+    // leaderboard and the rate settings. Settings are money-shaping, so
+    // they carry an extra role:super-admin gate.
+    Route::get('performance', [\App\Http\Controllers\Admin\PerformanceController::class, 'index'])
+        ->name('performance');
+    Route::middleware('role:super-admin')->group(function () {
+        Route::get('performance/settings', [\App\Http\Controllers\Admin\PerformanceController::class, 'settings'])
+            ->name('performance.settings');
+        Route::post('performance/settings', [\App\Http\Controllers\Admin\PerformanceController::class, 'updateSettings'])
+            ->name('performance.settings.update');
+    });
     // User admin — full CRUD. Kept under `/user-list` with the
     // `dashboard.user-list` name so the sidebar link already points
     // at the right place. The create / store / edit / update /
@@ -227,6 +245,8 @@ Route::middleware(['auth', 'role:admin'])
         Route::post('settings/vapid-generate', [AdminSettingController::class, 'generateVapid'])->name('settings.vapid-generate');
         Route::post('settings/recaptcha', [AdminSettingController::class, 'updateRecaptcha'])->name('settings.recaptcha');
         Route::post('settings/maintenance', [AdminSettingController::class, 'updateMaintenance'])->name('settings.maintenance');
+        Route::post('settings/access', [AdminSettingController::class, 'updateAccess'])->name('settings.access');
+        Route::post('settings/google', [AdminSettingController::class, 'updateGoogleAuth'])->name('settings.google');
 
         // Diagnostics: error log tail + system status snapshot. Both
         // are read-only views; only `logs.clear` mutates state (it
@@ -283,7 +303,13 @@ Route::middleware('auth')->group(function () {
         \App\Rules\ReservedUsername::RESERVED,
     ));
     $extensionExclusion = '(?!.*\.(?:xml|txt|html|json|css|js|ico|png|jpe?g|gif|svg|webp|woff2?|ttf|eot|mp4|webm|pdf|webmanifest|map|php)$)';
-    $usernamePattern = '(?!(?:' . $reserved . ')$)' . $extensionExclusion . '[a-zA-Z0-9._\-]+';
+    // The reserved-name lookahead must accept "end of path OR a
+    // following slash", not bare $ (end of the WHOLE path). With $
+    // alone the exclusion silently never applied to the two-segment
+    // hub routes (/{username}/security etc.) — /partner/security
+    // matched here as username="partner" and shadowed the partner
+    // module's own /partner/security route.
+    $usernamePattern = '(?!(?:' . $reserved . ')(?:$|/))' . $extensionExclusion . '[a-zA-Z0-9._\-]+';
 
     Route::get('/{username}',
         [\App\Http\Controllers\ProfileHubController::class, 'show'])

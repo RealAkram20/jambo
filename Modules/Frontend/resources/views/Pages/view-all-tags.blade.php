@@ -5,21 +5,14 @@
         <div class="container-fluid">
             <div class="d-flex align-items-center justify-content-between mb-4">
                 <h4 class="main-title text-capitalize mb-0">{{ __('frontendheader.tags') ?? 'Tags' }}</h4>
-                @if ($tags->count())
-                    <span class="text-muted">{{ $tags->count() }} tags</span>
-                @endif
             </div>
 
             @if ($tags->count())
                 <div class="row gy-3 row-cols-3 row-cols-sm-3 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 data-listing">
                     @foreach ($tags as $tag)
-                        @php
-                            $usage = ($tag->movies_count ?? 0) + ($tag->shows_count ?? 0);
-                            $label = $usage > 0 ? $tag->name . ' · ' . $usage : $tag->name;
-                        @endphp
                         <div class="col">
                             @include('frontend::components.cards.tags-card', [
-                                'title'  => $label,
+                                'title'  => $tag->name,
                                 'tagUrl' => route('frontend.tag', $tag->slug),
                             ])
                         </div>

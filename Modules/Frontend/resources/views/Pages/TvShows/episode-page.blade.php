@@ -257,6 +257,14 @@
     </div>
 </div>
 
+{{-- Reviews & ratings — attached to the parent show, rendered here
+     (not on the series detail page) so viewers can rate right after
+     finishing an episode. --}}
+@include('frontend::components.partials.reviews-block', [
+    'storeRoute'   => route('frontend.series_review_store',   $show->slug),
+    'destroyRoute' => route('frontend.series_review_destroy', $show->slug),
+])
+
 {{-- Comments thread --}}
 @include('frontend::components.partials.comments-block', [
     'storeRoute'      => route('frontend.episode_comment_store', $episode->id),

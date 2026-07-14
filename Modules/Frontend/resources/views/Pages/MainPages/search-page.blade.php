@@ -16,10 +16,6 @@
                             {{ __('frontendheader.search') }}:
                             <span class="text-primary">"{{ $q }}"</span>
                         </h4>
-                        <p class="text-muted mb-0" style="font-size: 14px;">
-                            {{ $movies->count() }} {{ \Illuminate\Support\Str::plural('movie', $movies->count()) }},
-                            {{ $shows->count() }} {{ \Illuminate\Support\Str::plural('series', $shows->count()) }}
-                        </p>
                     @else
                         <h4 class="main-title text-capitalize mb-1 fw-medium">
                             {{ __('frontendheader.search') }}
@@ -36,7 +32,7 @@
                 <div class="d-flex align-items-center justify-content-between mt-4 mb-3">
                     <h6 class="main-title text-capitalize mb-0">{{ __('frontendheader.movies') }}</h6>
                 </div>
-                <div class="row row-cols-xl-5 row-cols-md-3 row-cols-3 g-3">
+                <div class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-7 g-3">
                     @foreach ($movies as $movie)
                         <div class="col">
                             @include('frontend::components.cards.card-style', [
@@ -62,7 +58,7 @@
                 <div class="d-flex align-items-center justify-content-between mt-5 mb-3">
                     <h6 class="main-title text-capitalize mb-0">{{ __('frontendheader.tvshow') }}</h6>
                 </div>
-                <div class="row row-cols-xl-5 row-cols-md-3 row-cols-3 g-3">
+                <div class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-7 g-3">
                     @foreach ($shows as $show)
                         <div class="col">
                             @include('frontend::components.cards.card-style', [

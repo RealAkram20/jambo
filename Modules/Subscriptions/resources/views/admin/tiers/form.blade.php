@@ -24,7 +24,6 @@
                         <label for="sort_order" class="form-label">Sort order <span class="text-danger">*</span></label>
                         <input type="number" min="0" class="form-control @error('sort_order') is-invalid @enderror"
                             id="sort_order" name="sort_order" value="{{ old('sort_order', $tier->sort_order ?? 20) }}" required>
-                        <div class="form-text">Lower numbers show first on the pricing page.</div>
                         @error('sort_order') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                 </div>
@@ -32,8 +31,7 @@
                 <div class="mt-3">
                     <label for="slug" class="form-label">Slug</label>
                     <input type="text" class="form-control @error('slug') is-invalid @enderror"
-                        id="slug" name="slug" value="{{ old('slug', $tier->slug) }}">
-                    <div class="form-text">Auto-generated from the name if left blank. Used in payment metadata.</div>
+                        id="slug" name="slug" value="{{ old('slug', $tier->slug) }}" placeholder="Auto-generated from the name if left blank">
                     @error('slug') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
 
@@ -41,7 +39,6 @@
                     <label for="description" class="form-label">Description</label>
                     <textarea class="form-control @error('description') is-invalid @enderror"
                         id="description" name="description" rows="3">{{ old('description', $tier->description) }}</textarea>
-                    <div class="form-text">Appears under the plan name on the public pricing page.</div>
                     @error('description') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
             </div>
@@ -54,7 +51,6 @@
                 <textarea class="form-control @error('features') is-invalid @enderror"
                     id="features" name="features" rows="7"
                     placeholder="Full catalog&#10;Ad-free&#10;HD quality&#10;2 devices">{{ old('features', $featuresText) }}</textarea>
-                <div class="form-text">Rendered as a bullet list on the public pricing page.</div>
                 @error('features') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
         </div>
@@ -125,7 +121,6 @@
                     <option value="2" @selected(old('access_level', $tier->access_level) == 2)>Premium (2)</option>
                     <option value="3" @selected(old('access_level', $tier->access_level) == 3)>Ultra (3)</option>
                 </select>
-                <div class="form-text">Higher access levels unlock more content. Movies with a <code>tier_required</code> match against this.</div>
                 @error('access_level') <div class="invalid-feedback">{{ $message }}</div> @enderror
 
                 <div class="mt-3">
@@ -135,10 +130,6 @@
                         id="max_concurrent_streams" name="max_concurrent_streams"
                         value="{{ old('max_concurrent_streams', $tier->max_concurrent_streams) }}"
                         placeholder="Leave blank for unlimited">
-                    <div class="form-text">
-                        How many devices can stream <strong>premium-gated</strong> content at the same time.
-                        Blank = unlimited. Free/ad-supported content never counts against this limit.
-                    </div>
                     @error('max_concurrent_streams') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
 

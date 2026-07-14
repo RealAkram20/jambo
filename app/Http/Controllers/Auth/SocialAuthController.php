@@ -71,6 +71,16 @@ class SocialAuthController extends Controller
             ]);
         }
 
+        // A user who enabled 2FA gets the same OTP challenge here as
+        // on password login — OAuth proves the Google account, not
+        // possession of the authenticator device. Same session
+        // handshake AuthenticatedSessionController uses.
+        if ($user->hasEnabledTwoFactorAuthentication()) {
+            request()->session()->put('login.id', $user->id);
+            request()->session()->put('login.remember', true);
+            return redirect()->route('two-factor.challenge');
+        }
+
         Auth::login($user, remember: true);
         request()->session()->regenerate();
 
@@ -113,8 +123,16 @@ class SocialAuthController extends Controller
     private function uniqueUsername(string $base): string
     {
         $base = substr($base, 0, 40) ?: 'user';
-        $candidate = $base;
-        $n = 1;
+
+        // The manual signup form runs the ReservedUsername rule; this
+        // auto-generated path must too, or admin@gmail.com signing in
+        // with Google would mint the username "admin" — a route
+        // collision (/{username} profile URLs) and an impersonation
+        // handle. Reserved bases get a numeric suffix immediately.
+        $reserved = in_array(strtolower($base), \App\Rules\ReservedUsername::RESERVED, true);
+
+        $candidate = $reserved ? $base . '1' : $base;
+        $n = $reserved ? 2 : 1;
         while (User::where('username', $candidate)->exists()) {
             $candidate = $base . $n++;
         }

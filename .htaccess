@@ -31,9 +31,18 @@ Options -Indexes
     #    through to the Laravel front controller so Laravel's home route
     #    and URL generator see SCRIPT_NAME = /project/index.php, not
     #    /project/public/index.php.
+    #
+    #    Only real FILES qualify (-f). A -d test here would match the
+    #    physical asset folders public/dashboard/ and public/frontend/,
+    #    so the Laravel route /dashboard would rewrite into the directory
+    #    and mod_dir would 301 to /project/public/dashboard/ — pinning
+    #    /public into the URL bar and into every URL Laravel generates
+    #    from then on. Directory listings are off anyway (Options
+    #    -Indexes), so nothing is lost by letting directory requests fall
+    #    through to Laravel. public/.htaccess drops its own !-d for the
+    #    same reason.
     RewriteCond %{REQUEST_URI}::$1 ^(/.+?/)(.+)::\2$
-    RewriteCond %{DOCUMENT_ROOT}%1public/%2 -f [OR]
-    RewriteCond %{DOCUMENT_ROOT}%1public/%2 -d
+    RewriteCond %{DOCUMENT_ROOT}%1public/%2 -f
     RewriteRule ^(.*)$ public/$1 [L]
 
     # 2. Everything else — including paths that happen to match real

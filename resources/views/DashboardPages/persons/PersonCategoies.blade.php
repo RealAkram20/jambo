@@ -1,4 +1,4 @@
-@extends('layouts.app', ['module_title' => 'Person-category', 'isSweetalert' => true, 'Activelink' => 'Person-category', 'isFlatpickr' => true, 'isQuillEditor' => true, 'isSelect2' => true])
+@extends('layouts.app', ['module_title' => 'Categories', 'isSweetalert' => true, 'Activelink' => 'Categories', 'isFlatpickr' => true, 'isQuillEditor' => true, 'isSelect2' => true])
 
 @section('content')
     <div class="row streamit-wraper-table2">
@@ -30,6 +30,13 @@
                             <label class="form-label">{{__('form.category-description')}}</label>
                             <textarea class="form-control large-text" name="description" aria-label="With textarea"></textarea>
                         </div>
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input type="checkbox" class="form-check-input" id="category-visible-home" name="visible_home" value="1">
+                                <label class="form-check-label" for="category-visible-home">Show on homepage</label>
+                            </div>
+                            <small class="text-muted d-block mt-1">Adds this category as its own row on the homepage (movies &amp; series in it).</small>
+                        </div>
                         <div class="d-flex align-items-center justify-content-end mt-4">
                             <button type="submit" class="btn btn-primary">{{__('form.add-category')}}</button>
                         </div>
@@ -44,7 +51,7 @@
                     <div class="card-header d-flex justify-content-between gap-3 flex-wrap align-items-center mb-4">
                         <h2 class="episode-playlist-title wp-heading-inline">
                             <span class="position-relative ">
-                                {{__('form.person-categories')}} </span>
+                                {{__('sidebar.categories')}} </span>
                         </h2>
                     </div>
                     <div class="card-body">
@@ -60,7 +67,7 @@
                                         </th>
                                         <th class>Name</th>
                                         <th class>Slug</th>
-                                        <th class>Parent Genre</th>
+                                        <th class>Visible Home</th>
                                         <th class>Count</th>
                                         <th class>Actions</th>
                                     </tr>
@@ -71,7 +78,17 @@
                                             <td><input type="checkbox" class="form-check-input" /></td>
                                             <td>{{ $category->name }}</td>
                                             <td>{{ $category->slug }}</td>
-                                            <td>—</td>
+                                            <td>
+                                                <form method="POST" action="{{ route('admin.categories.toggle-home', $category) }}">
+                                                    @csrf @method('PATCH')
+                                                    <div class="form-check form-switch">
+                                                        <input type="checkbox" class="form-check-input" onchange="this.form.submit()"
+                                                            @checked($category->visible_home)
+                                                            data-bs-toggle="tooltip" data-bs-placement="top"
+                                                            title="{{ $category->visible_home ? 'Visible on homepage — click to hide' : 'Hidden from homepage — click to show' }}">
+                                                    </div>
+                                                </form>
+                                            </td>
                                             <td>{{ ($category->movies_count ?? 0) + ($category->shows_count ?? 0) }}</td>
                                             <td>
                                                 <div class="d-flex align-items-center list-user-action gap-2">

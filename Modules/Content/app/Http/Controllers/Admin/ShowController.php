@@ -43,8 +43,20 @@ class ShowController extends Controller
             $query->where('status', $status);
         }
 
+        // Sort: recently added (default), recently updated, or title.
+        // Direction is admin-selectable; title defaults to A→Z, the
+        // date sorts default to newest-first.
+        $sortColumns = ['recent' => 'created_at', 'updated' => 'updated_at', 'title' => 'title'];
+        $sort = (string) $request->query('sort');
+        $sort = array_key_exists($sort, $sortColumns) ? $sort : 'recent';
+        $dir = $request->query('dir');
+        if (!in_array($dir, ['asc', 'desc'], true)) {
+            $dir = $sort === 'title' ? 'asc' : 'desc';
+        }
+
         $shows = $query
-            ->orderByDesc('updated_at')
+            ->orderBy($sortColumns[$sort], $dir)
+            ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
@@ -52,6 +64,8 @@ class ShowController extends Controller
             'shows' => $shows,
             'search' => $search,
             'statusFilter' => $status,
+            'sort' => $sort,
+            'dir' => $dir,
             'statusCounts' => [
                 'all' => Show::count(),
                 'draft' => Show::where('status', 'draft')->count(),

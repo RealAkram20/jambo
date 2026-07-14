@@ -7,6 +7,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Modules\Notifications\app\Contracts\NotificationDispatcher;
+use Modules\Notifications\app\Models\NotificationAudienceSetting;
+use Modules\Notifications\app\Models\NotificationPreference;
 use Modules\Notifications\app\Models\NotificationSetting;
 use Modules\Notifications\app\Notifications\AdminBroadcastNotification;
 use Modules\Notifications\app\Notifications\TestNotification;
@@ -46,7 +48,7 @@ class NotificationSettingsController extends Controller
             ];
         }
 
-        // Single upsert is cheaper than 23 individual updates and keeps
+        // Single upsert is cheaper than N individual updates and keeps
         // the admin's save action atomic.
         NotificationSetting::upsert(
             $rows,
@@ -56,9 +58,98 @@ class NotificationSettingsController extends Controller
 
         NotificationSetting::forgetAllCache();
 
+        // Per-audience matrix for role-targeted types. Shape:
+        //   settings_audience[user_signup][admin][system] = '1'
+        // Only rows whose (key, audience) are legitimate per definitions()
+        // are written, so a tampered payload can't invent combinations.
+        $incomingAudience = (array) $request->input('settings_audience', []);
+        $audienceRows = [];
+        foreach (NotificationSetting::definitions() as $group) {
+            foreach ($group['items'] as $item) {
+                $audiences = NotificationAudienceSetting::audiencesForTag($item['audience']);
+                foreach ($audiences as $aud) {
+                    $ch = (array) ($incomingAudience[$item['key']][$aud] ?? []);
+                    $audienceRows[] = [
+                        'notification_key' => $item['key'],
+                        'audience'         => $aud,
+                        'in_app_enabled'   => !empty($ch['system']),
+                        'push_enabled'     => !empty($ch['push']),
+                        'email_enabled'    => !empty($ch['email']),
+                        'updated_at'       => $now,
+                    ];
+                }
+            }
+        }
+
+        if ($audienceRows !== []) {
+            NotificationAudienceSetting::upsert(
+                $audienceRows,
+                ['notification_key', 'audience'],
+                ['in_app_enabled', 'push_enabled', 'email_enabled', 'updated_at'],
+            );
+            NotificationAudienceSetting::forgetAllCache();
+        }
+
         return redirect()
             ->route('notifications.index', ['tab' => 'settings'])
             ->with('success', 'Notification settings saved.');
+    }
+
+    /**
+     * Save the current admin's OWN per-type opt-outs (the "My preferences"
+     * tab). Sparse: a type left fully on is deleted from the table so it
+     * inherits the platform default; any channel switched off is stored.
+     *
+     * Only types that reach the admin audience can be tuned here — the
+     * incoming payload is intersected with that allow-list so a hand-
+     * crafted request can't create preference rows for arbitrary keys.
+     * This never touches the global/audience matrix, so an admin can only
+     * narrow what THEY receive, never what other admins or users receive.
+     */
+    public function updateMyPreferences(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        $incoming = (array) $request->input('prefs', []);
+
+        $adminAudienceKeys = [];
+        foreach (NotificationSetting::definitions() as $group) {
+            foreach ($group['items'] as $item) {
+                if (in_array(
+                    NotificationAudienceSetting::AUDIENCE_ADMIN,
+                    NotificationAudienceSetting::audiencesForTag($item['audience']),
+                    true,
+                )) {
+                    $adminAudienceKeys[] = $item['key'];
+                }
+            }
+        }
+
+        foreach ($adminAudienceKeys as $key) {
+            $ch = (array) ($incoming[$key] ?? []);
+            $inApp = !empty($ch['system']);
+            $push  = !empty($ch['push']);
+            $email = !empty($ch['email']);
+
+            if ($inApp && $email && $push) {
+                // Everything on = inherit → drop the row so this type
+                // follows the platform default with no override.
+                NotificationPreference::where('user_id', $user->id)
+                    ->where('notification_key', $key)
+                    ->delete();
+                continue;
+            }
+
+            NotificationPreference::updateOrCreate(
+                ['user_id' => $user->id, 'notification_key' => $key],
+                ['in_app_enabled' => $inApp, 'email_enabled' => $email, 'push_enabled' => $push],
+            );
+        }
+
+        NotificationPreference::forgetCache($user->id);
+
+        return redirect()
+            ->route('notifications.index', ['tab' => 'my-preferences'])
+            ->with('success', 'Your notification preferences were saved.');
     }
 
     /**

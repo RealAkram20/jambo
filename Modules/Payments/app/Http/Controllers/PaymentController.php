@@ -84,6 +84,27 @@ class PaymentController extends Controller
                 'billing_period' => $tier->billing_period,
             ]);
         } else {
+            // Subscription tiers may ONLY be purchased through the tier
+            // branch above, where amount/currency are copied off the tier
+            // server-side. Reject any attempt to name a SubscriptionTier as
+            // the payable here: otherwise a caller could pair an arbitrary
+            // `amount` (e.g. 1) with `payable_type = SubscriptionTier` +
+            // `payable_id = <premium tier>`, pay a token amount, and have
+            // the activation listener grant the premium tier. Compare
+            // case-insensitively and ignore a leading backslash so
+            // "\Modules\..." and "modules\..." can't slip past.
+            $rawPayableType = ltrim((string) ($data['payable_type'] ?? ''), '\\');
+            if ($rawPayableType !== '' && strcasecmp(
+                $rawPayableType,
+                ltrim(\Modules\Subscriptions\app\Models\SubscriptionTier::class, '\\'),
+            ) === 0) {
+                return $this->createOrderFailure(
+                    $request,
+                    'Invalid subscription request. Please choose a plan from the pricing page.',
+                    422,
+                );
+            }
+
             if (empty($data['amount']) || empty($data['description'])) {
                 return $this->createOrderFailure(
                     $request,

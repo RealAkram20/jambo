@@ -71,7 +71,6 @@
                         <option value="basic" @selected(old('tier_required', $show->tier_required) === 'basic')>Basic</option>
                         <option value="premium" @selected(old('tier_required', $show->tier_required) === 'premium')>Premium</option>
                     </select>
-                    <div class="form-text">Series carry per-episode dropbox paths. Set Dropbox paths on each episode.</div>
                 </div>
             </div>
         </div>
@@ -116,13 +115,6 @@
                     <input type="datetime-local" name="published_at" id="published_at"
                            class="form-control"
                            value="{{ old('published_at', $show->published_at?->format('Y-m-d\TH:i')) }}">
-                    <div class="form-text" data-jambo-release-hint>
-                        @if (old('status', $show->status) === 'upcoming')
-                            Scheduled release date. Surfaced on the detail page and the home "Upcoming" slider.
-                        @else
-                            When this series went live. Leave blank to auto-stamp on save.
-                        @endif
-                    </div>
                 </div>
 
                 @if ($show->exists && $show->published_at)
@@ -174,6 +166,18 @@
                         No Vjs yet. <a href="{{ route('dashboard.vjs') }}">Add one →</a>
                     </div>
                 @endforelse
+
+                {{-- VJ checkboxes are display credits only; earning
+                     attribution lives in the Monetization split editor.
+                     Episodes of this show all earn against its splits. --}}
+                @hasanyrole('super-admin')
+                @if (Route::has('admin.monetization.splits.edit') && isset($show) && $show->exists)
+                    <hr class="my-2">
+                    <a href="{{ route('admin.monetization.splits.edit', ['type' => 'show', 'id' => $show->id]) }}" class="small">
+                        <i class="ph ph-hand-coins me-1"></i>Monetization splits →
+                    </a>
+                @endif
+                @endhasanyrole
             </div>
         </div>
 
@@ -244,21 +248,14 @@
     const statusSel = document.querySelector('[data-jambo-status]');
     const wrap = document.querySelector('[data-jambo-release-wrap]');
     const label = document.querySelector('[data-jambo-release-label]');
-    const hint = document.querySelector('[data-jambo-release-hint]');
-    if (statusSel && wrap && label && hint) {
+    if (statusSel && wrap && label) {
         const apply = () => {
             const s = statusSel.value;
             if (s === 'draft') {
                 wrap.style.display = 'none';
             } else {
                 wrap.style.display = '';
-                if (s === 'upcoming') {
-                    label.textContent = 'Release date';
-                    hint.textContent = 'Scheduled release date. Surfaced on the detail page and the home "Upcoming" slider.';
-                } else {
-                    label.textContent = 'Published at';
-                    hint.textContent = 'When this series went live. Leave blank to auto-stamp on save.';
-                }
+                label.textContent = s === 'upcoming' ? 'Release date' : 'Published at';
             }
         };
         statusSel.addEventListener('change', apply);

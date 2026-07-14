@@ -64,7 +64,6 @@
                         </div>
                         <div id="quill-editor" style="min-height: 320px;">{!! old('content', $page->content) !!}</div>
                         <input type="hidden" name="content" id="content" value="{{ old('content', $page->content) }}">
-                        <small class="text-secondary">Share your memories with text, photos, videos, or documents.</small>
                         @error('content') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                     </div>
                 @endif
@@ -90,7 +89,6 @@
                         'accept' => ['jpg','jpeg','png','webp','svg'],
                         'aspect' => '16/9',
                         'placeholder' => 'https://... or /storage/media/pages/...',
-                        'hint' => 'Optional. Shown above the page title on the public view.',
                     ])
                 </div>
             </div>
@@ -101,7 +99,6 @@
                     <div class="mb-0">
                         <label for="meta_description" class="form-label">Meta description</label>
                         <textarea class="form-control @error('meta_description') is-invalid @enderror" id="meta_description" name="meta_description" rows="2" maxlength="500" placeholder="One or two sentences shown by search engines.">{{ old('meta_description', $page->meta_description) }}</textarea>
-                        <small class="text-secondary">Up to 500 characters. Falls back to the title if blank.</small>
                         @error('meta_description') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                 </div>
@@ -119,7 +116,6 @@
                         <option value="published" @selected(old('status', $page->status ?: 'published') === 'published')>Published</option>
                         <option value="draft" @selected(old('status', $page->status) === 'draft')>Draft</option>
                     </select>
-                    <small class="text-secondary">Published pages show your content on the public site. Drafts fall back to the legacy template.</small>
                 </div>
 
                 @if (! $isInternalOnly)
@@ -134,11 +130,6 @@
                                    @if ($page->exists && $page->is_system) readonly @endif
                                    placeholder="auto-generated from title">
                         </div>
-                        @if ($page->exists && $page->is_system)
-                            <small class="text-secondary">System page slug is locked — public URLs would 404 if changed.</small>
-                        @else
-                            <small class="text-secondary">Letters, numbers, dashes, underscores. Leave blank to auto-generate.</small>
-                        @endif
                         @error('slug') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                     </div>
                 @endif

@@ -26,11 +26,11 @@
 
                 <div class="card-body">
                     <form method="GET" action="{{ route('admin.movies.index') }}" class="row g-2 align-items-end mb-4">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--bs-secondary);">Search</label>
                             <input type="text" name="q" value="{{ $search }}" class="form-control" placeholder="Search by title...">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label class="form-label" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--bs-secondary);">Status</label>
                             <select name="status" class="form-select">
                                 <option value="">All</option>
@@ -39,9 +39,24 @@
                                 <option value="draft" @selected($statusFilter === 'draft')>Draft</option>
                             </select>
                         </div>
-                        <div class="col-md-3 d-flex gap-2">
+                        <div class="col-md-2">
+                            <label class="form-label" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--bs-secondary);">Sort by</label>
+                            <select name="sort" class="form-select">
+                                <option value="recent" @selected($sort === 'recent')>Recently added</option>
+                                <option value="updated" @selected($sort === 'updated')>Recently updated</option>
+                                <option value="title" @selected($sort === 'title')>Title</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--bs-secondary);">Order</label>
+                            <select name="dir" class="form-select">
+                                <option value="desc" @selected($dir === 'desc')>Descending</option>
+                                <option value="asc" @selected($dir === 'asc')>Ascending</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex gap-2">
                             <button type="submit" class="btn btn-primary flex-fill">Filter</button>
-                            @if ($search || $statusFilter)
+                            @if ($search || $statusFilter || request()->filled('sort') || request()->filled('dir'))
                                 <a href="{{ route('admin.movies.index') }}" class="btn btn-ghost">Clear</a>
                             @endif
                         </div>
@@ -79,7 +94,7 @@
                                     <th>Genres</th>
                                     <th>Cast</th>
                                     <th>Status</th>
-                                    <th>Updated</th>
+                                    <th>{{ $sort === 'updated' ? 'Updated' : 'Added' }}</th>
                                     <th class="text-end">Actions</th>
                                 </tr>
                             </thead>
@@ -128,7 +143,7 @@
                                                 <span class="badge bg-warning">Draft</span>
                                             @endif
                                         </td>
-                                        <td style="font-size:12px;color:var(--bs-secondary);">{{ $movie->updated_at?->diffForHumans() }}</td>
+                                        <td style="font-size:12px;color:var(--bs-secondary);">{{ ($sort === 'updated' ? $movie->updated_at : $movie->created_at)?->diffForHumans() }}</td>
                                         <td class="text-end">
                                             <div class="d-inline-flex gap-1">
                                                 <a href="{{ route('admin.movies.edit', $movie) }}" class="btn btn-sm btn-success-subtle" title="Edit">

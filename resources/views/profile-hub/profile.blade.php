@@ -89,8 +89,20 @@
                     @if ($user->email_verified_at)
                         <small class="text-success"><i class="ph ph-check-circle"></i> Verified</small>
                     @else
-                        <small class="text-warning"><i class="ph ph-warning-circle"></i> Not verified</small>
+                        <small class="text-warning">
+                            <i class="ph ph-warning-circle"></i> Not verified —
+                            <a href="{{ route('verification.notice') }}" class="text-warning text-decoration-underline">verify now</a>
+                        </small>
                     @endif
+                </div>
+                {{-- Revealed by the script below only when the email
+                     field differs from the saved address — changing
+                     the account email requires the current password. --}}
+                <div class="col-md-6" id="email-guard" hidden>
+                    <label class="form-label small text-muted">Current password</label>
+                    <input type="password" name="current_password" class="form-control form-control-sm"
+                           autocomplete="current-password" placeholder="Confirm it's really you">
+                    <small class="text-muted">Required because you're changing your email.</small>
                 </div>
                 <div class="col-md-6 mt-3">
                     <label class="form-label small text-muted">Phone <span class="text-muted">(optional)</span></label>
@@ -107,6 +119,20 @@
                 <button type="submit" class="btn btn-primary btn-sm">Save changes</button>
             </div>
         </form>
+
+        <script>
+            (() => {
+                const email = document.querySelector('input[name="email"]');
+                const guard = document.getElementById('email-guard');
+                if (!email || !guard) return;
+                const original = @json(strtolower($user->email));
+                const sync = () => {
+                    guard.hidden = email.value.trim().toLowerCase() === original;
+                };
+                email.addEventListener('input', sync);
+                sync(); // covers reload-with-old-input after a validation error
+            })();
+        </script>
     </div>
 
     <div class="jambo-hub-card">

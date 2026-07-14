@@ -91,7 +91,6 @@
                 <input type="text" class="form-control @error('video_url') is-invalid @enderror"
                     id="video_url" name="video_url" value="{{ $videoUrlOld }}"
                     placeholder="https://www.youtube.com/watch?v=... or https://example.com/film.mp4">
-                <div class="form-text">YouTube, Vimeo, or direct <code>.mp4</code> URL.</div>
                 @error('video_url') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
 
@@ -123,7 +122,6 @@
                 <input type="text" class="form-control @error('dropbox_path') is-invalid @enderror"
                     id="dropbox_path" name="dropbox_path" value="{{ $dropboxOld }}"
                     placeholder="/Jambo/movies/my-film.mp4">
-                <div class="form-text">Legacy — resolved at playback.</div>
                 @error('dropbox_path') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
         </div>
@@ -139,9 +137,6 @@
                 id="video_url_low" name="video_url_low"
                 value="{{ old('video_url_low', $model->video_url_low ?? '') }}"
                 placeholder="https://www.dropbox.com/.../movie-480p.mp4 or /Jambo/storage/media/...">
-            <div class="form-text">
-                Lower-quality version. When set, viewers get a <strong>Quality</strong> option in the player to switch between Original and 480p.
-            </div>
             @error('video_url_low') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
         </div>
     </div>

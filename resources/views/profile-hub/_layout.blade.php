@@ -4,22 +4,35 @@
     knows which item to highlight; they also @yield('hub-content')
     for the per-tab body.
 
-    Renders inside the site's frontend master layout so the top bar
-    + bell + dropdown + mobile footer stay consistent.
+    Shell is role-aware so partners/VJs get ONE dashboard:
+      - partner role  → renders inside the Creator Studio shell
+        (monetization::layouts.partner). The studio sidebar already
+        carries the Account links, so the hub's own rail is skipped
+        and content goes full-width.
+      - everyone else → the site's frontend master layout with the
+        hub rail, so the top bar + bell + mobile footer stay
+        consistent with the rest of the site.
 --}}
-@extends('frontend::layouts.master', ['isBreadCrumb' => false, 'title' => $pageTitle ?? 'Profile'])
+@php
+    $studioShell = auth()->check() && auth()->user()->hasRole('partner');
+@endphp
+
+@extends($studioShell ? 'monetization::layouts.partner' : 'frontend::layouts.master', ['isBreadCrumb' => false, 'title' => $pageTitle ?? 'Profile'])
 
 @section('content')
-<section class="jambo-profile-hub section-padding">
-    <div class="container-fluid" style="max-width: 1180px;">
+<section class="jambo-profile-hub {{ $studioShell ? '' : 'section-padding' }}">
+    <div class="container-fluid" style="max-width: 1180px; {{ $studioShell ? 'margin-left: 0;' : '' }}">
         <div class="row g-4">
-            {{-- Sidebar (sticky on desktop) --}}
-            <aside class="col-lg-3">
-                @include('profile-hub._sidebar', ['activeTab' => $activeTab ?? 'profile', 'user' => $user])
-            </aside>
+            {{-- Sidebar (sticky on desktop) — skipped in the studio
+                 shell, whose own sidebar carries these links. --}}
+            @unless ($studioShell)
+                <aside class="col-lg-3">
+                    @include('profile-hub._sidebar', ['activeTab' => $activeTab ?? 'profile', 'user' => $user])
+                </aside>
+            @endunless
 
             {{-- Content --}}
-            <div class="col-lg-9">
+            <div class="{{ $studioShell ? 'col-12' : 'col-lg-9' }}">
                 @if (session('status'))
                     <div class="alert alert-success py-2 small">{{ session('status') }}</div>
                 @endif
@@ -30,7 +43,9 @@
     </div>
 </section>
 
-@include('frontend::components.widgets.mobile-footer')
+@unless ($studioShell)
+    @include('frontend::components.widgets.mobile-footer')
+@endunless
 
 <style>
     /* Sidebar: sticky column with Netflix-style tab rail. Matches the
@@ -92,57 +107,9 @@
         display: block;
     }
 
-    .jambo-hub-nav {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-
-    .jambo-hub-nav__item {
-        margin: 0;
-    }
-
-    .jambo-hub-nav__link {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 0.65rem 0.85rem;
-        color: #cfd3dc;
-        text-decoration: none;
-        border-radius: 8px;
-        transition: background 0.15s, color 0.15s;
-        font-size: 0.95rem;
-    }
-
-    .jambo-hub-nav__link:hover {
-        background: rgba(255, 255, 255, 0.05);
-        color: #fff;
-    }
-
-    .jambo-hub-nav__link.is-active {
-        background: rgba(26, 152, 255, 0.14);
-        color: var(--bs-primary);
-        font-weight: 600;
-    }
-
-    .jambo-hub-nav__link i {
-        font-size: 1.15rem;
-        flex-shrink: 0;
-    }
-
-    .jambo-hub-nav__divider {
-        margin: 0.5rem 0.75rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.06);
-    }
-
-    .jambo-hub-nav__link--danger {
-        color: #f08a92;
-    }
-
-    .jambo-hub-nav__link--danger:hover {
-        color: #ffb5bc;
-        background: rgba(220, 53, 69, 0.1);
-    }
+    /* Nav rail styling now ships with the shared x-ui.sidenav
+       component (embedded variant) so the hub, admin, and partner
+       sidebars stay visually identical from one source. */
 
     /* Common card styling used by every tab. */
     .jambo-hub-card {

@@ -54,12 +54,20 @@
          attention sequence. --}}
     @include('frontend::components.sections.recommended', [
         'recommended' => __('sectionTitle.smart_shuffle'), 'viewAllBtn' => true,
+        'viewAllRoute' => route('frontend.rail_archive', 'smart-shuffle'),
     ])
     @include('frontend::components.sections.top-ten-block')
     @include('frontend::components.sections.top-ten-tvshow')
+    {{-- Admin-curated category shelves (visible_home toggle on the
+         category admin page). One rail per category, View All goes to
+         the category's own /categories/{slug} page. --}}
+    @include('frontend::components.sections.category-rails')
     @include('frontend::components.sections.vjs')
     @include('frontend::components.sections.only-on-streamit')
-    @include('frontend::components.sections.fresh-picks-just-for-you')
+    {{-- Random category shelf — replaced "Fresh Picks Just For You"
+         (redundant next to Top 10 Movies). Slots 0-2 rotate through
+         admin categories not pinned to the homepage. --}}
+    @include('frontend::components.sections.random-category-rail', ['slot' => 0])
     @include('frontend::components.sections.upcomming', ['viewAllBtn' => true])
 </div>
 
@@ -67,7 +75,8 @@
 
 <div class="container-fluid">
     @include('frontend::components.sections.Your-Favourite-Personality')
-    @include('frontend::components.sections.Popular-movies', ['viewAllBtn' => true])
+    {{-- Random category shelf — replaced "Popular Movies". --}}
+    @include('frontend::components.sections.random-category-rail', ['slot' => 1])
 </div>
 
 @include('frontend::components.sections.tab-slider')
@@ -78,7 +87,8 @@
     {{-- Smart Shuffle moved up to right after Continue Watching;
          see the higher block in this file. --}}
 
-    @include('frontend::components.sections.top-pict')
+    {{-- Random category shelf — replaced "Top Picks for You". --}}
+    @include('frontend::components.sections.random-category-rail', ['slot' => 2])
 </div>
 
 {{-- Mobile Footer --}}

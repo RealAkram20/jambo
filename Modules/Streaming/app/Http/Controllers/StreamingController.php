@@ -346,6 +346,17 @@ class StreamingController extends Controller
 
         ActiveStream::markBeat($userId, $sessionId, $model);
 
+        // Monetization accrual (and any future analytics) hang off this
+        // event rather than this controller — the listener is fully
+        // exception-guarded so playback can never break on accrual bugs.
+        event(new \Modules\Streaming\app\Events\PlaybackBeat(
+            userId: $userId,
+            item: $model,
+            position: (int) $data['position'],
+            sessionId: $sessionId,
+            ip: $request->ip(),
+        ));
+
         return response()->json([
             'ok' => true,
             'position' => $row->position_seconds,

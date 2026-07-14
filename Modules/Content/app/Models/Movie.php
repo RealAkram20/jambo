@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Modules\Content\app\Models\Concerns\CleansContentMorphsOnDelete;
 use Modules\Content\app\Models\Concerns\HasStreamSource;
+use Modules\Content\app\Models\Concerns\TracksContentActivity;
 use Modules\Content\database\factories\MovieFactory;
 
 /**
@@ -44,12 +45,18 @@ class Movie extends Model
     use HasFactory;
     use HasStreamSource;
     use CleansContentMorphsOnDelete;
+    use TracksContentActivity;
 
     protected static function booted(): void
     {
         static::deleting(function (Movie $movie) {
             self::cleanContentMorphsFor(self::class, $movie->id);
         });
+    }
+
+    public function activityType(): string
+    {
+        return 'movie';
     }
 
     protected $table = 'movies';

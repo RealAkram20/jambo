@@ -74,6 +74,15 @@
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
+                        <button class="nav-link {{ $activeTab === 'my-preferences' ? 'active' : '' }}"
+                                id="my-preferences-tab" data-bs-toggle="tab" data-bs-target="#tab-my-preferences"
+                                type="button" role="tab" aria-controls="tab-my-preferences"
+                                aria-selected="{{ $activeTab === 'my-preferences' ? 'true' : 'false' }}">
+                            <i class="ph ph-user-gear me-1"></i> My preferences
+                        </button>
+                    </li>
+                    @if ($isSuperAdmin)
+                    <li class="nav-item" role="presentation">
                         <button class="nav-link {{ $activeTab === 'settings' ? 'active' : '' }}"
                                 id="settings-tab" data-bs-toggle="tab" data-bs-target="#tab-settings"
                                 type="button" role="tab" aria-controls="tab-settings"
@@ -81,6 +90,7 @@
                             <i class="ph ph-sliders-horizontal me-1"></i> Settings
                         </button>
                     </li>
+                    @endif
                     <li class="nav-item" role="presentation">
                         <button class="nav-link {{ $activeTab === 'broadcast' ? 'active' : '' }}"
                                 id="broadcast-tab" data-bs-toggle="tab" data-bs-target="#tab-broadcast"
@@ -148,7 +158,97 @@
                         @endif
                     </div>
 
-                    {{-- ════════════════ SETTINGS TAB ════════════════ --}}
+                    {{-- ════════════════ MY PREFERENCES TAB (every admin) ════════════════ --}}
+                    <div class="tab-pane fade {{ $activeTab === 'my-preferences' ? 'show active' : '' }}"
+                         id="tab-my-preferences" role="tabpanel" aria-labelledby="my-preferences-tab">
+                        <form method="POST" action="{{ route('admin.notifications.my-preferences.update') }}" class="p-4">
+                            @csrf @method('PUT')
+
+                            <div class="rounded-3 p-3 mb-4" style="background: rgba(26, 152, 255, 0.06); border: 1px solid rgba(26, 152, 255, 0.18);">
+                                <div class="fw-semibold d-flex align-items-center gap-2">
+                                    <i class="ph ph-info fs-5 text-primary"></i> Your personal delivery
+                                </div>
+                                <div class="text-muted small">
+                                    Turn off any staff notification you don't want to receive. This only affects
+                                    <strong>your</strong> account — other admins are unaffected. If the platform has
+                                    a notification switched off globally you won't receive it regardless of what you set here.
+                                </div>
+                            </div>
+
+                            @foreach ($myPrefTypes as $groupId => $group)
+                                <div class="mb-4">
+                                    <h6 class="mb-3 d-flex align-items-center">
+                                        <i class="ph {{ $group['icon'] }} me-2 fs-5"></i>
+                                        {{ $group['label'] }}
+                                    </h6>
+                                    <div class="table-responsive">
+                                        <table class="table custom-table align-middle mb-0">
+                                            <thead>
+                                                <tr class="text-uppercase" style="font-size:11px;letter-spacing:.5px;">
+                                                    <th>Notification</th>
+                                                    <th class="text-center" style="width:110px;">System</th>
+                                                    <th class="text-center" style="width:110px;">Push</th>
+                                                    <th class="text-center" style="width:110px;">Email</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach ($group['items'] as $item)
+                                                    @php
+                                                        $pref = $myPrefs->get($item['key']);
+                                                        // No row = inherit = receiving on all channels.
+                                                        $inAppOn = $pref?->in_app_enabled ?? true;
+                                                        $pushOn  = $pref?->push_enabled   ?? true;
+                                                        $emailOn = $pref?->email_enabled  ?? true;
+                                                    @endphp
+                                                    <tr>
+                                                        <td>
+                                                            <div class="d-flex align-items-center gap-3">
+                                                                <div class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle bg-{{ $item['colour'] }}-subtle text-{{ $item['colour'] }}-emphasis"
+                                                                     style="width:40px;height:40px;">
+                                                                    <i class="ph {{ $item['icon'] }} fs-5"></i>
+                                                                </div>
+                                                                <div>
+                                                                    <div class="fw-semibold">{{ $item['label'] }}</div>
+                                                                    <div class="text-muted small">{{ $item['description'] }}</div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td class="text-center">
+                                                            <div class="form-check form-switch d-inline-block m-0">
+                                                                <input type="checkbox" role="switch" class="form-check-input"
+                                                                       name="prefs[{{ $item['key'] }}][system]" value="1" @checked($inAppOn)>
+                                                            </div>
+                                                        </td>
+                                                        <td class="text-center">
+                                                            <div class="form-check form-switch d-inline-block m-0">
+                                                                <input type="checkbox" role="switch" class="form-check-input"
+                                                                       name="prefs[{{ $item['key'] }}][push]" value="1" @checked($pushOn)>
+                                                            </div>
+                                                        </td>
+                                                        <td class="text-center">
+                                                            <div class="form-check form-switch d-inline-block m-0">
+                                                                <input type="checkbox" role="switch" class="form-check-input"
+                                                                       name="prefs[{{ $item['key'] }}][email]" value="1" @checked($emailOn)>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            @endforeach
+
+                            <div class="d-flex justify-content-end mt-4 pt-3 border-top">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="ph ph-floppy-disk me-1"></i> Save my preferences
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    {{-- ════════════════ SETTINGS TAB (super-admin only) ════════════════ --}}
+                    @if ($isSuperAdmin)
                     <div class="tab-pane fade {{ $activeTab === 'settings' ? 'show active' : '' }}"
                          id="tab-settings" role="tabpanel" aria-labelledby="settings-tab">
                         {{-- Channel-test banner ============================= --}}
@@ -236,13 +336,17 @@
                                             <tbody>
                                                 @foreach ($group['items'] as $item)
                                                     @php
-                                                        $row = $settingRows->get($item['key']);
-                                                        $systemOn = $row?->system_enabled ?? true;
-                                                        $pushOn   = $row?->push_enabled   ?? false;
-                                                        $emailOn  = $row?->email_enabled  ?? true;
+                                                        $audiences = \Modules\Notifications\app\Models\NotificationAudienceSetting::audiencesForTag($item['audience']);
+                                                        $audienceLabels = [
+                                                            'super_admin' => 'Super admin',
+                                                            'admin'       => 'Admins',
+                                                            'user'        => 'Users',
+                                                        ];
                                                     @endphp
+
+                                                    {{-- Notification header row --}}
                                                     <tr>
-                                                        <td>
+                                                        <td @if (!empty($audiences)) colspan="4" @endif>
                                                             <div class="d-flex align-items-center gap-3">
                                                                 <div class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle bg-{{ $item['colour'] }}-subtle text-{{ $item['colour'] }}-emphasis"
                                                                      style="width:40px;height:40px;">
@@ -258,31 +362,74 @@
                                                                 </div>
                                                             </div>
                                                         </td>
-                                                        <td class="text-center">
-                                                            <div class="form-check form-switch d-inline-block m-0">
-                                                                <input type="checkbox" role="switch"
-                                                                       class="form-check-input"
-                                                                       name="settings[{{ $item['key'] }}][system]" value="1"
-                                                                       @checked($systemOn)>
-                                                            </div>
-                                                        </td>
-                                                        <td class="text-center">
-                                                            <div class="form-check form-switch d-inline-block m-0">
-                                                                <input type="checkbox" role="switch"
-                                                                       class="form-check-input"
-                                                                       name="settings[{{ $item['key'] }}][push]" value="1"
-                                                                       @checked($pushOn)>
-                                                            </div>
-                                                        </td>
-                                                        <td class="text-center">
-                                                            <div class="form-check form-switch d-inline-block m-0">
-                                                                <input type="checkbox" role="switch"
-                                                                       class="form-check-input"
-                                                                       name="settings[{{ $item['key'] }}][email]" value="1"
-                                                                       @checked($emailOn)>
-                                                            </div>
-                                                        </td>
+
+                                                        @if (empty($audiences))
+                                                            {{-- Personal, single-recipient type: one flat row of
+                                                                 channel switches (stored in notification_settings). --}}
+                                                            @php
+                                                                $row = $settingRows->get($item['key']);
+                                                                $systemOn = $row?->system_enabled ?? true;
+                                                                $pushOn   = $row?->push_enabled   ?? false;
+                                                                $emailOn  = $row?->email_enabled  ?? true;
+                                                            @endphp
+                                                            <td class="text-center">
+                                                                <div class="form-check form-switch d-inline-block m-0">
+                                                                    <input type="checkbox" role="switch" class="form-check-input"
+                                                                           name="settings[{{ $item['key'] }}][system]" value="1" @checked($systemOn)>
+                                                                </div>
+                                                            </td>
+                                                            <td class="text-center">
+                                                                <div class="form-check form-switch d-inline-block m-0">
+                                                                    <input type="checkbox" role="switch" class="form-check-input"
+                                                                           name="settings[{{ $item['key'] }}][push]" value="1" @checked($pushOn)>
+                                                                </div>
+                                                            </td>
+                                                            <td class="text-center">
+                                                                <div class="form-check form-switch d-inline-block m-0">
+                                                                    <input type="checkbox" role="switch" class="form-check-input"
+                                                                           name="settings[{{ $item['key'] }}][email]" value="1" @checked($emailOn)>
+                                                                </div>
+                                                            </td>
+                                                        @endif
                                                     </tr>
+
+                                                    {{-- Role-targeted type: one sub-row per audience so the
+                                                         super-admin can route it to super-admins / admins /
+                                                         users independently (notification_audience_settings). --}}
+                                                    @foreach ($audiences as $aud)
+                                                        @php
+                                                            $arow = $audienceRows->get($item['key'] . '|' . $aud);
+                                                            $aSystem = $arow?->in_app_enabled ?? true;
+                                                            $aPush   = $arow?->push_enabled   ?? false;
+                                                            $aEmail  = $arow?->email_enabled  ?? true;
+                                                        @endphp
+                                                        <tr class="notif-audience-row">
+                                                            <td class="ps-5">
+                                                                <span class="text-muted small d-flex align-items-center gap-2">
+                                                                    <i class="ph ph-arrow-elbow-down-right"></i>
+                                                                    {{ $audienceLabels[$aud] ?? $aud }}
+                                                                </span>
+                                                            </td>
+                                                            <td class="text-center">
+                                                                <div class="form-check form-switch d-inline-block m-0">
+                                                                    <input type="checkbox" role="switch" class="form-check-input"
+                                                                           name="settings_audience[{{ $item['key'] }}][{{ $aud }}][system]" value="1" @checked($aSystem)>
+                                                                </div>
+                                                            </td>
+                                                            <td class="text-center">
+                                                                <div class="form-check form-switch d-inline-block m-0">
+                                                                    <input type="checkbox" role="switch" class="form-check-input"
+                                                                           name="settings_audience[{{ $item['key'] }}][{{ $aud }}][push]" value="1" @checked($aPush)>
+                                                                </div>
+                                                            </td>
+                                                            <td class="text-center">
+                                                                <div class="form-check form-switch d-inline-block m-0">
+                                                                    <input type="checkbox" role="switch" class="form-check-input"
+                                                                           name="settings_audience[{{ $item['key'] }}][{{ $aud }}][email]" value="1" @checked($aEmail)>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    @endforeach
                                                 @endforeach
                                             </tbody>
                                         </table>
@@ -300,6 +447,7 @@
                             </div>
                         </form>
                     </div>
+                    @endif
 
                     {{-- ════════════════ BROADCAST TAB ════════════════ --}}
                     <div class="tab-pane fade {{ $activeTab === 'broadcast' ? 'show active' : '' }}"
@@ -439,9 +587,10 @@
     // the wrong action button isn't sitting there. Also sync the ?tab=
     // query param so refreshing the page stays on the user's current tab.
     const tabKey = (targetId) => ({
-        '#tab-inbox':     'inbox',
-        '#tab-settings':  'settings',
-        '#tab-broadcast': 'broadcast',
+        '#tab-inbox':          'inbox',
+        '#tab-my-preferences': 'my-preferences',
+        '#tab-settings':       'settings',
+        '#tab-broadcast':      'broadcast',
     }[targetId] ?? 'inbox');
 
     document.querySelectorAll('#notifTabs [data-bs-toggle="tab"]').forEach(tab => {

@@ -165,6 +165,13 @@
     </div>
 </div>
 
+{{-- Reviews & ratings — lives here (not on the detail page) so the
+     prompt to rate appears right where the viewer finishes watching. --}}
+@include('frontend::components.partials.reviews-block', [
+    'storeRoute'   => route('frontend.movie_review_store',   $movie->slug),
+    'destroyRoute' => route('frontend.movie_review_destroy', $movie->slug),
+])
+
 {{-- "Read more" detail sheet — opened by the trigger inside
      movie-description.blade.php. Matches the include on the
      detail page, minus cast/crew (controller doesn't compute

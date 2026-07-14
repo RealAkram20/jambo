@@ -35,8 +35,6 @@
 <div class="card mt-4">
     <div class="card-header"><h6 class="mb-0">Contact cards (4 slots)</h6></div>
     <div class="card-body">
-        <p class="text-secondary small mb-4">Each card shows an icon, a title, a short description, and a link (email, phone, or URL). Icons use <a href="https://phosphoricons.com/" target="_blank" class="text-decoration-none">Phosphor</a> names — e.g. <code>ph-headset</code>, <code>ph-phone-call</code>, <code>ph-megaphone-simple</code>.</p>
-
         <div class="row g-4">
             @foreach ($cards as $i => $card)
                 <div class="col-lg-6">
@@ -121,7 +119,6 @@
                        name="meta[form_recipient_email]"
                        value="{{ old('meta.form_recipient_email', $page->metaValue('form_recipient_email')) }}"
                        placeholder="hello@jambo.co">
-                <small class="text-secondary">Submissions are emailed here.</small>
                 @error('meta.form_recipient_email') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
             <div class="col-md-4">
@@ -227,7 +224,6 @@
                 @error('meta.youtube_url') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
         </div>
-        <p class="text-secondary small mt-3 mb-0">Leave a URL blank to hide that social icon.</p>
     </div>
 </div>
 
@@ -241,7 +237,6 @@
                        name="meta[map_embed_url]"
                        value="{{ old('meta.map_embed_url', $page->metaValue('map_embed_url')) }}"
                        placeholder="https://www.google.com/maps/embed?pb=...">
-                <small class="text-secondary">From Google Maps → Share → Embed a map → copy the <code>src</code> from the iframe.</small>
                 @error('meta.map_embed_url') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
             <div class="col-md-3">
@@ -252,6 +247,5 @@
                        min="100" max="1200">
             </div>
         </div>
-        <p class="text-secondary small mt-3 mb-0">Leave the URL blank to hide the map entirely.</p>
     </div>
 </div>

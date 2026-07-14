@@ -1,7 +1,7 @@
 <div class="streamit-card-height-block">
     <div class="d-flex align-items-center justify-content-between px-1 mb-4">
         <h4 class="main-title text-capitalize mb-0 fw-medium">{{ __('sectionTitle.fresh_picks') }}</h4>
-        <a href="{{ route('frontend.movie') }}" class="text-primary iq-view-all text-decoration-none flex-none">{{ __('streamButtons.view_all') }}</a>
+        <a href="{{ route('frontend.rail_archive', 'fresh-picks') }}" class="text-primary iq-view-all text-decoration-none flex-none">{{ __('streamButtons.view_all') }}</a>
     </div>
     <div class="card-style-slider">
         <div class="position-relative swiper swiper-card" data-slide="6" data-laptop="3" data-tab="4" data-mobile="3"

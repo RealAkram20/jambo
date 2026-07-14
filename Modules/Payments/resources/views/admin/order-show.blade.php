@@ -138,17 +138,11 @@
                                 <input type="text" name="payment_method" class="form-control"
                                     value="{{ old('payment_method', $order->payment_method) }}"
                                     placeholder="card / mpesa / airtel / …" maxlength="50">
-                                <div class="form-text" style="font-size:11px;">
-                                    Free text. Populated automatically when the gateway reports it.
-                                </div>
                             </div>
                             <div class="col-12">
                                 <label class="form-label">Admin notes</label>
                                 <textarea name="admin_notes" class="form-control" rows="3" maxlength="2000"
                                     placeholder="e.g. 'Reconciled by hand on 2026-04-26 after PesaPal dashboard showed completed but IPN never arrived.'">{{ old('admin_notes', $adminNotes) }}</textarea>
-                                <div class="form-text" style="font-size:11px;">
-                                    Saved into <code>metadata.admin_notes</code> alongside who wrote it + timestamp.
-                                </div>
                             </div>
                         </div>
 
@@ -271,9 +265,6 @@
                             @disabled(!$order->order_tracking_id)>
                             <i class="ph ph-arrows-clockwise me-1"></i> Reconcile with gateway
                         </button>
-                        <div class="form-text" style="font-size:11px;">
-                            Re-polls PesaPal for the current status and syncs this record. Safe to run anytime.
-                        </div>
                     </form>
 
                     {{-- Delete. Guard-railed server-side — completed

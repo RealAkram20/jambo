@@ -1,4 +1,24 @@
 <!-- Sidebar Menu Start -->
+{{--
+    Menu is ordered by priority and grouped with labeled section
+    headers (static-item + .sidenav-divider, styled in
+    components/partials/theme-tokens.blade.php):
+
+      (core)          Dashboard, Notifications, Performance — the
+                      things an admin checks every session.
+      CONTENT         The day-to-day catalogue work: Movies, Series,
+                      Vjs, Persons, Rating, File Manager, Pages.
+      USERS & ACCESS  Account administration: Users, Access Control.
+      SYSTEM          Configuration + operational health: Settings,
+                      SEO & Analytics, System info.
+      SUPER ADMIN /   Money-shaping surface (Payments, Monetization);
+      FINANCE         label follows the viewer's role.
+
+    Template-demo groups (Authentication, Utilities, UI Elements,
+    Widget, Form, Table, Icons, …) were removed in the admin cleanup —
+    they pointed at static Streamit showcase routes, not real admin
+    features.
+--}}
 <ul class="navbar-nav iq-main-menu" id="sidebar-menu">
     <li class="nav-item">
         <a class="nav-link {{ activeRoute(route('dashboard')) }}" aria-current="page" href="{{ route('dashboard') }}">
@@ -9,27 +29,78 @@
             <span class="item-name">{{ __('sidebar.dashboard') }}</span>
         </a>
     </li>
-    <li class="nav-item">
-        <a class="nav-link {{ activeRoute(route('dashboard.rating')) }}" aria-current="page"
-            href="{{ route('dashboard.rating') }}">
-            <i class="icon" data-bs-toggle="tooltip" data-bs-placement="right" aria-label="Rating"
-                data-bs-original-title="Rating">
-                <i class="ph ph-star-half fs-4"></i>
-            </i>
-            <span class="item-name">{{ __('sidebar.rating') }}</span>
-        </a>
-    </li>
-    @can('view_users')
+    @if (Route::has('notifications.index'))
         <li class="nav-item">
-            <a class="nav-link {{ activeRoute(route('dashboard.user-list')) }}" href="{{ route('dashboard.user-list') }}">
-                <i class="icon" data-bs-toggle="tooltip" title="User" data-bs-placement="right" aria-label="User"
-                    data-bs-original-title="User">
-                    <i class="ph ph-user fs-5"></i>
+            <a class="nav-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}"
+                href="{{ route('notifications.index') }}">
+                <i class="icon" title="Notifications" data-bs-toggle="tooltip" data-bs-placement="right"
+                    aria-label="Notifications" data-bs-original-title="Notifications">
+                    <i class="ph ph-bell fs-4"></i>
                 </i>
-                <span class="item-name">{{ __('sidebar.users') }}</span>
+                <span class="item-name">Notifications</span>
             </a>
         </li>
-    @endcan
+    @endif
+    {{-- Performance — admin content-contribution tracking + earnings.
+         Every admin sees the dashboard; only super-admin sees the rate
+         Settings (money-shaping), matching the route middleware. --}}
+    @role('admin')
+    @if (Route::has('dashboard.performance'))
+        <li class="nav-item">
+            <a class="nav-link {{ request()->routeIs('dashboard.performance') || request()->routeIs('dashboard.performance.*') ? 'active' : '' }}"
+                data-bs-toggle="collapse" href="#sidebar-performance" role="button" aria-expanded="false"
+                aria-controls="sidebar-performance">
+                <i class="icon" data-bs-toggle="tooltip" title="Performance" data-bs-placement="right"
+                    aria-label="Performance" data-bs-original-title="Performance">
+                    <i class="ph ph-chart-line-up fs-4"></i>
+                </i>
+                <span class="item-name">Performance</span>
+                <i class="right-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" class="icon-18" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </i>
+            </a>
+            <ul class="sub-nav collapse {{ request()->routeIs('dashboard.performance') || request()->routeIs('dashboard.performance.*') ? 'show' : '' }}"
+                id="sidebar-performance" data-bs-parent="#sidebar-menu">
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('dashboard.performance') ? 'active' : '' }}"
+                        href="{{ route('dashboard.performance') }}">
+                        <i class="icon" data-bs-toggle="tooltip" title="Dashboard" data-bs-placement="right"
+                            aria-label="Dashboard" data-bs-original-title="Dashboard">
+                            <i class="ph ph-gauge fs-5"></i>
+                        </i>
+                        <span class="item-name">Dashboard</span>
+                    </a>
+                </li>
+                @role('super-admin')
+                @if (Route::has('dashboard.performance.settings'))
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('dashboard.performance.settings') ? 'active' : '' }}"
+                            href="{{ route('dashboard.performance.settings') }}">
+                            <i class="icon" data-bs-toggle="tooltip" title="Settings" data-bs-placement="right"
+                                aria-label="Settings" data-bs-original-title="Settings">
+                                <i class="ph ph-gear fs-5"></i>
+                            </i>
+                            <span class="item-name">Settings</span>
+                        </a>
+                    </li>
+                @endif
+                @endrole
+            </ul>
+        </li>
+    @endif
+    @endrole
+
+    {{-- ============================== CONTENT ============================== --}}
+    <li class="nav-item static-item">
+        <hr class="sidenav-divider">
+        <a class="nav-link static-item disabled" tabindex="-1">
+            <span class="default-icon">Content</span>
+            <span class="mini-icon">-</span>
+        </a>
+    </li>
 
     <li class="nav-item">
         <a class="nav-link" data-bs-toggle="collapse" href="#sidebar-movies" role="button" aria-expanded="false"
@@ -161,6 +232,17 @@
     </li>
 
     <li class="nav-item">
+        <a class="nav-link {{ activeRoute(route('dashboard.person-categories')) }}" aria-current="page"
+            href="{{ route('dashboard.person-categories') }}">
+            <i class="icon" data-bs-toggle="tooltip" title="Categories" data-bs-placement="right"
+                aria-label="Categories" data-bs-original-title="Categories">
+                <i class="ph ph-squares-four fs-4"></i>
+            </i>
+            <span class="item-name">{{ __('sidebar.categories') }}</span>
+        </a>
+    </li>
+
+    <li class="nav-item">
         <a class="nav-link {{ activeRoute(route('dashboard.vjs')) }}" aria-current="page" href="{{ route('dashboard.vjs') }}">
             <i class="icon" data-bs-toggle="tooltip" title="Vjs" data-bs-placement="right" aria-label="Vjs"
                 data-bs-original-title="Vjs">
@@ -197,16 +279,6 @@
                     </a>
                 </li>
             <li class="nav-item">
-                <a class="nav-link {{ activeRoute(route('dashboard.person-categories')) }}"
-                    href="{{ route('dashboard.person-categories') }}">
-                    <i class="icon" data-bs-toggle="tooltip" title="Categories" data-bs-placement="right"
-                        aria-label="Categories" data-bs-original-title="Categories">
-                        <i class="ph ph-user-circle-plus fs-5"></i>
-                    </i>
-                    <span class="item-name">{{ __('sidebar.categories') }}</span>
-                </a>
-            </li>
-            <li class="nav-item">
                 <a class="nav-link {{ activeRoute(route('dashboard.person-tags')) }}"
                     href="{{ route('dashboard.person-tags') }}">
                     <i class="icon" data-bs-toggle="tooltip" title="Tags" data-bs-placement="right"
@@ -219,114 +291,17 @@
         </ul>
     </li>
 
-    {{-- Payments group — Settings, Orders, and Pricing (tiers) all live
-         under one parent so the top-level sidebar stays compact. Route
-         guards on each child so modules that aren't loaded don't
-         surface a dead link. Whole group hides if payments isn't
-         configured at all.
-
-         Role gate: only finance / super-admin can see the financial
-         surface. A plain `admin` user manages content but never gets
-         the menu — same role check the routes themselves enforce, so
-         clicking through directly also 403s. --}}
-    @hasanyrole('finance|super-admin')
-    @if (Route::has('admin.payments.index') || Route::has('admin.subscription-tiers.index'))
-        <li class="nav-item">
-            <a class="nav-link {{ request()->routeIs('admin.payments.*') || request()->routeIs('admin.subscription-tiers.*') ? 'active' : '' }}"
-                data-bs-toggle="collapse" href="#sidebar-payments" role="button" aria-expanded="false"
-                aria-controls="sidebar-payments">
-                <i class="icon" data-bs-toggle="tooltip" title="Payments" data-bs-placement="right"
-                    aria-label="Payments" data-bs-original-title="Payments">
-                    <i class="ph ph-credit-card fs-4"></i>
-                </i>
-                <span class="item-name">Payments</span>
-                <i class="right-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" class="icon-18" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                    </svg>
-                </i>
-            </a>
-            <ul class="sub-nav collapse {{ request()->routeIs('admin.payments.*') || request()->routeIs('admin.subscription-tiers.*') ? 'show' : '' }}"
-                id="sidebar-payments" data-bs-parent="#sidebar-menu">
-                @if (Route::has('admin.payments.index'))
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('admin.payments.index') || request()->routeIs('admin.payments.update') || request()->routeIs('admin.payments.register-ipn') ? 'active' : '' }}"
-                            href="{{ route('admin.payments.index') }}">
-                            <i class="icon" data-bs-toggle="tooltip" title="Payment settings" data-bs-placement="right"
-                                aria-label="Payment settings" data-bs-original-title="Payment settings">
-                                <i class="ph ph-gear fs-5"></i>
-                            </i>
-                            <span class="item-name">Settings</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('admin.payments.orders') ? 'active' : '' }}"
-                            href="{{ route('admin.payments.orders') }}">
-                            <i class="icon" data-bs-toggle="tooltip" title="Payment orders" data-bs-placement="right"
-                                aria-label="Payment orders" data-bs-original-title="Payment orders">
-                                <i class="ph ph-receipt fs-5"></i>
-                            </i>
-                            <span class="item-name">Orders</span>
-                        </a>
-                    </li>
-                @endif
-                @if (Route::has('admin.subscription-tiers.index'))
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('admin.subscription-tiers.*') ? 'active' : '' }}"
-                            href="{{ route('admin.subscription-tiers.index') }}">
-                            <i class="icon" data-bs-toggle="tooltip" title="Pricing" data-bs-placement="right"
-                                aria-label="Pricing" data-bs-original-title="Pricing">
-                                <i class="ph ph-wallet fs-5"></i>
-                            </i>
-                            <span class="item-name">{{ __('sidebar.pricing') }}</span>
-                        </a>
-                    </li>
-                @endif
-            </ul>
-        </li>
-    @endif
-    @endhasanyrole
-
-
-    {{--
-        Template-demo groups removed for admin cleanup — Authentication,
-        Utilities (error-404/500, maintenance, coming-soon), Blank Page,
-        UI Elements, Widget, Form, Table, and Icons. These were sidebar
-        showcase items that ship with the Streamit template but point
-        at routes in DashboardController that render static UI demos
-        with dummy data — not real admin features. Real admin flows
-        (auth, account management, 2FA) live on the user-side profile
-        hub; the error / maintenance pages are served by the framework
-        when the conditions that trigger them hit.
-    --}}
-
     <li class="nav-item">
-        <a class="nav-link {{ activeRoute(route('backend.permission-role')) }}"
-            href="{{ route('backend.permission-role') }}">
-            <i class="icon" title="Access Control" data-bs-toggle="tooltip" data-bs-placement="right"
-                aria-label="Access Control" data-bs-original-title="Access Control">
-                <i class="ph ph-user-gear fs-4"></i>
+        <a class="nav-link {{ activeRoute(route('dashboard.rating')) }}" aria-current="page"
+            href="{{ route('dashboard.rating') }}">
+            <i class="icon" data-bs-toggle="tooltip" data-bs-placement="right" aria-label="Rating"
+                data-bs-original-title="Rating">
+                <i class="ph ph-star-half fs-4"></i>
             </i>
-            <span class="item-name">{{ __('sidebar.access_control') }}</span>
+            <span class="item-name">{{ __('sidebar.rating') }}</span>
         </a>
     </li>
-    {{-- System Updates moved into the System info collapsible group
-         further down (inside @role('admin')) — see the group that
-         includes Error log / System status / Signup attempts. --}}
-    @if (Route::has('notifications.index'))
-        <li class="nav-item">
-            <a class="nav-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}"
-                href="{{ route('notifications.index') }}">
-                <i class="icon" title="Notifications" data-bs-toggle="tooltip" data-bs-placement="right"
-                    aria-label="Notifications" data-bs-original-title="Notifications">
-                    <i class="ph ph-bell fs-4"></i>
-                </i>
-                <span class="item-name">Notifications</span>
-            </a>
-        </li>
-    @endif
-    {{-- Payments lives in its own grouped submenu above Review now. --}}
+
     @if (Route::has('admin.file-manager.index'))
         <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('admin.file-manager.*') ? 'active' : '' }}"
@@ -339,6 +314,7 @@
             </a>
         </li>
     @endif
+
     @role('admin')
         @if (Route::has('admin.pages.index'))
             <li class="nav-item">
@@ -352,6 +328,50 @@
                 </a>
             </li>
         @endif
+    @endrole
+
+    {{-- =========================== USERS & ACCESS =========================== --}}
+    <li class="nav-item static-item">
+        <hr class="sidenav-divider">
+        <a class="nav-link static-item disabled" tabindex="-1">
+            <span class="default-icon">Users &amp; Access</span>
+            <span class="mini-icon">-</span>
+        </a>
+    </li>
+
+    @can('view_users')
+        <li class="nav-item">
+            <a class="nav-link {{ activeRoute(route('dashboard.user-list')) }}" href="{{ route('dashboard.user-list') }}">
+                <i class="icon" data-bs-toggle="tooltip" title="User" data-bs-placement="right" aria-label="User"
+                    data-bs-original-title="User">
+                    <i class="ph ph-user fs-5"></i>
+                </i>
+                <span class="item-name">{{ __('sidebar.users') }}</span>
+            </a>
+        </li>
+    @endcan
+
+    <li class="nav-item">
+        <a class="nav-link {{ activeRoute(route('backend.permission-role')) }}"
+            href="{{ route('backend.permission-role') }}">
+            <i class="icon" title="Access Control" data-bs-toggle="tooltip" data-bs-placement="right"
+                aria-label="Access Control" data-bs-original-title="Access Control">
+                <i class="ph ph-user-gear fs-4"></i>
+            </i>
+            <span class="item-name">{{ __('sidebar.access_control') }}</span>
+        </a>
+    </li>
+
+    {{-- ================================ SYSTEM ================================ --}}
+    @role('admin')
+        <li class="nav-item static-item">
+            <hr class="sidenav-divider">
+            <a class="nav-link static-item disabled" tabindex="-1">
+                <span class="default-icon">System</span>
+                <span class="mini-icon">-</span>
+            </a>
+        </li>
+
         <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}"
                 href="{{ route('admin.settings.index') }}">
@@ -376,10 +396,8 @@
         @endif
         {{-- "System info" — collapsible group bundling the four
              admin-side operational pages: System Updates, Error log,
-             System status, Signup attempts. Was four separate
-             top-level links, now grouped because they all answer
-             the same question ("how is the system doing right
-             now") and the sidebar was getting crowded. --}}
+             System status, Signup attempts. They all answer the same
+             question ("how is the system doing right now"). --}}
         @if (Route::has('admin.updates.index')
             || Route::has('admin.diagnostics.logs')
             || Route::has('admin.diagnostics.status')
@@ -455,6 +473,159 @@
             </li>
         @endif
     @endrole
+
+    {{-- ======================= SUPER ADMIN / FINANCE ======================= --}}
+    {{-- Elevated access — the money-shaping surface, grouped under a
+         labeled section at the bottom so it reads as a distinct tier
+         of the menu. Only finance / super-admin ever see it; the
+         header label follows the viewer's actual role. Route
+         middleware enforces the same gates, so a direct URL also
+         403s for anyone else. --}}
+    @hasanyrole('finance|super-admin')
+        @php
+            $elevatedLabel = auth()->user()->hasRole('super-admin') ? 'Super Admin' : 'Finance';
+            $showPayments = Route::has('admin.payments.index') || Route::has('admin.subscription-tiers.index');
+            // Monetization additionally honours the
+            // monetization.finance_can_view setting — when the owner
+            // flips it off, finance loses even the menu (the
+            // monetization.admin middleware 403s the routes to match).
+            $showMonetization = Route::has('admin.monetization.partners.index')
+                && (auth()->user()->hasRole('super-admin') || \Modules\Monetization\app\Services\MonetizationSettings::financeCanView());
+        @endphp
+        @if ($showPayments || $showMonetization)
+            <li class="nav-item static-item">
+                <hr class="sidenav-divider">
+                <a class="nav-link static-item disabled" tabindex="-1">
+                    <span class="default-icon">{{ $elevatedLabel }}</span>
+                    <span class="mini-icon">-</span>
+                </a>
+            </li>
+        @endif
+
+        {{-- Payments group — Settings, Orders, and Pricing (tiers) all
+             live under one parent so the sidebar stays compact. Route
+             guards on each child so modules that aren't loaded don't
+             surface a dead link. --}}
+        @if ($showPayments)
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('admin.payments.*') || request()->routeIs('admin.subscription-tiers.*') ? 'active' : '' }}"
+                    data-bs-toggle="collapse" href="#sidebar-payments" role="button" aria-expanded="false"
+                    aria-controls="sidebar-payments">
+                    <i class="icon" data-bs-toggle="tooltip" title="Payments" data-bs-placement="right"
+                        aria-label="Payments" data-bs-original-title="Payments">
+                        <i class="ph ph-credit-card fs-4"></i>
+                    </i>
+                    <span class="item-name">Payments</span>
+                    <i class="right-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" class="icon-18" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </i>
+                </a>
+                <ul class="sub-nav collapse {{ request()->routeIs('admin.payments.*') || request()->routeIs('admin.subscription-tiers.*') ? 'show' : '' }}"
+                    id="sidebar-payments" data-bs-parent="#sidebar-menu">
+                    @if (Route::has('admin.payments.index'))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.payments.index') || request()->routeIs('admin.payments.update') || request()->routeIs('admin.payments.register-ipn') ? 'active' : '' }}"
+                                href="{{ route('admin.payments.index') }}">
+                                <i class="icon" data-bs-toggle="tooltip" title="Payment settings" data-bs-placement="right"
+                                    aria-label="Payment settings" data-bs-original-title="Payment settings">
+                                    <i class="ph ph-gear fs-5"></i>
+                                </i>
+                                <span class="item-name">Settings</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.payments.orders') ? 'active' : '' }}"
+                                href="{{ route('admin.payments.orders') }}">
+                                <i class="icon" data-bs-toggle="tooltip" title="Payment orders" data-bs-placement="right"
+                                    aria-label="Payment orders" data-bs-original-title="Payment orders">
+                                    <i class="ph ph-receipt fs-5"></i>
+                                </i>
+                                <span class="item-name">Orders</span>
+                            </a>
+                        </li>
+                    @endif
+                    @if (Route::has('admin.subscription-tiers.index'))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.subscription-tiers.*') ? 'active' : '' }}"
+                                href="{{ route('admin.subscription-tiers.index') }}">
+                                <i class="icon" data-bs-toggle="tooltip" title="Pricing" data-bs-placement="right"
+                                    aria-label="Pricing" data-bs-original-title="Pricing">
+                                    <i class="ph ph-wallet fs-5"></i>
+                                </i>
+                                <span class="item-name">{{ __('sidebar.pricing') }}</span>
+                            </a>
+                        </li>
+                    @endif
+                </ul>
+            </li>
+        @endif
+
+        {{-- Monetization: partner revenue-share back office. --}}
+        @if ($showMonetization)
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('admin.monetization.*') ? 'active' : '' }}"
+                    data-bs-toggle="collapse" href="#sidebar-monetization" role="button" aria-expanded="false"
+                    aria-controls="sidebar-monetization">
+                    <i class="icon" data-bs-toggle="tooltip" title="Monetization" data-bs-placement="right"
+                        aria-label="Monetization" data-bs-original-title="Monetization">
+                        <i class="ph ph-hand-coins fs-4"></i>
+                    </i>
+                    <span class="item-name">Monetization</span>
+                    <i class="right-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" class="icon-18" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </i>
+                </a>
+                <ul class="sub-nav collapse {{ request()->routeIs('admin.monetization.*') ? 'show' : '' }}"
+                    id="sidebar-monetization" data-bs-parent="#sidebar-menu">
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('admin.monetization.partners.*') ? 'active' : '' }}"
+                            href="{{ route('admin.monetization.partners.index') }}">
+                            <i class="icon"><i class="ph ph-users-three fs-5"></i></i>
+                            <span class="item-name">Partners</span>
+                        </a>
+                    </li>
+                    @role('super-admin')
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('admin.monetization.splits.*') ? 'active' : '' }}"
+                            href="{{ route('admin.monetization.splits.index') }}">
+                            <i class="icon"><i class="ph ph-chart-pie-slice fs-5"></i></i>
+                            <span class="item-name">Title splits</span>
+                        </a>
+                    </li>
+                    @endrole
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('admin.monetization.statements.*') ? 'active' : '' }}"
+                            href="{{ route('admin.monetization.statements.index') }}">
+                            <i class="icon"><i class="ph ph-receipt fs-5"></i></i>
+                            <span class="item-name">Statements</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('admin.monetization.withdrawals.*') ? 'active' : '' }}"
+                            href="{{ route('admin.monetization.withdrawals.index') }}">
+                            <i class="icon"><i class="ph ph-hand-coins fs-5"></i></i>
+                            <span class="item-name">Withdrawals</span>
+                        </a>
+                    </li>
+                    @role('super-admin')
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('admin.monetization.settings') ? 'active' : '' }}"
+                            href="{{ route('admin.monetization.settings') }}">
+                            <i class="icon"><i class="ph ph-gear fs-5"></i></i>
+                            <span class="item-name">Settings</span>
+                        </a>
+                    </li>
+                    @endrole
+                </ul>
+            </li>
+        @endif
+    @endhasanyrole
 </ul>
 
 <!-- Sidebar Menu End -->

@@ -48,9 +48,6 @@
                             <p class="text-muted mb-0 small">{{ $vj->description }}</p>
                         @endif
                     </div>
-                    <span class="text-muted">
-                        {{ $buckets->sum('total') }} {{ __('streamTag.movies') ?? 'movies' }}
-                    </span>
                 </div>
             </section>
 
@@ -73,7 +70,7 @@
                         @endif
                     </div>
 
-                    <div class="row row-cols-xl-5 row-cols-lg-4 row-cols-md-3 row-cols-3 g-3 jambo-vj-grid">
+                    <div class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-7 g-3 jambo-vj-grid">
                         @foreach ($bucket->movies as $movie)
                             @include('frontend::components.partials.vj-grid-card', ['item' => $movie, 'contentKind' => 'movie'])
                         @endforeach

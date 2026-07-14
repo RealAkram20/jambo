@@ -34,6 +34,17 @@ class TierGate
             abort(404);
         }
 
+        // Site-wide "require sign-up to watch" switch (admin setting).
+        // Checked before the free-content allow below so guests can't
+        // reach the bare player or /watch/src stream URLs directly
+        // while the switch is ON. Mirrored in FrontendController::
+        // userCanWatch() for the rich watch pages / button states.
+        if (!$request->user() && setting('require_signup_to_watch')) {
+            return $request->expectsJson()
+                ? response()->json(['error' => 'unauthenticated'], 401)
+                : redirect()->guest(route('login'));
+        }
+
         $requiredSlug = $content->tier_required ?? null;
 
         if (!$requiredSlug) {

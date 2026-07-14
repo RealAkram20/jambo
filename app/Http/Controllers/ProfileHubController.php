@@ -46,6 +46,36 @@ class ProfileHubController extends Controller
             abort(redirect('/app'));
         }
 
+        // Partners/VJs have ONE dashboard: the Creator Studio. Their
+        // account tabs live flat inside it (/partner/profile,
+        // /partner/security, …) as thin delegates back into this
+        // controller, so a partner landing on the old /{username} GET
+        // URLs is bounced there. Membership / Watchlist / Billing are
+        // consumer features with no studio surface — those bounce to
+        // the studio overview. Only GETs bounce — the mutating
+        // endpoints (profile update, avatar, device logout,
+        // notification prefs) keep posting to /{username} routes, and
+        // their redirect-back lands on a GET that takes this bounce
+        // with the flash data reflashed.
+        if ($authed->hasRole('partner') && $request->isMethod('GET')) {
+            $studioTabs = [
+                'profile.show'          => 'partner.profile',
+                'profile.security'      => 'partner.security',
+                'profile.devices'       => 'partner.devices',
+                'profile.notifications' => 'partner.notifications',
+                'profile.membership'    => 'partner.dashboard',
+                'profile.billing'       => 'partner.dashboard',
+                'profile.invoice'       => 'partner.dashboard',
+                'profile.watchlist'     => 'partner.dashboard',
+            ];
+            $routeName = $request->route()?->getName();
+
+            if (isset($studioTabs[$routeName]) && \Illuminate\Support\Facades\Route::has($studioTabs[$routeName])) {
+                $request->session()->reflash();
+                abort(redirect()->route($studioTabs[$routeName]));
+            }
+        }
+
         if (strcasecmp($authed->username, $username) !== 0) {
             abort(redirect()->route('profile.show', ['username' => $authed->username]));
         }
@@ -90,6 +120,20 @@ class ProfileHubController extends Controller
         ]);
 
         $emailChanged = strcasecmp($data['email'], $user->email) !== 0;
+
+        // Email is the account's recovery anchor: with a hijacked
+        // session an attacker could swap it, then "forgot password"
+        // their way into a full takeover. Changing it costs the
+        // current password. (Google-created accounts have a random
+        // password — those users set one via "Forgot password" first.)
+        if ($emailChanged) {
+            $current = (string) $request->input('current_password');
+            if ($current === '' || !\Illuminate\Support\Facades\Hash::check($current, $user->password)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'current_password' => 'Enter your current password to change the account email.',
+                ]);
+            }
+        }
 
         $user->fill([
             'first_name' => $data['first_name'],

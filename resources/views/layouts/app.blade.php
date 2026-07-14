@@ -23,15 +23,7 @@
     'public/dashboard/scss/pro.scss', 'public/dashboard/scss/custom.scss',
     'resources/js/app.js'])
     <link rel="stylesheet" href="{{ asset('dashboard/vendor/swiperSlider/swiper-bundle.min.css') }}" />
-    <style>
-        :root {
-            --bs-primary: #1A98FF;
-            --bs-primary-rgb: 26, 152, 255;
-            --bs-link-color: #1A98FF;
-            --bs-link-color-rgb: 26, 152, 255;
-            --bs-link-hover-color: #147acc;
-        }
-    </style>
+    @include('components.partials.theme-tokens')
     <!-- Google Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

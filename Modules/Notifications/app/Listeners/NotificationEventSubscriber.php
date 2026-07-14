@@ -233,6 +233,50 @@ class NotificationEventSubscriber
         ));
     }
 
+    // ---- Monetization & payouts ------------------------------------
+    // Partner-facing sends null-check partner->user: production
+    // companies may be enrolled before a login account is linked.
+
+    public function handleEarningsCredited(NE\EarningsCredited $event): void
+    {
+        if ($user = $event->statement->partner?->user) {
+            $this->dispatcher->toUser($user, new N\EarningsCreditedNotification($event->statement));
+        }
+    }
+
+    public function handleWithdrawalRequested(NE\WithdrawalRequested $event): void
+    {
+        $this->dispatcher->toAdmins(new N\WithdrawalRequestedNotification($event->withdrawal));
+    }
+
+    public function handleWithdrawalApproved(NE\WithdrawalApproved $event): void
+    {
+        if ($user = $event->withdrawal->partner?->user) {
+            $this->dispatcher->toUser($user, new N\WithdrawalApprovedNotification($event->withdrawal));
+        }
+    }
+
+    public function handleWithdrawalPaid(NE\WithdrawalPaid $event): void
+    {
+        if ($user = $event->withdrawal->partner?->user) {
+            $this->dispatcher->toUser($user, new N\WithdrawalPaidNotification($event->withdrawal));
+        }
+    }
+
+    public function handleWithdrawalRejected(NE\WithdrawalRejected $event): void
+    {
+        if ($user = $event->withdrawal->partner?->user) {
+            $this->dispatcher->toUser($user, new N\WithdrawalRejectedNotification($event->withdrawal));
+        }
+    }
+
+    public function handlePayoutProfileVerified(NE\PayoutProfileVerified $event): void
+    {
+        if ($user = $event->partner->user) {
+            $this->dispatcher->toUser($user, new N\PayoutProfileVerifiedNotification($event->partner));
+        }
+    }
+
     /**
      * Called by the framework via Event::subscribe(). Returns a map of
      * event → handler method. One-liner per new notification type.
@@ -260,6 +304,13 @@ class NotificationEventSubscriber
             NE\SeasonAdded::class             => 'handleSeasonAdded',
             NE\EpisodeAdded::class            => 'handleEpisodeAdded',
             NE\WatchlistAvailable::class      => 'handleWatchlistAvailable',
+
+            NE\EarningsCredited::class        => 'handleEarningsCredited',
+            NE\WithdrawalRequested::class     => 'handleWithdrawalRequested',
+            NE\WithdrawalApproved::class      => 'handleWithdrawalApproved',
+            NE\WithdrawalPaid::class          => 'handleWithdrawalPaid',
+            NE\WithdrawalRejected::class      => 'handleWithdrawalRejected',
+            NE\PayoutProfileVerified::class   => 'handlePayoutProfileVerified',
 
             NE\NewReviewPosted::class         => 'handleNewReviewPosted',
             NE\NewCommentPosted::class        => 'handleNewCommentPosted',

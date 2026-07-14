@@ -4,6 +4,7 @@ namespace Modules\Content\app\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * @property int $id
@@ -31,6 +32,16 @@ class Vj extends Model
     public function shows(): BelongsToMany
     {
         return $this->belongsToMany(Show::class, 'show_vj');
+    }
+
+    /**
+     * The monetization-program enrollment for this VJ, if any. A VJ
+     * row is display credits; earning requires this link (Monetization
+     * module). Nullable-safe when the module is disabled.
+     */
+    public function monetizationPartner(): HasOne
+    {
+        return $this->hasOne(\Modules\Monetization\app\Models\MonetizationPartner::class, 'vj_id');
     }
 
     /**
