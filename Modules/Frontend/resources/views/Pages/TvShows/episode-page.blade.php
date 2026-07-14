@@ -24,6 +24,50 @@
 @if (!empty($epDescSource))
     @section('seo:description', \Illuminate\Support\Str::limit(strip_tags((string) $epDescSource), 200))
 @endif
+@section('seo:type', 'video.episode')
+
+{{-- TVEpisode + VideoObject. The TVEpisode graph references the parent
+     series by the same #series @id the show's detail page declares, so
+     Google can assemble the whole series across pages. VideoObject is
+     what makes the page eligible for the Videos tab and the video
+     thumbnail in web results — it needs a still, so episodes without
+     one fall back to the show artwork inside StructuredData rather
+     than being dropped.
+
+     $season isn't in scope yet at this point in the template, so we read
+     $episode->season directly rather than depending on declaration order.
+     The controller always loads the season relation.
+
+     (Careful with the wording here: a literal PHP-block directive written
+     inside a Blade comment is NOT safe. Blade extracts raw PHP blocks with
+     a non-greedy match *before* it strips comments, so the opening tag in a
+     comment pairs with the next real closing tag and silently swallows every
+     line in between — which is exactly how this page started 500ing on an
+     undefined $headline.) --}}
+@push('seo:head')
+    @include('seo::partials.json-ld', [
+        'schemas' => [
+            \Modules\Seo\app\Support\StructuredData::tvEpisode($episode, $show, $episode->season),
+            \Modules\Seo\app\Support\StructuredData::videoObject(
+                $show->title . ' S' . $episode->season->number . 'E' . $episode->number
+                    . ($episode->title ? ': ' . $episode->title : ''),
+                $episode->synopsis ?: $show->synopsis,
+                $episode->still_url ?: $show->poster_url,
+                $show->backdrop_url,
+                $episode->published_at,
+                $episode->runtime_minutes,
+                $episode->frontendUrl($show),
+            ),
+            \Modules\Seo\app\Support\StructuredData::breadcrumbs([
+                ['name' => 'Home', 'url' => route('frontend.ott')],
+                ['name' => 'Series', 'url' => route('frontend.series')],
+                ['name' => $show->title, 'url' => route('frontend.series_detail', $show->slug)],
+                ['name' => 'S' . $episode->season->number . 'E' . $episode->number,
+                 'url'  => $episode->frontendUrl($show)],
+            ]),
+        ],
+    ])
+@endpush
 
 @php
     $poster = $episode->still_url ?: ($show->backdrop_url ?: $show->poster_url);
@@ -109,6 +153,9 @@
                                 'isNotwatchList' => true,
                                 'movieDescription' => $episode->synopsis,
                                 'movieGenres' => $show->genres->pluck('name')->all(),
+                                // Player is the CTA here — push Like / Share
+                                // below the synopsis (same as /watch).
+                                'actionsBelowDescription' => true,
                             ])
 
                             <div class="mt-3">

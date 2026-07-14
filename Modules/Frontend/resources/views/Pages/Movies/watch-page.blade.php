@@ -18,6 +18,22 @@
 @if (!empty($movie->synopsis))
     @section('seo:description', \Illuminate\Support\Str::limit(strip_tags((string) $movie->synopsis), 200))
 @endif
+@section('seo:type', 'video.movie')
+
+{{-- This page and /movie-detail/{slug} describe the same film with the
+     same title and the same synopsis. Both were self-canonical and both
+     were crawlable (robots.txt only blocks /watch/src), so for every
+     movie we had two URLs competing for the same query and splitting
+     the ranking signal between them.
+
+     Canonicalising the player at the detail page consolidates that
+     signal onto one URL. The page stays fully crawlable and usable —
+     we're telling Google which copy to index, not hiding anything.
+
+     No Movie JSON-LD here on purpose: this page defers to the detail
+     page, and emitting a second Movie graph for the same film would
+     work against the canonical we just declared. --}}
+@section('seo:canonical', route('frontend.movie_detail', $movie->slug))
 
 @php
     $poster = $movie->backdrop_url ?: $movie->poster_url;
@@ -88,6 +104,11 @@
                                 'movieDescription' => $movie->synopsis,
                                 'movieGenres' => $movie->genres->pluck('name')->all(),
                                 'isNotstartWatching' => true,
+                                // Player is the CTA here — push Watch List /
+                                // Like / Share below the synopsis.
+                                'actionsBelowDescription' => true,
+                                'watchableType' => 'movie',
+                                'watchableId'   => $movie->id,
                             ])
                         </div>
                     </div>

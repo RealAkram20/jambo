@@ -7,8 +7,29 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
 
-    <title>{{ isset($title) ? $title . ' - ' : '' }}{{ app_name() }}</title>
-    <meta name="description" content="{{ meta_description() }}">
+    {{-- Page metadata. Both of these used to be effectively global: the
+         description always emitted meta_description(), so all ~1,100
+         movie/series/episode pages shipped Google the same generic
+         string and competed as duplicates. The per-page
+         @section('seo:description') that the detail pages already set
+         only ever reached og:description — it never reached the real
+         <meta name="description">. It does now.
+
+         head-tags.blade.php resolves these same two sections again for
+         og:/twitter: rather than reading the variables below, so it
+         stays renderable on its own if the layout ever changes. --}}
+    @php
+        // seo_section() rather than yieldContent(): Blade pre-escapes the
+        // value of an inline @section, so reading it raw and echoing it
+        // through {{ }} would double-escape — "Movies & Series" shipped as
+        // "Movies &amp;amp; Series". See app/helpers.php.
+        $pageTitle = seo_section($__env, 'seo:title')
+            ?: (isset($title) ? $title . ' - ' . app_name() : app_name());
+        $pageDescription = seo_section($__env, 'seo:description')
+            ?: meta_description();
+    @endphp
+    <title>{{ $pageTitle }}</title>
+    <meta name="description" content="{{ \Illuminate\Support\Str::limit($pageDescription, 160) }}">
 
     <!-- PWA -->
     <link rel="manifest" href="{{ url('/manifest.webmanifest') }}">

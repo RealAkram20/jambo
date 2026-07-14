@@ -39,12 +39,33 @@
     // Per-page metadata with global fallbacks. Sections are evaluated
     // when @yield runs; absent sections render empty so the falsy
     // checks below pick up the defaults.
-    $ogImage = trim((string) ($__env->yieldContent('seo:image') ?: $seo['og_default_image']));
-    $ogDescription = trim((string) ($__env->yieldContent('seo:description')
-        ?: ($seo['og_default_description'] ?: meta_description())));
-    $ogTitle = trim((string) ($__env->yieldContent('seo:title')
-        ?: (($title ?? null) ? $title . ' - ' . app_name() : app_name())));
-    $canonical = url()->current();
+    // seo_section() rather than yieldContent(): Blade runs e() over the
+    // value of an inline @section before storing it, so reading it raw and
+    // echoing through {{ }} escapes it twice — a synopsis containing "&"
+    // or an apostrophe shipped as "&amp;amp;" / "&amp;#039;" in the meta
+    // tags. seo_section() decodes once so {{ }} escapes exactly once.
+    $ogImage = seo_section($__env, 'seo:image') ?: $seo['og_default_image'];
+    $ogDescription = seo_section($__env, 'seo:description')
+        ?: ($seo['og_default_description'] ?: meta_description());
+    $ogTitle = seo_section($__env, 'seo:title')
+        ?: (($title ?? null) ? $title . ' - ' . app_name() : app_name());
+
+    // og:type — "website" is right for the home page and listings, but
+    // wrong for a film (video.movie) or an episode (video.episode).
+    // Facebook/LinkedIn use it to pick the card treatment.
+    $ogType = seo_section($__env, 'seo:type') ?: 'website';
+
+    // Canonical. Defaults to the current URL, but a page can point
+    // elsewhere via @section('seo:canonical') — /watch/{slug} does
+    // exactly that, aiming at /movie-detail/{slug}, because the two
+    // URLs describe the same film and were otherwise splitting their
+    // ranking signal as duplicates. Deliberately drops the query string:
+    // ?ref=, ?page= and friends would otherwise each self-canonicalise
+    // into a separate near-duplicate URL in Google's index.
+    $canonical = seo_section($__env, 'seo:canonical') ?: url()->current();
+    if ($canonical !== '' && !preg_match('#^https?://#i', $canonical)) {
+        $canonical = url(ltrim($canonical, '/'));
+    }
 
     // Open Graph and Twitter Card both require absolute URLs for the
     // image; relative paths like "/storage/foo.jpg" silently get
@@ -68,7 +89,7 @@
 <meta property="og:title" content="{{ $ogTitle }}">
 <meta property="og:description" content="{{ $ogDescription }}">
 <meta property="og:url" content="{{ $canonical }}">
-<meta property="og:type" content="website">
+<meta property="og:type" content="{{ $ogType }}">
 <meta property="og:site_name" content="{{ app_name() }}">
 @if ($ogImage)
     <meta property="og:image" content="{{ $ogImage }}">
@@ -121,8 +142,36 @@
     <meta name="google-site-verification" content="{{ $seo['gsc_verification'] }}">
 @endif
 
+{{-- Site-wide structured data: Organization (name, logo, social
+     profiles — feeds the knowledge panel and the site name shown in
+     results) and WebSite (carries the sitelinks search action). These
+     are page-independent, so they render on every page; the content
+     pages push their own Movie / TVSeries / TVEpisode graphs onto the
+     seo:head stack below.
+
+     Wrapped because a broken setting must not be able to 500 a page
+     that ranks. If the Content module is unavailable or a setting is
+     malformed, we log and emit nothing rather than take the page down. --}}
+@php
+    $siteSchemas = [];
+    try {
+        $siteSchemas = [
+            \Modules\Seo\app\Support\StructuredData::organization(),
+            \Modules\Seo\app\Support\StructuredData::webSite(),
+        ];
+    } catch (\Throwable $e) {
+        \Illuminate\Support\Facades\Log::warning('[seo] site structured data failed', [
+            'message' => $e->getMessage(),
+            'file'    => $e->getFile(),
+            'line'    => $e->getLine(),
+        ]);
+    }
+@endphp
+@includeIf('seo::partials.json-ld', ['schemas' => $siteSchemas])
+
 {{-- Per-page additional head content (JSON-LD, extra meta) — pushed
-     by detail pages via @push('seo:head', ...). --}}
+     by detail pages via @push('seo:head', ...). This is where the
+     Movie / TVSeries / TVEpisode / BreadcrumbList graphs land. --}}
 @stack('seo:head')
 
 {{-- Google Analytics 4 (gtag.js). Loaded async so it doesn't block

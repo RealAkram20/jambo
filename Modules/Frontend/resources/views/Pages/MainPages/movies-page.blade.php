@@ -1,4 +1,14 @@
-@extends('frontend::layouts.master', ['isSwiperSlider' => true, 'isFslightbox' => true, 'bodyClass' => 'custom-header-relative', 'isSweetalert' => true])
+@extends('frontend::layouts.master', [
+    'isSwiperSlider' => true,
+    'isFslightbox' => true,
+    'bodyClass' => 'custom-header-relative',
+    'isSweetalert' => true,
+    // This listing page had no title, so Google indexed it as the bare
+    // brand name and it competed with the home page for the same query.
+    'title' => 'Movies',
+])
+
+@section('seo:description', 'Browse every VJ translated movie on ' . app_name() . ' — action, comedy, drama and more, free to watch.')
 
 @section('content')
     <section class="banner-container">

@@ -1,5 +1,14 @@
 @extends('frontend::layouts.master', ['isSwiperSlider' => true, 'IS_MEGA' => true])
 
+{{-- The home page shipped no title at all, so it competed in Google as
+     the bare brand name. seo:title is used verbatim (it is not suffixed
+     with the app name), which is what lets the front door lead with what
+     people actually search for rather than with "Jambo Films".
+
+     The description is left to the global meta_description() — for the
+     home page specifically, the site-wide blurb IS the right description. --}}
+@section('seo:title', 'Watch Free VJ Translated Movies & Series — ' . app_name())
+
 @section('content')
 <div class="iq-banner-thumb-slider overflow-hidden">
     <div class="slider">

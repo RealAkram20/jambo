@@ -266,6 +266,33 @@ if (! function_exists('meta_description')) {
     }
 }
 
+if (! function_exists('seo_section')) {
+    /**
+     * Read a per-page SEO section (seo:title / seo:description / seo:image /
+     * seo:type / seo:canonical) as plain, unescaped text.
+     *
+     * Why this isn't just yieldContent(): Blade's *inline* section form,
+     * `@section('seo:title', $value)`, does not store $value verbatim —
+     * ViewFactory::startSection() runs it through e() before stashing it. So
+     * the section already holds `Movies &amp; Series`. Echoing that through
+     * `{{ }}` escapes it a second time and the page ships `&amp;amp;`, which
+     * is what a user (and Googlebot) actually sees in the <title>.
+     *
+     * Decoding here means every call site can echo through `{{ }}` and get
+     * exactly one round of escaping, which is what you want in both an
+     * element body and an attribute.
+     *
+     * Only for the plain-text SEO sections — do not use it on sections that
+     * legitimately carry HTML.
+     */
+    function seo_section(\Illuminate\View\Factory $env, string $section): string
+    {
+        $raw = (string) $env->yieldContent($section);
+
+        return trim(html_entity_decode($raw, ENT_QUOTES, 'UTF-8'));
+    }
+}
+
 
 if(!function_exists('activeRoute')) {
     function activeRoute($route, $isClass = false): string

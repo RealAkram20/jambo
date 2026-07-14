@@ -46,19 +46,19 @@ class FrontendController extends Controller
         if (strlen($q) >= 2) {
             $like = '%' . $q . '%';
 
-            $movies = Movie::published()
-                ->with('genres')
-                ->where(fn ($query) => $query->where('title', 'like', $like)->orWhere('synopsis', 'like', $like))
-                ->orderByDesc('created_at')
-                ->take(48)
-                ->get();
+            $movies = $this->orderBySearchRelevance(
+                Movie::published()
+                    ->with('genres')
+                    ->where(fn ($query) => $query->where('title', 'like', $like)->orWhere('synopsis', 'like', $like)),
+                $q
+            )->take(48)->get();
 
-            $shows = Show::published()
-                ->with('genres')
-                ->where(fn ($query) => $query->where('title', 'like', $like)->orWhere('synopsis', 'like', $like))
-                ->orderByDesc('created_at')
-                ->take(48)
-                ->get();
+            $shows = $this->orderBySearchRelevance(
+                Show::published()
+                    ->with('genres')
+                    ->where(fn ($query) => $query->where('title', 'like', $like)->orWhere('synopsis', 'like', $like)),
+                $q
+            )->take(48)->get();
         }
 
         return view('frontend::Pages.MainPages.search-page', compact('q', 'movies', 'shows'));
@@ -78,8 +78,11 @@ class FrontendController extends Controller
 
         $like = '%' . $q . '%';
 
-        $movies = Movie::published()
-            ->where(fn ($query) => $query->where('title', 'like', $like)->orWhere('synopsis', 'like', $like))
+        $movies = $this->orderBySearchRelevance(
+            Movie::published()
+                ->where(fn ($query) => $query->where('title', 'like', $like)->orWhere('synopsis', 'like', $like)),
+            $q
+        )
             ->take(5)
             ->get(['id', 'title', 'slug', 'poster_url', 'year'])
             ->map(fn ($m) => [
@@ -91,8 +94,11 @@ class FrontendController extends Controller
                 'url' => route('frontend.movie_detail', $m->slug),
             ]);
 
-        $shows = Show::published()
-            ->where(fn ($query) => $query->where('title', 'like', $like)->orWhere('synopsis', 'like', $like))
+        $shows = $this->orderBySearchRelevance(
+            Show::published()
+                ->where(fn ($query) => $query->where('title', 'like', $like)->orWhere('synopsis', 'like', $like)),
+            $q
+        )
             ->take(5)
             ->get(['id', 'title', 'slug', 'poster_url', 'year'])
             ->map(fn ($s) => [
@@ -105,6 +111,22 @@ class FrontendController extends Controller
             ]);
 
         return response()->json(['movies' => $movies, 'shows' => $shows]);
+    }
+
+    /**
+     * Relevance ordering shared by the search page and the live-suggest
+     * dropdown: exact title match first, then titles starting with the
+     * keyword, then titles containing it, with synopsis-only matches
+     * last — newest first within each tier.
+     */
+    private function orderBySearchRelevance($query, string $q)
+    {
+        return $query
+            ->orderByRaw(
+                'CASE WHEN title = ? THEN 0 WHEN title LIKE ? THEN 1 WHEN title LIKE ? THEN 2 ELSE 3 END',
+                [$q, $q . '%', '%' . $q . '%']
+            )
+            ->orderByDesc('created_at');
     }
 
     //main pages
@@ -752,9 +774,29 @@ class FrontendController extends Controller
         // `detailVisible` (published ∪ upcoming) so clicks from the
         // Upcoming rail on the home page land here instead of 404ing.
         // Watch + stream endpoints still gate on published().
+        // `vjs` and the rating aggregates are loaded for the JSON-LD in
+        // the view (Modules\Seo\app\Support\StructuredData): the VJ is
+        // the reason people search for these titles at all, and
+        // aggregateRating is only ever emitted from real counted
+        // ratings — StructuredData stays silent when ratings_count is 0
+        // rather than inventing stars, which would be a structured-data
+        // violation. withAvg/withCount are subselects, not extra round
+        // trips per row.
         $movie = $slug
-            ? Movie::where('slug', $slug)->detailVisible()->with(['genres', 'tags', 'categories', 'cast'])->firstOrFail()
-            : Movie::published()->with(['genres', 'tags', 'categories', 'cast'])->orderByDesc('created_at')->firstOrFail();
+            ? Movie::where('slug', $slug)->detailVisible()
+                ->with(['genres', 'tags', 'categories', 'cast', 'vjs'])
+                ->withAvg('ratings', 'stars')->withCount('ratings')
+                ->firstOrFail()
+            : Movie::published()
+                ->with(['genres', 'tags', 'categories', 'cast', 'vjs'])
+                ->withAvg('ratings', 'stars')->withCount('ratings')
+                ->orderByDesc('created_at')->firstOrFail();
+
+        // Feed the guest's in-session taste signal. A visitor who has opened
+        // three thrillers shouldn't get the same generic AI Smart Shuffle
+        // shelf as one who just landed — before sign-up this is the only
+        // interest signal we get. No-op once authenticated.
+        app(TopPicksRecommender::class)->recordGuestSignal($movie);
 
         $recommended = Movie::published()
             ->where('id', '!=', $movie->id)
@@ -762,7 +804,14 @@ class FrontendController extends Controller
             ->take(6)
             ->get();
 
-        $isUpcoming = $movie->status === Movie::STATUS_UPCOMING;
+        // "Not watchable yet" covers BOTH an Upcoming title and one that is
+        // Published with a release date still in the future. Keying off
+        // status alone missed the second case, which is what produced the
+        // 404s: the page refused to load for a title that was, as far as the
+        // admin was concerned, published. Ask the single visibility
+        // predicate instead, so the page and the notification can never
+        // disagree about whether something is out.
+        $isUpcoming = ! $movie->isPubliclyVisible();
 
         // Upcoming titles have no stream source yet and shouldn't render
         // a Watch CTA regardless of the user's subscription. Hard-force
@@ -796,8 +845,13 @@ class FrontendController extends Controller
             ? Movie::where('slug', $slug)->detailVisible()->with(['genres', 'tags', 'categories', 'cast'])->firstOrFail()
             : Movie::published()->with(['genres', 'tags', 'categories', 'cast'])->orderByDesc('created_at')->firstOrFail();
 
-        if ($movie->status === Movie::STATUS_UPCOMING) {
-            $when = $movie->published_at?->format('M j, Y');
+        // Not yet released — whether that's an Upcoming title or a Published
+        // one whose date hasn't arrived. detailVisible() now lets scheduled
+        // titles through (so their page loads instead of 404ing), which makes
+        // this gate the thing standing between a viewer and an early stream.
+        // It must ask isPubliclyVisible(), not status.
+        if (! $movie->isPubliclyVisible()) {
+            $when = \App\Support\LocalTime::display($movie->published_at)?->format('M j, Y');
             $msg = $when
                 ? "\"{$movie->title}\" is coming soon — check back on {$when}."
                 : "\"{$movie->title}\" is coming soon.";
@@ -964,12 +1018,16 @@ class FrontendController extends Controller
         // detail pages load for Upcoming-rail clicks. Episodes stay
         // unwatchable for upcoming series (no source), same rationale
         // as Movie::detail.
+        // `vjs` + rating aggregates feed the TVSeries JSON-LD in the view.
+        // Same rationale as movie_detail().
         $show = $slug
             ? Show::where('slug', $slug)->detailVisible()
-                ->with(['genres', 'tags', 'categories', 'cast', 'seasons.episodes'])
+                ->with(['genres', 'tags', 'categories', 'cast', 'vjs', 'seasons.episodes'])
+                ->withAvg('ratings', 'stars')->withCount('ratings')
                 ->firstOrFail()
             : Show::published()
-                ->with(['genres', 'tags', 'categories', 'cast', 'seasons.episodes'])
+                ->with(['genres', 'tags', 'categories', 'cast', 'vjs', 'seasons.episodes'])
+                ->withAvg('ratings', 'stars')->withCount('ratings')
                 ->orderByDesc('created_at')
                 ->firstOrFail();
 
@@ -979,7 +1037,9 @@ class FrontendController extends Controller
             ->take(6)
             ->get();
 
-        $isUpcoming = $show->status === Show::STATUS_UPCOMING;
+        // Same rule as the movie detail page: a series still awaiting its
+        // release date is "coming soon", not "missing". See movie_detail.
+        $isUpcoming = ! $show->isPubliclyVisible();
 
         return view('frontend::Pages.TvShows.detail-page', compact(
             'show', 'recommended', 'isUpcoming'
@@ -1047,14 +1107,29 @@ class FrontendController extends Controller
         $episode = $episodeModel; // rest of the method reads $episode
         $show = $episode->season->show;
 
-        // Upcoming series: episodes aren't streamable yet. Bounce to
-        // the series detail page with a flash instead of trying to
-        // render a player pointing at nothing.
-        if ($show->status === Show::STATUS_UPCOMING) {
-            $when = $show->published_at?->format('M j, Y');
+        // A draft series has no public page at all, so there is nowhere to
+        // send the viewer — this is the one genuine 404. (Previously this
+        // route had no publish gate whatsoever, so a draft show's episodes
+        // were streamable by anyone who guessed the URL.)
+        abort_if($show->status === Show::STATUS_DRAFT, 404);
+
+        // The series exists publicly but this episode isn't watchable yet —
+        // either the whole series is still awaiting release, or the series
+        // is out and this particular episode hasn't dropped. Send the viewer
+        // to the series page with a plain explanation rather than a dead end.
+        // A "not out yet" is information, not an error.
+        if (! $show->isPubliclyVisible() || ! $episode->isPubliclyVisible()) {
+            $releasesAt = $show->isPubliclyVisible() ? $episode->published_at : $show->published_at;
+            $when = \App\Support\LocalTime::display($releasesAt)?->format('M j, Y');
+
+            $what = $show->isPubliclyVisible()
+                ? "S{$season}E{$episode->number} of \"{$show->title}\""
+                : "\"{$show->title}\"";
+
             $msg = $when
-                ? "\"{$show->title}\" is coming soon — check back on {$when}."
-                : "\"{$show->title}\" is coming soon.";
+                ? "{$what} is coming soon — check back on {$when}."
+                : "{$what} is coming soon.";
+
             return redirect()->route('frontend.series_detail', $show->slug)->with('info', $msg);
         }
 

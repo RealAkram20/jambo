@@ -23,6 +23,39 @@
 @if (!empty($movie->synopsis))
     @section('seo:description', \Illuminate\Support\Str::limit(strip_tags((string) $movie->synopsis), 200))
 @endif
+@section('seo:type', 'video.movie')
+
+{{-- Structured data. This — not og:image — is what decides the image
+     Google renders next to this page in search results. Without it,
+     Google guesses from the page's <img> tags, and the first ones it
+     meets are the site logo, the IMDb badge and the Hulu badge, which
+     is why we were ranking for the title but showing the wrong picture.
+     StructuredData::movie() puts the poster first in the image array.
+
+     Emitted at top level (not inside @section('content')) so the push
+     lands on the stack before head-tags renders it. --}}
+@push('seo:head')
+    @include('seo::partials.json-ld', [
+        'schemas' => [
+            \Modules\Seo\app\Support\StructuredData::movie($movie),
+            \Modules\Seo\app\Support\StructuredData::videoObject(
+                $movie->title,
+                $movie->synopsis,
+                $movie->poster_url,
+                $movie->backdrop_url,
+                $movie->published_at,
+                $movie->runtime_minutes,
+                route('frontend.movie_detail', $movie->slug),
+                route('frontend.watch', $movie->slug),
+            ),
+            \Modules\Seo\app\Support\StructuredData::breadcrumbs([
+                ['name' => 'Home', 'url' => route('frontend.ott')],
+                ['name' => 'Movies', 'url' => route('frontend.movie')],
+                ['name' => $movie->title, 'url' => route('frontend.movie_detail', $movie->slug)],
+            ]),
+        ],
+    ])
+@endpush
 
 @php
     $backdrop = $movie->backdrop_url ?: $movie->poster_url;

@@ -37,7 +37,12 @@ class SitemapController extends Controller
         }
 
         try {
-            $xml = Cache::remember('seo.sitemap.xml', now()->addHours(6), function () {
+            // Cache key is versioned: the XML shape changed when the
+            // <image:image> extension was added, and a plain deploy
+            // would otherwise keep serving the old imageless XML from
+            // cache for up to 6 hours. Bump the suffix on any future
+            // change to the output format.
+            $xml = Cache::remember('seo.sitemap.xml.v2', now()->addHours(6), function () {
                 $entries = $this->entries();
                 $flat = collect();
                 foreach ($entries as $group) {
@@ -152,7 +157,7 @@ class SitemapController extends Controller
         $rows = collect();
         try {
             Movie::published()
-                ->select(['id', 'slug', 'title', 'updated_at'])
+                ->select(['id', 'slug', 'title', 'updated_at', 'poster_url', 'backdrop_url'])
                 ->orderByDesc('updated_at')
                 ->chunk(500, function ($chunk) use ($rows) {
                     foreach ($chunk as $movie) {
@@ -162,6 +167,8 @@ class SitemapController extends Controller
                             'changefreq' => 'weekly',
                             'priority'   => '0.8',
                             'label'      => $movie->title,
+                            'images'     => $this->imageLocs([$movie->poster_url, $movie->backdrop_url]),
+                            'caption'    => $movie->title,
                         ]);
                     }
                 });
@@ -178,7 +185,7 @@ class SitemapController extends Controller
         $rows = collect();
         try {
             Show::published()
-                ->select(['id', 'slug', 'title', 'updated_at'])
+                ->select(['id', 'slug', 'title', 'updated_at', 'poster_url', 'backdrop_url'])
                 ->orderByDesc('updated_at')
                 ->chunk(500, function ($chunk) use ($rows) {
                     foreach ($chunk as $show) {
@@ -188,6 +195,8 @@ class SitemapController extends Controller
                             'changefreq' => 'weekly',
                             'priority'   => '0.8',
                             'label'      => $show->title,
+                            'images'     => $this->imageLocs([$show->poster_url, $show->backdrop_url]),
+                            'caption'    => $show->title,
                         ]);
                     }
                 });
@@ -213,18 +222,25 @@ class SitemapController extends Controller
                 ->whereNotNull('published_at')
                 ->where('published_at', '<=', now())
                 ->with(['season.show'])
-                ->select(['id', 'season_id', 'number', 'title', 'updated_at', 'published_at'])
+                ->select(['id', 'season_id', 'number', 'title', 'updated_at', 'published_at', 'still_url'])
                 ->orderByDesc('updated_at')
                 ->chunk(500, function ($chunk) use ($rows) {
                     foreach ($chunk as $episode) {
                         $url = $episode->frontendUrl();
                         if ($url === '#') continue; // orphan — skip
+                        $show  = $episode->season?->show;
+                        $label = trim(($show?->title ?? '') . ' — ' . ($episode->title ?? ('Ep ' . $episode->number)), ' —');
                         $rows->push([
                             'loc'        => $url,
                             'lastmod'    => optional($episode->updated_at)->toAtomString(),
                             'changefreq' => 'weekly',
                             'priority'   => '0.7',
-                            'label'      => trim(($episode->season?->show?->title ?? '') . ' — ' . ($episode->title ?? ('Ep ' . $episode->number)), ' —'),
+                            'label'      => $label,
+                            // Episode still first; fall back to the parent
+                            // show's artwork so an episode with no still
+                            // still contributes a correct image.
+                            'images'     => $this->imageLocs([$episode->still_url, $show?->poster_url]),
+                            'caption'    => $label,
                         ]);
                     }
                 });
@@ -260,6 +276,39 @@ class SitemapController extends Controller
         return $rows;
     }
 
+    /**
+     * Normalise a list of raw image column values into absolute,
+     * crawlable URLs for the <image:image> extension, dropping empties
+     * and duplicates. Google caps image sitemaps at 1,000 images per
+     * URL; we're nowhere near that with a poster + backdrop, but the
+     * slice keeps the guarantee explicit.
+     *
+     * @param  array<int, ?string>  $values
+     * @return array<int, string>
+     */
+    private function imageLocs(array $values): array
+    {
+        $out = [];
+        foreach ($values as $value) {
+            if (empty($value)) {
+                continue;
+            }
+            $url = media_url($value);
+            if ($url === '') {
+                continue;
+            }
+            // media_url() returns app-absolute paths (/storage/...) as-is;
+            // sitemaps require fully-qualified URLs.
+            if (!preg_match('#^https?://#i', $url)) {
+                $url = url(ltrim($url, '/'));
+            }
+            if (!in_array($url, $out, true)) {
+                $out[] = $url;
+            }
+        }
+        return array_slice($out, 0, 2);
+    }
+
     private function renderXml(Collection $urls): string
     {
         $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
@@ -269,7 +318,11 @@ class SitemapController extends Controller
         // The XSL file lives at public/sitemap.xsl, served as a static
         // file by the web server.
         $xml .= '<?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?>' . "\n";
-        $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+        // The image namespace makes every poster and backdrop eligible
+        // for Google Images — ~1,100 titles' worth of artwork that was
+        // previously invisible to it.
+        $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
+            . ' xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">' . "\n";
         foreach ($urls as $u) {
             $xml .= "  <url>\n";
             $xml .= "    <loc>" . htmlspecialchars($u['loc'], ENT_XML1, 'UTF-8') . "</loc>\n";
@@ -281,6 +334,14 @@ class SitemapController extends Controller
             }
             if (!empty($u['priority'])) {
                 $xml .= "    <priority>" . $u['priority'] . "</priority>\n";
+            }
+            foreach ($u['images'] ?? [] as $imageLoc) {
+                $xml .= "    <image:image>\n";
+                $xml .= "      <image:loc>" . htmlspecialchars($imageLoc, ENT_XML1, 'UTF-8') . "</image:loc>\n";
+                if (!empty($u['caption'])) {
+                    $xml .= "      <image:title>" . htmlspecialchars($u['caption'], ENT_XML1, 'UTF-8') . "</image:title>\n";
+                }
+                $xml .= "    </image:image>\n";
             }
             $xml .= "  </url>\n";
         }

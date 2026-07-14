@@ -1,4 +1,12 @@
-@extends('frontend::layouts.master', ['isSwiperSlider' => true, 'isFslightbox' => true, 'bodyClass' => 'custom-header-relative'])
+@extends('frontend::layouts.master', [
+    'isSwiperSlider' => true,
+    'isFslightbox' => true,
+    'bodyClass' => 'custom-header-relative',
+    // See movies-page: this listing carried no title either.
+    'title' => 'TV Series',
+])
+
+@section('seo:description', 'Browse every VJ translated series on ' . app_name() . ' — full seasons and episodes, free to watch.')
 
 @section('content')
     <section class="banner-container">

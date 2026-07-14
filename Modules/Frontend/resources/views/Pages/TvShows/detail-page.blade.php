@@ -21,6 +21,25 @@
 @if (!empty($show->synopsis))
     @section('seo:description', \Illuminate\Support\Str::limit(strip_tags((string) $show->synopsis), 200))
 @endif
+@section('seo:type', 'video.tv_show')
+
+{{-- TVSeries graph — the series-level counterpart to the Movie graph on
+     Movies/detail-page. Gives Google the poster as the authoritative
+     result thumbnail (instead of letting it pick the site logo off the
+     page) and lets it stitch this series together with the TVEpisode
+     graphs the episode pages emit, via the shared #series @id. --}}
+@push('seo:head')
+    @include('seo::partials.json-ld', [
+        'schemas' => [
+            \Modules\Seo\app\Support\StructuredData::tvSeries($show),
+            \Modules\Seo\app\Support\StructuredData::breadcrumbs([
+                ['name' => 'Home', 'url' => route('frontend.ott')],
+                ['name' => 'Series', 'url' => route('frontend.series')],
+                ['name' => $show->title, 'url' => route('frontend.series_detail', $show->slug)],
+            ]),
+        ],
+    ])
+@endpush
 
 @php
     $backdrop = $show->backdrop_url ?: $show->poster_url;

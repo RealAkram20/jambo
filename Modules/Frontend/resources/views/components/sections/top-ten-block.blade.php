@@ -12,6 +12,7 @@
                         @include('frontend::components.cards.top-ten-card', [
                             'imagePath' => $movie->poster_url ?: 'gameofhero-portrait.webp',
                             'countValue' => $i + 1,
+                            'cardTitle' => $movie->title,
                             'cardUrlPath' => route('frontend.movie_detail', $movie->slug),
                             'productPremium' => (bool) $movie->tier_required,
                         ])

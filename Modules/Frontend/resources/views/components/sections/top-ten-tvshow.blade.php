@@ -12,6 +12,7 @@
                         @include('frontend::components.cards.top-ten-card', [
                             'imagePath' => $show->poster_url ?: 'vikings-portrait.webp',
                             'countValue' => $i + 1,
+                            'cardTitle' => $show->title,
                             'cardUrlPath' => route('frontend.series_detail', $show->slug),
                             'productPremium' => (bool) $show->tier_required,
                         ])

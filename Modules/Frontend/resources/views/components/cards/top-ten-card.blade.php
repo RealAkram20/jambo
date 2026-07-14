@@ -1,6 +1,14 @@
 @php
     $productPremium = $productPremium ?? false;
     $topTenSrc = media_url($imagePath, null, 'frontend/images/media');
+
+    // See cards/card-style: these posters shipped alt="movie-card" too.
+    // Callers now pass the title; keep a generic fallback for any that
+    // haven't been updated so a missing prop can't blank the alt out.
+    $cardTitle = $cardTitle ?? '';
+    $topTenAlt = trim((string) $cardTitle) !== ''
+        ? trim((string) $cardTitle) . ' poster'
+        : 'Movie poster';
 @endphp
 <div class="iq-top-ten-block position-relative">
     <div class="block-image position-relative">
@@ -9,7 +17,7 @@
                 <img src="{{ media_img($imagePath, 640, null, 'frontend/images/media') }}"
                      srcset="{{ media_srcset($imagePath, [320, 640], null, 'frontend/images/media') }}"
                      sizes="(max-width: 768px) 320px, 640px"
-                     alt="movie-card" class="object-cover rounded-3" loading="lazy" decoding="async" />
+                     alt="{{ $topTenAlt }}" class="object-cover rounded-3" loading="lazy" decoding="async" />
             </a>
             <span class="top-ten-numbers texture-text">{{ $countValue }}</span>
         </div>

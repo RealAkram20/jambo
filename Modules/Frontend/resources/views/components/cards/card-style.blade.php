@@ -13,6 +13,10 @@
     $cardGenres = $cardGenres ?? null;
     $watchableType = $watchableType ?? null;
     $watchableId = $watchableId ?? null;
+    // Why this title is on the shelf ("Because you watched X"). Set only
+    // by AI Smart Shuffle; every other rail leaves it null and renders
+    // no reason line at all.
+    $cardReason = $cardReason ?? null;
     // Upcoming-specific affordances. When `$upcomingRelease` is set
     // the card shows a "Releases <date>" ribbon on the poster and
     // swaps the "Play now" CTA for a "View details" link — playback
@@ -20,6 +24,15 @@
     // is the correct path.
     $upcomingRelease = $upcomingRelease ?? null;
     $imgSrc = media_url($cardImage);
+
+    // Alt text. Every card on the site used to ship the literal string
+    // "movie-card" — the same alt on every poster, which tells Google
+    // Images nothing and describes nothing to a screen reader. The title
+    // is the only honest description of a poster, so use it; fall back to
+    // a generic label only when a caller passes no title at all.
+    $cardAlt = trim((string) $cardTitle) !== ''
+        ? trim((string) $cardTitle) . ' poster'
+        : 'Movie poster';
 
     // Lookup the "in watchlist" state from the per-request index
     // shared by SectionDataComposer. Guests always see "+".
@@ -40,7 +53,7 @@
         <img src="{{ media_img($cardImage, 640) }}"
           srcset="{{ media_srcset($cardImage, [320, 640]) }}"
           sizes="(max-width: 768px) 320px, 640px"
-          alt="movie-card"
+          alt="{{ $cardAlt }}"
           class="img-fluid object-cover w-100 d-block border-0 rounded-3"
           loading="lazy" decoding="async">
       </a>
@@ -64,6 +77,7 @@
           <h5 class="iq-title text-capitalize mb-0">
             <a href="{{ $cardPath }}">{{ $cardTitle }}</a>
           </h5>
+          @includeWhen($cardReason, 'frontend::components.cards.card-reason', ['cardReason' => $cardReason])
         </div>
       </div>
       <div class="d-flex align-items-center justify-content-center gap-2 mt-3">
@@ -113,7 +127,7 @@
         <img src="{{ media_img($cardImage, 640) }}"
           srcset="{{ media_srcset($cardImage, [320, 640]) }}"
           sizes="(max-width: 768px) 320px, 640px"
-          alt="movie-card"
+          alt="{{ $cardAlt }}"
           class="img-fluid object-cover w-100 d-block border-0 rounded-3"
           loading="lazy" decoding="async">
       </a>
@@ -153,6 +167,7 @@
               <small class="font-size-12">{{ $cardLang }}</small>
             </div>
           </div>
+          @includeWhen($cardReason, 'frontend::components.cards.card-reason', ['cardReason' => $cardReason])
         </div>
       </div>
       <div class="d-flex align-items-center justify-content-center gap-2 mt-3">
