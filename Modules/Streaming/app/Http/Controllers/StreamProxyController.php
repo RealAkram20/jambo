@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Movie;
+use Modules\Streaming\app\Services\CdnUrlResolver;
 
 /**
  * Session-gated 302 redirect to the original video URL (Dropbox /
@@ -28,19 +29,24 @@ use Modules\Content\app\Models\Movie;
  */
 class StreamProxyController extends Controller
 {
+    public function __construct(private readonly CdnUrlResolver $cdn)
+    {
+    }
+
     public function passthroughMovie(Request $request, Movie $movie): RedirectResponse
     {
         $url = $this->getRawUrl($movie);
         abort_unless($url, 404);
 
         return redirect()->away($url, 302)->withHeaders([
-            // Let browsers reuse the 302 for 5 min so a play → pause →
-            // play (or restart from beginning) skips the round-trip
-            // through Laravel + tier_gate + DB and goes straight to
-            // Dropbox. Public is safe — the redirect target itself is
-            // a signed Dropbox URL, and tier_gate already ran when
-            // the response was first issued.
-            'Cache-Control' => 'public, max-age=300',
+            // Let the browser reuse the 302 for 5 min so a play →
+            // pause → play (or restart from beginning) skips the
+            // round-trip through Laravel + tier_gate + DB and goes
+            // straight to the origin/CDN. `private` (not public):
+            // the target is a tier-gated, token-signed URL — a
+            // shared proxy must never serve one viewer's redirect
+            // to another.
+            'Cache-Control' => 'private, max-age=300',
         ]);
     }
 
@@ -50,13 +56,14 @@ class StreamProxyController extends Controller
         abort_unless($url, 404);
 
         return redirect()->away($url, 302)->withHeaders([
-            // Let browsers reuse the 302 for 5 min so a play → pause →
-            // play (or restart from beginning) skips the round-trip
-            // through Laravel + tier_gate + DB and goes straight to
-            // Dropbox. Public is safe — the redirect target itself is
-            // a signed Dropbox URL, and tier_gate already ran when
-            // the response was first issued.
-            'Cache-Control' => 'public, max-age=300',
+            // Let the browser reuse the 302 for 5 min so a play →
+            // pause → play (or restart from beginning) skips the
+            // round-trip through Laravel + tier_gate + DB and goes
+            // straight to the origin/CDN. `private` (not public):
+            // the target is a tier-gated, token-signed URL — a
+            // shared proxy must never serve one viewer's redirect
+            // to another.
+            'Cache-Control' => 'private, max-age=300',
         ]);
     }
 
@@ -66,13 +73,14 @@ class StreamProxyController extends Controller
         abort_unless($url, 404);
 
         return redirect()->away($url, 302)->withHeaders([
-            // Let browsers reuse the 302 for 5 min so a play → pause →
-            // play (or restart from beginning) skips the round-trip
-            // through Laravel + tier_gate + DB and goes straight to
-            // Dropbox. Public is safe — the redirect target itself is
-            // a signed Dropbox URL, and tier_gate already ran when
-            // the response was first issued.
-            'Cache-Control' => 'public, max-age=300',
+            // Let the browser reuse the 302 for 5 min so a play →
+            // pause → play (or restart from beginning) skips the
+            // round-trip through Laravel + tier_gate + DB and goes
+            // straight to the origin/CDN. `private` (not public):
+            // the target is a tier-gated, token-signed URL — a
+            // shared proxy must never serve one viewer's redirect
+            // to another.
+            'Cache-Control' => 'private, max-age=300',
         ]);
     }
 
@@ -82,13 +90,14 @@ class StreamProxyController extends Controller
         abort_unless($url, 404);
 
         return redirect()->away($url, 302)->withHeaders([
-            // Let browsers reuse the 302 for 5 min so a play → pause →
-            // play (or restart from beginning) skips the round-trip
-            // through Laravel + tier_gate + DB and goes straight to
-            // Dropbox. Public is safe — the redirect target itself is
-            // a signed Dropbox URL, and tier_gate already ran when
-            // the response was first issued.
-            'Cache-Control' => 'public, max-age=300',
+            // Let the browser reuse the 302 for 5 min so a play →
+            // pause → play (or restart from beginning) skips the
+            // round-trip through Laravel + tier_gate + DB and goes
+            // straight to the origin/CDN. `private` (not public):
+            // the target is a tier-gated, token-signed URL — a
+            // shared proxy must never serve one viewer's redirect
+            // to another.
+            'Cache-Control' => 'private, max-age=300',
         ]);
     }
 
@@ -114,46 +123,12 @@ class StreamProxyController extends Controller
 
         if (!$url) return null;
 
-        // Normalize Dropbox URLs for inline video playback.
-        //
-        // ?dl=1  → Dropbox sends `Content-Disposition: attachment;
-        //          filename="..."`. Chrome / Firefox / Android ignore
-        //          that header on a <video src=...> request and play
-        //          the file. iPhone Safari (and any iOS browser, which
-        //          all use WebKit) refuses — it treats `attachment` as
-        //          "this is a download, not a video," and the player
-        //          fires MEDIA_ERR_SRC_NOT_SUPPORTED (code 4) before
-        //          a single byte is decoded. That's the "works on
-        //          desktop + Android, fails on iPhone" pattern users
-        //          have been hitting.
-        //
-        // ?raw=1 → Dropbox sends `Content-Disposition: inline` (or
-        //          omits the header). Same byte stream; iPhone plays
-        //          it. Other browsers don't care either way.
-        //
-        // Strip any dl= variant and force raw=1. Use parse_url +
-        // http_build_query rather than regex on the query string —
-        // safer when admins paste URLs with weird parameter ordering
-        // or already-encoded characters.
-        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
-        if ($host === 'dropbox.com'
-            || str_ends_with($host, '.dropbox.com')
-            || str_ends_with($host, '.dropboxusercontent.com')
-        ) {
-            $parts = parse_url($url);
-            parse_str($parts['query'] ?? '', $query);
-            unset($query['dl']);
-            $query['raw'] = '1';
-
-            $rebuilt = ($parts['scheme'] ?? 'https') . '://' . $parts['host'];
-            if (!empty($parts['port']))     $rebuilt .= ':' . $parts['port'];
-            if (!empty($parts['path']))     $rebuilt .= $parts['path'];
-            $rebuilt .= '?' . http_build_query($query);
-            if (!empty($parts['fragment'])) $rebuilt .= '#' . $parts['fragment'];
-
-            $url = $rebuilt;
-        }
-
-        return $url;
+        // Per-provider URL resolution lives in CdnUrlResolver:
+        // Dropbox links get raw=1 normalization (iOS refuses to play
+        // Content-Disposition: attachment), Backblaze links are
+        // rewritten to the Bunny pull zone and token-signed. This
+        // controller stays the single auth/tier chokepoint; the
+        // resolver is the single origin-routing chokepoint.
+        return $this->cdn->resolve($url);
     }
 }

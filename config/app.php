@@ -74,6 +74,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Display Timezone
+    |--------------------------------------------------------------------------
+    |
+    | Everything is stored and compared in UTC (above). This is the wall clock
+    | our admins and audience actually read — admin date pickers post and
+    | render in this zone, and App\Support\LocalTime converts on the way in
+    | and out. Storing a raw `datetime-local` value without this conversion
+    | puts every publish 3 hours into the future, which hides the title from
+    | `published_at <= now()` until the offset elapses.
+    |
+    */
+
+    'display_timezone' => env('APP_DISPLAY_TIMEZONE', 'Africa/Kampala'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
     |

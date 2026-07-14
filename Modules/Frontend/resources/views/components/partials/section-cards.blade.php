@@ -27,6 +27,9 @@
             'isCardStyle2' => $isCardStyle2,
             'watchableType' => $isShow ? 'show' : 'movie',
             'watchableId'   => $item->id,
+            // Only AI Smart Shuffle tags its picks with a reason; every
+            // other rail passes null here and the card renders nothing.
+            'cardReason' => $item->_shuffleReason ?? null,
         ])
     </li>
 @empty

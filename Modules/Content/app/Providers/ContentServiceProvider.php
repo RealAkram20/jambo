@@ -48,7 +48,9 @@ class ContentServiceProvider extends ServiceProvider
      */
     protected function registerCommands(): void
     {
-        // $this->commands([]);
+        $this->commands([
+            \Modules\Content\app\Console\AnnounceDueContentCommand::class,
+        ]);
     }
 
     /**

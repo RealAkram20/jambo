@@ -3,6 +3,7 @@
 namespace Modules\Notifications\app\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Modules\Notifications\app\Models\NotificationAudienceSetting;
@@ -27,8 +28,19 @@ use NotificationChannels\WebPush\WebPushMessage;
  * Strictest layer wins. Subclasses only declare their setting key and the
  * database payload; toMail / toWebPush have sensible defaults derived from
  * the same payload, which any subclass can override.
+ *
+ * ShouldQueue is load-bearing, not decoration. Mail and web push are both
+ * blocking network round trips (an SMTP conversation; an HTTPS POST to
+ * Google/Mozilla's push service), and they were happening sequentially
+ * inside whatever HTTP request triggered them — so publishing a series
+ * held the admin's save open until every single subscriber had been
+ * pushed to, and got slower with every user who signed up. Queued, the
+ * triggering request only writes a job row and returns.
+ *
+ * This requires a real queue connection: on QUEUE_CONNECTION=sync,
+ * ShouldQueue silently degrades back to inline execution.
  */
-abstract class ChannelGatedNotification extends Notification
+abstract class ChannelGatedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 

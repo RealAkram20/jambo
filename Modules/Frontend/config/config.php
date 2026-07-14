@@ -11,15 +11,61 @@ return [
         'oversample_factor' => 3,
         'diversity_per_primary_genre' => 2,
 
-        // Smart Shuffle — half familiar-affinity picks, half cross-genre
-        // discovery, sampled then shuffled. Shorter TTL than Top Picks
-        // so refreshes feel alive.
+        // AI Smart Shuffle — half familiar-affinity picks, half
+        // collaborative-filtering discovery, rank-sampled rather than
+        // sorted. Shorter TTL than Top Picks so refreshes feel alive.
         'smart_shuffle' => [
             'cache_ttl_user' => env('JAMBO_SMART_SHUFFLE_TTL_USER', 1800),
             'cache_ttl_guest' => env('JAMBO_SMART_SHUFFLE_TTL_GUEST', 900),
-            'pool_size' => 20,             // shortlist size per side before sampling
+            'pool_size' => 40,             // shortlist size per side before sampling
             'top_genres_count' => 3,       // how many affinity genres define "familiar"
             'discovery_recency_days' => 60,
+
+            // Rank-biased sampling: the candidate at rank r is drawn with
+            // weight rank_decay^r. 1.0 degenerates to a uniform shuffle
+            // (which throws the ranking away); 0.0 to a strict top-N
+            // (which never churns). 0.88 makes rank 0 roughly 7x likelier
+            // than rank 15 while still letting the tail surface.
+            'rank_decay' => env('JAMBO_SMART_SHUFFLE_RANK_DECAY', 0.88),
+
+            // Collaborative filtering — "viewers who finished what you
+            // finished also finished X". Powers the discovery half; falls
+            // back to cross-genre browsing when co-watch data is too thin.
+            'collab_enabled' => env('JAMBO_SMART_SHUFFLE_COLLAB', true),
+            'collab_seed_titles' => 20,    // most recent completions used as seeds
+            'collab_peer_limit' => 400,    // cap on peers pulled per compute
+            'collab_min_peers' => 2,       // ignore co-watch links this weak
+
+            // Anti-repeat memory. Titles surfaced in previous windows are
+            // penalised, not hard-excluded — a thin catalog would starve
+            // the shelf. Session-backed (see SESSION_KEY_SHUFFLE_SEEN), so
+            // it expires with the session rather than on a TTL of its own.
+            'recent_memory_size' => 30,
+
+            // "Trending" = completions inside the window, not all-time
+            // views_count (which lets a years-old hit dominate forever).
+            'trending_days' => 14,
+            'trending_cache_ttl' => 900,
+
+            // Per-card "Because you watched X" captions.
+            'reasons_enabled' => env('JAMBO_SMART_SHUFFLE_REASONS', true),
+
+            // Personalise guests from the genres they browse in-session,
+            // so the shelf reacts on the first visit instead of staying
+            // generic until they sign up.
+            'guest_session_signal' => env('JAMBO_SMART_SHUFFLE_GUEST_SIGNAL', true),
+
+            // Scoring blend for the candidate pools. Genre/cast affinity
+            // and collab score are normalised to 0..1 before weighting, so
+            // these numbers are comparable to each other.
+            'weights' => [
+                'genre_affinity' => 1.0,
+                'cast_affinity'  => 0.6,
+                'collab'         => 1.4,
+                'trending'       => 0.5,
+                'editor_boost'   => 0.8,
+                'recently_shown' => -1.2,
+            ],
         ],
 
         // Fresh Picks — affinity scoring on a recency-windowed pool.

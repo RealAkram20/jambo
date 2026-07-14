@@ -3,6 +3,7 @@
 namespace Modules\Content\app\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\LocalTime;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,7 @@ use Modules\Content\app\Models\Person;
 use Modules\Content\app\Models\Show;
 use Modules\Content\app\Models\Tag;
 use Modules\Content\app\Models\Vj;
+use Modules\Content\app\Services\ContentAnnouncer;
 
 /**
  * Admin CRUD for shows.
@@ -29,6 +31,10 @@ use Modules\Content\app\Models\Vj;
  */
 class ShowController extends Controller
 {
+    public function __construct(private readonly ContentAnnouncer $announcer)
+    {
+    }
+
     public function index(Request $request): View
     {
         $query = Show::query()
@@ -111,8 +117,11 @@ class ShowController extends Controller
                 // Release / publish date — see MovieController for
                 // rationale. User-supplied value wins; otherwise we
                 // stamp now() on a published status, null otherwise.
+                // LocalTime::toUtc reads the form's wall clock as EAT so
+                // it doesn't land hours ahead of the UTC now() every
+                // visibility check compares against.
                 'published_at' => ! empty($data['published_at'])
-                    ? $data['published_at']
+                    ? LocalTime::toUtc($data['published_at'])
                     : (($data['status'] ?? 'draft') === 'published' ? now() : null),
             ]);
 
@@ -121,11 +130,7 @@ class ShowController extends Controller
             return $show;
         });
 
-        if ($show->status === 'published') {
-            event(new \Modules\Notifications\app\Events\ShowAdded(
-                $show->id, $show->title, $show->slug, $show->poster_url,
-            ));
-        }
+        $this->announcer->announceShow($show);
 
         return redirect()
             ->route('admin.series.edit', $show)
@@ -162,10 +167,8 @@ class ShowController extends Controller
 
     public function update(UpdateShowRequest $request, Show $show): RedirectResponse
     {
-        $justPublished = false;
-        DB::transaction(function () use ($request, $show, &$justPublished) {
+        DB::transaction(function () use ($request, $show) {
             $data = $request->validated();
-            $oldStatus = $show->status;
 
             $show->fill([
                 'title' => $data['title'],
@@ -187,7 +190,7 @@ class ShowController extends Controller
             // the auto-stamp. array_key_exists so clearing the field
             // nulls the column.
             if (array_key_exists('published_at', $data)) {
-                $show->published_at = $data['published_at'] ?: null;
+                $show->published_at = LocalTime::toUtc($data['published_at']);
             }
 
             // Status transitions: draft → published stamps published_at
@@ -202,15 +205,9 @@ class ShowController extends Controller
             $show->save();
 
             $this->syncRelationships($show, $data);
-
-            $justPublished = $oldStatus !== 'published' && $show->status === 'published';
         });
 
-        if ($justPublished) {
-            event(new \Modules\Notifications\app\Events\ShowAdded(
-                $show->id, $show->title, $show->slug, $show->poster_url,
-            ));
-        }
+        $this->announcer->announceShow($show);
 
         return redirect()
             ->route('admin.series.edit', $show)

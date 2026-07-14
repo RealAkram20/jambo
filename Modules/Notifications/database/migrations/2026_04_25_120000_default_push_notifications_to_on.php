@@ -12,23 +12,35 @@ use Illuminate\Support\Facades\Schema;
  *
  * Eloquent's User::$attributes already covers the create() path; this
  * migration is the belt-and-suspenders for the DB layer.
+ *
+ * MySQL only. `ALTER TABLE ... ALTER COLUMN ... SET DEFAULT` is not valid
+ * SQLite, and the raw statement was aborting every migration run on the
+ * sqlite test connection — which took the whole test suite down with it.
+ * SQLite has no way to alter a column default in place anyway, and the
+ * test DB is built fresh from the create migration each run, so skipping
+ * is correct rather than merely tolerable.
  */
 return new class extends Migration {
     public function up(): void
     {
-        if (!Schema::hasColumn('users', 'push_notifications_enabled')) {
-            return;
-        }
-
-        DB::statement("ALTER TABLE `users` ALTER COLUMN `push_notifications_enabled` SET DEFAULT 1");
+        $this->setDefault(1);
     }
 
     public function down(): void
     {
-        if (!Schema::hasColumn('users', 'push_notifications_enabled')) {
+        $this->setDefault(0);
+    }
+
+    private function setDefault(int $value): void
+    {
+        if (! Schema::hasColumn('users', 'push_notifications_enabled')) {
             return;
         }
 
-        DB::statement("ALTER TABLE `users` ALTER COLUMN `push_notifications_enabled` SET DEFAULT 0");
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
+        DB::statement("ALTER TABLE `users` ALTER COLUMN `push_notifications_enabled` SET DEFAULT {$value}");
     }
 };

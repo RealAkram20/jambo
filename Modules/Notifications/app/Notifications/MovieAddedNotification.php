@@ -25,9 +25,11 @@ class MovieAddedNotification extends ChannelGatedNotification
             'icon'         => 'ph-film-strip',
             'colour'       => 'primary',
             'image'        => $this->poster,
+            // The listing route is /movie (singular) — /movies is a 404,
+            // so the slugless fallback used to strand the user.
             'action_url'   => $this->movieSlug
                 ? url('/movie-detail/' . $this->movieSlug)
-                : url('/movies'),
+                : url('/movie'),
             'action_label' => 'Watch now',
             'movie_id'     => $this->movieId,
             'movie_title'  => $this->movieTitle,

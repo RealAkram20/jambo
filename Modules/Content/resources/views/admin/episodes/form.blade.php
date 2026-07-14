@@ -98,12 +98,13 @@
                 <div class="mb-3" data-jambo-release-wrap
                      @if ($resolvedStatus === 'draft') style="display:none;" @endif>
                     <label for="published_at" class="form-label" data-jambo-release-label>
-                        {{ $resolvedStatus === 'upcoming' ? 'Release date' : 'Published at' }}
+                        {{ $resolvedStatus === 'upcoming' ? 'Release date' : 'Published at' }} ({{ \App\Support\LocalTime::abbreviation() }})
                     </label>
                     <input type="datetime-local" class="form-control @error('published_at') is-invalid @enderror"
                            id="published_at" name="published_at"
-                           value="{{ old('published_at', $existingPublishedAt ? \Illuminate\Support\Carbon::parse($existingPublishedAt)->format('Y-m-d\TH:i') : '') }}">
+                           value="{{ old('published_at', \App\Support\LocalTime::forInput($existingPublishedAt)) }}">
                     @error('published_at') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    <div class="text-muted mt-1" style="font-size:12px;" data-jambo-tz-hint></div>
                 </div>
 
                 @if ($episode->exists && $existingPublishedAt)
@@ -128,12 +129,7 @@
     var dateInput = document.getElementById('published_at');
     if (!statusSel || !wrap || !label || !dateInput) return;
 
-    function nowLocalForInput() {
-        var d = new Date();
-        var pad = function (n) { return String(n).padStart(2, '0'); };
-        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
-            + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-    }
+    var TZ = ' ({{ \App\Support\LocalTime::abbreviation() }})';
 
     function apply() {
         var s = statusSel.value;
@@ -143,16 +139,23 @@
         } else {
             wrap.style.display = '';
             if (s === 'upcoming') {
-                label.textContent = 'Release date';
+                label.textContent = 'Release date' + TZ;
             } else {
-                label.textContent = 'Published at';
+                label.textContent = 'Published at' + TZ;
                 // When admin flips to Published, prefill the field with
                 // "now" so the saved row actually reflects the intent.
-                // The controller would also fall back to now() on its
-                // own, but populating the input keeps the UI honest:
-                // the admin sees the value that's about to be saved.
-                if (!dateInput.value) {
-                    dateInput.value = nowLocalForInput();
+                //
+                // "Now" must be now on JAMBO'S clock, not this browser's.
+                // It used to read the browser's wall clock, which the server
+                // then interpreted as EAT — so an admin in Dubai or Tokyo
+                // clicking Published silently stamped a time hours in the
+                // future, and the episode went invisible with its
+                // announcement withheld. jamboNowForInput() is defined in
+                // release-timezone-script and is timezone-correct from
+                // anywhere on earth.
+                if (!dateInput.value && window.jamboNowForInput) {
+                    dateInput.value = window.jamboNowForInput();
+                    dateInput.dispatchEvent(new Event('change'));
                 }
             }
         }
@@ -160,6 +163,7 @@
     statusSel.addEventListener('change', apply);
 })();
 </script>
+@include('content::admin.partials.release-timezone-script')
 
 <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
     <a href="{{ route('admin.series.seasons.edit', [$show, $season]) }}" class="btn btn-ghost">← Back to season</a>

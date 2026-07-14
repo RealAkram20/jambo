@@ -9,6 +9,7 @@ use Modules\Content\app\Http\Requests\StoreSeasonRequest;
 use Modules\Content\app\Http\Requests\UpdateSeasonRequest;
 use Modules\Content\app\Models\Season;
 use Modules\Content\app\Models\Show;
+use Modules\Content\app\Services\ContentAnnouncer;
 
 /**
  * Admin CRUD for seasons (nested under a Series).
@@ -18,6 +19,10 @@ use Modules\Content\app\Models\Show;
  */
 class SeasonController extends Controller
 {
+    public function __construct(private readonly ContentAnnouncer $announcer)
+    {
+    }
+
     public function create(Show $show): View
     {
         return view('content::admin.seasons.create', [
@@ -41,9 +46,12 @@ class SeasonController extends Controller
             'released_at' => $data['released_at'] ?? null,
         ]);
 
-        event(new \Modules\Notifications\app\Events\SeasonAdded(
-            $show->title, $season->number, $show->slug, $season->poster_url ?? $show->poster_url,
-        ));
+        // A season is created empty, so there is nothing to watch behind it
+        // yet — the old unconditional broadcast here sent "Season N is out"
+        // to everyone the moment an admin started building it, linking to a
+        // show page that may not even be published. The announcer holds it
+        // until the show is live and the season has a live episode.
+        $this->announcer->announceSeason($season);
 
         return redirect()
             ->route('admin.series.seasons.edit', [$show, $season])

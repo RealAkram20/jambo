@@ -87,6 +87,7 @@ class Movie extends Model
 
     protected $casts = [
         'published_at' => 'datetime',
+        'announced_at' => 'datetime',
         'year' => 'integer',
         'runtime_minutes' => 'integer',
         'views_count' => 'integer',
@@ -153,6 +154,22 @@ class Movie extends Model
     }
 
     /**
+     * The PHP mirror of scopePublished — is this title watchable right now?
+     *
+     * `status = published` alone is NOT enough: an admin may publish a title
+     * with a release date in the future. Announcing on status alone is what
+     * sent users to a 404, because every public route resolves through
+     * scopePublished / scopeDetailVisible, which both require the date to
+     * have passed. Notification paths must gate on this, never on status.
+     */
+    public function isPubliclyVisible(): bool
+    {
+        return $this->status === self::STATUS_PUBLISHED
+            && $this->published_at !== null
+            && $this->published_at->lessThanOrEqualTo(now());
+    }
+
+    /**
      * Announced / scheduled titles — visible in the Upcoming rail only.
      * `published_at` here is the intended release date (may be null if
      * the admin hasn't picked one yet).
@@ -174,13 +191,20 @@ class Movie extends Model
      */
     public function scopeDetailVisible(Builder $q): Builder
     {
-        return $q->where(function ($outer) {
-            $outer->where(function ($pub) {
-                $pub->where('status', self::STATUS_PUBLISHED)
-                    ->whereNotNull('published_at')
-                    ->where('published_at', '<=', now());
-            })->orWhere('status', self::STATUS_UPCOMING);
-        });
+        // Anything the admin has committed to publishing gets a page —
+        // Published (released OR still scheduled) and Upcoming alike. Only
+        // Draft is truly invisible.
+        //
+        // This deliberately does NOT re-check `published_at <= now()`. It
+        // used to, which meant a title scheduled for Friday had no page at
+        // all until Friday: every link to it — a shared URL, a stale rail
+        // card, a notification that fired early — died on a 404. A release
+        // date is a reason to show "Coming soon", not a reason to pretend
+        // the title doesn't exist. The controller flips the page into its
+        // upcoming state via isPubliclyVisible(), and the streaming
+        // endpoints still gate on published(), so nothing becomes watchable
+        // one second sooner than it should.
+        return $q->whereIn('status', [self::STATUS_PUBLISHED, self::STATUS_UPCOMING]);
     }
 
     protected static function newFactory(): MovieFactory

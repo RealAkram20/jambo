@@ -88,6 +88,7 @@ class Episode extends Model
 
     protected $casts = [
         'published_at' => 'datetime',
+        'announced_at' => 'datetime',
         'number' => 'integer',
         'runtime_minutes' => 'integer',
     ];
@@ -170,6 +171,17 @@ class Episode extends Model
         // (mp4/webm/m4v) before publishing.
         return $q->whereNotNull('published_at')
             ->where('published_at', '<=', now());
+    }
+
+    /**
+     * PHP mirror of scopePublished. Note this only speaks for the episode —
+     * an episode of a draft show is not reachable either, so callers that
+     * decide public visibility must also check Show::isPubliclyAvailable().
+     */
+    public function isPubliclyVisible(): bool
+    {
+        return $this->published_at !== null
+            && $this->published_at->lessThanOrEqualTo(now());
     }
 
     protected static function newFactory(): EpisodeFactory

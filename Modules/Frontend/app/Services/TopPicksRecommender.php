@@ -31,6 +31,26 @@ class TopPicksRecommender
     public const CACHE_KEY_DAILY_SERIES_SUFFIX = ':v1';
     public const CACHE_KEY_SMART_SHUFFLE_USER_SUFFIX = ':smart_shuffle:v1';
     public const CACHE_KEY_SMART_SHUFFLE_GUEST = 'smart_shuffle:guest:v1';
+
+    /** Catalog-wide "what got finished lately" counts, shared by all users. */
+    public const CACHE_KEY_SHUFFLE_TRENDING = 'smart_shuffle:trending:v1';
+
+    /** Genre ids a guest has browsed in the current session. */
+    public const SESSION_KEY_GUEST_GENRES = 'jambo.guest_genre_signal';
+
+    /**
+     * Anti-repeat memory for Smart Shuffle — the titles we last put on the
+     * user's shelf, so the next window can push them down.
+     *
+     * Session-backed, NOT cache-backed, and that is deliberate.
+     * CatalogCacheObserver calls Cache::flush() on every movie/show/episode
+     * create or publish, which would wipe this memory site-wide every time
+     * an admin adds a title — leaving the anti-repeat penalty empty exactly
+     * on the busy catalogs that need it most. The session survives that,
+     * needs no schema, and matches the semantics anyway: repetition is
+     * something a user perceives across one visit.
+     */
+    public const SESSION_KEY_SHUFFLE_SEEN = 'jambo.smart_shuffle_seen';
     public const CACHE_KEY_FRESH_PICKS_USER_SUFFIX = ':fresh_picks:v1';
     public const CACHE_KEY_FRESH_PICKS_GUEST = 'fresh_picks:guest:v1';
     public const CACHE_KEY_UPCOMING_USER_SUFFIX = ':upcoming:v1';
@@ -67,18 +87,31 @@ class TopPicksRecommender
     }
 
     /**
-     * Smart Shuffle — Spotify-style half-familiar / half-discovery mix,
-     * randomised within pools so the shelf feels fresh on each refresh
-     * window. Much lower TTL than Top Picks so it visibly churns.
+     * AI Smart Shuffle — half familiar, half discovery, sampled rather
+     * than sorted so the shelf turns over between refresh windows.
      *
-     * Contract per call:
-     *   • Warm users: ~half picks drawn from their top-affinity genres,
-     *     ~half drawn from titles outside those genres (discovery).
-     *     Completed titles excluded from both sides.
-     *   • Cold users + guests: trending (popularity) mixed with fresh
-     *     (recent releases).
-     * Results are shuffled together so affinity and discovery don't
-     * clump at the front/back.
+     * Warm users:
+     *   • Familiar half — candidates scored on *graded* genre + cast
+     *     affinity. Binary genre membership (the old behaviour) rated a
+     *     title in your #1 genre exactly like one in your #3.
+     *   • Discovery half — item-item collaborative filtering: titles
+     *     finished by viewers who finished what you finished. Cross-genre
+     *     browsing backfills it when co-watch data is too thin to mean
+     *     anything.
+     *   • Completed and in-progress titles are excluded. In-progress
+     *     already owns the Continue Watching rail, and the same poster in
+     *     two rails on one screen reads as a bug.
+     *   • Titles shown in recent windows are penalised, so a refresh
+     *     actually produces a different shelf.
+     *   • Every pick carries a `_shuffleReason` the card renders.
+     *
+     * Guests: personalised from the genres browsed in the current session
+     * when there are any; trending + fresh otherwise.
+     *
+     * Selection is a rank-biased weighted sample, not a uniform shuffle.
+     * The old `->take(20)->shuffle()->take(5)` gave the best-matching
+     * title and the 20th-best identical odds, which meant popularity —
+     * not taste — decided the shelf.
      */
     public function smartShuffle(?int $userId, int $limit = 10): Collection
     {
@@ -90,109 +123,179 @@ class TopPicksRecommender
             return $this->cache->remember($key, $ttl, fn () => $this->computeSmartShuffleForUser($userId, $limit));
         }
 
+        // Guests carrying an in-session browsing signal get their own
+        // cache slot, keyed on the signal. A single global guest key
+        // would serve one visitor's personalised shelf to every other.
+        $signal = $this->guestGenreSignal();
+        $key = empty($signal)
+            ? self::CACHE_KEY_SMART_SHUFFLE_GUEST
+            : self::CACHE_KEY_SMART_SHUFFLE_GUEST . ':' . substr(sha1(implode(',', $signal)), 0, 12);
+
         $ttl = (int) ($conf['cache_ttl_guest'] ?? 900);
-        return $this->cache->remember(
-            self::CACHE_KEY_SMART_SHUFFLE_GUEST,
-            $ttl,
-            fn () => $this->coldSmartShuffle($limit),
-        );
+
+        return $this->cache->remember($key, $ttl, fn () => $this->coldSmartShuffle($limit, $signal));
     }
 
     private function computeSmartShuffleForUser(int $userId, int $limit): Collection
     {
         if ($this->isColdUser($userId)) {
-            return $this->coldSmartShuffle($limit);
+            return $this->coldSmartShuffle($limit, []);
         }
 
         $conf = config('frontend.recommendations.smart_shuffle');
-        $poolSize = (int) ($conf['pool_size'] ?? 20);
-        $topGenresCount = (int) ($conf['top_genres_count'] ?? 3);
+        $poolSize = (int) ($conf['pool_size'] ?? 40);
+        $decay = (float) ($conf['rank_decay'] ?? 0.88);
 
-        $movieMorph = (new Movie)->getMorphClass();
-        $completedIds = DB::table('watch_history')
-            ->where('user_id', $userId)
-            ->where('watchable_type', $movieMorph)
-            ->where('completed', true)
-            ->pluck('watchable_id')
-            ->all();
+        $excluded = $this->shuffleExclusions($userId);
+        $recentlyShown = $this->recentlyShownIds($userId);
+        $trending = $this->trendingCounts();
 
-        // Identify the user's top genres from the same affinity vectors
-        // Top Picks uses. Ties broken by genre id for determinism.
-        $genreAffinity = $this->buildGenreAffinity($userId);
-        arsort($genreAffinity);
-        $topGenreIds = array_slice(array_keys($genreAffinity), 0, $topGenresCount);
+        // Drop non-positive genres BEFORE taking the top N. `arsort` +
+        // `array_slice` on the raw vector would happily promote a genre
+        // with negative affinity (earned from the abandon penalty) into
+        // the "familiar" set whenever the user has fewer than N liked
+        // genres — recommending the very thing they keep bailing on.
+        $genreAff = $this->normaliseVector($this->positiveOnly($this->buildGenreAffinity($userId)));
+        $castAff  = $this->normaliseVector($this->positiveOnly($this->buildCastAffinity($userId)));
 
-        // Split the shelf 50/50; odd limits give the extra seat to
-        // affinity (we bias slightly toward the user's known taste).
+        arsort($genreAff);
+        $topGenreIds = array_slice(array_keys($genreAff), 0, (int) ($conf['top_genres_count'] ?? 3));
+
+        // Odd shelf sizes give the extra seat to the familiar half.
         $affinityTarget = (int) ceil($limit / 2);
-        $discoveryTarget = $limit - $affinityTarget;
 
-        $affinity = $this->buildAffinityPool($topGenreIds, $completedIds, $poolSize)
-            ->shuffle()
-            ->take($affinityTarget);
+        $score = fn (Collection $pool): Collection => $pool
+            ->each(function (Movie $m) use ($genreAff, $castAff, $trending, $recentlyShown) {
+                $m->_shuffleScore = $this->scoreShuffleCandidate($m, $genreAff, $castAff, $trending, $recentlyShown);
+            })
+            ->sortByDesc('_shuffleScore')
+            ->values();
 
-        // Chain already-used ids so discovery can't duplicate a title
-        // already picked from the affinity pool.
-        $usedIds = $affinity->pluck('id')->all();
-        $discovery = $this->buildDiscoveryPool($topGenreIds, array_merge($completedIds, $usedIds), $poolSize)
-            ->shuffle()
-            ->take($discoveryTarget);
+        // --- Familiar half ---------------------------------------------
+        $affinity = $this->weightedSample(
+            $score($this->buildAffinityPool($topGenreIds, $excluded, $poolSize)),
+            $affinityTarget,
+            $decay,
+        );
 
-        // Final shuffle so the shelf doesn't visibly split into
-        // "5 familiar then 5 unfamiliar" — the mix is the point.
-        return $affinity->concat($discovery)->shuffle()->values();
+        $used = array_merge($excluded, $affinity->pluck('id')->all());
+
+        // --- Discovery half --------------------------------------------
+        // Take whatever the familiar half couldn't fill, rather than a flat
+        // half-shelf: if the user's top genres are thin on unwatched titles,
+        // those seats are better spent on scored discovery picks than on the
+        // unpersonalised popularity backfill at the bottom of this method.
+        $discoveryTarget = $limit - $affinity->count();
+
+        // Collaborative signal leads. Note the CF pool is NOT restricted
+        // to genres outside the user's taste: "you wouldn't have found
+        // this yourself" is the goal, and a same-genre title surfaced by
+        // co-watch data serves that better than a random cross-genre one.
+        $discoveryPool = $score($this->collaborativePool($userId, $used, $poolSize));
+
+        if ($discoveryPool->count() < $discoveryTarget) {
+            $seen = array_merge($used, $discoveryPool->pluck('id')->all());
+            $discoveryPool = $discoveryPool
+                ->concat($score($this->buildDiscoveryPool($topGenreIds, $seen, $poolSize)))
+                ->sortByDesc('_shuffleScore')
+                ->values();
+        }
+
+        $discovery = $this->weightedSample($discoveryPool, $discoveryTarget, $decay);
+
+        $shelf = $affinity->concat($discovery);
+
+        // A thin catalog, or aggressive exclusions on a heavy watcher,
+        // can leave the shelf short — top it up so the rail never renders
+        // as a half-empty row.
+        if ($shelf->count() < $limit) {
+            $shelf = $shelf->concat($this->shuffleBackfill(
+                array_merge($used, $shelf->pluck('id')->all()),
+                $limit - $shelf->count(),
+            ));
+        }
+
+        // Interleave, so the shelf doesn't visibly split into "5 familiar
+        // then 5 unfamiliar" — the mix is the point of the feature.
+        $shelf = $shelf->shuffle()->values();
+
+        $this->attachReasons($shelf, $userId, $genreAff, $castAff, $trending);
+        $this->rememberShown($userId, $shelf->pluck('id')->all());
+
+        return $shelf;
     }
 
     /**
-     * Shown to guests and cold-start users. Half trending (popularity),
-     * half fresh (recency). Randomised the same way as the warm path
-     * so the two feel like the same feature.
+     * Guests and cold-start users.
+     *
+     * When the visitor has opened movie detail pages this session we have
+     * a genre signal. It's weak, but it's the difference between a shelf
+     * that reacts inside one visit and one that stays generic until they
+     * sign up. Without it: what people are finishing now, plus what's new.
+     *
+     * @param array<int, int> $guestGenreIds
      */
-    private function coldSmartShuffle(int $limit): Collection
+    private function coldSmartShuffle(int $limit, array $guestGenreIds = []): Collection
     {
         $conf = config('frontend.recommendations.smart_shuffle');
-        $poolSize = (int) ($conf['pool_size'] ?? 20);
+        $poolSize = (int) ($conf['pool_size'] ?? 40);
         $recencyDays = (int) ($conf['discovery_recency_days'] ?? 60);
+        $decay = (float) ($conf['rank_decay'] ?? 0.88);
 
-        $trendingTarget = (int) ceil($limit / 2);
-        $freshTarget = $limit - $trendingTarget;
+        $trending = $this->trendingCounts();
+        $shelf = collect();
 
-        $trending = Movie::published()
-            ->with('genres')
-            ->orderByDesc('views_count')
-            ->orderByDesc('published_at')
-            ->take($poolSize)
-            ->get()
-            ->shuffle()
-            ->take($trendingTarget);
-
-        $usedIds = $trending->pluck('id')->all();
-
-        $fresh = Movie::published()
-            ->with('genres')
-            ->when(!empty($usedIds), fn ($q) => $q->whereNotIn('id', $usedIds))
-            ->where('created_at', '>=', now()->subDays($recencyDays))
-            ->orderByDesc('created_at')
-            ->take($poolSize)
-            ->get()
-            ->shuffle()
-            ->take($freshTarget);
-
-        // Fresh pool may be thin on a young catalog — backfill from
-        // popularity so the shelf still fills to $limit.
-        $combined = $trending->concat($fresh);
-        if ($combined->count() < $limit) {
-            $used = $combined->pluck('id')->all();
-            $backfill = Movie::published()
-                ->with('genres')
-                ->when(!empty($used), fn ($q) => $q->whereNotIn('id', $used))
-                ->orderByDesc('views_count')
-                ->take($limit - $combined->count())
-                ->get();
-            $combined = $combined->concat($backfill);
+        // --- Session-signal half (guests who've browsed something) ------
+        if (!empty($guestGenreIds)) {
+            $matched = $this->weightedSample(
+                $this->buildAffinityPool($guestGenreIds, [], $poolSize),
+                (int) ceil($limit / 2),
+                $decay,
+            );
+            $matched->each(fn (Movie $m) => $m->_shuffleReason = __('recommendReason.browsing'));
+            $shelf = $shelf->concat($matched);
         }
 
-        return $combined->shuffle()->values();
+        // --- Trending half ----------------------------------------------
+        $remaining = $limit - $shelf->count();
+
+        $popular = $this->weightedSample(
+            $this->publishedExcept($shelf->pluck('id')->all())
+                ->orderByDesc('views_count')
+                ->orderByDesc('published_at')
+                ->take($poolSize)
+                ->get(),
+            (int) ceil($remaining / 2),
+            $decay,
+        );
+        $popular->each(fn (Movie $m) => $m->_shuffleReason = ($trending[$m->id] ?? 0) > 0
+            ? __('recommendReason.trending')
+            : __('recommendReason.popular'));
+        $shelf = $shelf->concat($popular);
+
+        // --- Fresh half ---------------------------------------------------
+        // `published_at`, not `created_at`: release date is what the user
+        // means by "new", and it's what every other shelf here sorts on.
+        $fresh = $this->weightedSample(
+            $this->publishedExcept($shelf->pluck('id')->all())
+                ->where('published_at', '>=', now()->subDays($recencyDays))
+                ->orderByDesc('published_at')
+                ->take($poolSize)
+                ->get(),
+            $limit - $shelf->count(),
+            $decay,
+        );
+        $fresh->each(fn (Movie $m) => $m->_shuffleReason = __('recommendReason.just_added'));
+        $shelf = $shelf->concat($fresh);
+
+        // Young catalogs have almost nothing inside the recency window.
+        if ($shelf->count() < $limit) {
+            $backfill = $this->shuffleBackfill($shelf->pluck('id')->all(), $limit - $shelf->count());
+            $backfill->each(fn (Movie $m) => $m->_shuffleReason = __('recommendReason.popular'));
+            $shelf = $shelf->concat($backfill);
+        }
+
+        return $shelf->shuffle()->values();
     }
 
     /**
@@ -303,11 +406,16 @@ class TopPicksRecommender
 
         $relations = ['genres', 'cast' => fn ($q) => $q->wherePivotIn('role', ['actor', 'actress', 'director', 'writer'])];
 
+        // `published_at`, not `created_at`. created_at is when the *row* was
+        // inserted, so importing a 1990 film yesterday would have made it
+        // "fresh" — and on a seeded catalog, where every row shares an
+        // insert timestamp, ordering by it collapses to insertion order and
+        // the rail stops being sorted at all.
         $fresh = Movie::published()
             ->with($relations)
             ->when(!empty($excludeIds), fn ($q) => $q->whereNotIn('id', $excludeIds))
-            ->where('created_at', '>=', now()->subDays($recencyDays))
-            ->orderByDesc('created_at')
+            ->where('published_at', '>=', now()->subDays($recencyDays))
+            ->orderByDesc('published_at')
             ->take($poolSize)
             ->get();
 
@@ -321,7 +429,7 @@ class TopPicksRecommender
         $backfill = Movie::published()
             ->with($relations)
             ->when(!empty($usedIds), fn ($q) => $q->whereNotIn('id', $usedIds))
-            ->orderByDesc('created_at')
+            ->orderByDesc('published_at')
             ->take($deficit)
             ->get();
 
@@ -469,27 +577,71 @@ class TopPicksRecommender
     }
 
     /**
+     * Genres + the cast roles that actually drive a viewer's choice.
+     * Every Smart Shuffle pool eager-loads both, so scoreShuffleCandidate()
+     * and the reason captions never trigger an N+1.
+     *
+     * @return array<int|string, mixed>
+     */
+    private function shuffleRelations(): array
+    {
+        return [
+            'genres',
+            'cast' => fn ($q) => $q->wherePivotIn('role', ['actor', 'actress', 'director', 'writer']),
+        ];
+    }
+
+    /**
+     * @param array<int, int> $excludeIds
+     */
+    private function publishedExcept(array $excludeIds): \Illuminate\Database\Eloquent\Builder
+    {
+        return Movie::published()
+            ->with($this->shuffleRelations())
+            ->when(!empty($excludeIds), fn ($q) => $q->whereNotIn('id', $excludeIds));
+    }
+
+    /**
+     * Ids Smart Shuffle must never surface: titles the user completed, and
+     * titles they have in progress. In-progress already owns the Continue
+     * Watching rail, so re-recommending it puts the same poster twice on
+     * one screen. Abandoned titles are a subset of in-progress (position
+     * advanced, never completed), which means quitting a movie early now
+     * also takes it out of the shuffle — previously it stayed eligible
+     * forever.
+     *
+     * @return array<int, int>
+     */
+    private function shuffleExclusions(int $userId): array
+    {
+        return DB::table('watch_history')
+            ->where('user_id', $userId)
+            ->where('watchable_type', (new Movie)->getMorphClass())
+            ->where(fn ($q) => $q
+                ->where('completed', true)
+                ->orWhere(fn ($p) => $p->where('completed', false)->where('position_seconds', '>', 0)))
+            ->pluck('watchable_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
      * Affinity pool — published movies tagged with at least one of the
-     * user's top genres, excluding completed titles. Ordered by a
-     * light popularity + recency score so the random sample is drawn
-     * from a quality-biased shortlist, not the whole catalog.
+     * user's top genres. The SQL ordering is only a quality floor for the
+     * shortlist; the real ranking happens in scoreShuffleCandidate().
      *
      * @param array<int, int>  $topGenreIds
      * @param array<int, int>  $excludeIds
      */
     private function buildAffinityPool(array $topGenreIds, array $excludeIds, int $size): Collection
     {
-        $q = Movie::published()->with('genres');
-
-        if (!empty($excludeIds)) {
-            $q->whereNotIn('id', $excludeIds);
-        }
-
-        if (!empty($topGenreIds)) {
-            $q->whereHas('genres', fn ($gq) => $gq->whereIn('genres.id', $topGenreIds));
-        }
-
-        return $q
+        return $this->publishedExcept($excludeIds)
+            ->when(!empty($topGenreIds), fn ($q) => $q->whereHas(
+                'genres',
+                fn ($gq) => $gq->whereIn('genres.id', $topGenreIds),
+            ))
             ->orderByDesc('editor_boost')
             ->orderByDesc('views_count')
             ->orderByDesc('published_at')
@@ -498,35 +650,573 @@ class TopPicksRecommender
     }
 
     /**
-     * Discovery pool — published movies explicitly NOT matching any of
-     * the user's top genres. The point of Smart Shuffle: surface what
-     * they wouldn't normally click. Ordered editor_boost → recency →
-     * popularity so the shortlist has a quality floor before shuffle.
+     * Cross-genre pool — published movies matching none of the user's top
+     * genres. This is the *fallback* discovery source now, used only when
+     * collaborative filtering comes back thin (young catalog, few
+     * co-watchers). On its own it's a weak signal: "outside your usual
+     * genres" is no reason to think you'd like something.
      *
      * @param array<int, int>  $topGenreIds
      * @param array<int, int>  $excludeIds
      */
     private function buildDiscoveryPool(array $topGenreIds, array $excludeIds, int $size): Collection
     {
-        $q = Movie::published()->with('genres');
-
-        if (!empty($excludeIds)) {
-            $q->whereNotIn('id', $excludeIds);
-        }
-
-        if (!empty($topGenreIds)) {
-            // "Has no genre in the top-affinity set" — the `NOT EXISTS`
-            // form lets titles with no genres at all through, which is
-            // intentional: untagged content is still discovery material.
-            $q->whereDoesntHave('genres', fn ($gq) => $gq->whereIn('genres.id', $topGenreIds));
-        }
-
-        return $q
+        return $this->publishedExcept($excludeIds)
+            // The `NOT EXISTS` form lets untagged titles through, which is
+            // intentional: content with no genres is still discovery material.
+            ->when(!empty($topGenreIds), fn ($q) => $q->whereDoesntHave(
+                'genres',
+                fn ($gq) => $gq->whereIn('genres.id', $topGenreIds),
+            ))
             ->orderByDesc('editor_boost')
             ->orderByDesc('published_at')
             ->orderByDesc('views_count')
             ->take($size)
             ->get();
+    }
+
+    /**
+     * Last-resort top-up so the rail never renders short.
+     *
+     * @param array<int, int> $excludeIds
+     */
+    private function shuffleBackfill(array $excludeIds, int $need): Collection
+    {
+        if ($need <= 0) {
+            return collect();
+        }
+
+        return $this->publishedExcept($excludeIds)
+            ->orderByDesc('editor_boost')
+            ->orderByDesc('views_count')
+            ->take($need)
+            ->get();
+    }
+
+    /**
+     * Collaborative filtering — "viewers who finished what you finished
+     * also finished these".
+     *
+     * Two indexed queries rather than a similarity matrix: find the peers
+     * who completed any of your recent completions, then count what else
+     * those peers completed. Cheap, and it needs no model, no training
+     * step, and no new infrastructure.
+     *
+     * This is what makes the discovery half worth looking at. Returns an
+     * empty collection when the co-watch data is too thin to be anything
+     * but noise — the caller backfills with cross-genre browsing rather
+     * than dressing up a coincidence as a recommendation.
+     *
+     * @param array<int, int> $excludeIds
+     */
+    private function collaborativePool(int $userId, array $excludeIds, int $size): Collection
+    {
+        $conf = config('frontend.recommendations.smart_shuffle');
+
+        if (! ($conf['collab_enabled'] ?? true)) {
+            return collect();
+        }
+
+        $seedIds = $this->collabSeedIds($userId);
+
+        if (empty($seedIds)) {
+            return collect();
+        }
+
+        $peerIds = DB::table('watch_history')
+            ->where('watchable_type', (new Movie)->getMorphClass())
+            ->where('completed', true)
+            ->whereIn('watchable_id', $seedIds)
+            ->where('user_id', '!=', $userId)
+            ->distinct()
+            ->limit((int) ($conf['collab_peer_limit'] ?? 400))
+            ->pluck('user_id')
+            ->all();
+
+        if (empty($peerIds)) {
+            return collect();
+        }
+
+        $skip = array_values(array_unique(array_merge($seedIds, $excludeIds)));
+
+        $counts = DB::table('watch_history')
+            ->where('watchable_type', (new Movie)->getMorphClass())
+            ->where('completed', true)
+            ->whereIn('user_id', $peerIds)
+            ->when(!empty($skip), fn ($q) => $q->whereNotIn('watchable_id', $skip))
+            ->select('watchable_id', DB::raw('COUNT(DISTINCT user_id) as peers'))
+            ->groupBy('watchable_id')
+            ->havingRaw('COUNT(DISTINCT user_id) >= ?', [(int) ($conf['collab_min_peers'] ?? 2)])
+            ->orderByDesc('peers')
+            ->limit($size)
+            ->pluck('peers', 'watchable_id');
+
+        if ($counts->isEmpty()) {
+            return collect();
+        }
+
+        $max = (float) max($counts->map(fn ($c) => (int) $c)->all());
+
+        return Movie::published()
+            ->whereIn('id', $counts->keys()->all())
+            ->with($this->shuffleRelations())
+            ->get()
+            ->each(function (Movie $m) use ($counts, $max) {
+                // Normalised to 0..1 so the `collab` weight in config means
+                // the same thing on a quiet catalog as on a busy one.
+                $m->_collabAffinity = $max > 0 ? ((int) $counts->get($m->id, 0)) / $max : 0.0;
+            });
+    }
+
+    /**
+     * The user's most recent completions — the seeds every co-watch query
+     * pivots on.
+     *
+     * @return array<int, int>
+     */
+    private function collabSeedIds(int $userId): array
+    {
+        return DB::table('watch_history')
+            ->where('user_id', $userId)
+            ->where('watchable_type', (new Movie)->getMorphClass())
+            ->where('completed', true)
+            ->orderByDesc('watched_at')
+            ->limit((int) config('frontend.recommendations.smart_shuffle.collab_seed_titles', 20))
+            ->pluck('watchable_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    /**
+     * Completions per movie inside the trending window — what people are
+     * actually finishing right now, as opposed to `views_count`, which is
+     * all-time and lets a years-old hit sit at the top of the pool forever.
+     *
+     * Catalog-wide, so it's cached once and shared by every user.
+     *
+     * @return array<int, int>  [movieId => distinct completers]
+     */
+    private function trendingCounts(): array
+    {
+        $conf = config('frontend.recommendations.smart_shuffle');
+        $days = (int) ($conf['trending_days'] ?? 14);
+        $ttl = (int) ($conf['trending_cache_ttl'] ?? 900);
+
+        return $this->cache->remember(
+            self::CACHE_KEY_SHUFFLE_TRENDING,
+            $ttl,
+            fn () => DB::table('watch_history')
+                ->where('watchable_type', (new Movie)->getMorphClass())
+                ->where('completed', true)
+                ->where('watched_at', '>=', now()->subDays($days))
+                ->select('watchable_id', DB::raw('COUNT(DISTINCT user_id) as c'))
+                ->groupBy('watchable_id')
+                ->pluck('c', 'watchable_id')
+                ->map(fn ($c) => (int) $c)
+                ->all(),
+        );
+    }
+
+    /**
+     * Blended score for one Smart Shuffle candidate. Genre, cast and
+     * collab components all arrive normalised to 0..1, so the config
+     * weights are directly comparable to one another.
+     *
+     * @param array<int, float> $genreAff
+     * @param array<int, float> $castAff
+     * @param array<int, int>   $trending
+     * @param array<int, true>  $recentlyShown
+     */
+    private function scoreShuffleCandidate(
+        Movie $m,
+        array $genreAff,
+        array $castAff,
+        array $trending,
+        array $recentlyShown,
+    ): float {
+        $w = config('frontend.recommendations.smart_shuffle.weights');
+        $score = 0.0;
+
+        $genreScore = 0.0;
+        foreach ($m->genres as $genre) {
+            $genreScore += $genreAff[$genre->id] ?? 0.0;
+        }
+        $score += ($w['genre_affinity'] ?? 1.0) * $genreScore;
+
+        if ($m->relationLoaded('cast')) {
+            $castScore = 0.0;
+            foreach ($m->cast as $person) {
+                $castScore += $castAff[$person->id] ?? 0.0;
+            }
+            $score += ($w['cast_affinity'] ?? 0.6) * $castScore;
+        }
+
+        $score += ($w['collab'] ?? 1.4) * (float) ($m->_collabAffinity ?? 0.0);
+        $score += ($w['trending'] ?? 0.5) * log(1 + ($trending[$m->id] ?? 0));
+        $score += ($w['editor_boost'] ?? 0.8) * (float) ($m->editor_boost ?? 0);
+
+        if (isset($recentlyShown[$m->id])) {
+            $score += (float) ($w['recently_shown'] ?? -1.2);
+        }
+
+        return $score;
+    }
+
+    /**
+     * Rank-biased sample without replacement: the candidate at rank r is
+     * drawn with weight $decay^r. The top of the list is favoured but
+     * never guaranteed, which is what lets the shelf churn between windows
+     * while still respecting the ranking.
+     *
+     * $decay = 1.0 degenerates to a uniform shuffle (throws the ranking
+     * away); $decay → 0 to a strict top-N (never churns).
+     *
+     * Expects $ranked to already be sorted best-first.
+     */
+    private function weightedSample(Collection $ranked, int $n, float $decay): Collection
+    {
+        if ($n <= 0 || $ranked->isEmpty()) {
+            return collect();
+        }
+
+        $decay = min(1.0, max(0.01, $decay));
+        $pool = $ranked->values()->all();
+
+        $weights = [];
+        foreach (array_keys($pool) as $rank) {
+            $weights[$rank] = $decay ** $rank;
+        }
+
+        $picked = collect();
+
+        while ($picked->count() < $n && !empty($weights)) {
+            $total = array_sum($weights);
+            if ($total <= 0.0) {
+                break;
+            }
+
+            $roll = (mt_rand() / mt_getrandmax()) * $total;
+            $chosen = array_key_first($weights);
+            $acc = 0.0;
+
+            foreach ($weights as $rank => $weight) {
+                $acc += $weight;
+                if ($roll <= $acc) {
+                    $chosen = $rank;
+                    break;
+                }
+            }
+
+            $picked->push($pool[$chosen]);
+            unset($weights[$chosen]);
+        }
+
+        return $picked;
+    }
+
+    /**
+     * Ids surfaced in previous windows, as a flipped map for O(1) lookup.
+     * See SESSION_KEY_SHUFFLE_SEEN for why this lives in the session.
+     *
+     * @return array<int, true>
+     */
+    private function recentlyShownIds(int $userId): array
+    {
+        $session = $this->sessionStore();
+
+        if ($session === null) {
+            return [];
+        }
+
+        return array_flip(array_map(
+            'intval',
+            (array) $session->get(self::shuffleSeenKey($userId), []),
+        ));
+    }
+
+    /**
+     * Remember what we just showed so the next window can push it down.
+     *
+     * @param array<int, int> $ids
+     */
+    private function rememberShown(int $userId, array $ids): void
+    {
+        $session = $this->sessionStore();
+
+        if ($session === null) {
+            return;
+        }
+
+        $key = self::shuffleSeenKey($userId);
+        $size = (int) config('frontend.recommendations.smart_shuffle.recent_memory_size', 30);
+
+        // Newest first, so the cap evicts the oldest memories.
+        $merged = array_values(array_unique(array_map(
+            'intval',
+            array_merge($ids, (array) $session->get($key, [])),
+        )));
+
+        $session->put($key, array_slice($merged, 0, $size));
+    }
+
+    /**
+     * Scoped by user id so logging out and back in as somebody else on the
+     * same browser doesn't inherit the previous account's shuffle memory.
+     */
+    private static function shuffleSeenKey(int $userId): string
+    {
+        return self::SESSION_KEY_SHUFFLE_SEEN . '.' . $userId;
+    }
+
+    /**
+     * Tag each pick with the reason it earned its slot, strongest first:
+     * a real co-watch link, then cast, then genre, then trending.
+     *
+     * Nothing here is invented. "Because you watched X" is only ever
+     * emitted when X is genuinely the title most co-completed with this
+     * pick — a plausible-sounding but fabricated reason would do more
+     * damage to trust than showing no reason at all, so when we can't
+     * name something we computed, the card gets the neutral caption.
+     *
+     * @param array<int, float> $genreAff
+     * @param array<int, float> $castAff
+     * @param array<int, int>   $trending
+     */
+    private function attachReasons(
+        Collection $shelf,
+        int $userId,
+        array $genreAff,
+        array $castAff,
+        array $trending,
+    ): void {
+        if ($shelf->isEmpty() || ! config('frontend.recommendations.smart_shuffle.reasons_enabled', true)) {
+            return;
+        }
+
+        $coWatch = $this->coWatchReasons($userId, $shelf->pluck('id')->all());
+
+        foreach ($shelf as $m) {
+            if (isset($coWatch[$m->id])) {
+                $m->_shuffleReason = __('recommendReason.because_you_watched', ['title' => $coWatch[$m->id]]);
+                continue;
+            }
+
+            $person = $this->topMatch($m->relationLoaded('cast') ? $m->cast : collect(), $castAff);
+            if ($person !== null) {
+                $m->_shuffleReason = __('recommendReason.cast_match', ['name' => $person->full_name]);
+                continue;
+            }
+
+            $genre = $this->topMatch($m->genres, $genreAff);
+            if ($genre !== null) {
+                $m->_shuffleReason = __('recommendReason.genre_match', ['genre' => $genre->name]);
+                continue;
+            }
+
+            $m->_shuffleReason = ($trending[$m->id] ?? 0) > 0
+                ? __('recommendReason.trending')
+                : __('recommendReason.new_to_you');
+        }
+    }
+
+    /**
+     * For the chosen shelf only, the user's own completed title most often
+     * finished alongside each pick.
+     *
+     * One grouped self-join over at most $limit ids — cheap enough to run
+     * after selection, and it's what lets a card say "Because you watched
+     * Sinners" and be telling the truth.
+     *
+     * @param  array<int, int> $candidateIds
+     * @return array<int, string>  [movieId => seed title]
+     */
+    private function coWatchReasons(int $userId, array $candidateIds): array
+    {
+        if (empty($candidateIds) || ! config('frontend.recommendations.smart_shuffle.collab_enabled', true)) {
+            return [];
+        }
+
+        $seedIds = $this->collabSeedIds($userId);
+
+        if (empty($seedIds)) {
+            return [];
+        }
+
+        $movieMorph = (new Movie)->getMorphClass();
+
+        $rows = DB::table('watch_history as seed')
+            ->join('watch_history as also', fn ($join) => $join
+                ->on('also.user_id', '=', 'seed.user_id')
+                ->where('also.watchable_type', '=', $movieMorph)
+                ->where('also.completed', '=', true))
+            ->where('seed.watchable_type', $movieMorph)
+            ->where('seed.completed', true)
+            ->where('seed.user_id', '!=', $userId)
+            ->whereIn('seed.watchable_id', $seedIds)
+            ->whereIn('also.watchable_id', $candidateIds)
+            ->select(
+                'seed.watchable_id as seed_id',
+                'also.watchable_id as cand_id',
+                DB::raw('COUNT(DISTINCT seed.user_id) as peers'),
+            )
+            ->groupBy('seed.watchable_id', 'also.watchable_id')
+            ->orderByDesc('peers')
+            ->get();
+
+        if ($rows->isEmpty()) {
+            return [];
+        }
+
+        // Rows arrive strongest-first, so the first one seen for a
+        // candidate is its best link.
+        $bestSeed = [];
+        foreach ($rows as $row) {
+            $bestSeed[(int) $row->cand_id] ??= (int) $row->seed_id;
+        }
+
+        $titles = Movie::whereIn('id', array_values(array_unique($bestSeed)))->pluck('title', 'id');
+
+        $reasons = [];
+        foreach ($bestSeed as $candidateId => $seedId) {
+            if (isset($titles[$seedId])) {
+                $reasons[$candidateId] = $titles[$seedId];
+            }
+        }
+
+        return $reasons;
+    }
+
+    /**
+     * Highest-affinity related record on a candidate (genre or cast
+     * member), or null when the user has no signal on any of them.
+     *
+     * @param array<int, float> $affinity
+     */
+    private function topMatch(Collection $related, array $affinity): ?Model
+    {
+        $best = null;
+        $bestScore = 0.0;
+
+        foreach ($related as $record) {
+            $score = $affinity[$record->id] ?? 0.0;
+            if ($score > $bestScore) {
+                $best = $record;
+                $bestScore = $score;
+            }
+        }
+
+        return $best;
+    }
+
+    /**
+     * @param  array<int, float> $vector
+     * @return array<int, float>
+     */
+    private function positiveOnly(array $vector): array
+    {
+        return array_filter($vector, fn ($v) => $v > 0);
+    }
+
+    /**
+     * Scale a vector so its largest value is 1.0. Without this, genre
+     * affinity (built from raw counts × weights) and cast affinity live on
+     * different scales and their config weights would mean nothing.
+     *
+     * @param  array<int, float> $vector
+     * @return array<int, float>
+     */
+    private function normaliseVector(array $vector): array
+    {
+        if (empty($vector)) {
+            return [];
+        }
+
+        $max = max(array_map('abs', $vector));
+
+        if ($max <= 0.0) {
+            return [];
+        }
+
+        return array_map(fn ($v) => $v / $max, $vector);
+    }
+
+    /**
+     * Genre ids the current guest has browsed this session, most recent
+     * first. Empty for authenticated users (they have real signals) and in
+     * any context with no started session — queue workers, console
+     * commands, and the like.
+     *
+     * @return array<int, int>
+     */
+    private function guestGenreSignal(): array
+    {
+        $session = $this->guestSignalEnabled() ? $this->sessionStore() : null;
+
+        if ($session === null) {
+            return [];
+        }
+
+        $ids = array_map('intval', (array) $session->get(self::SESSION_KEY_GUEST_GENRES, []));
+
+        return array_slice(array_values(array_unique($ids)), 0, 3);
+    }
+
+    private function guestSignalEnabled(): bool
+    {
+        return (bool) config('frontend.recommendations.smart_shuffle.guest_session_signal', true);
+    }
+
+    /**
+     * The session store, or null when there's no session container at all
+     * (queue worker, console command, stateless API route).
+     *
+     * Deliberately does NOT gate on `isStarted()`. The store reports itself
+     * as not-started once the response has been sent and the session saved,
+     * even though its data is still perfectly readable — gating on it made
+     * the signal silently invisible to every caller that ran after the
+     * request had been handled, which is most of them. Reading a
+     * never-started store is harmless: it just returns the default.
+     */
+    private function sessionStore(): ?\Illuminate\Contracts\Session\Session
+    {
+        return app()->bound('session.store') ? app('session.store') : null;
+    }
+
+    /**
+     * Record a browsed title's genres as guest session signal, newest
+     * first. No-op for authenticated users, whose real watch/rating/
+     * watchlist signals are strictly better. Called from the movie detail
+     * page — the one place we know a visitor showed interest in something
+     * specific before they've watched anything.
+     */
+    public function recordGuestSignal(Movie $movie): void
+    {
+        $session = (auth()->check() || ! $this->guestSignalEnabled())
+            ? null
+            : $this->sessionStore();
+
+        if ($session === null) {
+            return;
+        }
+
+        $genreIds = $movie->relationLoaded('genres')
+            ? $movie->genres->pluck('id')->all()
+            : $movie->genres()->pluck('genres.id')->all();
+
+        if (empty($genreIds)) {
+            return;
+        }
+
+        $existing = (array) $session->get(self::SESSION_KEY_GUEST_GENRES, []);
+
+        // New genres go to the front: what they're looking at now should
+        // outweigh what they glanced at ten pages ago.
+        $merged = array_values(array_unique(array_map(
+            'intval',
+            array_merge($genreIds, $existing),
+        )));
+
+        $session->put(self::SESSION_KEY_GUEST_GENRES, array_slice($merged, 0, 8));
     }
 
     /**

@@ -14,8 +14,8 @@ use Modules\Notifications\app\Models\NotificationSetting;
  * defaults, so day-one behaviour is identical to before this table
  * existed — the super-admin can then diverge audiences from the UI.
  *
- * Re-runnable: upsert on (notification_key, audience), no columns
- * overwritten on conflict, so existing super-admin edits are preserved.
+ * Re-runnable: insertOrIgnore on (notification_key, audience), so existing
+ * super-admin edits are preserved and only missing rows are added.
  */
 class NotificationAudienceSettingsSeeder extends Seeder
 {
@@ -29,6 +29,7 @@ class NotificationAudienceSettingsSeeder extends Seeder
         'payment_failed'          => ['in_app' => true, 'email' => true,  'push' => true],
         'subscription_expired'    => ['in_app' => true, 'email' => true,  'push' => true],
         'subscription_cancelled'  => ['in_app' => true, 'email' => true,  'push' => false],
+        'withdrawal_requested'    => ['in_app' => true, 'email' => true,  'push' => false],
         'movie_added'             => ['in_app' => true, 'email' => false, 'push' => true],
         'show_added'              => ['in_app' => true, 'email' => false, 'push' => true],
         'season_added'            => ['in_app' => true, 'email' => false, 'push' => true],
@@ -68,10 +69,9 @@ class NotificationAudienceSettingsSeeder extends Seeder
             }
         }
 
-        DB::table('notification_audience_settings')->upsert(
-            $rows,
-            ['notification_key', 'audience'],
-            [] // preserve existing super-admin edits
-        );
+        // insertOrIgnore preserves existing super-admin edits — new rows only.
+        // (upsert() with an empty update list compiles to a plain INSERT in
+        // Laravel and violates the (key, audience) unique index on re-run.)
+        DB::table('notification_audience_settings')->insertOrIgnore($rows);
     }
 }

@@ -27,6 +27,9 @@ making *any* design decision; deep-read the one closest to your task.
   colours, spacing, mobile breakpoints.
 - [`docs/deploy/hostinger-vps.md`](deploy/hostinger-vps.md) and
   [`docs/deploy/cyberpanel.md`](deploy/cyberpanel.md) — production env.
+- [`docs/deploy/release-publishing-notifications.md`](deploy/release-publishing-notifications.md)
+  — extra steps for the publishing/timezone/notification release
+  (new env vars, a migration you must not skip, worker restart).
 - [`docs/modules/<name>.md`](modules/) — per-module specifics
   (notifications, file-manager, system-update, pesapal-integration).
 - [`docs/SESSION-RESUME.md`](SESSION-RESUME.md) — running log of major

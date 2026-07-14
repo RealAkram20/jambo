@@ -110,19 +110,21 @@
                 <div class="mb-3" data-jambo-release-wrap
                      @if (old('status', $show->status ?: 'draft') === 'draft') style="display:none;" @endif>
                     <label for="published_at" class="form-label" data-jambo-release-label>
-                        {{ old('status', $show->status) === 'upcoming' ? 'Release date' : 'Published at' }}
+                        {{ old('status', $show->status) === 'upcoming' ? 'Release date' : 'Published at' }} ({{ \App\Support\LocalTime::abbreviation() }})
                     </label>
                     <input type="datetime-local" name="published_at" id="published_at"
                            class="form-control"
-                           value="{{ old('published_at', $show->published_at?->format('Y-m-d\TH:i')) }}">
+                           value="{{ old('published_at', \App\Support\LocalTime::forInput($show->published_at)) }}">
+                    <div class="text-muted mt-1" style="font-size:12px;" data-jambo-tz-hint></div>
                 </div>
 
                 @if ($show->exists && $show->published_at)
+                    @php($releaseLocal = \App\Support\LocalTime::display($show->published_at))
                     <div class="text-muted" style="font-size:12px;">
                         @if ($show->status === 'upcoming')
-                            Releases {{ $show->published_at->format('M j, Y') }} ({{ $show->published_at->diffForHumans() }})
+                            Releases {{ $releaseLocal->format('M j, Y') }} ({{ $releaseLocal->diffForHumans() }})
                         @else
-                            Published {{ $show->published_at->diffForHumans() }}
+                            Published {{ $releaseLocal->diffForHumans() }}
                         @endif
                     </div>
                 @endif
@@ -255,7 +257,9 @@
                 wrap.style.display = 'none';
             } else {
                 wrap.style.display = '';
-                label.textContent = s === 'upcoming' ? 'Release date' : 'Published at';
+                // Timezone stays on the label — see release-timezone-script.
+                label.textContent = (s === 'upcoming' ? 'Release date' : 'Published at')
+                    + ' ({{ \App\Support\LocalTime::abbreviation() }})';
             }
         };
         statusSel.addEventListener('change', apply);
@@ -263,4 +267,5 @@
     }
 })();
 </script>
+@include('content::admin.partials.release-timezone-script')
 @include('content::admin.partials.media-picker-script')

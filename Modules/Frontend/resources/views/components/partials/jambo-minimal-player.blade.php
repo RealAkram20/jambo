@@ -69,12 +69,18 @@
             var v = document.getElementById('{{ $playerId }}');
             if (!v) return;
             var ds = localStorage.getItem('jambo.dataSaver') === '1';
-            var quality = localStorage.getItem('jambo.quality') || 'default';
-            var low = v.dataset.srcLow;
             var resume = parseInt(v.dataset.resume || '0', 10);
 
-            // Pick source based on quality preference.
-            v.src = (quality === 'low' && low) ? low : v.dataset.srcDefault;
+            // Current source for the selected quality. Read live from
+            // localStorage + the dataset so a source re-apply after an
+            // in-place episode/movie swap picks up the new URL.
+            function pickSource() {
+                var q = localStorage.getItem('jambo.quality') || 'default';
+                var low = v.dataset.srcLow;
+                return (q === 'low' && low) ? low : v.dataset.srcDefault;
+            }
+
+            v.src = pickSource();
 
             // Data Saver: minimize buffering.
             v.preload = ds ? 'metadata' : 'auto';
@@ -90,6 +96,26 @@
                     earlyPlay.catch(function () {});
                 }
             } catch (e) {}
+
+            // Setting .src above (early, for a fast start) races the
+            // <video-player> custom-element upgrade: as the library
+            // adopts the <video> it can drop the source we just set,
+            // which the browser reports as MEDIA_ERR_SRC_NOT_SUPPORTED
+            // (code 4) — an unplayable-file error for what is really a
+            // timing problem. Once the element is defined, re-apply the
+            // source if it went missing or already errored. A no-op when
+            // the upgrade left our source alone, which is the common case.
+            if (window.customElements && customElements.whenDefined) {
+                customElements.whenDefined('video-player').then(function () {
+                    if (v.currentSrc && !v.error) return;
+                    var base = pickSource();
+                    if (!base) return;
+                    v.src = base;
+                    v.load();
+                    var p = v.play();
+                    if (p && typeof p.catch === 'function') p.catch(function () {});
+                }).catch(function () {});
+            }
 
             // Resume from last position once video metadata loads.
             if (resume > 0) {
@@ -127,6 +153,11 @@
             var stallTimer = null;
             var lastKnownPosition = 0;
             var hasPlayedOnce = false;
+            // Separate, small budget for "source not supported" on the
+            // very first load — see the error handler for why that case
+            // needs retries at all.
+            var initialSrcRetries = 0;
+            var MAX_INITIAL_SRC_RETRIES = 3;
 
             v.addEventListener('timeupdate', function () {
                 if (v.currentTime > 0) lastKnownPosition = v.currentTime;
@@ -141,9 +172,13 @@
                 console.warn('[jambo-player] ' + reason + ', retry ' + retryCount);
                 clearTimeout(stallTimer);
 
-                var q = localStorage.getItem('jambo.quality') || 'default';
-                var base = (q === 'low' && v.dataset.srcLow) ? v.dataset.srcLow : v.dataset.srcDefault;
+                var base = pickSource();
                 if (!base) return;
+                // The cache-buster lands on our own passthrough route
+                // (not the CDN URL it redirects to), so it can't break
+                // a signed CDN token — it just forces Laravel to mint a
+                // fresh redirect instead of the browser reusing a stale
+                // cached one.
                 var sep = base.indexOf('?') === -1 ? '?' : '&';
                 v.src = base + sep + '_retry=' + Date.now();
 
@@ -172,13 +207,30 @@
                 // Codes: 1 aborted, 2 network, 3 decode, 4 src not supported.
                 // We retry on decode / src / network — not on manual abort.
                 if (err.code === 1) return;
-                // Code 4 BEFORE first play means the source is genuinely
-                // unplayable (wrong codec / dead share link / HTML error
-                // page where bytes were expected). Reloading the same
-                // source 12 times won't change that, it just spams the
-                // console with `error code=4, retry N`. Bail with a
-                // single clear message.
+                // Code 4 BEFORE first play has two very different causes
+                // that the browser reports identically:
+                //
+                //   (a) the file really is unplayable — wrong codec, dead
+                //       link, or an HTML error page where bytes were
+                //       expected. No number of retries fixes it.
+                //   (b) our early .src assignment lost a race with the
+                //       <video-player> element upgrade, so the element
+                //       momentarily had no usable source. Re-applying it
+                //       fixes it every time — which is precisely why the
+                //       "Try again" button below always worked while the
+                //       automatic path gave up instantly.
+                //
+                // Since (b) is indistinguishable from (a) up front, try
+                // the cheap recovery a few times first and only show the
+                // error overlay once it's clear the source is really dead.
                 if (err.code === 4 && !hasPlayedOnce) {
+                    if (initialSrcRetries < MAX_INITIAL_SRC_RETRIES) {
+                        initialSrcRetries++;
+                        setTimeout(function () {
+                            reloadAtPosition('src not supported on load (attempt ' + initialSrcRetries + ')');
+                        }, 400 * initialSrcRetries);
+                        return;
+                    }
                     console.warn('[jambo-player] source not supported by this browser — '
                         + 'check the codec (must be H.264 / VP9 / AV1) and that the URL '
                         + 'returns video bytes, not an HTML error page.');
@@ -266,8 +318,7 @@
                         // Force the browser to refetch from origin in case
                         // the failure was a cached 4xx / corrupted byte
                         // window. The _retry param breaks any HTTP cache.
-                        var base = (localStorage.getItem('jambo.quality') === 'low' && v.dataset.srcLow)
-                            ? v.dataset.srcLow : v.dataset.srcDefault;
+                        var base = pickSource();
                         if (!base) return;
                         var sep = base.indexOf('?') === -1 ? '?' : '&';
                         v.src = base + sep + '_retry=' + Date.now();

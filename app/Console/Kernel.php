@@ -35,6 +35,15 @@ class Kernel extends ConsoleKernel
             ->everyMinute()
             ->withoutOverlapping()
             ->onOneServer();
+
+        // Announce titles the moment their release time arrives. Admins can
+        // publish with a future `published_at`; nothing is broadcast at save
+        // time unless it's already watchable, so this is what turns a
+        // scheduled release into a notification — with a link that works.
+        $schedule->command('content:announce-due')
+            ->everyMinute()
+            ->withoutOverlapping()
+            ->onOneServer();
     }
 
     /**

@@ -19,13 +19,23 @@ use Illuminate\Support\Facades\Schema;
  * the time of order). Backfilled here from the current users row;
  * any future deletes will have the snapshot refreshed on the
  * User::deleting model hook just before the row is removed.
+ *
+ * The snapshot columns are portable and are added on every driver. The
+ * backfill and the FK swap are raw MySQL (`UPDATE ... INNER JOIN`,
+ * `MODIFY`, `information_schema`) and are skipped elsewhere — they were
+ * aborting the migration run on the sqlite test connection, which took
+ * the whole test suite down. Nothing is lost by skipping: a fresh test
+ * DB has no rows to backfill, and sqlite cannot alter a FK in place at
+ * all (its FKs are declared at table-create time).
  */
 return new class extends Migration {
     public function up(): void
     {
+        $isMysql = DB::connection()->getDriverName() === 'mysql';
+
         // payment_orders ----------------------------------------------------
         if (Schema::hasTable('payment_orders')) {
-            // Snapshot columns first — backfill needs them.
+            // Snapshot columns first — backfill needs them. Portable.
             if (!Schema::hasColumn('payment_orders', 'customer_email')) {
                 Schema::table('payment_orders', function (Blueprint $t) {
                     $t->string('customer_email')->nullable()->after('user_id');
@@ -34,28 +44,30 @@ return new class extends Migration {
                 });
             }
 
-            // Backfill from the current users row so existing orders carry
-            // identity even if we never see those users again.
-            DB::statement("
-                UPDATE payment_orders po
-                INNER JOIN users u ON po.user_id = u.id
-                SET po.customer_email = COALESCE(po.customer_email, u.email),
-                    po.customer_name  = COALESCE(po.customer_name, TRIM(CONCAT(IFNULL(u.first_name, ''), ' ', IFNULL(u.last_name, '')))),
-                    po.customer_username = COALESCE(po.customer_username, u.username)
-            ");
+            if ($isMysql) {
+                // Backfill from the current users row so existing orders carry
+                // identity even if we never see those users again.
+                DB::statement("
+                    UPDATE payment_orders po
+                    INNER JOIN users u ON po.user_id = u.id
+                    SET po.customer_email = COALESCE(po.customer_email, u.email),
+                        po.customer_name  = COALESCE(po.customer_name, TRIM(CONCAT(IFNULL(u.first_name, ''), ' ', IFNULL(u.last_name, '')))),
+                        po.customer_username = COALESCE(po.customer_username, u.username)
+                ");
 
-            // Swap the FK from CASCADE to SET NULL.
-            $this->dropFkIfExists('payment_orders', 'payment_orders_user_id_foreign');
-            DB::statement("ALTER TABLE payment_orders MODIFY user_id BIGINT UNSIGNED NULL");
-            DB::statement("
-                ALTER TABLE payment_orders
-                ADD CONSTRAINT payment_orders_user_id_foreign
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
-            ");
+                // Swap the FK from CASCADE to SET NULL.
+                $this->dropFkIfExists('payment_orders', 'payment_orders_user_id_foreign');
+                DB::statement("ALTER TABLE payment_orders MODIFY user_id BIGINT UNSIGNED NULL");
+                DB::statement("
+                    ALTER TABLE payment_orders
+                    ADD CONSTRAINT payment_orders_user_id_foreign
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+                ");
+            }
         }
 
         // user_subscriptions ------------------------------------------------
-        if (Schema::hasTable('user_subscriptions')) {
+        if ($isMysql && Schema::hasTable('user_subscriptions')) {
             $this->dropFkIfExists('user_subscriptions', 'user_subscriptions_user_id_foreign');
             DB::statement("ALTER TABLE user_subscriptions MODIFY user_id BIGINT UNSIGNED NULL");
             DB::statement("

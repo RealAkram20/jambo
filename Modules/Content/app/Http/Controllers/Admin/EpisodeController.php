@@ -3,6 +3,7 @@
 namespace Modules\Content\app\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\LocalTime;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -11,6 +12,7 @@ use Modules\Content\app\Http\Requests\UpdateEpisodeRequest;
 use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Season;
 use Modules\Content\app\Models\Show;
+use Modules\Content\app\Services\ContentAnnouncer;
 
 /**
  * Admin CRUD for episodes (nested under Series → Season).
@@ -20,6 +22,10 @@ use Modules\Content\app\Models\Show;
  */
 class EpisodeController extends Controller
 {
+    public function __construct(private readonly ContentAnnouncer $announcer)
+    {
+    }
+
     public function create(Show $show, Season $season): View
     {
         return view('content::admin.episodes.create', [
@@ -61,17 +67,11 @@ class EpisodeController extends Controller
             'published_at' => $publishedAt,
         ]);
 
-        // Only notify if the show itself is publicly available —
-        // otherwise the action_url on the notification (/series/slug)
-        // 404s for draft shows, or lands on a "Coming Soon" stub for
-        // upcoming shows. Either way the user can't actually watch
-        // the episode the alert announces. See Show::isPubliclyAvailable.
-        if ($episode->published_at && $show->isPubliclyAvailable()) {
-            event(new \Modules\Notifications\app\Events\EpisodeAdded(
-                $show->title, $season->number, $episode->number,
-                $episode->title, $show->slug, $episode->still_url ?? $show->poster_url,
-            ));
-        }
+        // The announcer holds the alert unless the episode has actually
+        // dropped AND the show is publicly reachable — an alert for an
+        // episode of a draft show, or one whose release date hasn't
+        // arrived, lands the user on a page they can't watch.
+        $this->announcer->announceEpisode($episode);
 
         return redirect()
             ->route('admin.series.seasons.episodes.edit', [$show, $season, $episode])
@@ -91,7 +91,6 @@ class EpisodeController extends Controller
     {
         $data = $request->validated();
 
-        $wasPublished = (bool) $episode->published_at;
         [$videoUrl, $dropboxPath] = $this->resolveVideoSource($data);
 
         $episode->fill([
@@ -118,21 +117,15 @@ class EpisodeController extends Controller
                 $data['published_at'] ?? null,
             );
         } elseif (array_key_exists('published_at', $data)) {
-            $episode->published_at = $data['published_at'] ?: null;
+            $episode->published_at = LocalTime::toUtc($data['published_at']);
         }
 
         $episode->save();
 
-        $justPublished = !$wasPublished && $episode->published_at !== null;
-        // Same gate as store(): suppress when the show is still draft
-        // or upcoming so the notification's "/series/slug" link doesn't
-        // 404 / dead-end for the user.
-        if ($justPublished && $show->isPubliclyAvailable()) {
-            event(new \Modules\Notifications\app\Events\EpisodeAdded(
-                $show->title, $season->number, $episode->number,
-                $episode->title, $show->slug, $episode->still_url ?? $show->poster_url,
-            ));
-        }
+        // Same gate as store(). `announced_at` (not a wasPublished flag)
+        // is what stops a re-announcement, so an admin toggling an episode
+        // back and forth, or fixing a typo, can't re-spam the audience.
+        $this->announcer->announceEpisode($episode);
 
         return redirect()
             ->route('admin.series.seasons.episodes.edit', [$show, $season, $episode])
@@ -149,13 +142,17 @@ class EpisodeController extends Controller
      */
     private function resolveEpisodePublishedAt(string $status, mixed $rawDate): mixed
     {
-        $rawDate = is_string($rawDate) && trim($rawDate) === '' ? null : $rawDate;
+        // The form posts a bare wall-clock string with no offset, meaning
+        // EAT. Stored as-is it reads as UTC, landing the episode hours in
+        // the future and hiding it from `published_at <= now()` until the
+        // offset burns off. Normalise to UTC at the boundary.
+        $date = LocalTime::toUtc($rawDate);
 
         return match ($status) {
             'draft'     => null,
-            'published' => $rawDate ?: now(),
-            'upcoming'  => $rawDate ?: null, // admin should pick a date; null = treated as draft
-            default     => $rawDate ?: null,
+            'published' => $date ?: now(),
+            'upcoming'  => $date, // admin should pick a date; null = treated as draft
+            default     => $date,
         };
     }
 

@@ -3,6 +3,7 @@
 namespace Modules\Content\app\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\LocalTime;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,7 @@ use Modules\Content\app\Models\Vj;
 use Modules\Content\app\Models\Movie;
 use Modules\Content\app\Models\Person;
 use Modules\Content\app\Models\Tag;
+use Modules\Content\app\Services\ContentAnnouncer;
 
 /**
  * Admin CRUD for movies.
@@ -30,6 +32,10 @@ use Modules\Content\app\Models\Tag;
  */
 class MovieController extends Controller
 {
+    public function __construct(private readonly ContentAnnouncer $announcer)
+    {
+    }
+
     public function index(Request $request): View
     {
         $query = Movie::query()
@@ -91,8 +97,7 @@ class MovieController extends Controller
 
     public function store(StoreMovieRequest $request): RedirectResponse
     {
-        $wasPublished = false;
-        $movie = DB::transaction(function () use ($request, &$wasPublished) {
+        $movie = DB::transaction(function () use ($request) {
             $data = $request->validated();
             [$videoUrl, $dropboxPath] = $this->resolveVideoSource($data);
 
@@ -116,8 +121,14 @@ class MovieController extends Controller
                 // UI) or a published one (to backdate). When nothing
                 // is provided, we stamp now() iff status=published so
                 // the public listing can order by it.
+                //
+                // LocalTime::toUtc is what keeps a title from vanishing:
+                // the form posts a bare wall-clock string in EAT, while
+                // every visibility check compares against a UTC now().
+                // Stored raw, "publish at 8pm" meant 8pm UTC — 11pm local
+                // — and the movie stayed invisible for three hours.
                 'published_at' => ! empty($data['published_at'])
-                    ? $data['published_at']
+                    ? LocalTime::toUtc($data['published_at'])
                     : (($data['status'] ?? 'draft') === 'published' ? now() : null),
             ]);
 
@@ -126,11 +137,10 @@ class MovieController extends Controller
             return $movie;
         });
 
-        if ($movie->status === 'published') {
-            event(new \Modules\Notifications\app\Events\MovieAdded(
-                $movie->id, $movie->title, $movie->slug, $movie->poster_url,
-            ));
-        }
+        // Announce only if it's genuinely watchable now. A future-dated
+        // release is picked up by content:announce-due when it goes live,
+        // so the notification always links to a page that exists.
+        $this->announcer->announceMovie($movie);
 
         return redirect()
             ->route('admin.movies.edit', $movie)
@@ -164,8 +174,7 @@ class MovieController extends Controller
 
     public function update(UpdateMovieRequest $request, Movie $movie): RedirectResponse
     {
-        $justPublished = false;
-        DB::transaction(function () use ($request, $movie, &$justPublished) {
+        DB::transaction(function () use ($request, $movie) {
             $data = $request->validated();
             [$videoUrl, $dropboxPath] = $this->resolveVideoSource($data);
 
@@ -195,12 +204,11 @@ class MovieController extends Controller
             // the status-transition auto-stamp so a user-supplied value
             // always wins.
             if (array_key_exists('published_at', $data)) {
-                $movie->published_at = $data['published_at'] ?: null;
+                $movie->published_at = LocalTime::toUtc($data['published_at']);
             }
 
             // Status transitions: draft → published stamps published_at
             // when the admin didn't supply their own date.
-            $oldStatus = $movie->status;
             if (($data['status'] ?? $movie->status) !== $movie->status) {
                 $movie->status = $data['status'];
                 if ($data['status'] === 'published' && !$movie->published_at) {
@@ -211,15 +219,13 @@ class MovieController extends Controller
             $movie->save();
 
             $this->syncRelationships($movie, $data);
-
-            $justPublished = $oldStatus !== 'published' && $movie->status === 'published';
         });
 
-        if ($justPublished) {
-            event(new \Modules\Notifications\app\Events\MovieAdded(
-                $movie->id, $movie->title, $movie->slug, $movie->poster_url,
-            ));
-        }
+        // No $justPublished transition check anymore — announcing is now
+        // idempotent on `announced_at`, so "did this save flip it to
+        // published?" is the wrong question. The right one is "is it live,
+        // and have we told anyone?", which the announcer owns.
+        $this->announcer->announceMovie($movie);
 
         return redirect()
             ->route('admin.movies.edit', $movie)

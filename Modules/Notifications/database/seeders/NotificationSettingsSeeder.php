@@ -6,8 +6,8 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Seeds one row per known notification key. Re-runnable: uses upsert so
- * existing admin choices are preserved when a new key is added.
+ * Seeds one row per known notification key. Re-runnable: uses insertOrIgnore
+ * so existing admin choices are preserved when a new key is added.
  *
  * To add a new notification type site-wide:
  *   1. Append to the $keys array below with sensible channel defaults
@@ -46,6 +46,14 @@ class NotificationSettingsSeeder extends Seeder
             ['key' => 'episode_added',        'system_enabled' => true,  'push_enabled' => true,  'email_enabled' => false],
             ['key' => 'watchlist_available',  'system_enabled' => true,  'push_enabled' => true,  'email_enabled' => false],
 
+            // ─── Monetization & Payouts ────────────────────────────
+            ['key' => 'earnings_credited',    'system_enabled' => true,  'push_enabled' => true,  'email_enabled' => true],
+            ['key' => 'withdrawal_requested', 'system_enabled' => true,  'push_enabled' => false, 'email_enabled' => true],
+            ['key' => 'withdrawal_approved',  'system_enabled' => true,  'push_enabled' => false, 'email_enabled' => true],
+            ['key' => 'withdrawal_paid',      'system_enabled' => true,  'push_enabled' => true,  'email_enabled' => true],
+            ['key' => 'withdrawal_rejected',  'system_enabled' => true,  'push_enabled' => false, 'email_enabled' => true],
+            ['key' => 'payout_profile_verified','system_enabled'=> true, 'push_enabled' => false, 'email_enabled' => true],
+
             // ─── Admin & Moderation ────────────────────────────────
             ['key' => 'admin_broadcast',      'system_enabled' => true,  'push_enabled' => true,  'email_enabled' => true],
             ['key' => 'new_review_posted',    'system_enabled' => true,  'push_enabled' => false, 'email_enabled' => false],
@@ -56,11 +64,10 @@ class NotificationSettingsSeeder extends Seeder
 
         $rows = array_map(fn ($row) => $row + ['updated_at' => $now], $keys);
 
-        // upsert keeps existing admin tweaks intact — new rows only.
-        DB::table('notification_settings')->upsert(
-            $rows,
-            ['key'],
-            [] // no columns to overwrite on conflict
-        );
+        // insertOrIgnore keeps existing admin tweaks intact — new rows only.
+        // (upsert() with an empty update list compiles to a plain INSERT in
+        // Laravel and blows up on the existing primary keys, so it can't be
+        // used for a "leave conflicts alone" seed.)
+        DB::table('notification_settings')->insertOrIgnore($rows);
     }
 }

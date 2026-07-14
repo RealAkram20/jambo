@@ -111,19 +111,36 @@ class NotificationAudienceSetting extends Model
     }
 
     /**
-     * True when this key is audience-controlled at all (has at least one
-     * audience row). Lets via() tell apart two "no row for this audience"
-     * cases: a role-targeted type where THIS audience was deliberately
-     * excluded (→ deny), versus a personal type with no audience concept
-     * (→ fall back to the flat NotificationSetting row). Cached as one set
-     * so it costs a single query regardless of dispatch volume.
+     * True when this key is audience-controlled — i.e. its definitions()
+     * tag is role-targeted (Admin/All). Lets via() tell apart two "no row
+     * for this audience" cases: a role-targeted type where THIS audience
+     * was deliberately excluded (→ deny), versus a personal type with no
+     * audience concept (→ fall back to the flat NotificationSetting row).
+     *
+     * Derived from definitions(), NOT from which rows happen to exist in
+     * the table. Row presence would fail OPEN for a role-targeted type
+     * that was added to definitions() but never seeded: with no rows the
+     * key would look "not audience-controlled", skip the matrix entirely
+     * and fall through to the flat switch, whose own missing-row default
+     * is permissive. Reading the tag makes that case deny instead, so the
+     * super-admin's matrix is always the authority for staff-facing types.
      */
     public static function keyIsAudienceControlled(string $key): bool
     {
         $keys = Cache::remember(
             'notif-audience:controlled-keys',
             now()->addMinute(),
-            fn () => static::query()->distinct()->pluck('notification_key')->all(),
+            function () {
+                $controlled = [];
+                foreach (NotificationSetting::definitions() as $group) {
+                    foreach ($group['items'] as $item) {
+                        if (self::audiencesForTag($item['audience']) !== []) {
+                            $controlled[] = $item['key'];
+                        }
+                    }
+                }
+                return $controlled;
+            },
         );
 
         return in_array($key, $keys, true);

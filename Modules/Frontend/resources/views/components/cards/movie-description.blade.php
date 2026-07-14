@@ -1,127 +1,16 @@
 <!-- Movie Description Start-->
-{{-- Primary actions first: first-time visitors were missing the
-     Start Watching / Watch List row when it sat below the fold, so
-     it renders above everything else in this block. --}}
-<div class="d-flex align-items-center flex-wrap gap-3 gap-md-4 mb-4">
-    @if(empty($isNotstartWatching))
-        <div class="iq-play-button iq-button">
-            @php
-                $isUpcoming = !empty($isUpcoming);
-                // An upcoming title has no stream yet — neither "Start
-                // watching" nor "Subscribe to watch" apply. Show a
-                // disabled "Coming soon" pill with the release date (or
-                // "date TBA" when the admin hasn't set `published_at`).
-                //
-                // Component is used from both movie + TV show detail
-                // pages, so only $movie OR $show is defined at any time
-                // — probe both before giving up on a release label.
-                $releaseLabel = null;
-                if ($isUpcoming) {
-                    $releaseDate = (isset($movie) && $movie->published_at) ? $movie->published_at : null;
-                    if (!$releaseDate && isset($show) && $show->published_at) {
-                        $releaseDate = $show->published_at;
-                    }
-                    if ($releaseDate instanceof \DateTimeInterface) {
-                        $releaseLabel = $releaseDate->format('M j, Y');
-                    }
-                }
-            @endphp
-            @if($isUpcoming)
-                <button type="button" disabled
-                    class="btn btn-outline-primary w-100 rounded d-flex align-items-center justify-content-center gap-2 lh-1"
-                    style="cursor: not-allowed; opacity: 0.85;"
-                    aria-label="Coming soon">
-                    <i class="ph-fill ph-calendar-check fs-6"></i>
-                    <span>
-                        {{ __('streamTag.coming_soon') !== 'streamTag.coming_soon' ? __('streamTag.coming_soon') : 'Coming soon' }}
-                        @if ($releaseLabel)
-                            <span class="opacity-75">· {{ $releaseLabel }}</span>
-                        @endif
-                    </span>
-                </button>
-            @elseif(!empty($subscribeToWatch))
-                <a href="{{ route('frontend.pricing-page') }}" class="btn btn-primary w-100 rounded d-flex align-items-center justify-content-center gap-2 lh-1">
-                    <i class="ph-fill ph-crown fs-6"></i>
-                    <span>{{__('streamButtons.subscribe_watch')}}</span>
-                </a>
-            @else
-                <a href="{{ $videoUrl }}" class="btn btn-primary w-100 rounded d-flex align-items-center justify-content-center gap-2 lh-1">
-                    <i class="ph-fill ph-play"></i>
-                    <span>{{__('streamButtons.start_watching')}}</span>
-                </a>
-            @endif
-        </div>
-    @endif
+@php
+    // Where the action row (Start watching / Watch List / Like / Share)
+    // renders. Detail pages: above the title — the CTA has to be the
+    // first thing a visitor sees. Watch pages: below the synopsis — the
+    // player already IS the CTA, so these are secondary actions and
+    // shouldn't sit between the video and the title.
+    $actionsBelowDescription = $actionsBelowDescription ?? false;
+@endphp
 
-    @if(empty($isNotwatchList))
-        @php
-            $watchableType = $watchableType ?? null;
-            $watchableId   = $watchableId   ?? null;
-            $userWatchlistIndex = $userWatchlistIndex ?? [];
-            $isInWatchlist = $watchableType && $watchableId
-                && isset($userWatchlistIndex[$watchableType . ':' . $watchableId]);
-            $watchlistIcon = $isInWatchlist ? 'ph-check' : 'ph-plus';
-            $watchlistTooltip = $isInWatchlist
-                ? (__('streamPlaylist.remove_from_watchlist') ?? 'Remove from watchlist')
-                : __('sectionTitle.add_to_watchlist_tooltip');
-            $watchlistLabel = $isInWatchlist
-                ? (__('streamTag.in_watch_list') ?? 'In Watchlist')
-                : __('streamTag.watch_lists');
-        @endphp
-        <div class="watchlist-button-wrapper">
-            @if ($watchableType && $watchableId)
-                {{-- Real toggle — global delegate in layouts/master.blade.php
-                     handles the POST and flips the icon + label. --}}
-                <button type="button"
-                    class="btn btn-secondary border rounded-3 jambo-watchlist-toggle-btn {{ $isInWatchlist ? 'is-in-watchlist' : '' }}"
-                    data-watchable-type="{{ $watchableType }}"
-                    data-watchable-id="{{ $watchableId }}"
-                    data-watchlist-label-add="{{ __('streamTag.watch_lists') }}"
-                    data-watchlist-label-remove="{{ __('streamTag.in_watch_list') ?? 'In Watchlist' }}"
-                    data-bs-toggle="tooltip" data-bs-placement="top"
-                    data-bs-title="{{ $watchlistTooltip }}">
-                    <span class="d-flex align-items-center justify-content-center gap-2">
-                        <span class="fw-semibold"><i class="ph {{ $watchlistIcon }}"></i></span>
-                        <span class="fw-semibold jambo-watchlist-label">{{ $watchlistLabel }}</span>
-                    </span>
-                </button>
-            @else
-                {{-- Fallback when the caller hasn't passed watchableType/Id
-                     (guests, legacy pages). Keep the affordance visible but
-                     nudge to sign in instead of navigating into a dead end. --}}
-                <button type="button" class="btn btn-secondary border rounded-3" data-bs-toggle="tooltip"
-                    data-bs-placement="top" title="Sign in to save"
-                    onclick="event.preventDefault();">
-                    <span class="d-flex align-items-center justify-content-center gap-2">
-                        <span class="fw-semibold"><i class="ph ph-plus"></i></span>
-                        <span class="fw-semibold">{{__('streamTag.watch_lists')}}</span>
-                    </span>
-                </button>
-            @endif
-        </div>
-    @endif
-
-    <div class="d-flex align-items-center gap-3 flex-wrap">
-        @if(empty($isNotLikemovies))
-            <button type="button" class="action-btn btn btn-secondary border" data-bs-toggle="modal" data-bs-target="#likeModal" id="like-toggle">
-                <span id="like-movies">
-                    <span class="h-100 w-100 d-block" data-bs-toggle="tooltip" data-bs-placement="top" title="{{__('streamTag.like')}}">
-                        <i class="ph ph-heart heart-icon"></i>
-                    </span>
-                </span>
-            </button>
-        @endif
-
-        @if(empty($isNotSharenetwork))
-            <button type="button" class="action-btn btn btn-secondary border" data-bs-toggle="modal" data-bs-target="#shareModal">
-                <span class="h-100 w-100 d-block" data-bs-toggle="tooltip" data-bs-placement="top" title="{{__('streamTag.share')}}">
-                    <i class="ph ph-share-network"></i>
-                </span>
-            </button>
-        @endif
-
-    </div>
-</div>
+@unless($actionsBelowDescription)
+    @include('frontend::components.cards.movie-description-actions')
+@endunless
 
 {{-- Genre chips. Render as plain spans until callers start passing
      genre slugs alongside names — there's no slug here to link to. --}}
@@ -230,6 +119,10 @@
         <a href="javascript:void(0)" data-bs-toggle="modal" data-bs-target="#viewMoreDataModal" class="position-relative">{{__('frontendform.read_more')}}</a>
     </div>
 </div>
+
+@if($actionsBelowDescription)
+    @include('frontend::components.cards.movie-description-actions')
+@endif
 <!-- Movie Description End -->
 
 <!-- Modals -->

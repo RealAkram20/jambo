@@ -52,6 +52,7 @@ class Season extends Model
 
     protected $casts = [
         'released_at' => 'date',
+        'announced_at' => 'datetime',
         'number' => 'integer',
     ];
 
@@ -63,6 +64,23 @@ class Season extends Model
     public function episodes(): HasMany
     {
         return $this->hasMany(Episode::class)->orderBy('number');
+    }
+
+    /**
+     * A season has no page of its own — users reach it through the show.
+     * So it is only "publicly visible" once the show is live AND at least
+     * one of its episodes has actually dropped. A freshly created, empty
+     * season is nothing a user can watch, which is why announcing one on
+     * create (the old SeasonController::store behaviour) sent people to a
+     * dead end.
+     */
+    public function isPubliclyVisible(): bool
+    {
+        $show = $this->relationLoaded('show') ? $this->show : $this->show()->first();
+
+        return $show !== null
+            && $show->isPubliclyAvailable()
+            && $this->episodes()->published()->exists();
     }
 
     protected static function newFactory(): SeasonFactory

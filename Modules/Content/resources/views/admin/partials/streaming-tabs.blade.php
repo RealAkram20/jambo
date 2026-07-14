@@ -90,7 +90,7 @@
                 <label for="video_url" class="form-label">Video URL</label>
                 <input type="text" class="form-control @error('video_url') is-invalid @enderror"
                     id="video_url" name="video_url" value="{{ $videoUrlOld }}"
-                    placeholder="https://www.youtube.com/watch?v=... or https://example.com/film.mp4">
+                    placeholder="YouTube link, Backblaze file URL, or https://example.com/film.mp4">
                 @error('video_url') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
 
@@ -136,7 +136,7 @@
             <input type="text" class="form-control @error('video_url_low') is-invalid @enderror"
                 id="video_url_low" name="video_url_low"
                 value="{{ old('video_url_low', $model->video_url_low ?? '') }}"
-                placeholder="https://www.dropbox.com/.../movie-480p.mp4 or /Jambo/storage/media/...">
+                placeholder="Backblaze or Dropbox 480p file URL, or /Jambo/storage/media/...">
             @error('video_url_low') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
         </div>
     </div>

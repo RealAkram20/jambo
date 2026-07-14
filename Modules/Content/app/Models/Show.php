@@ -95,6 +95,7 @@ class Show extends Model
 
     protected $casts = [
         'published_at' => 'datetime',
+        'announced_at' => 'datetime',
         'year' => 'integer',
         'views_count' => 'integer',
     ];
@@ -194,6 +195,16 @@ class Show extends Model
     }
 
     /**
+     * Alias of isPubliclyAvailable, so Movie, Show, Season and Episode all
+     * answer the same question under the same name and ContentAnnouncer can
+     * gate on any of them uniformly.
+     */
+    public function isPubliclyVisible(): bool
+    {
+        return $this->isPubliclyAvailable();
+    }
+
+    /**
      * Announced / scheduled series — visible in the Upcoming rail only.
      * `published_at` here is the intended release date (may be null if
      * the admin hasn't picked one yet).
@@ -211,13 +222,10 @@ class Show extends Model
      */
     public function scopeDetailVisible(Builder $q): Builder
     {
-        return $q->where(function ($outer) {
-            $outer->where(function ($pub) {
-                $pub->where('status', self::STATUS_PUBLISHED)
-                    ->whereNotNull('published_at')
-                    ->where('published_at', '<=', now());
-            })->orWhere('status', self::STATUS_UPCOMING);
-        });
+        // Mirror of Movie::scopeDetailVisible — Published (released or still
+        // scheduled) and Upcoming both get a landing page; only Draft 404s.
+        // A future release date means "Coming soon", never "does not exist".
+        return $q->whereIn('status', [self::STATUS_PUBLISHED, self::STATUS_UPCOMING]);
     }
 
     protected static function newFactory(): ShowFactory
