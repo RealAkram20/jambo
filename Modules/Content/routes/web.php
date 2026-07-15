@@ -13,6 +13,7 @@ use Modules\Content\app\Http\Controllers\Admin\CategoryController;
 use Modules\Content\app\Http\Controllers\Admin\RatingController;
 use Modules\Content\app\Http\Controllers\Admin\ReviewController;
 use Modules\Content\app\Http\Controllers\Admin\CommentController;
+use Modules\Content\app\Http\Controllers\Admin\ContentPreviewController;
 
 /*
 |--------------------------------------------------------------------------
@@ -34,6 +35,14 @@ Route::middleware(['auth', 'role:admin'])
     ->group(function () {
         // Bulk-delete endpoints. Registered BEFORE the resource() so
         // /admin/movies/bulk doesn't get matched as {movie} = "bulk".
+        // Admin-only video preview (302 to the resolved CDN source).
+        // No tier gate, no heartbeat, no view/accrual side effects — just
+        // "play the file I uploaded so I can check it".
+        Route::get('preview/movie/{movie}', [ContentPreviewController::class, 'movie'])
+            ->name('content-preview.movie');
+        Route::get('preview/episode/{episode}', [ContentPreviewController::class, 'episode'])
+            ->name('content-preview.episode');
+
         Route::delete('movies/bulk', [MovieController::class, 'bulkDestroy'])
             ->name('movies.bulk-destroy');
         Route::delete('series/bulk', [ShowController::class, 'bulkDestroy'])

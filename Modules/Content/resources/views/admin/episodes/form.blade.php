@@ -118,6 +118,8 @@
                 @endif
             </div>
         </div>
+
+        @include('content::admin.partials.video-preview', ['model' => $episode])
     </div>
 </div>
 

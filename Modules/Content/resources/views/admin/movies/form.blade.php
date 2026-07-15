@@ -138,6 +138,8 @@
             </div>
         </div>
 
+        @include('content::admin.partials.video-preview', ['model' => $movie])
+
         <div class="card mt-4">
             <div class="card-header"><h6 class="mb-0">Genres</h6></div>
             <div class="card-body">
