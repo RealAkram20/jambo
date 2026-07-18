@@ -59,7 +59,7 @@
             data-src-default="{{ $playerSrc }}"
             @if (!empty($playerSrcLow)) data-src-low="{{ $playerSrcLow }}" @endif
             @if (!empty($resumePosition)) data-resume="{{ $resumePosition }}" @endif
-            muted autoplay playsinline></video>
+            autoplay playsinline></video>
         {{-- Set src + preload immediately before the browser starts buffering.
              Data Saver ON  → preload="metadata" (only download what you watch)
              Data Saver OFF → preload="auto" (buffer ahead for smooth playback)
@@ -87,13 +87,38 @@
 
             // Kick off playback immediately — beats the customElements
             // .whenDefined gate that watch-page / episode-page have
-            // around their player wiring. The element is muted so the
-            // browser allows autoplay; sound is gestured-on by the
-            // user via the volume control.
+            // around their player wiring.
+            //
+            // Sound is ON by default. Browsers that block unmuted
+            // autoplay reject the play() promise; we then fall back to
+            // muted autoplay (so the picture still starts instantly)
+            // and restore sound on the first user interaction with the
+            // page — a gesture the autoplay policy accepts.
+            function armAutoUnmute() {
+                var events = ['pointerdown', 'keydown', 'touchend'];
+                var unmute = function () {
+                    v.muted = false;
+                    if (!v.volume) v.volume = 1;
+                    events.forEach(function (ev) {
+                        document.removeEventListener(ev, unmute, true);
+                    });
+                };
+                events.forEach(function (ev) {
+                    document.addEventListener(ev, unmute, true);
+                });
+            }
             try {
+                v.muted = false;
                 var earlyPlay = v.play();
                 if (earlyPlay && typeof earlyPlay.catch === 'function') {
-                    earlyPlay.catch(function () {});
+                    earlyPlay.catch(function () {
+                        v.muted = true;
+                        armAutoUnmute();
+                        var retry = v.play();
+                        if (retry && typeof retry.catch === 'function') {
+                            retry.catch(function () {});
+                        }
+                    });
                 }
             } catch (e) {}
 
@@ -115,6 +140,39 @@
                     var p = v.play();
                     if (p && typeof p.catch === 'function') p.catch(function () {});
                 }).catch(function () {});
+            }
+
+            // --------------------------------------------------------
+            // Native-controls fallback. The custom player UI needs
+            // (a) a browser with Custom Elements v1, and (b) the
+            // video-minimal-ui module to actually arrive from the CDN.
+            // Old Android TV / WebView browsers fail (a); firewalled,
+            // flaky, or CDN-blocked networks fail (b). Either way the
+            // user would get a playing video with NO controls at all —
+            // no pause, no seek, no fullscreen. If the element still
+            // isn't defined a few seconds in, flip on the browser's
+            // native controls and hide our inert custom UI (the
+            // .jambo-native-controls rules in player.css). Swaps back
+            // automatically if the module shows up late.
+            var mediaContainerEl = v.closest ? v.closest('media-container') : null;
+            function setNativeControls(on) {
+                if (on) { v.setAttribute('controls', ''); }
+                else    { v.removeAttribute('controls'); }
+                if (mediaContainerEl && mediaContainerEl.classList) {
+                    if (on) { mediaContainerEl.classList.add('jambo-native-controls'); }
+                    else    { mediaContainerEl.classList.remove('jambo-native-controls'); }
+                }
+            }
+            if (!window.customElements || !customElements.get || !customElements.whenDefined) {
+                setNativeControls(true);
+            } else {
+                setTimeout(function () {
+                    if (customElements.get('video-player')) return;
+                    setNativeControls(true);
+                    customElements.whenDefined('video-player').then(function () {
+                        setNativeControls(false);
+                    }).catch(function () {});
+                }, 3000);
             }
 
             // Resume from last position once video metadata loads.
@@ -799,7 +857,12 @@
             videoEl.addEventListener('play', function () {
                 if (fired) return;
                 fired = true;
-                var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                // ES5 on purpose — optional chaining here would be a
+                // SyntaxError on older Chromium (Android TV sticks,
+                // old WebViews) and would kill this entire script
+                // block, taking the play-icon sync and idle fade with it.
+                var tokenEl = document.querySelector('meta[name="csrf-token"]');
+                var token = tokenEl ? tokenEl.getAttribute('content') : '';
                 fetch('{{ route('streaming.guest-view') }}', {
                     method: 'POST',
                     credentials: 'same-origin',
@@ -818,86 +881,11 @@
         })();
     @endif
 
-    /* --- Rotate-to-fullscreen (mobile + installed PWA) -------------
-       When the user rotates a phone/tablet to landscape during
-       playback, drop the player into fullscreen automatically — the
-       behaviour every native streaming app has. Rotating back to
-       portrait exits fullscreen *only if* this handler was the one
-       that entered, so we never steal a manual fullscreen.
-
-       Gated on `pointer: coarse` so we don't trigger on a desktop
-       user resizing a window. Also requires the video to be actively
-       playing — pausing the player and rotating shouldn't force
-       fullscreen on top of nothing. */
-    (function(){
-        var fsTarget = videoEl.closest('media-container') || videoEl;
-        if (!fsTarget) return;
-
-        var coarsePointer = window.matchMedia
-            && window.matchMedia('(pointer: coarse)').matches;
-        if (!coarsePointer) return;
-
-        var enteredFsByRotation = false;
-
-        function isLandscape() {
-            if (screen.orientation && screen.orientation.type) {
-                return screen.orientation.type.indexOf('landscape') === 0;
-            }
-            return window.innerWidth > window.innerHeight;
-        }
-        function inFullscreen() {
-            return !!(document.fullscreenElement
-                || document.webkitFullscreenElement);
-        }
-        function requestFs() {
-            var fn = fsTarget.requestFullscreen
-                || fsTarget.webkitRequestFullscreen
-                || fsTarget.webkitEnterFullscreen;
-            if (!fn) return Promise.resolve();
-            try {
-                var p = fn.call(fsTarget);
-                return p && p.then ? p : Promise.resolve();
-            } catch (_) { return Promise.resolve(); }
-        }
-        function exitFs() {
-            var fn = document.exitFullscreen
-                || document.webkitExitFullscreen;
-            if (!fn) return Promise.resolve();
-            try {
-                var p = fn.call(document);
-                return p && p.then ? p : Promise.resolve();
-            } catch (_) { return Promise.resolve(); }
-        }
-
-        function handle() {
-            // Don't fullscreen a paused / not-yet-started player —
-            // would lock the user into a black screen with no obvious
-            // way back if they hadn't started watching yet.
-            if (videoEl.paused || videoEl.ended || videoEl.readyState < 2) return;
-
-            if (isLandscape() && !inFullscreen()) {
-                requestFs().then(function(){ enteredFsByRotation = true; });
-            } else if (!isLandscape() && inFullscreen() && enteredFsByRotation) {
-                exitFs().then(function(){ enteredFsByRotation = false; });
-            }
-        }
-
-        // Reset the flag if the user manually exits fullscreen while
-        // still in landscape — they explicitly asked to leave, so we
-        // shouldn't re-enter on the next rotation event.
-        document.addEventListener('fullscreenchange', function(){
-            if (!inFullscreen()) enteredFsByRotation = false;
-        });
-
-        if (screen.orientation && screen.orientation.addEventListener) {
-            screen.orientation.addEventListener('change', handle);
-        } else {
-            window.addEventListener('orientationchange', handle);
-        }
-        // Also re-check on play — if the user rotates while paused
-        // and then taps play, that should fullscreen too.
-        videoEl.addEventListener('play', handle);
-    })();
+    {{-- Rotate-to-fullscreen intentionally removed: auto-fullscreen on
+         device rotation fought with manual fullscreen on several mobile
+         devices (entered/exited at the wrong moments and made "fit to
+         screen" feel broken). Fullscreen is now only ever user-initiated:
+         the fullscreen button, the F key, or the native controls. --}}
 
     @if ($isSeries)
         /* --- Autoplay-next switch wiring ------------------------- */

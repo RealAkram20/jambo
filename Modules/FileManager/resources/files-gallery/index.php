@@ -1,5 +1,11 @@
 <?php
 
+// Jambo admin gate. Validates the signed access token and 403s any
+// unauthenticated request BEFORE any Files Gallery code runs. Kept as the
+// first statement so it can't be bypassed. Installed alongside this file by
+// `php artisan filemanager:install`.
+require __DIR__ . '/fm-guard.php';
+
 /* Files Gallery 0.15.3
 www.files.gallery | www.files.gallery/docs/ | www.files.gallery/docs/license/
 ---

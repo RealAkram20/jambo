@@ -111,6 +111,13 @@ class StreamProxyController extends Controller
      */
     private function getRawUrl(Movie|Episode $model, string $quality = 'default'): ?string
     {
+        // Publish/release gate. TierGate covers tier_required, but nothing
+        // stopped a guessed slug from streaming a draft or a scheduled-but-
+        // unreleased title straight from the origin. Mirror the HTML watch
+        // page: you can't stream what isn't publicly visible yet. Admins are
+        // exempt (they verify playback), matching userCanWatch()'s bypass.
+        abort_unless($this->streamable($model), 404);
+
         if ($quality === 'low') {
             $url = $model->video_url_low ?? null;
         } else {
@@ -130,5 +137,27 @@ class StreamProxyController extends Controller
         // controller stays the single auth/tier chokepoint; the
         // resolver is the single origin-routing chokepoint.
         return $this->cdn->resolve($url);
+    }
+
+    /**
+     * Is this title streamable to the public right now? A movie must be
+     * publicly visible; an episode must itself be released AND belong to a
+     * publicly-visible show (an episode of a draft/unreleased series is not
+     * reachable, mirroring the episode watch page). Admins bypass so they
+     * can verify playback of scheduled content, exactly as userCanWatch does.
+     */
+    private function streamable(Movie|Episode $model): bool
+    {
+        if (auth()->user()?->hasRole('admin')) {
+            return true;
+        }
+
+        if ($model instanceof Movie) {
+            return $model->isPubliclyVisible();
+        }
+
+        $show = $model->show;
+
+        return $model->isPubliclyVisible() && $show && $show->isPubliclyVisible();
     }
 }

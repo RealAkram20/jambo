@@ -284,8 +284,10 @@ class SectionDataComposer
      * Contract:
      *   • Anonymous viewers get an empty collection — the section blade
      *     hides itself entirely in that case.
-     *   • For signed-in users: up to 6 cards, ordered by most recent
-     *     heartbeat. Completed rows are excluded.
+     *   • For signed-in users: up to WatchHistoryItem::CONTINUE_WATCHING_LIMIT
+     *     cards, ordered by most recent heartbeat. Completed rows are
+     *     excluded. The write side (WatchHistoryItem::pruneContinueWatching)
+     *     enforces the same cap in storage, so the row can't grow unbounded.
      *   • Series are deduplicated: one card per show, and the card
      *     points at the latest episode the user was watching (most
      *     recent heartbeat wins).
@@ -334,7 +336,7 @@ class SectionDataComposer
                 $cards->push($this->buildEpisodeCard($row, $w));
             }
 
-            if ($cards->count() >= 6) break;
+            if ($cards->count() >= WatchHistoryItem::CONTINUE_WATCHING_LIMIT) break;
         }
 
         return $cards;

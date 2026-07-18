@@ -903,6 +903,15 @@ class FrontendController extends Controller
         }
 
         $requiredSlug = $content->tier_required ?? null;
+
+        // Episodes usually don't carry their own tier — the admin Shows form
+        // sets "Premium" on the parent series, not per episode. Fall back to
+        // the show's tier so a premium series isn't handed out free just
+        // because the episode row left tier_required null.
+        if ($content instanceof Episode && !$requiredSlug) {
+            $requiredSlug = ($content->season?->show ?? $content->show)?->tier_required;
+        }
+
         if (!$requiredSlug) {
             return true;
         }
@@ -933,6 +942,28 @@ class FrontendController extends Controller
         $userLevel = $sub?->tier?->access_level ?? SubscriptionTier::ACCESS_FREE;
 
         return $userLevel >= $requiredTier->access_level;
+    }
+
+    /**
+     * Publish/release gate shared by the JSON player-data and watchlist
+     * playback endpoints, mirroring the HTML watch pages. A movie must be
+     * publicly visible; an episode must itself be released AND belong to a
+     * publicly-visible show (an episode of a draft/unreleased series is not
+     * reachable). Admins bypass so they can preview scheduled content.
+     */
+    private function contentReleased(Movie|Episode $content): bool
+    {
+        if (auth()->user()?->hasRole('admin')) {
+            return true;
+        }
+
+        if ($content instanceof Movie) {
+            return $content->isPubliclyVisible();
+        }
+
+        $show = $content->season?->show ?? $content->show;
+
+        return $content->isPubliclyVisible() && $show && $show->isPubliclyVisible();
     }
 
     /**
@@ -1217,11 +1248,19 @@ class FrontendController extends Controller
      */
     public function episodePlayerData(Episode $episode): JsonResponse
     {
+        $episode->load(['season.show.seasons.episodes']);
+
+        // Publish gate — the HTML episode page 404s draft shows and
+        // unreleased episodes; this JSON endpoint must too, or it hands out
+        // a playable videoUrl for content that hasn't dropped.
+        if (! $this->contentReleased($episode)) {
+            abort(404);
+        }
+
         if (! $this->userCanWatch($episode)) {
             return response()->json(['error' => 'subscription_required'], 403);
         }
 
-        $episode->load(['season.show.seasons.episodes']);
         $show = $episode->season->show;
         $source = $episode->streamSource();
 
@@ -1531,12 +1570,18 @@ class FrontendController extends Controller
                 ->with('info', 'That movie is no longer available.');
         }
 
-        // If an admin flipped the movie to upcoming after the user
-        // added it to their watchlist, the queue item still resolves
-        // but there's nothing to stream. Bounce to the detail page
-        // with a release-date note instead of a dead player.
-        if ($movie->status === Movie::STATUS_UPCOMING) {
-            $when = $movie->published_at?->format('M j, Y');
+        // Not watchable yet — draft, upcoming, or published-but-scheduled.
+        // The queue item still resolves but there's nothing to stream, and
+        // the old check only caught STATUS_UPCOMING, so a draft or a
+        // scheduled-future title played early. Mirror the watch page:
+        // drafts have no public page (back to the watchlist), scheduled
+        // ones get a coming-soon note on their detail page. Admins bypass.
+        if (! $this->contentReleased($movie)) {
+            if ($movie->status === Movie::STATUS_DRAFT) {
+                return redirect()->route('frontend.watchlist_detail')
+                    ->with('info', 'That movie is no longer available.');
+            }
+            $when = \App\Support\LocalTime::display($movie->published_at)?->format('M j, Y');
             $msg = $when
                 ? "\"{$movie->title}\" is coming soon — check back on {$when}."
                 : "\"{$movie->title}\" is coming soon.";
@@ -1701,6 +1746,11 @@ class FrontendController extends Controller
     {
         $movie = Movie::where('slug', $slug)->first();
         if (!$movie) {
+            return response()->json(['error' => 'not_found'], 404);
+        }
+        // Publish gate: don't leak a playable URL for a draft or not-yet-
+        // released movie (the HTML watch page embargoes these).
+        if (!$this->contentReleased($movie)) {
             return response()->json(['error' => 'not_found'], 404);
         }
         if (!$this->userCanWatch($movie)) {
@@ -2246,7 +2296,35 @@ class FrontendController extends Controller
     public function pricing_page()
     {
         $tiers = \Modules\Subscriptions\app\Models\SubscriptionTier::active()->ordered()->get();
-        return view('frontend::Pages.pricing-page', compact('tiers'));
+
+        // Referral offer state for the logged-in viewer: whether their
+        // first payment gets the discount, or they may still enter a code.
+        $referralOffer = null;
+        $hasActiveSub = false;
+        $currentSub = null;
+        $referralWalletBalance = null;
+        if (auth()->check()) {
+            // Full-cover wallet purchases only — the blade shows "Pay with
+            // wallet" on tiers this balance covers outright.
+            $referralWalletBalance = app(\Modules\Referrals\app\Services\ReferralEarningService::class)
+                ->balanceFor(auth()->user());
+            $referralOffer = app(\Modules\Referrals\app\Services\ReferralCheckoutService::class)->previewContext(
+                auth()->user(),
+                request()->cookie(\Modules\Referrals\app\Http\Middleware\CaptureReferralCode::COOKIE_NAME),
+            );
+
+            // Full subscription row (not just a bool) so the page can
+            // label the viewer's tier card and show its end date; no
+            // row means the viewer sits on the implicit Free plan.
+            $currentSub = UserSubscription::with('tier')
+                ->where('user_id', auth()->id())
+                ->current()
+                ->orderByDesc('ends_at')
+                ->first();
+            $hasActiveSub = $currentSub !== null;
+        }
+
+        return view('frontend::Pages.pricing-page', compact('tiers', 'referralOffer', 'hasActiveSub', 'currentSub', 'referralWalletBalance'));
     }
 
     public function error_page1()

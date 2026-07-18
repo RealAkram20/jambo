@@ -55,9 +55,24 @@ return [
     // legitimate asset type is being rejected — don't switch back to ''.
     'upload_allowed_file_types' => '.png, .jpg, .jpeg, .gif, .webp, .ico, video/*, audio/*, .pdf, .srt, .vtt, .webvtt, .zip',
 
-    // Use ImageMagick for JPEG/PNG resizing when available — better downscaling
-    // for large movie posters than PHP GD's default imagecopyresampled.
-    'image_resize_use_imagemagick' => true,
+    // Use ImageMagick for JPEG/PNG thumbnailing ONLY when it's actually
+    // available; otherwise fall back to PHP GD (bundled with every PHP build).
+    //
+    // Hard-coding this to `true` broke every image preview on any host without
+    // ImageMagick: the gallery shells out to `imagemagick_path` ('convert'),
+    // and on Windows/XAMPP `convert` is the built-in DISK utility, not
+    // ImageMagick — it errors out and the grid shows a broken-image icon. A
+    // production box that lacks the extension hits the same wall.
+    //
+    // `extension_loaded('imagick')` is the reliable cross-platform signal:
+    //   - true  where the PHP Imagick extension is present -> ImageMagick
+    //   - false everywhere else -> GD (which handles png/jpg/gif/webp fine)
+    // ImageMagick-only formats (heic/tiff/psd/dng) still route through
+    // ImageMagick regardless, via the gallery's per-type is_imagemagick() check,
+    // so this only governs the common web formats. Admin thumbnails don't need
+    // ImageMagick-grade downscaling anyway — the public images are resized by
+    // Glide (ImageProxyController), which does its own imagick-or-GD detection.
+    'image_resize_use_imagemagick' => extension_loaded('imagick'),
 
     // Sidebar folder tree for nested dirs (public/, source/, hls/, etc.).
     'menu_enabled' => true,

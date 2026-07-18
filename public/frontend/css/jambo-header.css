@@ -70,6 +70,31 @@
     font-size: 0.8rem;
 }
 
+/* Refer & earn badge — same shape as the subscribe badge, brand blue */
+.jambo-refer-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--bs-primary, #1A98FF);
+    background: rgba(var(--bs-primary-rgb, 26, 152, 255), 0.12);
+    border: 1px solid rgba(var(--bs-primary-rgb, 26, 152, 255), 0.25);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.15s, border-color 0.15s;
+}
+.jambo-refer-badge:hover {
+    background: rgba(var(--bs-primary-rgb, 26, 152, 255), 0.2);
+    border-color: rgba(var(--bs-primary-rgb, 26, 152, 255), 0.4);
+    color: var(--bs-primary, #1A98FF);
+}
+.jambo-refer-badge i {
+    font-size: 0.8rem;
+}
+
 /* ---- Search bar ---- */
 .jambo-header__search {
     position: relative;

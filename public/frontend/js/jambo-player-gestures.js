@@ -109,11 +109,26 @@
         // Doing the toggle ourselves removes that whole drift surface.
         var fullscreenTarget = container.closest('video-player') || container;
 
+        function isFullscreenNow() {
+            return !!(document.fullscreenElement || document.webkitFullscreenElement);
+        }
+
         function toggleFullscreen() {
-            if (document.fullscreenElement) {
-                if (document.exitFullscreen) document.exitFullscreen().catch(function () {});
+            if (isFullscreenNow()) {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen().catch(function () {});
+                } else if (document.webkitExitFullscreen) {
+                    try { document.webkitExitFullscreen(); } catch (e) {}
+                }
             } else if (fullscreenTarget.requestFullscreen) {
                 fullscreenTarget.requestFullscreen().catch(function () {});
+            } else if (fullscreenTarget.webkitRequestFullscreen) {
+                // Older WebKit (some Android browsers, iPad Safari).
+                try { fullscreenTarget.webkitRequestFullscreen(); } catch (e) {}
+            } else if (video.webkitEnterFullscreen) {
+                // iPhone Safari has no element fullscreen API — the only
+                // way to go big is the native video fullscreen player.
+                try { video.webkitEnterFullscreen(); } catch (e) {}
             }
             showFeedback('fullscreen');
         }
@@ -139,14 +154,16 @@
         // fullscreen tray, etc.). Without this nudge the icon can drift
         // because Media Chrome only updates from its own controller's
         // state events.
-        document.addEventListener('fullscreenchange', function () {
+        function syncFsButton() {
             if (!fsBtn) return;
-            if (document.fullscreenElement) {
+            if (isFullscreenNow()) {
                 fsBtn.setAttribute('mediaisfullscreen', '');
             } else {
                 fsBtn.removeAttribute('mediaisfullscreen');
             }
-        });
+        }
+        document.addEventListener('fullscreenchange', syncFsButton);
+        document.addEventListener('webkitfullscreenchange', syncFsButton);
 
         function seekPercent(pct) {
             if (video.duration && isFinite(video.duration)) {

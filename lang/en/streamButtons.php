@@ -21,6 +21,7 @@ return [
     "save_address" => "Save Address",
     "save_changes" => "Save Changes",
     "sign_up" => "Sign Up",
+    "signin_watch" => "Sign In to Watch",
     "shop_now" => "Shop Now",
     "show_password" => "Show Password",
     "start_watching" => "Start Watching",

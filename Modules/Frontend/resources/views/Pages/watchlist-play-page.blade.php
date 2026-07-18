@@ -179,6 +179,10 @@
                                         </span>
                                     </button>
                                 </li>
+                                {{-- Only shown when this movie is actually in the
+                                     user's watchlist; $current is null when they
+                                     reached the player for a movie they never queued. --}}
+                                @if ($current)
                                 <li>
                                     <button type="button"
                                             class="btn btn-outline-danger action-btn jambo-watchlist-queue-remove"
@@ -188,6 +192,7 @@
                                         <i class="ph ph-bookmark-simple"></i>
                                     </button>
                                 </li>
+                                @endif
                             </ul>
                         </div>
                     </div>
@@ -219,10 +224,10 @@
         const closeBtn = document.getElementById('jambo-mini-close');
         if (!video) return;
 
-        // Best-effort muted autoplay. Browsers that block unmuted
-        // autoplay still allow muted, so the user sees immediate
-        // motion and can unmute if they want.
-        video.muted = true;
+        // Nudge playback in case the partial's early-play attempt lost
+        // a race with the custom-element upgrade. Don't touch .muted
+        // here — the player partial owns the sound-on-by-default logic
+        // and its muted-autoplay fallback.
         const p = video.play();
         if (p && typeof p.catch === 'function') p.catch(function () {});
 
@@ -463,7 +468,14 @@
             e.stopPropagation();
             const which = btn.getAttribute('data-episode-nav');
             const target = which === 'next' ? nextSlug : prevSlug;
-            await swapToMovie(target);
+            const swapped = await swapToMovie(target);
+            // Swap can fail (expired session, premium gate, network
+            // blip) — never swallow the click. Fall back to a normal
+            // navigation; it drops fullscreen but still changes movie.
+            if (!swapped) {
+                const url = btn.getAttribute('href');
+                if (url) window.location.href = url;
+            }
         }, true);
 
         // Autoplay on end: in-place if fullscreen, otherwise navigate.
@@ -472,11 +484,12 @@
         video.addEventListener('ended', async function () {
             if (localStorage.getItem(AUTOPLAY_KEY) !== '1') return;
             if (!nextSlug) return;
+            const nextUrl = nextBtns.length ? nextBtns[0].getAttribute('href') : null;
             if (inFullscreen()) {
-                await swapToMovie(nextSlug);
-            } else {
-                const nextUrl = nextBtn && nextBtn.getAttribute('href');
-                if (nextUrl) window.location.href = nextUrl;
+                const swapped = await swapToMovie(nextSlug);
+                if (!swapped && nextUrl) window.location.href = nextUrl;
+            } else if (nextUrl) {
+                window.location.href = nextUrl;
             }
         });
     });
@@ -488,7 +501,10 @@
     // the row. If the user removed the one that's currently playing,
     // bounce back to the watchlist list so they can pick a new one.
     (function () {
-        var currentId = {{ (int) $current->id }};
+        // null when the movie isn't in the user's watchlist — no queue row
+        // to match against, so the "currently-playing was removed" check
+        // below simply never fires.
+        var currentId = {{ $current ? (int) $current->id : 'null' }};
         var listUrl   = {{ Js::from(route('frontend.watchlist_detail')) }};
         var apiBase   = {{ Js::from(url('/api/v1/watchlist')) }};
         var csrf      = document.querySelector('meta[name="csrf-token"]')?.content || '';

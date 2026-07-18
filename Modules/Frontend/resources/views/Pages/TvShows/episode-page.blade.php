@@ -330,7 +330,10 @@ document.addEventListener('DOMContentLoaded', async function () {
     const closeBtn = document.getElementById('jambo-mini-close');
     if (!video) return;
 
-    video.muted = true;
+    // Nudge playback in case the partial's early-play attempt lost a
+    // race with the custom-element upgrade. Don't touch .muted here —
+    // the player partial owns the sound-on-by-default logic and its
+    // muted-autoplay fallback.
     const playAttempt = video.play();
     if (playAttempt && typeof playAttempt.catch === 'function') playAttempt.catch(() => {});
 
@@ -510,8 +513,17 @@ document.addEventListener('DOMContentLoaded', async function () {
             if (!inFullscreen()) return; // regular nav
             e.preventDefault();
             e.stopPropagation();
-            const target = btn === nextEpBtn ? nextEpisodeId : prevEpisodeId;
-            await swapToEpisode(target);
+            const isNext = btn === nextEpBtn;
+            const swapped = await swapToEpisode(isNext ? nextEpisodeId : prevEpisodeId);
+            // The in-place swap can fail (guest session — the
+            // player-data endpoint is auth-only — premium gate,
+            // network blip). Never swallow the click: fall back to a
+            // normal navigation. It drops fullscreen, but the episode
+            // still changes, which is what the user asked for.
+            if (!swapped) {
+                const url = isNext ? nextEpisodeUrl : prevEpisodeUrl;
+                if (url) window.location.href = url;
+            }
         });
     });
 
@@ -520,8 +532,9 @@ document.addEventListener('DOMContentLoaded', async function () {
         await sendHeartbeat();
         if (!nextEpisodeId || localStorage.getItem(AUTOPLAY_KEY) !== '1') return;
         if (inFullscreen()) {
-            await swapToEpisode(nextEpisodeId);
-        } else {
+            const swapped = await swapToEpisode(nextEpisodeId);
+            if (!swapped && nextEpisodeUrl) window.location.href = nextEpisodeUrl;
+        } else if (nextEpisodeUrl) {
             window.location.href = nextEpisodeUrl;
         }
     });

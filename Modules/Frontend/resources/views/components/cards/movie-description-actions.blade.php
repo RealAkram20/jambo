@@ -40,6 +40,18 @@
                         @endif
                     </span>
                 </button>
+            @elseif(!auth()->check() && setting('require_signup_to_watch'))
+                {{-- Site-wide "require sign-up to watch" is ON and this is a
+                     guest: the whole catalogue is gated behind an account, so
+                     there's nothing to subscribe to yet — prompt them to sign
+                     in / create an account instead of pushing pricing. Linking
+                     to the watch URL lets the route's guest handler stash it as
+                     the post-login intended target (redirect()->guest()), so
+                     after signing in they land back here and can start watching. --}}
+                <a href="{{ $videoUrl ?? route('login') }}" class="btn btn-primary w-100 rounded d-flex align-items-center justify-content-center gap-2 lh-1">
+                    <i class="ph-fill ph-sign-in fs-6"></i>
+                    <span>{{__('streamButtons.signin_watch')}}</span>
+                </a>
             @elseif(!empty($subscribeToWatch))
                 <a href="{{ route('frontend.pricing-page') }}" class="btn btn-primary w-100 rounded d-flex align-items-center justify-content-center gap-2 lh-1">
                     <i class="ph-fill ph-crown fs-6"></i>

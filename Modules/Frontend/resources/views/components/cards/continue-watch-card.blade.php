@@ -23,6 +23,15 @@
 @endphp
 <div class="iq-watching-block">
     <div class="block-images position-relative">
+        {{-- Whole-card resume target. The progress overlay below sits on top
+             of the image with no z-index, which turned the entire title /
+             progress strip into a dead click zone. This stretched-link
+             (z-index 1) covers the whole card so a click anywhere resumes;
+             the remove button is lifted above it (z-index 2) so it still
+             works. aria-hidden + tabindex=-1 because the image link already
+             carries the accessible name and tab stop — this is a pointer
+             convenience only, not a second announced link. --}}
+        <a href="{{ $cwLink }}" class="stretched-link" tabindex="-1" aria-hidden="true"></a>
         <div class="iq-image-box overly-images">
             <a href="{{ $cwLink }}" class="d-block" aria-label="Resume watching {{ $cwTitle }}">
                 <img src="{{ media_img($cwImg, 640, 'media/gameofhero.webp', \Illuminate\Support\Str::startsWith($cwImg, ['http://', 'https://', '/', 'media/']) ? 'frontend/images' : 'frontend/images/media') }}"
@@ -62,6 +71,10 @@
                  watch_history row(s), and fades the slide out. --}}
             <button type="button"
                 class="position-absolute d-flex align-items-center justify-content-center iq-watching-close-icon border-0"
+                {{-- z-index 2: keep the remove button above the whole-card
+                     stretched-link (z-index 1). Slightly larger than the CSS
+                     default so it's an easier tap/click target. --}}
+                style="z-index:2;width:2em;height:2em;line-height:2em;"
                 data-cw-remove
                 data-cw-type="{{ $removeType ?? '' }}"
                 data-cw-id="{{ $removeId ?? '' }}"

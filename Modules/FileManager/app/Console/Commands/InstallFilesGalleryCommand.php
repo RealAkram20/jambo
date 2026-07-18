@@ -35,6 +35,10 @@ class InstallFilesGalleryCommand extends Command
 
         $files = [
             'index.php'         => "{$target}/index.php",
+            // Admin gate required at the top of index.php. Security policy,
+            // so it's force-overwritten on every install (see below) — the
+            // served drop-in must never run without the current guard.
+            'fm-guard.php'      => "{$target}/fm-guard.php",
             'config.php'        => "{$target}/_files/config/config.php",
             'custom.js'         => "{$target}/_files/js/custom.js",
             'gallery-readme.md' => "{$galleryDir}/README.md",
@@ -66,10 +70,12 @@ class InstallFilesGalleryCommand extends Command
                 continue;
             }
 
-            // Always refresh .htaccess rules — they're security policy
-            // and must not drift from the repo. Everything else honours
-            // the --force flag so admins don't lose their custom edits.
-            $forceOverwrite = $this->option('force') || str_ends_with($name, '.htaccess');
+            // Always refresh .htaccess rules and the admin gate — they're
+            // security policy and must not drift from the repo. Everything
+            // else honours the --force flag so admins don't lose custom edits.
+            $forceOverwrite = $this->option('force')
+                || str_ends_with($name, '.htaccess')
+                || $name === 'fm-guard.php';
 
             if (File::exists($dest) && ! $forceOverwrite) {
                 $this->line("  · {$name} already present (use --force to overwrite)");
@@ -87,8 +93,27 @@ class InstallFilesGalleryCommand extends Command
         $this->newLine();
         $this->info("Installed {$installed}, skipped {$skipped}.");
 
-        if (! File::exists("{$target}/index.php")) {
+        $indexPath = "{$target}/index.php";
+
+        if (! File::exists($indexPath)) {
             $this->warn('index.php is not present — /admin/file-manager will show the "missing" state.');
+
+            return self::SUCCESS;
+        }
+
+        // Guarantee the admin gate is wired in, even on an upgrade where a
+        // pre-existing index.php was left untouched (no --force). A guard
+        // file that isn't require()d protects nothing, so if the line is
+        // missing we prepend it rather than leave the gallery exposed.
+        $index = File::get($indexPath);
+        if (! str_contains($index, "require __DIR__ . '/fm-guard.php';")) {
+            $guardLine = "<?php\n\n"
+                . "// Jambo admin gate. Validates the signed access token and 403s any\n"
+                . "// unauthenticated request BEFORE any Files Gallery code runs.\n"
+                . "require __DIR__ . '/fm-guard.php';\n";
+            $index = preg_replace('/^<\?php\s*/', $guardLine, $index, 1);
+            File::put($indexPath, $index);
+            $this->info('  ✓ wired fm-guard.php into index.php');
         }
 
         return self::SUCCESS;

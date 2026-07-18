@@ -1,33 +1,36 @@
 # Files Gallery drop-in lives in this directory. On a public VPS, a
-# direct hit on /storage/media/index.php would bypass Jambo's admin gate
-# and hand anyone the Files Gallery UI with upload/delete/download on
-# the whole gallery tree.
+# direct hit on /storage/media/index.php would bypass Jambo's admin
+# route middleware and hand anyone the Files Gallery UI with
+# upload/delete/download on the whole gallery tree.
 #
-# Fix: require the JAMBO_FM_SESSION cookie, which Laravel's
-# admin.file-manager.index controller issues only for authenticated
-# admins. Without it, Apache rejects the request with 403 before Files
-# Gallery ever runs.
+# The authoritative gate is fm-guard.php, required at the top of
+# index.php: it HMAC-verifies the signed JAMBO_FM_SESSION token that the
+# admin.file-manager.index controller issues only to authenticated admins.
+# That runs in PHP, so it holds even on a host without mod_rewrite (where
+# the rule below silently does nothing).
 #
-# This file is installed by `php artisan filemanager:install`
-# (wired into composer.json's post-autoload-dump), so every deploy keeps
-# it in place even though storage/app/public/ itself is gitignored.
+# The rewrite below is a cheap pre-filter only — it rejects requests that
+# carry no token at all before PHP starts. It is NOT the security boundary:
+# presence of a cookie proves nothing (a client can send any value), which
+# is exactly why the PHP guard re-verifies the signature. Never rely on
+# this rule alone.
+#
+# Installed by `php artisan filemanager:install` (wired into composer.json's
+# post-autoload-dump), so every deploy keeps it in place even though
+# storage/app/public/ itself is gitignored.
 
 Options -Indexes -MultiViews
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # The cookie is opaque random bytes issued by Laravel; we only
-    # verify its presence, not the value. Laravel's own HttpOnly flag
-    # keeps it out of reach of client-side JS, so it can't be forged
-    # from an XSS on the app.
+    # Cheap pre-filter: drop tokenless requests early. Real verification of
+    # the token value happens in fm-guard.php.
     RewriteCond %{HTTP_COOKIE} !JAMBO_FM_SESSION=[^;]+ [NC]
     RewriteRule .* - [F,L]
 </IfModule>
 
-# Defense in depth: even if someone rewrites rules, never let Files
-# Gallery serve a response on a non-admin request by denying direct
-# access to its bundled files outside of the index.php entry point.
-<Files "*.log">
+# Never serve the guard shim or log files directly — they're internal.
+<FilesMatch "\.(log)$|^fm-guard\.php$">
     Require all denied
-</Files>
+</FilesMatch>

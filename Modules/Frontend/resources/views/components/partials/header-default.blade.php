@@ -30,6 +30,13 @@
                         <span>Subscribe</span>
                     </a>
                 @endunless
+                @if (auth()->check() && auth()->user()->username && \Modules\Referrals\app\Services\ReferralSettings::active())
+                    <a href="{{ route('profile.refer', ['username' => auth()->user()->username]) }}"
+                       class="jambo-refer-badge d-none d-md-inline-flex">
+                        <i class="ph-fill ph-gift"></i>
+                        <span>Refer &amp; earn</span>
+                    </a>
+                @endif
             </div>
 
             {{-- Center: search bar --}}
@@ -108,6 +115,11 @@
                                 <a href="{{ url('/app') }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
                                     <i class="ph ph-squares-four"></i> Admin Dashboard
                                 </a>
+                                @if (auth()->user()->username && \Modules\Referrals\app\Services\ReferralSettings::active())
+                                    <a href="{{ route('profile.refer', ['username' => auth()->user()->username]) }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
+                                        <i class="ph ph-gift text-primary"></i> Refer &amp; Earn
+                                    </a>
+                                @endif
                             @else
                                 @php $jamboHubUser = auth()->user()->username; @endphp
                                 {{-- Monetization partners get their earnings
@@ -132,6 +144,11 @@
                                 <a href="{{ route('frontend.pricing-page') }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
                                     <i class="ph-fill ph-crown text-warning"></i> Subscribe
                                 </a>
+                                @if (\Modules\Referrals\app\Services\ReferralSettings::active())
+                                    <a href="{{ route('profile.refer', ['username' => $jamboHubUser]) }}" class="dropdown-item d-flex align-items-center gap-2 py-2">
+                                        <i class="ph ph-gift text-primary"></i> Refer &amp; Earn
+                                    </a>
+                                @endif
                             @endif
                             <div class="border-top border-dark">
                                 <a href="{{ route('logout') }}" class="dropdown-item d-flex align-items-center gap-2 py-2"
@@ -387,19 +404,49 @@
                     if (items.length === 0) {
                         results.innerHTML = '<div class="jambo-search-empty">No results found</div>';
                     } else {
-                        results.innerHTML = items.map(function(item) {
-                            return '<a href="' + item.url + '" class="jambo-search-item">' +
-                                '<img src="' + (item.poster || '') + '" alt="" class="jambo-search-thumb" onerror="this.style.display=\'none\'">' +
-                                '<div class="jambo-search-info">' +
-                                    '<div class="jambo-search-title">' + escapeHtml(item.title) + '</div>' +
-                                    '<div class="jambo-search-meta">' + item.type + (item.year ? ' &middot; ' + item.year : '') + '</div>' +
-                                '</div>' +
-                            '</a>';
-                        }).join('');
+                        // Build via DOM + textContent/property assignment rather
+                        // than string-concatenated HTML. item.url / item.poster
+                        // come from admin-editable paste-URL fields, so
+                        // interpolating them raw into href/src was stored XSS
+                        // (e.g. a poster of  x" onerror="…" ). Properties don't
+                        // parse HTML, and safeUrl() strips script-bearing schemes.
+                        results.innerHTML = '';
+                        var frag = document.createDocumentFragment();
+                        items.forEach(function(item) {
+                            var a = document.createElement('a');
+                            a.className = 'jambo-search-item';
+                            a.href = safeUrl(item.url);
+
+                            var img = document.createElement('img');
+                            img.className = 'jambo-search-thumb';
+                            img.alt = '';
+                            if (item.poster) { img.src = safeUrl(item.poster); }
+                            img.addEventListener('error', function() { this.style.display = 'none'; });
+
+                            var info = document.createElement('div');
+                            info.className = 'jambo-search-info';
+                            var title = document.createElement('div');
+                            title.className = 'jambo-search-title';
+                            title.textContent = item.title || '';
+                            var meta = document.createElement('div');
+                            meta.className = 'jambo-search-meta';
+                            meta.textContent = (item.type || '') + (item.year ? ' · ' + item.year : '');
+                            info.appendChild(title);
+                            info.appendChild(meta);
+
+                            a.appendChild(img);
+                            a.appendChild(info);
+                            frag.appendChild(a);
+                        });
+                        results.appendChild(frag);
+
                         // "View all results" footer — sends the user to
                         // the styled results page for the full grid.
-                        results.innerHTML += '<a href="' + {{ Js::from(route('frontend.search')) }} + '?q=' + encodeURIComponent(q) +
-                            '" class="jambo-search-all">View all results &rsaquo;</a>';
+                        var allLink = document.createElement('a');
+                        allLink.className = 'jambo-search-all';
+                        allLink.href = {{ Js::from(route('frontend.search')) }} + '?q=' + encodeURIComponent(q);
+                        allLink.innerHTML = 'View all results &rsaquo;';
+                        results.appendChild(allLink);
                     }
                     results.hidden = false;
                 })
@@ -486,6 +533,15 @@
         var d = document.createElement('div');
         d.textContent = s;
         return d.innerHTML;
+    }
+
+    // Neutralise script-bearing URL schemes before assigning to href/src.
+    // Allows http(s) and site-relative paths; a javascript:/data:/vbscript:
+    // value (which would run on click / image load) collapses to '#'.
+    function safeUrl(u) {
+        u = String(u == null ? '' : u).trim();
+        if (/^(?:javascript|data|vbscript):/i.test(u)) { return '#'; }
+        return u;
     }
 })();
 </script>

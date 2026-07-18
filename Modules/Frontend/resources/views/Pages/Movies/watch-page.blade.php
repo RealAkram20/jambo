@@ -227,9 +227,10 @@ document.addEventListener('DOMContentLoaded', async function () {
     const closeBtn = document.getElementById('jambo-mini-close');
     if (!video) return;
 
-    // Best-effort muted autoplay. Browsers that block it leave the big
-    // play icon up, which is the expected UX.
-    video.muted = true;
+    // Nudge playback in case the partial's early-play attempt lost a
+    // race with the custom-element upgrade. Don't touch .muted here —
+    // the player partial owns the sound-on-by-default logic and its
+    // muted-autoplay fallback.
     const playAttempt = video.play();
     if (playAttempt && typeof playAttempt.catch === 'function') playAttempt.catch(() => {});
 

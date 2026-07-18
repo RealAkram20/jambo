@@ -64,6 +64,10 @@ class Kernel extends HttpKernel
             // unique device per piece of content). Cheap — only
             // does work on the first hit.
             \Modules\Streaming\app\Http\Middleware\EnsureVisitorId::class,
+            // Captures ?ref=<code> into the referral cookie (last-touch,
+            // TTL is a super-admin setting). Only does work when the
+            // param is present and the referral program is on.
+            \Modules\Referrals\app\Http\Middleware\CaptureReferralCode::class,
         ],
 
         'api' => [

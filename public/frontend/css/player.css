@@ -1683,7 +1683,13 @@ media-tooltip-group {
 .jambo-mobile-center__btn--play[data-playing] .media-icon--play  { display: none; }
 .jambo-mobile-center__btn--play[data-playing] .media-icon--pause { display: block; }
 
-@media (max-width: 767px) {
+/* The second query arm covers phones held in LANDSCAPE: their CSS width
+   is 800–930px — past the 767px "mobile" cap — but it's exactly the
+   posture people watch fullscreen video in, and they still need the big
+   touch targets and the decluttered bar. Keyed on coarse pointer +
+   landscape + short viewport so laptops, tablets in landscape, and TVs
+   (1080px+ tall) never match. */
+@media (max-width: 767px), (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
     .jambo-mobile-center {
         display: flex;
         align-items: center;
@@ -1957,7 +1963,7 @@ media-tooltip-group {
  * for touch, and edge-zone tap gestures still seek ±10s, so users keep
  * the functionality without the visual clutter.
  */
-@media (max-width: 991.98px) {
+@media (max-width: 991.98px), (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
     .jambo-bar-seek--mobile-hide {
         display: none !important;
     }
@@ -2025,3 +2031,66 @@ media-tooltip-group {
 }
 .jambo-player-error__btn:hover { filter: brightness(1.1); }
 .jambo-player-error__btn:active { transform: scale(0.96); }
+
+/* -------------------------------------------------------------------------- */
+/* Native-controls fallback                                                   */
+/* -------------------------------------------------------------------------- */
+/*
+ * When the video-minimal-ui module never arrives (old Android TV /
+ * WebView without Custom Elements, or a network that blocks the CDN),
+ * the player partial's inline script flips the browser's native
+ * controls on and tags the container with .jambo-native-controls.
+ * Everything custom must get out of the way: the un-upgraded
+ * media-* elements would otherwise render as stray inline text/SVGs
+ * over the video, and the gesture zones would eat taps meant for the
+ * native control bar. Flat selectors only — no CSS nesting — so these
+ * rules parse on exactly the old engines they exist for.
+ */
+.jambo-native-controls .media-controls,
+.jambo-native-controls .jambo-mobile-center,
+.jambo-native-controls .jambo-gesture-zone,
+.jambo-native-controls .jambo-gesture-feedback,
+.jambo-native-controls .jambo-settings-popover,
+.jambo-native-controls .media-overlay,
+.jambo-native-controls .media-buffering-indicator,
+.jambo-native-controls media-tooltip,
+.jambo-native-controls media-popover,
+.jambo-native-controls media-error-dialog {
+    display: none !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Fullscreen safe areas (notched / punch-hole phones)                        */
+/* -------------------------------------------------------------------------- */
+/*
+ * In fullscreen landscape the viewport extends into the camera cutout
+ * and the home-indicator strip. Pad the control bar out of both so the
+ * fullscreen / settings buttons stay tappable on every device shape.
+ * env() is ignored by engines that don't know it, leaving the base
+ * positioning untouched.
+ */
+video-player:fullscreen .media-controls,
+.media-minimal-skin:fullscreen .media-controls,
+.jambo-player-frame:fullscreen .media-controls {
+    bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+    inset-inline: calc(0.5rem + env(safe-area-inset-left, 0px)) calc(0.5rem + env(safe-area-inset-right, 0px));
+}
+video-player:-webkit-full-screen .media-controls,
+.media-minimal-skin:-webkit-full-screen .media-controls,
+.jambo-player-frame:-webkit-full-screen .media-controls {
+    bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+    inset-inline: calc(0.5rem + env(safe-area-inset-left, 0px)) calc(0.5rem + env(safe-area-inset-right, 0px));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Settings popover on short screens                                          */
+/* -------------------------------------------------------------------------- */
+/*
+ * The playback-speed pane is 8 rows tall — taller than the whole player
+ * on a phone in landscape. Cap the popover to the frame and let it
+ * scroll instead of spilling out of (or being clipped by) the player.
+ */
+.jambo-settings-popover {
+    max-height: calc(100% - 4rem);
+    overflow-y: auto;
+}
