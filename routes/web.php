@@ -56,12 +56,14 @@ Route::get('/manifest.webmanifest', function () {
         'start_url' => '/',
         'scope' => '/',
         'display' => 'standalone',
-        // 'any' lets the OS rotate the installed app freely. The
-        // previous 'portrait' lock prevented landscape entirely,
-        // which broke the watch-on-rotate UX. Pages that want to
-        // stay portrait can still use CSS / JS, but the manifest
-        // shouldn't dictate from the top.
-        'orientation' => 'any',
+        // Portrait lock: the installed app ignores the phone's
+        // auto-rotate everywhere EXCEPT fullscreen video — the player
+        // calls screen.orientation.lock('landscape') on entering
+        // fullscreen (jambo-player-gestures.js) and unlocks on exit,
+        // which drops back to this manifest orientation. That pairing
+        // is what makes the lock safe; loosen both together or not at
+        // all.
+        'orientation' => 'portrait',
         'background_color' => '#0b0d17',
         'theme_color' => '#1A98FF',
         'icons' => [

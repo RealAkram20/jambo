@@ -165,6 +165,28 @@
         document.addEventListener('fullscreenchange', syncFsButton);
         document.addEventListener('webkitfullscreenchange', syncFsButton);
 
+        // The PWA manifest locks the installed app to portrait, so
+        // fullscreen video is the one place rotation must be forced:
+        // lock to landscape on entering fullscreen, unlock on exit
+        // (which returns control to the manifest's portrait lock).
+        // Driven from fullscreenchange rather than toggleFullscreen so
+        // every entry/exit path is covered (F key, gesture, button,
+        // ESC, Android back). lock() only works while fullscreen and
+        // only on Chromium/Android — iPhone Safari uses the native
+        // video player, which rotates by itself — so failures are
+        // expected and swallowed.
+        function syncOrientation() {
+            var so = window.screen && screen.orientation;
+            if (!so || typeof so.lock !== 'function') return;
+            if (isFullscreenNow()) {
+                so.lock('landscape').catch(function () {});
+            } else if (typeof so.unlock === 'function') {
+                try { so.unlock(); } catch (e) {}
+            }
+        }
+        document.addEventListener('fullscreenchange', syncOrientation);
+        document.addEventListener('webkitfullscreenchange', syncOrientation);
+
         function seekPercent(pct) {
             if (video.duration && isFinite(video.duration)) {
                 video.currentTime = video.duration * (pct / 100);
