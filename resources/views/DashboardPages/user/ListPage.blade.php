@@ -12,9 +12,11 @@
                             {{ $totalCount }} total · {{ $adminCount }} admin{{ $adminCount === 1 ? '' : 's' }}
                         </p>
                     </div>
+                    @can('add_users')
                     <a href="{{ route('dashboard.user-list.create') }}" class="btn btn-primary">
                         <i class="ph ph-plus me-1"></i> Create user
                     </a>
+                    @endcan
                 </div>
 
                 @if (session('success'))
@@ -131,10 +133,13 @@
                                                 $isSuperAdmin = $u->hasRole('super-admin');
                                             @endphp
                                             <div class="btn-group" role="group">
+                                                @can('edit_users')
                                                 <a href="{{ route('dashboard.user-list.edit', $u) }}"
                                                     class="btn btn-sm btn-outline-primary" title="Edit">
                                                     <i class="ph ph-pencil-simple"></i>
                                                 </a>
+                                                @endcan
+                                                @can('delete_users')
                                                 <form method="POST" action="{{ route('dashboard.user-list.destroy', $u) }}" class="m-0 d-inline"
                                                     onsubmit="return confirm('Delete {{ $u->username }}? This cannot be undone.');">
                                                     @csrf
@@ -145,6 +150,12 @@
                                                         <i class="ph ph-trash-simple"></i>
                                                     </button>
                                                 </form>
+                                                @endcan
+                                                @cannot('edit_users')
+                                                    @cannot('delete_users')
+                                                        <span class="text-muted small">—</span>
+                                                    @endcannot
+                                                @endcannot
                                             </div>
                                         </td>
                                     </tr>

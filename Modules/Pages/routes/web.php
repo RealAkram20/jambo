@@ -21,5 +21,8 @@ Route::middleware(['auth', 'role:admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
-        Route::resource('pages', PageController::class)->except(['show']);
+        // Delegatable system page: hidden + 403 until a super-admin grants
+        // pages_access. Super-admins bypass via Gate::before.
+        Route::resource('pages', PageController::class)->except(['show'])
+            ->middleware('permission:pages_access');
     });

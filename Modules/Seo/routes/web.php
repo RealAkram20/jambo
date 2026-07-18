@@ -14,7 +14,7 @@ use Modules\Seo\app\Http\Controllers\Admin\SeoSettingsController;
 |
 */
 
-Route::middleware(['auth', 'role:admin'])
+Route::middleware(['auth', 'role:admin', 'permission:seo_access'])
     ->prefix('admin/seo')
     ->name('admin.seo.')
     ->group(function () {

@@ -4,7 +4,9 @@ namespace Tests\Feature\Admin;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /**
@@ -34,9 +36,20 @@ class SuperAdminGuardTest extends TestCase
     {
         parent::setUp();
 
-        Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web'], ['title' => 'Administrator']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web'], ['title' => 'Administrator']);
         Role::firstOrCreate(['name' => 'user',  'guard_name' => 'web'], ['title' => 'User']);
         Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web'], ['title' => 'Super Administrator']);
+
+        // The user-CRUD routes are now permission-gated. Grant the admin role
+        // the full user-management set so these tests exercise the controller's
+        // super-admin immutability guards (an admin who CAN manage regular
+        // users still must not be able to touch a super-admin), rather than
+        // being stopped earlier by the permission middleware.
+        foreach (['view_users', 'add_users', 'edit_users', 'delete_users'] as $p) {
+            Permission::firstOrCreate(['name' => $p, 'guard_name' => 'web']);
+        }
+        $adminRole->givePermissionTo(['view_users', 'add_users', 'edit_users', 'delete_users']);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $this->superAdmin = User::factory()->create([
             'username' => 'owner_' . uniqid(),

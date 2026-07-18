@@ -25,15 +25,25 @@ class PermissionRoleTableSeeder extends Seeder
 
         $modules = config('constant.MODULES');
 
+        // System/owner pages carry a single custom "access" permission that
+        // is deliberately withheld from the admin role (default hidden). Keep
+        // it in one place so both the create loop and the admin grant agree.
+        $restricted = ['settings_access', 'seo_access', 'system_info_access', 'pages_access'];
+
         foreach ($modules as $key => $module) {
-            $permissions = ['view', 'add', 'edit', 'delete'];
             $module_name = strtolower(str_replace(' ', '_', $module['module_name']));
-            foreach ($permissions as $key => $value) {
-                $permission_name = $value.'_'.$module_name;
-                Permission::firstOrCreate(['name' => $permission_name, 'is_fixed' => true]);
+
+            // Custom-permission modules (is_custom_permission = 1) don't get the
+            // view/add/edit/delete matrix — only their explicit more_permission
+            // entries. Mirrors how the Access Control screen renders them.
+            if (empty($module['is_custom_permission'])) {
+                foreach (['view', 'add', 'edit', 'delete'] as $value) {
+                    Permission::firstOrCreate(['name' => $value.'_'.$module_name, 'is_fixed' => true]);
+                }
             }
+
             if (isset($module['more_permission']) && is_array($module['more_permission'])) {
-                foreach ($module['more_permission'] as $key => $value) {
+                foreach ($module['more_permission'] as $value) {
                     $permission_name = $module_name.'_'.$value;
                     Permission::firstOrCreate(['name' => $permission_name, 'is_fixed' => true]);
                 }
@@ -56,7 +66,10 @@ class PermissionRoleTableSeeder extends Seeder
         //
         // Re-syncing on every seed run so old installs with the
         // previous too-permissive `user` grants get cleaned up.
-        $admin->syncPermissions(Permission::get());
+        // Admin gets everything EXCEPT the delegatable system-page perms —
+        // those stay off until a super-admin grants them. Super-admins bypass
+        // all checks via the Gate::before in AuthServiceProvider.
+        $admin->syncPermissions(Permission::whereNotIn('name', $restricted)->get());
         $user->syncPermissions([]);
 
         Schema::enableForeignKeyConstraints();

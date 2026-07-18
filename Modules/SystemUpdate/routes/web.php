@@ -14,6 +14,10 @@ use Modules\SystemUpdate\app\Http\Controllers\UpdateController;
 */
 
 $middleware = config('systemupdate.middleware', ['web', 'auth', 'role:admin']);
+// "System Updates" is part of the delegatable System Info page group — gate
+// on system_info_access (shared with diagnostics). Hidden + 403 for admins
+// until a super-admin grants it; super-admins bypass via Gate::before.
+$middleware[] = 'permission:system_info_access';
 
 Route::middleware($middleware)
     ->prefix('admin/updates')
