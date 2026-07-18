@@ -85,14 +85,14 @@ class MonetizationPartner extends Model
         return $this->hasMany(PartnerStatement::class, 'partner_id');
     }
 
-    public function walletEntries(): HasMany
+    public function walletEntries(): \Illuminate\Database\Eloquent\Relations\MorphMany
     {
-        return $this->hasMany(WalletEntry::class, 'partner_id');
+        return $this->morphMany(\Modules\Wallet\app\Models\LedgerEntry::class, 'owner');
     }
 
-    public function withdrawals(): HasMany
+    public function withdrawals(): \Illuminate\Database\Eloquent\Relations\MorphMany
     {
-        return $this->hasMany(WithdrawalRequest::class, 'partner_id');
+        return $this->morphMany(\Modules\Wallet\app\Models\WithdrawalRequest::class, 'owner');
     }
 
     public function scopeEnrolled($q)
@@ -117,12 +117,13 @@ class MonetizationPartner extends Model
     }
 
     /**
-     * Authoritative balance = SUM over the append-only ledger. Callers
-     * inside money transitions must hold the partner-row lock first
-     * (WalletService does) so the sum can't move under them.
+     * Authoritative balance = SUM over the append-only universal
+     * ledger (platform currency). Callers inside money transitions
+     * must hold the partner-row lock first (Wallet Ledger does) so the
+     * sum can't move under them.
      */
     public function walletBalance(): string
     {
-        return (string) ($this->walletEntries()->sum('amount') ?: '0.00');
+        return app(\Modules\Wallet\app\Services\Ledger::class)->balanceFor($this);
     }
 }

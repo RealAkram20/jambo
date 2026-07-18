@@ -6,7 +6,7 @@ use Illuminate\Http\JsonResponse;
 use Modules\Monetization\app\Models\MonetizationPeriod;
 use Modules\Monetization\app\Models\QualifiedView;
 use Modules\Monetization\app\Models\TitleSplit;
-use Modules\Monetization\app\Models\WithdrawalRequest;
+use Modules\Wallet\app\Models\WithdrawalRequest;
 
 class PartnerDashboardController extends PartnerBaseController
 {

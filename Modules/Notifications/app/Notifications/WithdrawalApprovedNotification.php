@@ -2,7 +2,7 @@
 
 namespace Modules\Notifications\app\Notifications;
 
-use Modules\Monetization\app\Models\WithdrawalRequest;
+use Modules\Wallet\app\Models\WithdrawalRequest;
 
 class WithdrawalApprovedNotification extends ChannelGatedNotification
 {
@@ -21,12 +21,12 @@ class WithdrawalApprovedNotification extends ChannelGatedNotification
 
         return [
             'title' => 'Withdrawal approved',
-            'message' => "Your withdrawal of UGX {$amount} was approved — the mobile money transfer is on its way to {$this->withdrawal->payout_msisdn_snapshot}.",
+            'message' => "Your payout of {$this->withdrawal->currency} {$amount} was approved — the mobile money transfer is on its way to {$this->withdrawal->payee_msisdn}.",
             'icon' => 'ph-check-circle',
             'colour' => 'primary',
             'image' => null,
-            'action_url' => route('partner.withdrawals.index'),
-            'action_label' => 'View withdrawals',
+            'action_url' => WalletNotificationLinks::forRecipient($this->withdrawal, $notifiable),
+            'action_label' => 'View wallet',
             'withdrawal_id' => $this->withdrawal->id,
         ];
     }

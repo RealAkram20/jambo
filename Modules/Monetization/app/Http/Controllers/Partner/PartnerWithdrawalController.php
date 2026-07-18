@@ -4,13 +4,10 @@ namespace Modules\Monetization\app\Http\Controllers\Partner;
 
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Modules\Monetization\app\Models\MonetizationPartner;
-use Modules\Monetization\app\Models\WalletEntry;
-use Modules\Monetization\app\Models\WithdrawalRequest;
 use Modules\Monetization\app\Services\AuditLogger;
 use Modules\Monetization\app\Services\MonetizationSettings;
-use Modules\Monetization\app\Services\WalletService;
+use Modules\Wallet\app\Models\WithdrawalRequest;
+use Modules\Wallet\app\Services\Payouts;
 
 class PartnerWithdrawalController extends PartnerBaseController
 {
@@ -28,10 +25,10 @@ class PartnerWithdrawalController extends PartnerBaseController
     }
 
     /**
-     * Everything money-critical is re-checked INSIDE the transaction,
-     * under the partner-row lock WalletService takes: balance, open
-     * requests, verified profile, cooldown. Two racing submissions
-     * serialize on the lock — the loser sees the hold and fails.
+     * Partner POLICY checks live here (enrollment, verified payout
+     * profile, cooldown, monetization minimum); the money mechanics —
+     * owner lock, one-open-request, hold, overdraw — live in the
+     * universal Payouts service.
      */
     public function store(Request $request): RedirectResponse
     {
@@ -56,49 +53,22 @@ class PartnerWithdrawalController extends PartnerBaseController
         }
 
         try {
-            $withdrawal = DB::transaction(function () use ($partner, $amount, $request) {
-                // Serialize on the partner row before every check.
-                $locked = MonetizationPartner::query()->lockForUpdate()->findOrFail($partner->id);
-
-                if ($locked->withdrawals()->whereIn('status', WithdrawalRequest::OPEN_STATUSES)->exists()) {
-                    throw new \RuntimeException('You already have a withdrawal in progress.');
-                }
-
-                if (bccomp($locked->walletBalance(), $amount, 2) < 0) {
-                    throw new \RuntimeException('That amount exceeds your wallet balance.');
-                }
-
-                $withdrawal = WithdrawalRequest::create([
-                    'partner_id' => $locked->id,
-                    'amount' => $amount,
-                    'status' => WithdrawalRequest::STATUS_REQUESTED,
-                    'payout_msisdn_snapshot' => $locked->payout_msisdn,
-                    'payout_name_snapshot' => $locked->payout_name,
-                    'payout_network_snapshot' => $locked->payout_network,
-                    'requested_at' => now(),
-                ]);
-
-                $hold = app(WalletService::class)->append(
-                    partner: $locked,
-                    type: WalletEntry::TYPE_WITHDRAWAL_HOLD,
-                    amount: bcmul($amount, '-1', 2),
-                    reference: $withdrawal,
-                    memo: 'Withdrawal hold',
-                    createdBy: $request->user()->id,
-                );
-
-                $withdrawal->update(['hold_entry_id' => $hold?->id]);
-
-                AuditLogger::log('withdrawal.requested', $withdrawal, ['after' => [
-                    'amount' => $amount,
-                    'msisdn' => $locked->payout_msisdn,
-                ]]);
-
-                return $withdrawal;
-            });
+            $withdrawal = app(Payouts::class)->request(
+                owner: $partner,
+                amount: $amount,
+                payeeName: (string) $partner->payout_name,
+                payeeMsisdn: (string) $partner->payout_msisdn,
+                payeeNetwork: $partner->payout_network,
+                requestedBy: $request->user()->id,
+            );
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
+
+        AuditLogger::log('withdrawal.requested', $withdrawal, ['after' => [
+            'amount' => $amount,
+            'msisdn' => $partner->payout_msisdn,
+        ]]);
 
         event(new \Modules\Notifications\app\Events\WithdrawalRequested($withdrawal));
 

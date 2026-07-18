@@ -71,11 +71,11 @@ Route::middleware(['auth', 'role:admin', 'role:finance|super-admin', 'monetizati
         Route::get('statements', [StatementAdminController::class, 'index'])->name('statements.index');
         Route::get('statements/{period}', [StatementAdminController::class, 'show'])->name('statements.show');
 
+        // Withdrawal clerking moved to the universal Wallet queue
+        // (admin/wallet/withdrawals). Redirect stubs keep old bookmarks
+        // and stored notification links working.
         Route::get('withdrawals', [WithdrawalAdminController::class, 'index'])->name('withdrawals.index');
         Route::get('withdrawals/{withdrawal}', [WithdrawalAdminController::class, 'show'])->name('withdrawals.show');
-        Route::post('withdrawals/{withdrawal}/approve', [WithdrawalAdminController::class, 'approve'])->name('withdrawals.approve');
-        Route::post('withdrawals/{withdrawal}/mark-paid', [WithdrawalAdminController::class, 'markPaid'])->name('withdrawals.mark-paid');
-        Route::post('withdrawals/{withdrawal}/reject', [WithdrawalAdminController::class, 'reject'])->name('withdrawals.reject');
     });
 
 Route::middleware(['auth', 'role:partner'])
@@ -125,4 +125,5 @@ Route::middleware(['auth', 'role:partner'])
         Route::get('security', [PartnerAccountController::class, 'security'])->name('security');
         Route::get('devices', [PartnerAccountController::class, 'devices'])->name('devices');
         Route::get('notifications', [PartnerAccountController::class, 'notifications'])->name('notifications');
+        Route::get('refer', [PartnerAccountController::class, 'refer'])->name('refer');
     });

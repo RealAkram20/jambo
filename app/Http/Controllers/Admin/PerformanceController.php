@@ -46,14 +46,17 @@ class PerformanceController extends Controller
         $prices = $this->prices();
         $currency = setting('payments.currency', config('payments.currency', 'UGX'));
 
-        // This admin's own created-counts + earnings for the period.
+        // This admin's own created-counts, plus earnings as ACTUALLY
+        // credited to their universal wallet (rates are snapshotted per
+        // upload, so these figures are money, not an estimate).
         $myCounts = $this->createdCounts($since, $user->id);
-        $myEarnings = $this->earningsFor($myCounts, $prices);
+        $myEarnings = (float) app(\App\Services\PerformanceCredits::class)->earnedSince($user, $since);
+        $walletBalance = app(\Modules\Wallet\app\Services\Ledger::class)->balanceFor($user);
 
         // Super-admin also sees every admin's contribution, ranked.
         $leaderboard = [];
         if ($isSuperAdmin) {
-            $leaderboard = $this->leaderboard($since, $prices);
+            $leaderboard = $this->leaderboard($since);
         }
 
         // "Who did what" feed. Super-admin sees everyone; a regular admin
@@ -74,6 +77,7 @@ class PerformanceController extends Controller
             'prices'       => $prices,
             'myCounts'     => $myCounts,
             'myEarnings'   => $myEarnings,
+            'walletBalance' => $walletBalance,
             'leaderboard'  => $leaderboard,
             'feed'         => $feed,
         ]);
@@ -142,24 +146,14 @@ class PerformanceController extends Controller
     }
 
     /**
-     * @param array{movie:int, show:int, season:int, episode:int} $counts
-     * @param array<string, float> $prices
-     */
-    private function earningsFor(array $counts, array $prices): float
-    {
-        return $counts['movie'] * $prices['movie']
-            + $counts['show'] * $prices['show']
-            + $counts['episode'] * $prices['episode'];
-        // seasons excluded on purpose — not a paid unit
-    }
-
-    /**
-     * Per-admin created-counts + earnings for the period, ranked by
-     * earnings desc. One grouped query, then priced in PHP.
+     * Per-admin created-counts + WALLET-CREDITED earnings for the
+     * period, ranked by earnings desc. Counts come from the activity
+     * log; money comes from the universal ledger, so the board shows
+     * what was actually paid, not an estimate at today's rates.
      *
      * @return list<array{user:?User, counts:array, earnings:float}>
      */
-    private function leaderboard(Carbon $since, array $prices): array
+    private function leaderboard(Carbon $since): array
     {
         $rows = ContentActivity::query()
             ->where('action', ContentActivity::ACTION_CREATED)
@@ -176,6 +170,15 @@ class PerformanceController extends Controller
 
         $users = User::whereIn('id', array_keys($byActor))->get()->keyBy('id');
 
+        // What each admin was actually credited this period.
+        $paid = \Modules\Wallet\app\Models\LedgerEntry::query()
+            ->where('owner_type', (new User())->getMorphClass())
+            ->where('type', \Modules\Wallet\app\Models\LedgerEntry::TYPE_PERFORMANCE_CREDIT)
+            ->where('created_at', '>=', $since)
+            ->groupBy('owner_id')
+            ->selectRaw('owner_id, SUM(amount) as total')
+            ->pluck('total', 'owner_id');
+
         $out = [];
         foreach ($byActor as $actorId => $data) {
             $counts = [
@@ -187,7 +190,7 @@ class PerformanceController extends Controller
             $out[] = [
                 'user'     => $users->get($actorId),
                 'counts'   => $counts,
-                'earnings' => $this->earningsFor($counts, $prices),
+                'earnings' => (float) ($paid[$actorId] ?? 0),
             ];
         }
 

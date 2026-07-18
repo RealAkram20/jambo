@@ -1,0 +1,11 @@
+{
+    "name": "Referrals",
+    "alias": "referrals",
+    "description": "Sitewide referral program: referral codes, cookie attribution, first-payment discounts and referrer rewards.",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Referrals\\app\\Providers\\ReferralsServiceProvider"
+    ],
+    "files": []
+}

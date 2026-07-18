@@ -46,25 +46,99 @@ class ActivateSubscriptionFromPayment
         // compare as floats. Expected currency mirrors createOrder's
         // `$tier->currency ?: config default` fallback so a tier with a
         // blank currency doesn't wrongly reject a legitimate order.
-        $expectedCurrency = $tier->currency ?: config('payments.currency', 'UGX');
-        if ((float) $order->amount < (float) $tier->price
+        //
+        // Referral exception: createOrder may legitimately charge less
+        // than tier price when it applied a referral discount. That block
+        // is server-authored only (createOrder strips client copies), so
+        // when it's present AND internally consistent — discount computed
+        // off the real tier price, arithmetic checks out, order charged
+        // exactly the final amount — the floor drops to the discounted
+        // amount. Anything inconsistent keeps the full-price floor.
+        // Prefer the price frozen at checkout (createOrder's tier_snapshot)
+        // over the live tier price. This is the fix for the "paid but no
+        // subscription" trap: if an admin raised the price after the buyer
+        // checked out, the live price would exceed what they legitimately
+        // paid and the order would be refused. The snapshot is what the
+        // order was assembled from, so it's the authoritative floor. Fall
+        // back to the live tier only for legacy orders with no snapshot.
+        $snapshot = is_array($order->metadata ?? null) ? ($order->metadata['tier_snapshot'] ?? null) : null;
+        $snapshotValid = is_array($snapshot) && (int) ($snapshot['tier_id'] ?? 0) === (int) $tier->id;
+
+        $basePrice = $snapshotValid ? (float) $snapshot['price'] : (float) $tier->price;
+        $expectedCurrency = $snapshotValid
+            ? (string) $snapshot['currency']
+            : ($tier->currency ?: config('payments.currency', 'UGX'));
+
+        $expectedFloor = $basePrice;
+        $referral = is_array($order->metadata ?? null) ? ($order->metadata['referral'] ?? null) : null;
+        if (is_array($referral)) {
+            $pct = (float) ($referral['discount_percent'] ?? -1);
+            $orig = (float) ($referral['original_amount'] ?? -1);
+            $disc = (float) ($referral['discount_amount'] ?? -1);
+            $final = (float) ($referral['final_amount'] ?? -1);
+
+            $consistent = $pct >= 0 && $pct <= 100
+                && abs($orig - $basePrice) < 0.01
+                && abs($disc - $orig * $pct / 100) <= 0.011
+                && abs($final - ($orig - $disc)) < 0.01
+                && abs((float) $order->amount - $final) < 0.01;
+
+            if ($consistent) {
+                $expectedFloor = $final;
+            } else {
+                Log::warning('[subscriptions] referral block inconsistent — enforcing full price', [
+                    'order_id' => $order->id,
+                    'referral' => $referral,
+                    'base_price' => $basePrice,
+                ]);
+            }
+        }
+
+        if ((float) $order->amount < $expectedFloor - 0.005
             || strcasecmp((string) $order->currency, (string) $expectedCurrency) !== 0) {
-            Log::warning('[subscriptions] activation refused: order underpays tier', [
+            // Never silent: the buyer may have paid. Flag the order on its
+            // own metadata AND log at error level so a paid-but-unactivated
+            // order surfaces for admin reconciliation instead of vanishing.
+            // We deliberately do NOT claim the order (no subscription_applied_at),
+            // so once an admin corrects the mismatch the event can re-run.
+            Log::error('[subscriptions] activation refused: order underpays tier — flagged for review', [
                 'order_id' => $order->id,
                 'order_amount' => $order->amount,
                 'order_currency' => $order->currency,
                 'tier_id' => $tier->id,
-                'tier_price' => $tier->price,
+                'expected_floor' => $expectedFloor,
                 'expected_currency' => $expectedCurrency,
+                'snapshot_present' => $snapshotValid,
                 'source' => $source,
             ]);
+
+            $meta = is_array($order->metadata) ? $order->metadata : [];
+            $meta['activation_review'] = [
+                'reason' => 'amount_below_expected_floor_or_currency_mismatch',
+                'order_amount' => (string) $order->amount,
+                'order_currency' => (string) $order->currency,
+                'expected_floor' => (string) $expectedFloor,
+                'expected_currency' => (string) $expectedCurrency,
+                'flagged_at' => Carbon::now()->toIso8601String(),
+            ];
+            $order->forceFill(['metadata' => $meta])->save();
+
             return;
         }
 
         DB::transaction(function () use ($order, $tier, $source) {
-            // Idempotency: if we've already activated this order, stop.
-            $existing = UserSubscription::where('payment_order_id', $order->id)->first();
-            if ($existing) {
+            // Idempotency: atomically claim this order. The marker lives on
+            // the ORDER (subscription_applied_at), not on the subscription's
+            // payment_order_id — a same-tier renewal overwrites that FK,
+            // which used to erase the marker and let a replayed
+            // payment.completed grant a second free extension. A conditional
+            // single-row update is race-safe even if a second dispatch
+            // (queued listener, admin reconcile) fires concurrently: only
+            // the first update touches a row, the rest see 0 and stop.
+            $claimed = PaymentOrder::whereKey($order->id)
+                ->whereNull('subscription_applied_at')
+                ->update(['subscription_applied_at' => Carbon::now()]);
+            if ($claimed === 0) {
                 return;
             }
 

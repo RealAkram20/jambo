@@ -39,6 +39,22 @@ class AppServiceProvider extends ServiceProvider
         $this->overrideWebPushConfigFromSettings();
         $this->overrideGoogleAuthConfigFromSettings();
         $this->overrideVideoCdnConfigFromSettings();
+
+        // Pay-per-upload: every `created` content-activity row credits
+        // the acting admin's universal wallet at the configured rate.
+        // Fenced — a wallet hiccup must never break content creation.
+        if (class_exists(\Modules\Content\app\Models\ContentActivity::class)) {
+            \Modules\Content\app\Models\ContentActivity::created(function ($activity) {
+                try {
+                    app(\App\Services\PerformanceCredits::class)->creditActivity($activity);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('[performance] wallet credit failed', [
+                        'activity_id' => $activity->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            });
+        }
     }
 
     /**

@@ -2,7 +2,7 @@
 
 namespace Modules\Notifications\app\Notifications;
 
-use Modules\Monetization\app\Models\WithdrawalRequest;
+use Modules\Wallet\app\Models\WithdrawalRequest;
 
 class WithdrawalRejectedNotification extends ChannelGatedNotification
 {
@@ -21,12 +21,12 @@ class WithdrawalRejectedNotification extends ChannelGatedNotification
 
         return [
             'title' => 'Withdrawal rejected',
-            'message' => "Your withdrawal of UGX {$amount} was rejected and the funds were returned to your wallet. Reason: {$this->withdrawal->rejection_reason}",
+            'message' => "Your payout of {$this->withdrawal->currency} {$amount} was rejected and the funds were returned to your wallet. Reason: {$this->withdrawal->rejection_reason}",
             'icon' => 'ph-x-circle',
             'colour' => 'danger',
             'image' => null,
-            'action_url' => route('partner.withdrawals.index'),
-            'action_label' => 'View withdrawals',
+            'action_url' => WalletNotificationLinks::forRecipient($this->withdrawal, $notifiable),
+            'action_label' => 'View wallet',
             'withdrawal_id' => $this->withdrawal->id,
         ];
     }

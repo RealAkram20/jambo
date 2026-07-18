@@ -66,7 +66,7 @@
                                 <tr>
                                     <td>{{ $withdrawal->requested_at->format('d M Y') }}</td>
                                     <td class="fw-bold">UGX {{ number_format((float) $withdrawal->amount, 0) }}</td>
-                                    <td style="font-size:13px;">{{ $withdrawal->payout_msisdn_snapshot }}</td>
+                                    <td style="font-size:13px;">{{ $withdrawal->payee_msisdn }}</td>
                                     <td>
                                         @switch($withdrawal->status)
                                             @case('requested') <span class="badge bg-warning">Pending review</span> @break

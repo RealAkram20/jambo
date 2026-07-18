@@ -21,16 +21,40 @@
     // lets the bell's JS keep the pill in sync after mark-as-read.
     $hubUnreadCount = auth()->check() ? auth()->user()->unreadNotifications()->count() : 0;
 
-    $hubNavItems = [
-        ['label' => 'Watchlist',     'icon' => 'ph-bookmarks-simple', 'href' => route('profile.watchlist',     ['username' => $user->username]), 'active' => $activeTab === 'watchlist'],
-        ['label' => 'Profile',       'icon' => 'ph-user-circle',      'href' => route('profile.show',          ['username' => $user->username]), 'active' => $activeTab === 'profile'],
-        ['label' => 'Security',      'icon' => 'ph-shield-check',     'href' => route('profile.security',      ['username' => $user->username]), 'active' => $activeTab === 'security'],
-        ['label' => 'Devices',       'icon' => 'ph-devices',          'href' => route('profile.devices',       ['username' => $user->username]), 'active' => $activeTab === 'devices'],
-        ['label' => 'Notifications', 'icon' => 'ph-bell',             'href' => route('profile.notifications', ['username' => $user->username]), 'active' => $activeTab === 'notifications', 'badge' => $hubUnreadCount, 'badge-attr' => 'data-hub-unread-badge'],
-        ['label' => 'Membership',    'icon' => 'ph-crown',            'href' => route('profile.membership',    ['username' => $user->username]), 'active' => $activeTab === 'membership'],
-        ['section' => 'Account'],
-        ['label' => 'Sign out',      'icon' => 'ph-sign-out',         'href' => route('logout'), 'post' => true, 'danger' => true],
-    ];
+    // Admins only ever reach the hub for Refer & Earn (every other tab
+    // bounces them to /app), so their rail carries just that tab plus a
+    // shortcut back to the dashboard.
+    $hubIsAdmin = auth()->check() && auth()->user()->hasRole('admin');
+
+    if ($hubIsAdmin) {
+        $hubNavItems = [
+            ['label' => 'Refer & Earn',    'icon' => 'ph-gift',         'href' => route('profile.refer', ['username' => $user->username]), 'active' => $activeTab === 'refer'],
+            ['label' => 'Wallet',          'icon' => 'ph-wallet',       'href' => route('profile.wallet', ['username' => $user->username]), 'active' => $activeTab === 'wallet'],
+            ['section' => 'Account'],
+            ['label' => 'Admin Dashboard', 'icon' => 'ph-squares-four', 'href' => url('/app')],
+            ['label' => 'Sign out',        'icon' => 'ph-sign-out',     'href' => route('logout'), 'post' => true, 'danger' => true],
+        ];
+    } else {
+        $hubNavItems = [
+            ['label' => 'Watchlist',     'icon' => 'ph-bookmarks-simple', 'href' => route('profile.watchlist',     ['username' => $user->username]), 'active' => $activeTab === 'watchlist'],
+            ['label' => 'Profile',       'icon' => 'ph-user-circle',      'href' => route('profile.show',          ['username' => $user->username]), 'active' => $activeTab === 'profile'],
+            ['label' => 'Security',      'icon' => 'ph-shield-check',     'href' => route('profile.security',      ['username' => $user->username]), 'active' => $activeTab === 'security'],
+            ['label' => 'Devices',       'icon' => 'ph-devices',          'href' => route('profile.devices',       ['username' => $user->username]), 'active' => $activeTab === 'devices'],
+            ['label' => 'Notifications', 'icon' => 'ph-bell',             'href' => route('profile.notifications', ['username' => $user->username]), 'active' => $activeTab === 'notifications', 'badge' => $hubUnreadCount, 'badge-attr' => 'data-hub-unread-badge'],
+            ['label' => 'Membership',    'icon' => 'ph-crown',            'href' => route('profile.membership',    ['username' => $user->username]), 'active' => $activeTab === 'membership'],
+            // Money page — never gated on the referral program.
+            ['label' => 'Wallet',        'icon' => 'ph-wallet',           'href' => route('profile.wallet',        ['username' => $user->username]), 'active' => $activeTab === 'wallet'],
+        ];
+
+        if (\Modules\Referrals\app\Services\ReferralSettings::active()) {
+            $hubNavItems[] = ['label' => 'Refer & Earn', 'icon' => 'ph-gift', 'href' => route('profile.refer', ['username' => $user->username]), 'active' => $activeTab === 'refer'];
+        }
+
+        $hubNavItems = array_merge($hubNavItems, [
+            ['section' => 'Account'],
+            ['label' => 'Sign out',      'icon' => 'ph-sign-out',         'href' => route('logout'), 'post' => true, 'danger' => true],
+        ]);
+    }
 @endphp
 
 <div class="jambo-hub-sidebar">

@@ -75,7 +75,11 @@ class RegisteredUserController extends Controller
             $data = $request->validate([
                 'first_name' => ['required', 'string', 'max:100'],
                 'last_name'  => ['required', 'string', 'max:100'],
-                'username'   => ['required', 'string', 'min:3', 'max:50', 'regex:/^[a-zA-Z0-9_.\-]+$/', new ReservedUsername(), 'unique:'.User::class],
+                // Also unique against referral_code: the username becomes
+                // this account's referral code, and colliding with another
+                // user's custom code would abort that defaulting (and the
+                // signup's cookie attribution with it).
+                'username'   => ['required', 'string', 'min:3', 'max:50', 'regex:/^[a-zA-Z0-9_.\-]+$/', new ReservedUsername(), 'unique:'.User::class, 'unique:users,referral_code'],
                 'email'      => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
                 'password'   => ['required', 'confirmed', Rules\Password::defaults()],
             ]);

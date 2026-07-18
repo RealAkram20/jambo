@@ -1,0 +1,11 @@
+{
+    "name": "Wallet",
+    "alias": "wallet",
+    "description": "Universal money ledger: VJ/partner earnings, referral commissions, refunds — one balance per owner, one payout queue.",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Wallet\\app\\Providers\\WalletServiceProvider"
+    ],
+    "files": []
+}

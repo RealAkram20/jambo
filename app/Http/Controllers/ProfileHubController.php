@@ -38,11 +38,14 @@ class ProfileHubController extends Controller
      * account surface, and admins manage their own account through the
      * admin panel instead (see feedback_admin_vs_user_separation).
      */
-    private function resolveOwn(Request $request, string $username): User
+    private function resolveOwn(Request $request, string $username, bool $allowAdmin = false): User
     {
         $authed = $request->user();
 
-        if ($authed->hasRole('admin')) {
+        // Refer & Earn is the one hub tab admins keep: they take part in
+        // the referral program like everyone else, and it has no admin-
+        // panel equivalent. Every other tab still bounces them to /app.
+        if (!$allowAdmin && $authed->hasRole('admin')) {
             abort(redirect('/app'));
         }
 
@@ -63,6 +66,9 @@ class ProfileHubController extends Controller
                 'profile.security'      => 'partner.security',
                 'profile.devices'       => 'partner.devices',
                 'profile.notifications' => 'partner.notifications',
+                'profile.refer'         => 'partner.refer',
+                // Partners' money lives on the studio wallet.
+                'profile.wallet'        => 'partner.wallet',
                 'profile.membership'    => 'partner.dashboard',
                 'profile.billing'       => 'partner.dashboard',
                 'profile.invoice'       => 'partner.dashboard',
@@ -404,5 +410,89 @@ class ProfileHubController extends Controller
             'movies'    => $movies,
             'shows'     => $shows,
         ]);
+    }
+
+    /* ---------------------------------------------------------------
+     | Tab: Wallet
+     | --------------------------------------------------------------- */
+    public function wallet(Request $request, string $username)
+    {
+        $user = $this->resolveOwn($request, $username, allowAdmin: true);
+
+        $ledger = app(\Modules\Wallet\app\Services\Ledger::class);
+
+        return view('profile-hub.wallet', [
+            'user' => $user,
+            'activeTab' => 'wallet',
+            'currency' => config('payments.currency', 'UGX'),
+            'balance' => $ledger->balanceFor($user),
+            'entries' => $ledger->entriesFor($user)->paginate(15),
+            'minWithdrawal' => \Modules\Referrals\app\Services\ReferralSettings::minWithdrawal(),
+            'withdrawals' => \Modules\Wallet\app\Models\WithdrawalRequest::query()
+                ->where('owner_type', $user->getMorphClass())
+                ->where('owner_id', $user->id)
+                ->orderByDesc('requested_at')
+                ->limit(10)
+                ->get(),
+            'hasOpenWithdrawal' => \Modules\Wallet\app\Models\WithdrawalRequest::query()
+                ->where('owner_type', $user->getMorphClass())
+                ->where('owner_id', $user->id)
+                ->whereIn('status', \Modules\Wallet\app\Models\WithdrawalRequest::OPEN_STATUSES)
+                ->exists(),
+        ]);
+    }
+
+    /* ---------------------------------------------------------------
+     | Tab: Refer & Earn
+     | --------------------------------------------------------------- */
+    public function refer(Request $request, string $username)
+    {
+        $user = $this->resolveOwn($request, $username, allowAdmin: true);
+
+        // 404 while the program is off — EXCEPT for users with wallet
+        // history, whose earned money must never become unreachable.
+        abort_unless(
+            \Modules\Referrals\app\Services\ReferralSettings::active()
+                || \Modules\Wallet\app\Models\LedgerEntry::query()
+                    ->where('owner_type', $user->getMorphClass())
+                    ->where('owner_id', $user->id)
+                    ->exists(),
+            404,
+        );
+
+        return view('profile-hub.refer', array_merge(
+            ['user' => $user, 'activeTab' => 'refer'],
+            app(\Modules\Referrals\app\Services\ReferralDashboardService::class)->forUser($user),
+        ));
+    }
+
+    public function updateReferralCode(Request $request, string $username)
+    {
+        $user = $this->resolveOwn($request, $username, allowAdmin: true);
+
+        abort_unless(\Modules\Referrals\app\Services\ReferralSettings::active(), 404);
+
+        $request->validate([
+            'referral_code' => [
+                'required', 'string', 'min:3', 'max:50',
+                'regex:/^[a-zA-Z0-9_.\-]+$/',
+                new \App\Rules\ReservedUsername(),
+                \Illuminate\Validation\Rule::unique('users', 'referral_code')->ignore($user->id),
+                // A code that is someone ELSE's username would let this
+                // user impersonate their referral link.
+                function ($attribute, $value, $fail) use ($user) {
+                    if (User::where('username', $value)->where('id', '!=', $user->id)->exists()) {
+                        $fail('That referral code is already taken.');
+                    }
+                },
+            ],
+        ]);
+
+        $user->referral_code = $request->input('referral_code');
+        $user->save();
+
+        return redirect()
+            ->route('profile.refer', ['username' => $user->username])
+            ->with('status', 'Your referral code has been updated.');
     }
 }

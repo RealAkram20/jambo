@@ -6,7 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Modules\Notifications\app\Contracts\NotificationDispatcher;
+use Illuminate\Support\Facades\Storage;
+use Modules\Notifications\app\Jobs\BroadcastNotificationToAll;
 use Modules\Notifications\app\Models\NotificationAudienceSetting;
 use Modules\Notifications\app\Models\NotificationPreference;
 use Modules\Notifications\app\Models\NotificationSetting;
@@ -111,28 +112,26 @@ class NotificationSettingsController extends Controller
         $user = $request->user();
         $incoming = (array) $request->input('prefs', []);
 
-        $adminAudienceKeys = [];
-        foreach (NotificationSetting::definitions() as $group) {
-            foreach ($group['items'] as $item) {
-                if (in_array(
-                    NotificationAudienceSetting::AUDIENCE_ADMIN,
-                    NotificationAudienceSetting::audiencesForTag($item['audience']),
-                    true,
-                )) {
-                    $adminAudienceKeys[] = $item['key'];
-                }
-            }
-        }
+        // Only the types this admin's audience is actually granted (routed to
+        // it AND left on in the super-admin matrix). Iterating the full tag
+        // list instead would let a type the super-admin switched off — and
+        // which is therefore NOT rendered in the form — read back as "all
+        // channels unchecked" and get saved as a deny-override, keeping it
+        // hidden even after the super-admin re-enables it. A channel the
+        // super-admin disabled is likewise ignored here (clamped to the
+        // ceiling), so the admin can only ever narrow, never widen.
+        $audience = NotificationAudienceSetting::audienceFor($user);
+        $ceiling  = NotificationAudienceSetting::grantedChannelsFor($audience);
 
-        foreach ($adminAudienceKeys as $key) {
+        foreach ($ceiling as $key => $allow) {
             $ch = (array) ($incoming[$key] ?? []);
-            $inApp = !empty($ch['system']);
-            $push  = !empty($ch['push']);
-            $email = !empty($ch['email']);
+            $inApp = !empty($ch['system']) && $allow['in_app'];
+            $push  = !empty($ch['push'])   && $allow['push'];
+            $email = !empty($ch['email'])  && $allow['email'];
 
-            if ($inApp && $email && $push) {
-                // Everything on = inherit → drop the row so this type
-                // follows the platform default with no override.
+            // "Everything the super-admin allows is on" = no personal
+            // override → drop the row so this type inherits the ceiling.
+            if ($inApp === $allow['in_app'] && $email === $allow['email'] && $push === $allow['push']) {
                 NotificationPreference::where('user_id', $user->id)
                     ->where('notification_key', $key)
                     ->delete();
@@ -218,36 +217,50 @@ class NotificationSettingsController extends Controller
     }
 
     /**
-     * Dispatch an AdminBroadcastNotification to a selected audience.
-     * Gated by NotificationSetting::channelsFor('admin_broadcast') — if
-     * admin-global switches for this key are all off, the notifications
-     * are silently dropped. The admin sees a flash on the Broadcast tab.
+     * Queue an AdminBroadcastNotification to a selected audience.
+     *
+     * The whole fan-out is handed to BroadcastNotificationToAll so the
+     * request writes one job row and returns — the per-recipient walk
+     * (which used to run in-request for the users/admins audiences and
+     * time out on large sites) happens on the worker.
+     *
+     * Delivery still passes the four-layer gate (the admin_broadcast site
+     * switches + each recipient's own preferences). The `channels` picker
+     * narrows that further to just the transports ticked on the form, and
+     * an optional image rides along on the in-app and push renders.
      */
-    public function sendBroadcast(Request $request, NotificationDispatcher $dispatcher): RedirectResponse
+    public function sendBroadcast(Request $request): RedirectResponse
     {
         $data = $request->validate([
             'subject'    => ['required', 'string', 'max:150'],
             'body'       => ['required', 'string', 'max:2000'],
             'audience'   => ['required', 'in:all,admins,users'],
+            'channels'   => ['required', 'array', 'min:1'],
+            'channels.*' => ['in:system,email,push'],
             'link_url'   => ['nullable', 'url', 'max:500'],
             'link_label' => ['nullable', 'string', 'max:60'],
+            'image'      => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:3072'],
         ]);
+
+        $imageUrl = null;
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('broadcasts', 'public');
+            $imageUrl = Storage::disk('public')->url($path);
+        }
 
         $notification = new AdminBroadcastNotification(
             subject:   $data['subject'],
             body:      $data['body'],
             linkUrl:   $data['link_url']   ?? null,
             linkLabel: $data['link_label'] ?? null,
+            imageUrl:  $imageUrl,
+            channels:  $data['channels'],
         );
 
         try {
-            match ($data['audience']) {
-                'admins' => $dispatcher->toAdmins($notification),
-                'users'  => $dispatcher->toRole('user', $notification),
-                default  => $dispatcher->broadcastToAll($notification),
-            };
+            BroadcastNotificationToAll::dispatch($notification, $data['audience']);
         } catch (Throwable $e) {
-            Log::warning('[notifications] broadcast failed', [
+            Log::warning('[notifications] broadcast dispatch failed', [
                 'audience' => $data['audience'],
                 'error'    => $e->getMessage(),
             ]);
@@ -258,6 +271,6 @@ class NotificationSettingsController extends Controller
 
         return redirect()
             ->route('notifications.index', ['tab' => 'broadcast'])
-            ->with('success', 'Broadcast sent to ' . $data['audience'] . '.');
+            ->with('success', 'Broadcast queued for ' . $data['audience'] . ' — delivery runs in the background.');
     }
 }

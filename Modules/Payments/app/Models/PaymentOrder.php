@@ -65,6 +65,7 @@ class PaymentOrder extends Model
         'amount' => 'decimal:2',
         'metadata' => 'array',
         'raw_response' => 'array',
+        'subscription_applied_at' => 'datetime',
     ];
 
     public const STATUS_PENDING = 'pending';

@@ -56,18 +56,19 @@ class NotificationController extends Controller
             ->keyBy(fn ($r) => $r->notification_key . '|' . $r->audience);
 
         // "My preferences" tab (every admin): the notification types that
-        // reach the admin audience, so this admin can mute the ones they
-        // don't personally want. Personal account types are excluded —
-        // you don't opt out of your own password-reset email.
+        // reach THIS admin's audience AND are still switched on for it in the
+        // super-admin matrix, so they can mute the ones they don't personally
+        // want. Types the super-admin has fully disabled for the audience are
+        // omitted — you can't tune what you can't receive. Personal account
+        // types have no audience row and so never appear here.
+        $viewerAudience = \Modules\Notifications\app\Models\NotificationAudienceSetting::audienceFor($user);
+        $myPrefCeiling  = \Modules\Notifications\app\Models\NotificationAudienceSetting::grantedChannelsFor($viewerAudience);
+
         $myPrefTypes = [];
         foreach ($definitions as $groupId => $group) {
             $items = array_values(array_filter(
                 $group['items'],
-                fn ($i) => in_array(
-                    \Modules\Notifications\app\Models\NotificationAudienceSetting::AUDIENCE_ADMIN,
-                    \Modules\Notifications\app\Models\NotificationAudienceSetting::audiencesForTag($i['audience']),
-                    true,
-                ),
+                fn ($i) => array_key_exists($i['key'], $myPrefCeiling),
             ));
             if ($items !== []) {
                 $myPrefTypes[$groupId] = ['label' => $group['label'], 'icon' => $group['icon'], 'items' => $items];
@@ -89,6 +90,7 @@ class NotificationController extends Controller
             'settingRows'   => $settingRows,
             'audienceRows'  => $audienceRows,
             'myPrefTypes'   => $myPrefTypes,
+            'myPrefCeiling' => $myPrefCeiling,
             'myPrefs'       => $myPrefs,
             'isSuperAdmin'  => $user->hasRole('super-admin'),
             'activeTab'     => $activeTab,

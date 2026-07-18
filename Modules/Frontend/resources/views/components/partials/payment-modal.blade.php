@@ -49,6 +49,26 @@
         </header>
 
         <div class="jambo-payment-modal__body">
+            {{-- Coupon step. Shown BEFORE the order is created, and only
+                 when the including page sets window.JamboCoupon (i.e. the
+                 viewer could still attach a referral code — first payment
+                 not made, no code applied yet). No code? "Continue to
+                 payment" goes straight to the gateway. --}}
+            <div class="jambo-payment-modal__state jambo-payment-modal__state--coupon" data-role="coupon" hidden>
+                <i class="ph ph-ticket" style="font-size:44px;color:var(--bs-primary);"></i>
+                <p class="jambo-payment-modal__state-title">Have a referral code?</p>
+                <p class="jambo-payment-modal__state-subtitle" data-role="coupon-hint"></p>
+                <div class="jambo-payment-modal__coupon-row">
+                    <input type="text" maxlength="50" data-role="coupon-input"
+                           placeholder="Referral code" autocomplete="off">
+                    <button type="button" class="btn btn-outline-primary" data-role="coupon-apply">Apply</button>
+                </div>
+                <div class="jambo-payment-modal__coupon-msg" data-role="coupon-msg" hidden></div>
+                <button type="button" class="btn btn-primary jambo-payment-modal__coupon-continue" data-role="coupon-continue">
+                    Continue to payment
+                </button>
+            </div>
+
             {{-- Initial state while waiting for the gateway handshake. --}}
             <div class="jambo-payment-modal__state jambo-payment-modal__state--loading" data-role="loading">
                 <div class="jambo-payment-modal__spinner" role="status" aria-live="polite">
@@ -235,6 +255,42 @@
         margin-top: 20px;
     }
 
+    .jambo-payment-modal__coupon-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+        width: 100%;
+        max-width: 380px;
+    }
+    .jambo-payment-modal__coupon-row input {
+        flex: 1;
+        min-width: 0;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid #1f2738;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 14px;
+        color: #f5f6f8;
+    }
+    .jambo-payment-modal__coupon-row input::placeholder { color: #6c727b; }
+    .jambo-payment-modal__coupon-row input:focus {
+        outline: none;
+        border-color: var(--bs-primary, #1A98FF);
+        box-shadow: 0 0 0 3px rgba(26, 152, 255, 0.15);
+    }
+    .jambo-payment-modal__coupon-row input:disabled { opacity: .55; }
+    .jambo-payment-modal__coupon-msg {
+        margin-top: 10px;
+        font-size: 13px;
+    }
+    .jambo-payment-modal__coupon-msg[hidden] { display: none; }
+    .jambo-payment-modal__coupon-msg[data-variant="success"] { color: var(--bs-success, #2dd47a); }
+    .jambo-payment-modal__coupon-msg[data-variant="error"] { color: var(--bs-danger, #ef4444); }
+    .jambo-payment-modal__coupon-continue {
+        margin-top: 22px;
+        min-width: 240px;
+    }
+
     .jambo-payment-modal__footer {
         padding: 14px 22px;
         border-top: 1px solid #1f2738;
@@ -333,11 +389,19 @@
         fallbackLink: modal.querySelector('[data-role="fallback-link"]'),
         statusText:   modal.querySelector('[data-role="status-text"]'),
         statusDot:    modal.querySelector('[data-role="status-dot"]'),
+        coupon:         modal.querySelector('[data-role="coupon"]'),
+        couponHint:     modal.querySelector('[data-role="coupon-hint"]'),
+        couponInput:    modal.querySelector('[data-role="coupon-input"]'),
+        couponApply:    modal.querySelector('[data-role="coupon-apply"]'),
+        couponMsg:      modal.querySelector('[data-role="coupon-msg"]'),
+        couponContinue: modal.querySelector('[data-role="coupon-continue"]'),
     };
 
     let pollHandle = null;
     let iframeLoadHandle = null;
     let currentRef = null;
+    let pendingForm = null;    // form parked behind the coupon step
+    let couponApplied = false; // page prices are stale once true — reload on close
 
     function setStatus(text, variant) {
         if (elements.statusText) elements.statusText.textContent = text;
@@ -348,22 +412,32 @@
     }
 
     function showLoading() {
+        if (elements.coupon) elements.coupon.hidden = true;
         elements.loading.hidden = false;
         elements.iframe.hidden = true;
         elements.fallback.hidden = true;
     }
 
     function showIframe() {
+        if (elements.coupon) elements.coupon.hidden = true;
         elements.loading.hidden = true;
         elements.iframe.hidden = false;
         elements.fallback.hidden = true;
     }
 
     function showFallback(url) {
+        if (elements.coupon) elements.coupon.hidden = true;
         elements.loading.hidden = true;
         elements.iframe.hidden = true;
         elements.fallback.hidden = false;
         if (elements.fallbackLink && url) elements.fallbackLink.href = url;
+    }
+
+    function showCoupon() {
+        elements.coupon.hidden = false;
+        elements.loading.hidden = true;
+        elements.iframe.hidden = true;
+        elements.fallback.hidden = true;
     }
 
     function stopPolling() {
@@ -460,6 +534,106 @@
             // the subscription still activates. The complete page's
             // pending copy explains the wait.
             window.location.href = COMPLETE_URL + '?result=pending&ref=' + encodeURIComponent(ref);
+        } else if (couponApplied) {
+            // Closed at the coupon step after attaching a code — the
+            // page's prices are stale, so reload to show the discount.
+            window.location.reload();
+        }
+    }
+
+    /* ------------------------------------------------------------------
+       Coupon step — active only when the page defines window.JamboCoupon
+       (viewer can still attach a referral code). Shows before the order
+       is created; "Continue to payment" hands off to openFromForm().
+       ------------------------------------------------------------------ */
+
+    function couponConfig() {
+        return (typeof window.JamboCoupon === 'object' && window.JamboCoupon) || null;
+    }
+
+    function formatPrice(form, amount) {
+        const currency = form.dataset.tierCurrency || '';
+        const period = form.dataset.tierPeriod || '';
+        const rounded = Math.round(amount).toLocaleString();
+        return (currency + ' ' + rounded + (period ? ' / ' + period : '')).trim();
+    }
+
+    function showCouponMsg(text, ok) {
+        elements.couponMsg.textContent = text;
+        elements.couponMsg.setAttribute('data-variant', ok ? 'success' : 'error');
+        elements.couponMsg.hidden = false;
+    }
+
+    function openCouponStep(form) {
+        pendingForm = form;
+        currentRef = null;
+
+        const cfg = couponConfig();
+        const tierName = form.dataset.tierName || 'your plan';
+        elements.title.textContent = 'Complete your payment — ' + tierName;
+        elements.subtitle.textContent = (form.dataset.tierPrice ? form.dataset.tierPrice + ' · ' : '') + 'Secure checkout — you stay on Jambo';
+        if (elements.couponHint && cfg) {
+            elements.couponHint.textContent = 'Apply a code for −' + cfg.percent + '% off, or continue straight to payment.';
+        }
+
+        elements.couponMsg.hidden = true;
+        elements.couponInput.value = '';
+        elements.couponInput.disabled = false;
+        elements.couponApply.disabled = false;
+
+        showCoupon();
+        setStatus('Checkout not started yet');
+
+        modal.hidden = false;
+        document.body.classList.add('jambo-payment-modal-open');
+        elements.couponInput.focus();
+    }
+
+    async function applyCoupon() {
+        const cfg = couponConfig();
+        if (!cfg || !pendingForm) return;
+        const code = (elements.couponInput.value || '').trim();
+        if (!code) return;
+
+        elements.couponApply.disabled = true;
+
+        try {
+            const tokenInput = pendingForm.querySelector('[name=_token]');
+            const res = await fetch(cfg.applyUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': tokenInput?.value || '',
+                },
+                body: JSON.stringify({ code: code }),
+            });
+            const data = await res.json();
+
+            if (data && data.ok) {
+                couponApplied = true;
+                // Discounted price for the header + the gateway handoff.
+                // The server recomputes it authoritatively at order time;
+                // this is display only.
+                const amount = parseFloat(pendingForm.dataset.tierAmount || '0');
+                const discounted = amount * (1 - cfg.percent / 100);
+                const priceText = formatPrice(pendingForm, discounted);
+                const savedText = ((pendingForm.dataset.tierCurrency || '') + ' ' + Math.round(amount - discounted).toLocaleString()).trim();
+                pendingForm.dataset.tierPrice = priceText;
+                elements.subtitle.textContent = priceText + ' · Secure checkout — you stay on Jambo';
+                showCouponMsg('−' + cfg.percent + '% applied — you save ' + savedText + ' · now ' + priceText, true);
+                elements.couponInput.disabled = true;
+            } else {
+                const text = (data && (data.message || (data.errors && data.errors.code && data.errors.code[0])))
+                    || 'That referral code could not be applied.';
+                showCouponMsg(text, false);
+                elements.couponApply.disabled = false;
+            }
+        } catch (e) {
+            console.warn('[jambo-payment] coupon apply failed', e);
+            showCouponMsg('Something went wrong. Please try again.', false);
+            elements.couponApply.disabled = false;
         }
     }
 
@@ -517,11 +691,31 @@
     // Wire the X button (only dismissal). No Escape, no backdrop.
     elements.close.addEventListener('click', cancelAndExit);
 
-    // Auto-bind any Subscribe forms on the page.
+    // Coupon step wiring (elements exist even when the step is unused).
+    if (elements.couponApply) {
+        elements.couponApply.addEventListener('click', applyCoupon);
+        elements.couponInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); applyCoupon(); }
+        });
+        elements.couponContinue.addEventListener('click', async function () {
+            if (!pendingForm) return;
+            elements.couponContinue.disabled = true;
+            try { await openFromForm(pendingForm); } finally { elements.couponContinue.disabled = false; }
+        });
+    }
+
+    // Auto-bind any Subscribe forms on the page. When the page enables
+    // the coupon step, it runs once before the first order; after a code
+    // is attached (or when the viewer can't use one) submits go straight
+    // to the gateway.
     document.querySelectorAll('.jambo-subscribe-form').forEach(function (form) {
         form.addEventListener('submit', function (e) {
             e.preventDefault();
-            openFromForm(form);
+            if (couponConfig() && !couponApplied && elements.coupon) {
+                openCouponStep(form);
+            } else {
+                openFromForm(form);
+            }
         });
     });
 

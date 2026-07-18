@@ -195,10 +195,14 @@
                                                 @foreach ($group['items'] as $item)
                                                     @php
                                                         $pref = $myPrefs->get($item['key']);
-                                                        // No row = inherit = receiving on all channels.
-                                                        $inAppOn = $pref?->in_app_enabled ?? true;
-                                                        $pushOn  = $pref?->push_enabled   ?? true;
-                                                        $emailOn = $pref?->email_enabled  ?? true;
+                                                        // The super-admin's per-channel ceiling for this type.
+                                                        // A channel switched off here can't be turned on by the
+                                                        // admin, so its switch is locked off (not a false "on").
+                                                        $ceil = $myPrefCeiling[$item['key']] ?? ['in_app' => true, 'email' => true, 'push' => true];
+                                                        // No row = inherit = on for every channel the ceiling allows.
+                                                        $inAppOn = $ceil['in_app'] && ($pref?->in_app_enabled ?? true);
+                                                        $pushOn  = $ceil['push']   && ($pref?->push_enabled   ?? true);
+                                                        $emailOn = $ceil['email']  && ($pref?->email_enabled  ?? true);
                                                     @endphp
                                                     <tr>
                                                         <td>
@@ -214,21 +218,21 @@
                                                             </div>
                                                         </td>
                                                         <td class="text-center">
-                                                            <div class="form-check form-switch d-inline-block m-0">
+                                                            <div class="form-check form-switch d-inline-block m-0" @if(!$ceil['in_app']) style="opacity:.4;" title="Turned off by the platform" @endif>
                                                                 <input type="checkbox" role="switch" class="form-check-input"
-                                                                       name="prefs[{{ $item['key'] }}][system]" value="1" @checked($inAppOn)>
+                                                                       name="prefs[{{ $item['key'] }}][system]" value="1" @checked($inAppOn) @disabled(!$ceil['in_app'])>
                                                             </div>
                                                         </td>
                                                         <td class="text-center">
-                                                            <div class="form-check form-switch d-inline-block m-0">
+                                                            <div class="form-check form-switch d-inline-block m-0" @if(!$ceil['push']) style="opacity:.4;" title="Turned off by the platform" @endif>
                                                                 <input type="checkbox" role="switch" class="form-check-input"
-                                                                       name="prefs[{{ $item['key'] }}][push]" value="1" @checked($pushOn)>
+                                                                       name="prefs[{{ $item['key'] }}][push]" value="1" @checked($pushOn) @disabled(!$ceil['push'])>
                                                             </div>
                                                         </td>
                                                         <td class="text-center">
-                                                            <div class="form-check form-switch d-inline-block m-0">
+                                                            <div class="form-check form-switch d-inline-block m-0" @if(!$ceil['email']) style="opacity:.4;" title="Turned off by the platform" @endif>
                                                                 <input type="checkbox" role="switch" class="form-check-input"
-                                                                       name="prefs[{{ $item['key'] }}][email]" value="1" @checked($emailOn)>
+                                                                       name="prefs[{{ $item['key'] }}][email]" value="1" @checked($emailOn) @disabled(!$ceil['email'])>
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -454,6 +458,7 @@
                          id="tab-broadcast" role="tabpanel" aria-labelledby="broadcast-tab">
                         <form id="notif-broadcast-form" method="POST"
                               action="{{ route('admin.notifications.broadcast.send') }}"
+                              enctype="multipart/form-data"
                               class="p-4">
                             @csrf
 
@@ -461,8 +466,9 @@
                                 <i class="ph ph-info fs-5 flex-shrink-0 mt-1"></i>
                                 <div>
                                     Broadcasts respect the <strong>Admin broadcast</strong> row on the Settings tab
-                                    and each user's own channel preferences. Flip a channel off there to silence
-                                    that transport for every broadcast site-wide.
+                                    and each user's own channel preferences. The channels you tick below narrow a
+                                    single send further — they can silence a transport, never force one a user
+                                    switched off.
                                 </div>
                             </div>
 
@@ -496,6 +502,46 @@
                                     @error('body') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
 
+                                @php $selChannels = old('channels', ['system', 'email', 'push']); @endphp
+                                <div class="col-md-8">
+                                    <label class="form-label d-block">Channels <span class="text-danger">*</span></label>
+                                    <div class="d-flex flex-wrap gap-4 pt-1">
+                                        <div class="form-check">
+                                            <input class="form-check-input @error('channels') is-invalid @enderror"
+                                                   type="checkbox" name="channels[]" value="system"
+                                                   id="broadcast-ch-system" @checked(in_array('system', (array) $selChannels))>
+                                            <label class="form-check-label" for="broadcast-ch-system">
+                                                <i class="ph ph-bell me-1"></i> In-app
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input @error('channels') is-invalid @enderror"
+                                                   type="checkbox" name="channels[]" value="email"
+                                                   id="broadcast-ch-email" @checked(in_array('email', (array) $selChannels))>
+                                            <label class="form-check-label" for="broadcast-ch-email">
+                                                <i class="ph ph-envelope-simple me-1"></i> Email
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input @error('channels') is-invalid @enderror"
+                                                   type="checkbox" name="channels[]" value="push"
+                                                   id="broadcast-ch-push" @checked(in_array('push', (array) $selChannels))>
+                                            <label class="form-check-label" for="broadcast-ch-push">
+                                                <i class="ph ph-device-mobile me-1"></i> Push
+                                            </label>
+                                        </div>
+                                    </div>
+                                    @error('channels') <div class="text-danger" style="font-size:12px;">{{ $message }}</div> @enderror
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label for="broadcast-image" class="form-label">Image <span class="text-muted">(optional)</span></label>
+                                    <input type="file" class="form-control @error('image') is-invalid @enderror"
+                                           id="broadcast-image" name="image"
+                                           accept="image/png,image/jpeg,image/webp,image/gif">
+                                    @error('image') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
+
                                 <div class="col-md-8">
                                     <label for="broadcast-link-url" class="form-label">Link URL <span class="text-muted">(optional)</span></label>
                                     <input type="url" class="form-control @error('link_url') is-invalid @enderror"
@@ -517,7 +563,7 @@
 
                             <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
                                 <p class="text-muted mb-0" style="font-size:12px;">
-                                    This will queue one notification per recipient. Large broadcasts can take a moment.
+                                    Delivery is queued and runs in the background — you can leave this page once it's sent.
                                 </p>
                                 <button type="submit" class="btn btn-primary">
                                     <i class="ph ph-paper-plane-tilt me-1"></i> Send broadcast

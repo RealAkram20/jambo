@@ -12,7 +12,7 @@ use Modules\Monetization\app\Models\MonetizationPeriod;
 use Modules\Monetization\app\Models\PartnerStatement;
 use Modules\Monetization\app\Models\QualifiedView;
 use Modules\Monetization\app\Models\TitleSplit;
-use Modules\Monetization\app\Models\WalletEntry;
+use Modules\Wallet\app\Models\LedgerEntry;
 use Modules\Payments\app\Models\PaymentOrder;
 use Modules\Subscriptions\app\Models\SubscriptionTier;
 
@@ -188,7 +188,7 @@ class MonthCloseService
 
                 $wallet->append(
                     partner: $statement->partner,
-                    type: WalletEntry::TYPE_STATEMENT_CREDIT,
+                    type: LedgerEntry::TYPE_STATEMENT_CREDIT,
                     amount: (string) $statement->amount,
                     reference: $statement,
                     memo: 'Earnings for '.$fresh->period_month->format('F Y'),

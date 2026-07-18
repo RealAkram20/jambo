@@ -143,6 +143,7 @@ class NotificationSetting extends Model
                 'icon'  => 'ph-hand-coins',
                 'items' => [
                     ['key' => 'earnings_credited',       'label' => 'Earnings credited',       'description' => 'Monthly statement released to a partner wallet.',   'icon' => 'ph-coins',        'colour' => 'success', 'audience' => 'User'],
+                    ['key' => 'referral_reward_earned',  'label' => 'Referral reward earned',  'description' => 'A referred friend completed their first payment.',  'icon' => 'ph-gift',         'colour' => 'success', 'audience' => 'User'],
                     ['key' => 'withdrawal_requested',    'label' => 'Withdrawal requested',    'description' => 'A partner asked to withdraw from their wallet.',    'icon' => 'ph-hand-coins',   'colour' => 'warning', 'audience' => 'Admin'],
                     ['key' => 'withdrawal_approved',     'label' => 'Withdrawal approved',     'description' => 'Finance approved a withdrawal for manual payout.',  'icon' => 'ph-check-circle', 'colour' => 'primary', 'audience' => 'User'],
                     ['key' => 'withdrawal_paid',         'label' => 'Withdrawal paid',         'description' => 'Mobile-money payout sent and reference recorded.',  'icon' => 'ph-money',        'colour' => 'success', 'audience' => 'User'],

@@ -315,7 +315,7 @@
         </li>
     @endif
 
-    @role('admin')
+    @can('pages_access')
         @if (Route::has('admin.pages.index'))
             <li class="nav-item">
                 <a class="nav-link {{ request()->routeIs('admin.pages.*') ? 'active' : '' }}"
@@ -328,7 +328,7 @@
                 </a>
             </li>
         @endif
-    @endrole
+    @endcan
 
     {{-- =========================== USERS & ACCESS =========================== --}}
     <li class="nav-item static-item">
@@ -351,19 +351,26 @@
         </li>
     @endcan
 
-    <li class="nav-item">
-        <a class="nav-link {{ activeRoute(route('backend.permission-role')) }}"
-            href="{{ route('backend.permission-role') }}">
-            <i class="icon" title="Access Control" data-bs-toggle="tooltip" data-bs-placement="right"
-                aria-label="Access Control" data-bs-original-title="Access Control">
-                <i class="ph ph-user-gear fs-4"></i>
-            </i>
-            <span class="item-name">{{ __('sidebar.access_control') }}</span>
-        </a>
-    </li>
+    {{-- Access Control edits permissions → super-admin ONLY, never
+         delegatable. Route group is role:super-admin to match. --}}
+    @role('super-admin')
+        <li class="nav-item">
+            <a class="nav-link {{ activeRoute(route('backend.permission-role')) }}"
+                href="{{ route('backend.permission-role') }}">
+                <i class="icon" title="Access Control" data-bs-toggle="tooltip" data-bs-placement="right"
+                    aria-label="Access Control" data-bs-original-title="Access Control">
+                    <i class="ph ph-user-gear fs-4"></i>
+                </i>
+                <span class="item-name">{{ __('sidebar.access_control') }}</span>
+            </a>
+        </li>
+    @endrole
 
     {{-- ================================ SYSTEM ================================ --}}
-    @role('admin')
+    {{-- Each System page is delegatable: hidden unless the viewer holds its
+         access permission (super-admins hold all via Gate::before). The
+         section header shows only when at least one page is visible. --}}
+    @canany(['settings_access', 'seo_access', 'system_info_access'])
         <li class="nav-item static-item">
             <hr class="sidenav-divider">
             <a class="nav-link static-item disabled" tabindex="-1">
@@ -371,7 +378,9 @@
                 <span class="mini-icon">-</span>
             </a>
         </li>
+    @endcanany
 
+    @can('settings_access')
         <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}"
                 href="{{ route('admin.settings.index') }}">
@@ -382,6 +391,8 @@
                 <span class="item-name">Settings</span>
             </a>
         </li>
+    @endcan
+    @can('seo_access')
         @if (Route::has('admin.seo.index'))
             <li class="nav-item">
                 <a class="nav-link {{ request()->routeIs('admin.seo.*') ? 'active' : '' }}"
@@ -394,10 +405,12 @@
                 </a>
             </li>
         @endif
-        {{-- "System info" — collapsible group bundling the four
-             admin-side operational pages: System Updates, Error log,
-             System status, Signup attempts. They all answer the same
-             question ("how is the system doing right now"). --}}
+    @endcan
+    {{-- "System info" — collapsible group bundling the four
+         admin-side operational pages: System Updates, Error log,
+         System status, Signup attempts. They all answer the same
+         question ("how is the system doing right now"). --}}
+    @can('system_info_access')
         @if (Route::has('admin.updates.index')
             || Route::has('admin.diagnostics.logs')
             || Route::has('admin.diagnostics.status')
@@ -472,7 +485,7 @@
                 </ul>
             </li>
         @endif
-    @endrole
+    @endcan
 
     {{-- ======================= SUPER ADMIN / FINANCE ======================= --}}
     {{-- Elevated access — the money-shaping surface, grouped under a
@@ -626,6 +639,57 @@
             </li>
         @endif
     @endhasanyrole
+
+    {{-- Referral program: ONE page with tabs (Refer & Earn for every
+         panel user, Payouts for finance|super-admin, Overview for
+         super-admin) so nothing needs a second sidebar trip. Only the
+         money knobs keep their own super-admin item. --}}
+    @if (Route::has('admin.referrals.index')
+        && (auth()->user()->hasAnyRole(['finance', 'super-admin']) || \Modules\Referrals\app\Services\ReferralSettings::active()))
+        <li class="nav-item static-item">
+            <hr class="sidenav-divider">
+            <a class="nav-link static-item disabled" tabindex="-1">
+                <span class="default-icon">Growth</span>
+                <span class="mini-icon">-</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ request()->routeIs('admin.referrals.index') ? 'active' : '' }}"
+                href="{{ route('admin.referrals.index') }}">
+                <i class="icon" data-bs-toggle="tooltip" title="Referrals" data-bs-placement="right"
+                    aria-label="Referrals" data-bs-original-title="Referrals">
+                    <i class="ph ph-gift fs-4"></i>
+                </i>
+                <span class="item-name">Referrals</span>
+            </a>
+        </li>
+        {{-- The signed-in staff member's own universal wallet:
+             performance + referral earnings on one balance. --}}
+        @if (Route::has('admin.wallet.index'))
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('admin.wallet.index') ? 'active' : '' }}"
+                    href="{{ route('admin.wallet.index') }}">
+                    <i class="icon" data-bs-toggle="tooltip" title="My Wallet" data-bs-placement="right"
+                        aria-label="My Wallet" data-bs-original-title="My Wallet">
+                        <i class="ph ph-wallet fs-4"></i>
+                    </i>
+                    <span class="item-name">My Wallet</span>
+                </a>
+            </li>
+        @endif
+        @role('super-admin')
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('admin.referrals.settings') ? 'active' : '' }}"
+                    href="{{ route('admin.referrals.settings') }}">
+                    <i class="icon" data-bs-toggle="tooltip" title="Referral Settings" data-bs-placement="right"
+                        aria-label="Referral Settings" data-bs-original-title="Referral Settings">
+                        <i class="ph ph-gear fs-4"></i>
+                    </i>
+                    <span class="item-name">Referral Settings</span>
+                </a>
+            </li>
+        @endrole
+    @endif
 </ul>
 
 <!-- Sidebar Menu End -->

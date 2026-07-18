@@ -1,22 +1,22 @@
 <?php
 
-namespace Modules\Monetization\app\Models;
+namespace Modules\Wallet\app\Models;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 /**
- * @property int $id
- * @property int $partner_id
- * @property string $amount
- * @property string $status
- * @property string $payout_msisdn_snapshot
- * @property ?int $hold_entry_id
+ * A request to cash a wallet balance out (manual mobile-money payout).
+ * One state machine for every owner type:
+ *
+ *   requested → approved → paid   (hold stays = permanent debit)
+ *            ↘ rejected           (hold released back to the wallet)
  */
 class WithdrawalRequest extends Model
 {
-    protected $table = 'withdrawal_requests';
+    protected $table = 'wallet_withdrawal_requests';
 
     protected $guarded = [];
 
@@ -39,14 +39,19 @@ class WithdrawalRequest extends Model
         self::STATUS_APPROVED,
     ];
 
-    public function partner(): BelongsTo
+    public function owner(): MorphTo
     {
-        return $this->belongsTo(MonetizationPartner::class, 'partner_id');
+        return $this->morphTo();
     }
 
     public function holdEntry(): BelongsTo
     {
-        return $this->belongsTo(WalletEntry::class, 'hold_entry_id');
+        return $this->belongsTo(LedgerEntry::class, 'hold_entry_id');
+    }
+
+    public function requestedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'requested_by');
     }
 
     public function approvedBy(): BelongsTo
@@ -67,5 +72,15 @@ class WithdrawalRequest extends Model
     public function isOpen(): bool
     {
         return in_array($this->status, self::OPEN_STATUSES, true);
+    }
+
+    /** Human label for the queue: username or partner display name. */
+    public function ownerLabel(): string
+    {
+        $owner = $this->owner;
+
+        return $owner->display_name
+            ?? $owner->username
+            ?? ('#' . $this->owner_id);
     }
 }

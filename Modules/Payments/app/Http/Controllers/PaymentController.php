@@ -61,6 +61,13 @@ class PaymentController extends Controller
             'metadata' => 'nullable|array',
         ]);
 
+        // The `referral` metadata block is server-authored only — the
+        // activation backstop and the referrer-credit listener trust it,
+        // so a client-supplied copy must never survive into the order.
+        if (isset($data['metadata']['referral'])) {
+            unset($data['metadata']['referral']);
+        }
+
         if (!$this->gateway->isConfigured()) {
             return $this->createOrderFailure(
                 $request,
@@ -82,7 +89,31 @@ class PaymentController extends Controller
                 'tier_slug' => $tier->slug,
                 'tier_name' => $tier->name,
                 'billing_period' => $tier->billing_period,
+                // Price frozen at checkout. The activation backstop validates
+                // the paid amount against THIS snapshot, not the live tier
+                // price — so an admin raising the price (or editing currency)
+                // between checkout and the gateway confirming can't cause a
+                // genuinely-paid order to be refused activation.
+                'tier_snapshot' => [
+                    'tier_id'  => $tier->id,
+                    'price'    => number_format((float) $tier->price, 2, '.', ''),
+                    'currency' => $currency,
+                ],
             ]);
+
+            // Referral discount on the buyer's first payment. Computed
+            // server-side off the tier price; the block records the terms
+            // (percents + amounts) honoured downstream.
+            $referralBlock = app(\Modules\Referrals\app\Services\ReferralCheckoutService::class)->apply(
+                $user,
+                number_format($amount, 2, '.', ''),
+                $currency,
+                $request->cookie(\Modules\Referrals\app\Http\Middleware\CaptureReferralCode::COOKIE_NAME),
+            );
+            if ($referralBlock !== null) {
+                $amount = (float) $referralBlock['final_amount'];
+                $metadata['referral'] = $referralBlock;
+            }
         } else {
             // Subscription tiers may ONLY be purchased through the tier
             // branch above, where amount/currency are copied off the tier

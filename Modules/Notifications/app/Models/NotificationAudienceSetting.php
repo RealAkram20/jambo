@@ -146,6 +146,40 @@ class NotificationAudienceSetting extends Model
         return in_array($key, $keys, true);
     }
 
+    /**
+     * The types a given audience is currently allowed to receive, each with
+     * the super-admin's per-channel ceiling. A type is "granted" when the
+     * audience is one of its routing audiences AND the super-admin has left
+     * at least one channel enabled for it in the matrix.
+     *
+     * Types the super-admin has fully switched off for this audience are
+     * omitted entirely: the recipient can never receive them, so they must
+     * not appear in that recipient's preference list (a dead toggle), and
+     * the save handler must not iterate them (else "unchecked" reads as a
+     * deny-override that would keep the type hidden after a later re-enable).
+     *
+     * Keyed by notification_key so callers can both list the granted types
+     * and clamp each per-channel switch to the ceiling.
+     *
+     * @return array<string, array{in_app: bool, email: bool, push: bool}>
+     */
+    public static function grantedChannelsFor(string $audience): array
+    {
+        $granted = [];
+        foreach (NotificationSetting::definitions() as $group) {
+            foreach ($group['items'] as $item) {
+                if (!in_array($audience, self::audiencesForTag($item['audience']), true)) {
+                    continue;
+                }
+                $ch = self::channelsFor($item['key'], $audience);
+                if ($ch && ($ch['in_app'] || $ch['email'] || $ch['push'])) {
+                    $granted[$item['key']] = $ch;
+                }
+            }
+        }
+        return $granted;
+    }
+
     public static function forgetAllCache(): void
     {
         Cache::forget('notif-audience:controlled-keys');

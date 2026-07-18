@@ -116,12 +116,16 @@ Route::group(['as' => 'dashboard.', 'middleware' => ['auth', 'role:admin']], fun
     // destroy siblings are explicit rather than Route::resource
     // because we want the reserved-word /user-list/create to stay
     // routable on top of the index URL.
-    Route::get('user-list', [AdminUserController::class, 'index'])->name('user-list');
-    Route::get('user-list/create', [AdminUserController::class, 'create'])->name('user-list.create');
-    Route::post('user-list', [AdminUserController::class, 'store'])->name('user-list.store');
-    Route::get('user-list/{user}/edit', [AdminUserController::class, 'edit'])->name('user-list.edit');
-    Route::patch('user-list/{user}', [AdminUserController::class, 'update'])->name('user-list.update');
-    Route::delete('user-list/{user}', [AdminUserController::class, 'destroy'])->name('user-list.destroy');
+    // Each verb is gated by its Access Control permission so revoking, say,
+    // delete_users from the admin role actually blocks deletion (not just
+    // hides the button). Super-admins bypass via the Gate::before in
+    // AuthServiceProvider, so they're never locked out of their own box.
+    Route::get('user-list', [AdminUserController::class, 'index'])->name('user-list')->middleware('permission:view_users');
+    Route::get('user-list/create', [AdminUserController::class, 'create'])->name('user-list.create')->middleware('permission:add_users');
+    Route::post('user-list', [AdminUserController::class, 'store'])->name('user-list.store')->middleware('permission:add_users');
+    Route::get('user-list/{user}/edit', [AdminUserController::class, 'edit'])->name('user-list.edit')->middleware('permission:edit_users');
+    Route::patch('user-list/{user}', [AdminUserController::class, 'update'])->name('user-list.update')->middleware('permission:edit_users');
+    Route::delete('user-list/{user}', [AdminUserController::class, 'destroy'])->name('user-list.destroy')->middleware('permission:delete_users');
     Route::get('movie-list', [DashboardController::class, 'movieList'])->name('movie-list');
     Route::get('movie-genres', [DashboardController::class, 'movieGenres'])->name('movie-genres');
     Route::get('vjs', [DashboardController::class, 'vjs'])->name('vjs');
@@ -211,7 +215,12 @@ Route::group(['as' => 'dashboard.', 'middleware' => ['auth', 'role:admin']], fun
     Route::post('profile/avatar', [AdminProfileController::class, 'uploadProfileImage'])->name('profile.avatar.upload');
     Route::delete('profile/avatar', [AdminProfileController::class, 'removeProfileImage'])->name('profile.avatar.destroy');
 });
-Route::group(['as' => 'backend.', 'middleware' => ['auth', 'role:admin']], function () {
+Route::group(['as' => 'backend.', 'middleware' => ['auth', 'role:super-admin']], function () {
+    // Access Control edits role permissions, so it is super-admin ONLY —
+    // never delegatable. An admin who could open this could grant themselves
+    // every permission and defeat the whole system. Hidden from the admin
+    // sidebar (@role('super-admin')) and 403 on direct navigation.
+    //
     // The GET entry point + every mutating endpoint (store + reset)
     // gate behind password.confirm so a stolen admin session cookie
     // can't silently grant itself permissions or wipe a role's grants.
@@ -236,33 +245,38 @@ Route::middleware(['auth', 'role:admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
-        Route::get('settings', [AdminSettingController::class, 'index'])->name('settings.index');
-        Route::post('settings/general', [AdminSettingController::class, 'updateGeneral'])->name('settings.general');
-        Route::post('settings/branding', [AdminSettingController::class, 'updateBranding'])->name('settings.branding');
-        Route::post('settings/smtp', [AdminSettingController::class, 'updateSmtp'])->name('settings.smtp');
-        Route::post('settings/smtp-test', [AdminSettingController::class, 'sendTestEmail'])->name('settings.smtp-test');
-        Route::post('settings/vapid', [AdminSettingController::class, 'updateVapid'])->name('settings.vapid');
-        Route::post('settings/vapid-generate', [AdminSettingController::class, 'generateVapid'])->name('settings.vapid-generate');
-        Route::post('settings/recaptcha', [AdminSettingController::class, 'updateRecaptcha'])->name('settings.recaptcha');
-        Route::post('settings/maintenance', [AdminSettingController::class, 'updateMaintenance'])->name('settings.maintenance');
-        Route::post('settings/access', [AdminSettingController::class, 'updateAccess'])->name('settings.access');
-        Route::post('settings/google', [AdminSettingController::class, 'updateGoogleAuth'])->name('settings.google');
-        Route::post('settings/video-cdn', [AdminSettingController::class, 'updateVideoCdn'])->name('settings.video-cdn');
+        // Settings — delegatable system page. Hidden + 403 for admins until a
+        // super-admin grants settings_access; super-admins bypass via Gate::before.
+        Route::middleware('permission:settings_access')->group(function () {
+            Route::get('settings', [AdminSettingController::class, 'index'])->name('settings.index');
+            Route::post('settings/general', [AdminSettingController::class, 'updateGeneral'])->name('settings.general');
+            Route::post('settings/branding', [AdminSettingController::class, 'updateBranding'])->name('settings.branding');
+            Route::post('settings/smtp', [AdminSettingController::class, 'updateSmtp'])->name('settings.smtp');
+            Route::post('settings/smtp-test', [AdminSettingController::class, 'sendTestEmail'])->name('settings.smtp-test');
+            Route::post('settings/vapid', [AdminSettingController::class, 'updateVapid'])->name('settings.vapid');
+            Route::post('settings/vapid-generate', [AdminSettingController::class, 'generateVapid'])->name('settings.vapid-generate');
+            Route::post('settings/recaptcha', [AdminSettingController::class, 'updateRecaptcha'])->name('settings.recaptcha');
+            Route::post('settings/maintenance', [AdminSettingController::class, 'updateMaintenance'])->name('settings.maintenance');
+            Route::post('settings/access', [AdminSettingController::class, 'updateAccess'])->name('settings.access');
+            Route::post('settings/google', [AdminSettingController::class, 'updateGoogleAuth'])->name('settings.google');
+            Route::post('settings/video-cdn', [AdminSettingController::class, 'updateVideoCdn'])->name('settings.video-cdn');
+        });
 
-        // Diagnostics: error log tail + system status snapshot. Both
-        // are read-only views; only `logs.clear` mutates state (it
-        // truncates the selected log file, gated by the role:admin
-        // group above). No write paths into modules / settings / DB.
-        Route::get('diagnostics/logs', [AdminDiagnosticsController::class, 'logsIndex'])
-            ->name('diagnostics.logs');
-        Route::post('diagnostics/logs/{file}/clear', [AdminDiagnosticsController::class, 'logsClear'])
-            ->where('file', '[A-Za-z0-9._-]+\.log')
-            ->name('diagnostics.logs.clear');
-        Route::get('diagnostics/status', [AdminDiagnosticsController::class, 'statusIndex'])
-            ->name('diagnostics.status');
-        // Signup attempts triage — see docs/architecture/signup-diagnostics.md
-        Route::get('diagnostics/signups', [AdminDiagnosticsController::class, 'signupsIndex'])
-            ->name('diagnostics.signups');
+        // Diagnostics = part of the "System Info" page group. Delegatable via
+        // system_info_access (shared with the System Updates routes). Read-only
+        // views; only `logs.clear` mutates state (truncates a log file).
+        Route::middleware('permission:system_info_access')->group(function () {
+            Route::get('diagnostics/logs', [AdminDiagnosticsController::class, 'logsIndex'])
+                ->name('diagnostics.logs');
+            Route::post('diagnostics/logs/{file}/clear', [AdminDiagnosticsController::class, 'logsClear'])
+                ->where('file', '[A-Za-z0-9._-]+\.log')
+                ->name('diagnostics.logs.clear');
+            Route::get('diagnostics/status', [AdminDiagnosticsController::class, 'statusIndex'])
+                ->name('diagnostics.status');
+            // Signup attempts triage — see docs/architecture/signup-diagnostics.md
+            Route::get('diagnostics/signups', [AdminDiagnosticsController::class, 'signupsIndex'])
+                ->name('diagnostics.signups');
+        });
     });
 
 require __DIR__ . '/auth.php';
@@ -357,6 +371,25 @@ Route::middleware('auth')->group(function () {
         [\App\Http\Controllers\ProfileHubController::class, 'watchlist'])
         ->where('username', $usernamePattern)
         ->name('profile.watchlist');
+
+    // Wallet — every account has one (referral commissions, refunds;
+    // partner earnings live on the studio wallet). Never gated on the
+    // referral program: money stays reachable.
+    Route::get('/{username}/wallet',
+        [\App\Http\Controllers\ProfileHubController::class, 'wallet'])
+        ->where('username', $usernamePattern)
+        ->name('profile.wallet');
+
+    // Refer & Earn — 404s while the referral program is switched off.
+    Route::get('/{username}/refer-and-earn',
+        [\App\Http\Controllers\ProfileHubController::class, 'refer'])
+        ->where('username', $usernamePattern)
+        ->name('profile.refer');
+
+    Route::put('/{username}/refer-and-earn/code',
+        [\App\Http\Controllers\ProfileHubController::class, 'updateReferralCode'])
+        ->where('username', $usernamePattern)
+        ->name('profile.refer.code');
 
     Route::get('/{username}/notifications',
         [\App\Http\Controllers\ProfileHubController::class, 'notifications'])

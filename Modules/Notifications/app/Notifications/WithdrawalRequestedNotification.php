@@ -2,10 +2,11 @@
 
 namespace Modules\Notifications\app\Notifications;
 
-use Modules\Monetization\app\Models\WithdrawalRequest;
+use Modules\Wallet\app\Models\WithdrawalRequest;
 
 /**
- * Admin-facing: a partner wants money out — review the queue.
+ * Admin-facing: someone wants money out — review the payout queue.
+ * Covers every wallet owner type (partner profiles and regular users).
  */
 class WithdrawalRequestedNotification extends ChannelGatedNotification
 {
@@ -21,15 +22,14 @@ class WithdrawalRequestedNotification extends ChannelGatedNotification
     public function toDatabase($notifiable): array
     {
         $amount = number_format((float) $this->withdrawal->amount, 0);
-        $partner = $this->withdrawal->partner->display_name ?? 'A partner';
 
         return [
             'title' => 'Withdrawal requested',
-            'message' => "{$partner} requested a withdrawal of UGX {$amount}.",
+            'message' => "{$this->withdrawal->ownerLabel()} requested a payout of {$this->withdrawal->currency} {$amount}.",
             'icon' => 'ph-hand-coins',
             'colour' => 'warning',
             'image' => null,
-            'action_url' => route('admin.monetization.withdrawals.show', $this->withdrawal),
+            'action_url' => route('admin.wallet.withdrawals.index'),
             'action_label' => 'Review request',
             'withdrawal_id' => $this->withdrawal->id,
         ];

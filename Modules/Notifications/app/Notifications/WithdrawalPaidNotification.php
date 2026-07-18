@@ -2,7 +2,7 @@
 
 namespace Modules\Notifications\app\Notifications;
 
-use Modules\Monetization\app\Models\WithdrawalRequest;
+use Modules\Wallet\app\Models\WithdrawalRequest;
 
 class WithdrawalPaidNotification extends ChannelGatedNotification
 {
@@ -18,15 +18,16 @@ class WithdrawalPaidNotification extends ChannelGatedNotification
     public function toDatabase($notifiable): array
     {
         $amount = number_format((float) $this->withdrawal->amount, 0);
+        $network = $this->withdrawal->payee_network ? ' (' . strtoupper($this->withdrawal->payee_network) . ')' : '';
 
         return [
             'title' => 'Withdrawal paid',
-            'message' => "UGX {$amount} was sent to {$this->withdrawal->payout_msisdn_snapshot} ({$this->withdrawal->payout_network_snapshot}). Reference: {$this->withdrawal->transaction_reference}.",
+            'message' => "{$this->withdrawal->currency} {$amount} was sent to {$this->withdrawal->payee_msisdn}{$network}. Reference: {$this->withdrawal->transaction_reference}.",
             'icon' => 'ph-money',
             'colour' => 'success',
             'image' => null,
-            'action_url' => route('partner.withdrawals.index'),
-            'action_label' => 'View withdrawals',
+            'action_url' => WalletNotificationLinks::forRecipient($this->withdrawal, $notifiable),
+            'action_label' => 'View wallet',
             'withdrawal_id' => $this->withdrawal->id,
             'transaction_reference' => $this->withdrawal->transaction_reference,
         ];

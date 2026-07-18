@@ -66,6 +66,7 @@
             ['label' => 'Wallet',         'icon' => 'ph-wallet',              'href' => route('partner.wallet'),           'active' => request()->routeIs('partner.wallet')],
             ['label' => 'Withdrawals',    'icon' => 'ph-hand-coins',          'href' => route('partner.withdrawals.index'), 'active' => request()->routeIs('partner.withdrawals.*')],
             ['label' => 'Payout details', 'icon' => 'ph-identification-card', 'href' => route('partner.payout-profile'),   'active' => request()->routeIs('partner.payout-profile')],
+            ['label' => 'Refer & Earn',   'icon' => 'ph-gift',                'href' => route('partner.refer'),            'active' => request()->routeIs('partner.refer')],
             ['section' => 'Account'],
             ['label' => 'Profile',       'icon' => 'ph-user-circle',  'href' => route('partner.profile'),       'active' => request()->routeIs('partner.profile')],
             ['label' => 'Security',      'icon' => 'ph-shield-check', 'href' => route('partner.security'),      'active' => request()->routeIs('partner.security')],

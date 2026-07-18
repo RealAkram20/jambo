@@ -78,7 +78,7 @@ class PartnerAdminController extends Controller
             'partner' => $partner,
             'balance' => $partner->walletBalance(),
             'recentStatements' => $partner->statements()->with('period')->latest()->limit(6)->get(),
-            'openWithdrawals' => $partner->withdrawals()->whereIn('status', \Modules\Monetization\app\Models\WithdrawalRequest::OPEN_STATUSES)->get(),
+            'openWithdrawals' => $partner->withdrawals()->whereIn('status', \Modules\Wallet\app\Models\WithdrawalRequest::OPEN_STATUSES)->get(),
         ]);
     }
 

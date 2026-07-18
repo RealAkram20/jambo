@@ -67,8 +67,11 @@
                     <i class="ph ph-wallet fs-4"></i>
                 </div>
                 <div>
-                    <div class="text-muted small">Your earnings this period</div>
+                    <div class="text-muted small">Credited to your wallet this period</div>
                     <div class="fs-3 fw-semibold lh-1">{{ $fmtMoney($myEarnings) }}</div>
+                    <a class="small" href="{{ route('admin.wallet.index') }}">
+                        Wallet balance: {{ $fmtMoney((float) $walletBalance) }}
+                    </a>
                 </div>
             </div>
             <div class="text-muted small text-end">

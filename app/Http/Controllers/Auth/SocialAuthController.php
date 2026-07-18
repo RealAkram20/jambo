@@ -54,15 +54,25 @@ class SocialAuthController extends Controller
         if (!$user) {
             $user = $this->createFromSocial($email, $social);
         } elseif ($user->email_verified_at === null) {
-            // Match-by-email into a local account that never confirmed
-            // its email is the account-takeover risk. Google's OAuth
-            // flow is itself proof of email ownership (Google verifies
-            // every account's email), so we can safely promote the
-            // local row to "verified" — the OAuth user IS the rightful
-            // owner of that mailbox. This closes the squatting attack
-            // (someone signing up locally with a typo / abandoned
-            // address never owned) without a confusing UX detour.
-            $user->forceFill(['email_verified_at' => now()])->save();
+            // Match-by-email into a local account that never confirmed its
+            // email is the account-takeover risk. A squatter can register
+            // victim@gmail.com locally with a password THEY chose (email
+            // never verified, so the row just sits there); when the real
+            // owner later signs in with Google, we must not leave that
+            // attacker-set password working on the now-adopted account.
+            //
+            // Google's OAuth flow proves the mailbox belongs to whoever
+            // just authenticated, so we promote the row to verified — but
+            // we also overwrite the password with an unusable random value
+            // (exactly what createFromSocial() seeds) and rotate the
+            // remember token, severing any access the previous password
+            // holder had. The rightful owner uses Google from here, or the
+            // password-reset flow to set a new one they actually control.
+            $user->forceFill([
+                'email_verified_at' => now(),
+                'password'          => bcrypt(Str::random(40)),
+                'remember_token'    => Str::random(60),
+            ])->save();
         }
 
         if ($user->isDeactivated()) {
@@ -111,6 +121,13 @@ class SocialAuthController extends Controller
             $user->assignRole('user');
         }
 
+        // Same signal the form-registration path sends. The Referrals
+        // listener rides on it to default the referral code and record
+        // a pending attribution from the ?ref= cookie; the stock
+        // verification-email listener no-ops because the account is
+        // created already verified.
+        event(new \Illuminate\Auth\Events\Registered($user));
+
         return $user;
     }
 
@@ -133,7 +150,10 @@ class SocialAuthController extends Controller
 
         $candidate = $reserved ? $base . '1' : $base;
         $n = $reserved ? 2 : 1;
-        while (User::where('username', $candidate)->exists()) {
+        // Free against BOTH columns — the username becomes this account's
+        // referral code, so squatting on someone's custom code would leave
+        // the new user without one.
+        while (User::where('username', $candidate)->orWhere('referral_code', $candidate)->exists()) {
             $candidate = $base . $n++;
         }
         return $candidate;

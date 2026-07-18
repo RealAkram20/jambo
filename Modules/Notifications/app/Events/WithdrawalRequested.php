@@ -3,7 +3,7 @@
 namespace Modules\Notifications\app\Events;
 
 use Illuminate\Foundation\Events\Dispatchable;
-use Modules\Monetization\app\Models\WithdrawalRequest;
+use Modules\Wallet\app\Models\WithdrawalRequest;
 
 class WithdrawalRequested
 {

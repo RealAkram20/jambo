@@ -56,4 +56,9 @@ class PartnerAccountController extends Controller
     {
         return $this->hub()->notifications($request, $request->user()->username);
     }
+
+    public function refer(Request $request)
+    {
+        return $this->hub()->refer($request, $request->user()->username);
+    }
 }

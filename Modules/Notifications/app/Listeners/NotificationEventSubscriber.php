@@ -251,23 +251,38 @@ class NotificationEventSubscriber
 
     public function handleWithdrawalApproved(NE\WithdrawalApproved $event): void
     {
-        if ($user = $event->withdrawal->partner?->user) {
+        if ($user = $this->walletRecipient($event->withdrawal)) {
             $this->dispatcher->toUser($user, new N\WithdrawalApprovedNotification($event->withdrawal));
         }
     }
 
     public function handleWithdrawalPaid(NE\WithdrawalPaid $event): void
     {
-        if ($user = $event->withdrawal->partner?->user) {
+        if ($user = $this->walletRecipient($event->withdrawal)) {
             $this->dispatcher->toUser($user, new N\WithdrawalPaidNotification($event->withdrawal));
         }
     }
 
     public function handleWithdrawalRejected(NE\WithdrawalRejected $event): void
     {
-        if ($user = $event->withdrawal->partner?->user) {
+        if ($user = $this->walletRecipient($event->withdrawal)) {
             $this->dispatcher->toUser($user, new N\WithdrawalRejectedNotification($event->withdrawal));
         }
+    }
+
+    /**
+     * The human behind a universal-wallet withdrawal: the owner itself
+     * when it's a User, or the partner profile's linked account.
+     */
+    private function walletRecipient(\Modules\Wallet\app\Models\WithdrawalRequest $withdrawal): ?\App\Models\User
+    {
+        $owner = $withdrawal->owner;
+
+        if ($owner instanceof \App\Models\User) {
+            return $owner;
+        }
+
+        return $owner?->user;
     }
 
     public function handlePayoutProfileVerified(NE\PayoutProfileVerified $event): void
