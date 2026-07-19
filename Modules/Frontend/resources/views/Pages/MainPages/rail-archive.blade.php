@@ -13,7 +13,7 @@
             </div>
 
             @if ($items->count())
-                <div class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-8 g-3">
+                <div id="archive-grid" class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-8 g-3">
                     @foreach ($items as $item)
                         @php $isShow = $type === 'show'; @endphp
                         <div class="col">
@@ -36,11 +36,10 @@
                     @endforeach
                 </div>
 
-                @if ($items->hasPages())
-                    <div class="d-flex justify-content-center mt-5">
-                        {{ $items->links() }}
-                    </div>
-                @endif
+                @include('frontend::components.partials.load-more-pagination', [
+                    'paginator'    => $items,
+                    'gridSelector' => '#archive-grid',
+                ])
             @else
                 <div class="text-center py-5 my-4">
                     <i class="ph ph-film-strip text-muted" style="font-size: 56px;"></i>

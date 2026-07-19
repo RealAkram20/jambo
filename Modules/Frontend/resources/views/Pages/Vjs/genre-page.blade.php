@@ -80,7 +80,7 @@
                 </a>
             </div>
 
-            <div class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-8 g-3">
+            <div id="archive-grid" class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-8 g-3">
                 @foreach ($items as $item)
                     @include('frontend::components.partials.vj-grid-card', [
                         'item' => $item,
@@ -89,11 +89,10 @@
                 @endforeach
             </div>
 
-            @if ($items->hasPages())
-                <div class="d-flex justify-content-center mt-5">
-                    {{ $items->links() }}
-                </div>
-            @endif
+            @include('frontend::components.partials.load-more-pagination', [
+                'paginator'    => $items,
+                'gridSelector' => '#archive-grid',
+            ])
 
             {{-- The VJ's About card — same block as the hub and the parent
                  catalogue, so every VJ-scoped page carries the entity's
