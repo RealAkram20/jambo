@@ -102,15 +102,20 @@
                          data-genre-slug="{{ $bucket->genre->slug }}"
                          data-offset="{{ $bucket->movies->count() }}"
                          data-total="{{ $bucket->total }}">
+                    {{-- Both the heading and View All are real links to the
+                         genre page (/vj-movie/{slug}/{genre}) — crawlable
+                         paths that pass "Action" anchor text under the VJ's
+                         h1. The old View All was a JS expand-in-place, which
+                         gave Google no URL for "VJ Junior action movies". --}}
                     <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
-                        <h4 class="main-title text-capitalize mb-0">{{ $bucket->genre->name }}</h4>
-                        @if ($bucket->hasMore)
-                            <a href="javascript:void(0)"
-                               class="text-primary iq-view-all text-decoration-none flex-none jambo-vj-view-all"
-                               data-genre-slug="{{ $bucket->genre->slug }}">
-                                {{ __('streamButtons.view_all') ?? 'View All' }}
-                            </a>
-                        @endif
+                        <h4 class="main-title text-capitalize mb-0">
+                            <a href="{{ route('frontend.vj_movie_genre', [$vj->slug, $bucket->genre->slug]) }}"
+                               class="text-body text-decoration-none">{{ $bucket->genre->name }}</a>
+                        </h4>
+                        <a href="{{ route('frontend.vj_movie_genre', [$vj->slug, $bucket->genre->slug]) }}"
+                           class="text-primary iq-view-all text-decoration-none flex-none">
+                            {{ __('streamButtons.view_all') ?? 'View All' }}
+                        </a>
                     </div>
 
                     <div class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-8 g-3 jambo-vj-grid">
@@ -149,15 +154,13 @@
         var LIMIT = 24;
 
         /**
-         * Fetch and append the next slice of movies for a given
-         * genre. `expandAll=true` walks until the server says it's
-         * out — used by the "View All" link. Otherwise loads one
-         * page (15) and re-enables the button.
+         * Fetch and append the next page of movies for a genre.
+         * (View All is a real link to the genre page now, so this
+         * only ever loads one page per click.)
          */
-        async function loadMore(section, expandAll) {
+        async function loadMore(section) {
             var genreSlug = section.dataset.genreSlug;
             var btn       = section.querySelector('.jambo-vj-load-more');
-            var viewAll   = section.querySelector('.jambo-vj-view-all');
             var grid      = section.querySelector('.jambo-vj-grid');
 
             var label = btn ? btn.querySelector('.label') : null;
@@ -194,11 +197,8 @@
                     var hasMore = res.headers.get('X-Has-More') === '1';
                     if (!hasMore || parseInt(section.dataset.offset, 10) >= total) {
                         if (btn) btn.parentElement.style.display = 'none';
-                        if (viewAll) viewAll.style.display = 'none';
-                        break;
                     }
-
-                    if (!expandAll) break;
+                    break;
                 }
             } catch (e) {
                 console.warn('[vj-load-more]', e);
@@ -210,13 +210,7 @@
 
         document.querySelectorAll('.jambo-vj-genre-block').forEach(function (section) {
             var btn = section.querySelector('.jambo-vj-load-more');
-            if (btn) btn.addEventListener('click', function () { loadMore(section, false); });
-
-            var viewAll = section.querySelector('.jambo-vj-view-all');
-            if (viewAll) viewAll.addEventListener('click', function (e) {
-                e.preventDefault();
-                loadMore(section, true);
-            });
+            if (btn) btn.addEventListener('click', function () { loadMore(section); });
         });
     })();
     </script>

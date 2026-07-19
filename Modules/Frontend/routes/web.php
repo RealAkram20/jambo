@@ -45,6 +45,9 @@ Route::group([], function () {
     // covers any old links pointing at /vj/{slug}/more.
     Route::get('/vj-movie/{slug}', [FrontendController::class, 'vjMovieDetail'])->name('frontend.vj_movie_detail');
     Route::get('/vj-movie/{slug}/more', [FrontendController::class, 'vjMovieGenreLoadMore'])->name('frontend.vj_movie_genre_more');
+    // Genre-scoped catalogue ("VJ Junior Action Movies"). Registered
+    // AFTER the literal /more sibling so {genre} can never swallow it.
+    Route::get('/vj-movie/{slug}/{genre}', [FrontendController::class, 'vjMovieGenrePage'])->name('frontend.vj_movie_genre');
     Route::get('/vj/{slug}/more', function (string $slug) {
         return redirect()->route('frontend.vj_movie_genre_more', ['slug' => $slug] + request()->query(), 301);
     });
@@ -54,6 +57,8 @@ Route::group([], function () {
     Route::get('/series/more-vjs', [FrontendController::class, 'moreVjsForSeriesPage'])->name('frontend.series_more_vjs');
     Route::get('/vj-series/{slug}', [FrontendController::class, 'vjSeriesDetail'])->name('frontend.vj_series_detail');
     Route::get('/vj-series/{slug}/more', [FrontendController::class, 'vjSeriesGenreLoadMore'])->name('frontend.vj_series_genre_more');
+    // Genre-scoped catalogue — see the /vj-movie/{slug}/{genre} note.
+    Route::get('/vj-series/{slug}/{genre}', [FrontendController::class, 'vjSeriesGenrePage'])->name('frontend.vj_series_genre');
     Route::redirect('/tv-show', '/series', 301);
 
     //detail pages

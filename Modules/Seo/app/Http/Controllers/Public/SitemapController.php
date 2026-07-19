@@ -256,11 +256,38 @@ class SitemapController extends Controller
 
         $rows = collect();
         try {
+            // Genre spokes ("vj junior action movies"): one URL per
+            // VJ×genre pair with at least 3 published titles. The page
+            // itself only 404s at zero; the higher sitemap bar keeps us
+            // from advertising near-empty grids. whereIn on the
+            // published() scopes keeps the visibility rules (including
+            // the shows' has-a-published-episode guard) in one place.
+            $genres = \Modules\Content\app\Models\Genre::pluck('name', 'slug');
+            $genreSlugById = \Modules\Content\app\Models\Genre::pluck('slug', 'id');
+
+            $movieCombos = \Illuminate\Support\Facades\DB::table('movie_vj')
+                ->join('genre_movie', 'genre_movie.movie_id', '=', 'movie_vj.movie_id')
+                ->whereIn('movie_vj.movie_id', Movie::published()->select('movies.id'))
+                ->groupBy('movie_vj.vj_id', 'genre_movie.genre_id')
+                ->havingRaw('COUNT(*) >= 3')
+                ->select('movie_vj.vj_id', 'genre_movie.genre_id')
+                ->get()
+                ->groupBy('vj_id');
+
+            $showCombos = \Illuminate\Support\Facades\DB::table('show_vj')
+                ->join('genre_show', 'genre_show.show_id', '=', 'show_vj.show_id')
+                ->whereIn('show_vj.show_id', Show::published()->select('shows.id'))
+                ->groupBy('show_vj.vj_id', 'genre_show.genre_id')
+                ->havingRaw('COUNT(*) >= 3')
+                ->select('show_vj.vj_id', 'genre_show.genre_id')
+                ->get()
+                ->groupBy('vj_id');
+
             Vj::query()
                 ->select(['id', 'slug', 'name', 'updated_at'])
                 ->withCount(['movies', 'shows'])
                 ->orderByDesc('updated_at')
-                ->chunk(500, function ($chunk) use ($rows) {
+                ->chunk(500, function ($chunk) use ($rows, $genres, $genreSlugById, $movieCombos, $showCombos) {
                     foreach ($chunk as $vj) {
                         $lastmod = optional($vj->updated_at)->toAtomString();
                         $label   = $vj->name ?? $vj->slug;
@@ -300,6 +327,32 @@ class SitemapController extends Controller
                                 'changefreq' => 'weekly',
                                 'priority'   => '0.7',
                                 'label'      => $label . ' — Series',
+                            ]);
+                        }
+
+                        // Genre spokes for this VJ (see the combo
+                        // queries above the chunk for the ≥3 bar).
+                        foreach ($movieCombos->get($vj->id, collect()) as $combo) {
+                            $genreSlug = $genreSlugById[$combo->genre_id] ?? null;
+                            if (!$genreSlug) continue;
+                            $rows->push([
+                                'loc'        => route('frontend.vj_movie_genre', [$vj->slug, $genreSlug]),
+                                'lastmod'    => $lastmod,
+                                'changefreq' => 'weekly',
+                                'priority'   => '0.6',
+                                'label'      => $label . ' — ' . ($genres[$genreSlug] ?? $genreSlug) . ' Movies',
+                            ]);
+                        }
+
+                        foreach ($showCombos->get($vj->id, collect()) as $combo) {
+                            $genreSlug = $genreSlugById[$combo->genre_id] ?? null;
+                            if (!$genreSlug) continue;
+                            $rows->push([
+                                'loc'        => route('frontend.vj_series_genre', [$vj->slug, $genreSlug]),
+                                'lastmod'    => $lastmod,
+                                'changefreq' => 'weekly',
+                                'priority'   => '0.6',
+                                'label'      => $label . ' — ' . ($genres[$genreSlug] ?? $genreSlug) . ' Series',
                             ]);
                         }
                     }

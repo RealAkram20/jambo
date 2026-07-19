@@ -4,6 +4,7 @@ namespace Modules\Seo\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\Content\app\Models\Episode;
+use Modules\Content\app\Models\Genre;
 use Modules\Content\app\Models\Movie;
 use Modules\Content\app\Models\Season;
 use Modules\Content\app\Models\Show;
@@ -307,6 +308,45 @@ class StructuredDataTest extends TestCase
             ->assertOk()
             ->assertSee('<title>VJ Junior Series', false)
             ->assertSee('VJ Junior Series</h1>', false);
+    }
+
+    /**
+     * The genre pages exist to rank "vj junior action movies" — the keyword
+     * must appear in <title> and <h1> in spoken word order while the URL
+     * stays a plain slug pair, and the CollectionPage must hang off the same
+     * Person @id as the hub so it reads as another shelf of the same entity.
+     */
+    public function test_vj_genre_page_puts_the_keyword_in_title_and_heading(): void
+    {
+        $vj = $this->vjWithMovie();
+        $genre = Genre::create(['name' => 'Action', 'slug' => 'action']);
+        $vj->movies->first()->genres()->attach($genre->id);
+
+        $html = $this->get(route('frontend.vj_movie_genre', [$vj->slug, $genre->slug]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('<title>VJ Junior Action Movies', $html);
+        $this->assertStringContainsString('VJ Junior Action Movies</h1>', $html);
+
+        $graphs = $this->graphsFrom($html);
+        $this->assertSame(
+            route('frontend.vj_detail', $vj->slug) . '#person',
+            $graphs['CollectionPage']['about']['@id']
+        );
+    }
+
+    /**
+     * An empty VJ×genre combination must 404, not render an indexable blank
+     * grid — the thin-page rule the sitemap applies with an even higher bar.
+     */
+    public function test_vj_genre_page_404s_when_the_combo_has_no_titles(): void
+    {
+        $vj = $this->vjWithMovie();
+        $genre = Genre::create(['name' => 'Romance', 'slug' => 'romance']);
+
+        $this->get(route('frontend.vj_movie_genre', [$vj->slug, $genre->slug]))
+            ->assertNotFound();
     }
 
     /**

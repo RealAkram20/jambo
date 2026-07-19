@@ -730,6 +730,67 @@ class FrontendController extends Controller
         return response($html)->header('X-Has-More', $hasMore ? '1' : '0');
     }
 
+    /**
+     * Genre-scoped VJ movie catalogue — /vj-movie/{slug}/{genre}.
+     *
+     * A real, linkable page for the "VJ Junior Action Movies" query
+     * family. Until this existed the per-genre View All was a JS
+     * expand-in-place, so Google had no URL to rank for those terms.
+     * The keyword targeting lives in the title/H1/meta description
+     * (spoken word order), NOT in extra URL segments.
+     */
+    public function vjMovieGenrePage(string $slug, string $genre): View
+    {
+        $vj = Vj::where('slug', $slug)->firstOrFail();
+        $genre = Genre::where('slug', $genre)->firstOrFail();
+
+        $items = Movie::published()
+            ->with('genres')
+            ->whereHas('genres', fn ($q) => $q->where('genres.id', $genre->id))
+            ->whereHas('vjs', fn ($q) => $q->where('vjs.id', $vj->id))
+            ->orderByDesc('created_at')
+            ->paginate(24);
+
+        // An empty VJ×genre combo 404s instead of rendering (and being
+        // indexed as) a blank grid — the sitemap applies the same
+        // thin-page rule with a higher bar.
+        abort_if($items->total() === 0, 404);
+
+        return view('frontend::Pages.Vjs.genre-page', [
+            'vj'          => $vj,
+            'genre'       => $genre,
+            'items'       => $items,
+            'contentKind' => 'movie',
+        ]);
+    }
+
+    /**
+     * Genre-scoped VJ series catalogue — /vj-series/{slug}/{genre}.
+     * Mirror of vjMovieGenrePage for the "VJ Junior Action Series"
+     * query family.
+     */
+    public function vjSeriesGenrePage(string $slug, string $genre): View
+    {
+        $vj = Vj::where('slug', $slug)->firstOrFail();
+        $genre = Genre::where('slug', $genre)->firstOrFail();
+
+        $items = Show::published()
+            ->with('genres')
+            ->whereHas('genres', fn ($q) => $q->where('genres.id', $genre->id))
+            ->whereHas('vjs', fn ($q) => $q->where('vjs.id', $vj->id))
+            ->orderByDesc('created_at')
+            ->paginate(24);
+
+        abort_if($items->total() === 0, 404);
+
+        return view('frontend::Pages.Vjs.genre-page', [
+            'vj'          => $vj,
+            'genre'       => $genre,
+            'items'       => $items,
+            'contentKind' => 'show',
+        ]);
+    }
+
     //deatil pages
     public function movie_detail(?string $slug = null)
     {
