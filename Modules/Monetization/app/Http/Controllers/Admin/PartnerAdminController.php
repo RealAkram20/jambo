@@ -43,11 +43,45 @@ class PartnerAdminController extends Controller
         ]);
     }
 
+    /**
+     * Typeahead behind the "Linked user account" search on the partner
+     * form. Returns the closest matches on name, username, or email —
+     * super-admin-gated at the route level like the rest of enrollment.
+     */
+    public function userSearch(Request $request)
+    {
+        $q = trim((string) $request->query('q', ''));
+        if (mb_strlen($q) < 2) {
+            return response()->json([]);
+        }
+
+        $term = '%' . $q . '%';
+
+        return response()->json(
+            User::query()
+                ->where(fn ($w) => $w
+                    ->where('username', 'like', $term)
+                    ->orWhere('email', 'like', $term)
+                    ->orWhere('first_name', 'like', $term)
+                    ->orWhere('last_name', 'like', $term))
+                ->orderBy('username')
+                ->limit(8)
+                ->get(['id', 'username', 'first_name', 'last_name', 'email'])
+                ->map(fn (User $u) => [
+                    'id'       => $u->id,
+                    'username' => $u->username,
+                    'name'     => trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? '')),
+                    'email'    => $u->email,
+                ])
+        );
+    }
+
     public function create()
     {
         return view('monetization::admin.partners.form', [
             'partner' => new MonetizationPartner(['multiplier' => '1.000', 'status' => MonetizationPartner::STATUS_ENROLLED]),
             'vjs' => $this->unlinkedVjs(),
+            'linkedUser' => $this->linkedUserFor(null),
         ]);
     }
 
@@ -87,7 +121,23 @@ class PartnerAdminController extends Controller
         return view('monetization::admin.partners.form', [
             'partner' => $partner,
             'vjs' => $this->unlinkedVjs($partner->vj_id),
+            'linkedUser' => $this->linkedUserFor($partner),
         ]);
+    }
+
+    /**
+     * The user shown pre-filled in the form's linked-account search:
+     * the failed-validation resubmit value when present, else the
+     * currently linked account. Computed here, not in the blade — the
+     * form view already uses the inline @php($...) directive, and
+     * mixing that with an @php...@endphp block corrupts Blade's block
+     * compilation (the assignments render as literal text).
+     */
+    protected function linkedUserFor(?MonetizationPartner $partner): ?User
+    {
+        $id = old('user_id', $partner?->user_id);
+
+        return $id ? User::find($id) : null;
     }
 
     public function update(Request $request, MonetizationPartner $partner): RedirectResponse

@@ -39,13 +39,22 @@
                                 </select>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Linked user account (ID)</label>
-                                <input type="number" name="user_id" class="form-control" min="1"
-                                       value="{{ old('user_id', $partner->user_id) }}"
-                                       placeholder="users.id — grants dashboard login">
+                                <label class="form-label">Linked user account</label>
+                                {{-- $linkedUser comes from the controller. Don't compute it
+                                     here with a raw block directive: this file's inline
+                                     php($editing) directive on line 3 breaks Blade's block
+                                     compilation and the assignments render as plain text. --}}
+                                <div class="position-relative">
+                                    <input type="hidden" name="user_id" id="user_id" value="{{ $linkedUser?->id }}">
+                                    <input type="text" class="form-control" id="user-search" autocomplete="off"
+                                           placeholder="Search name, username, or email…"
+                                           value="{{ $linkedUser ? '@' . $linkedUser->username . ' — ' . $linkedUser->email : '' }}">
+                                    <div class="dropdown-menu w-100 shadow" id="user-search-results"
+                                         style="z-index:1050; max-height:260px; overflow-y:auto; top:100%; left:0;"></div>
+                                </div>
                                 <small class="text-muted">
                                     The user gains the <code>partner</code> role and access to /partner.
-                                    Find the ID on the admin Users page.
+                                    Clear the field to unlink.
                                 </small>
                             </div>
                             <div class="col-md-6">
@@ -104,4 +113,73 @@
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+    var input   = document.getElementById('user-search');
+    var hidden  = document.getElementById('user_id');
+    var results = document.getElementById('user-search-results');
+    var searchUrl = @json(route('admin.monetization.partners.user-search'));
+    var timer = null;
+
+    function hideResults() {
+        results.classList.remove('show');
+        results.innerHTML = '';
+    }
+
+    function render(users) {
+        results.innerHTML = '';
+        if (!users.length) {
+            var empty = document.createElement('span');
+            empty.className = 'dropdown-item disabled';
+            empty.textContent = 'No users match.';
+            results.appendChild(empty);
+        }
+        users.forEach(function (u) {
+            var item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'dropdown-item py-2';
+            item.style.whiteSpace = 'normal';
+
+            var top = document.createElement('div');
+            top.className = 'fw-semibold';
+            top.textContent = (u.name ? u.name + ' ' : '') + '@' + u.username;
+
+            var sub = document.createElement('div');
+            sub.className = 'text-muted';
+            sub.style.fontSize = '12px';
+            sub.textContent = u.email;
+
+            item.appendChild(top);
+            item.appendChild(sub);
+            item.addEventListener('click', function () {
+                hidden.value = u.id;
+                input.value = '@' + u.username + ' — ' + u.email;
+                hideResults();
+            });
+            results.appendChild(item);
+        });
+        results.classList.add('show');
+    }
+
+    input.addEventListener('input', function () {
+        // Any edit invalidates the previous selection; only an explicit
+        // pick from the list re-sets the hidden id. Emptying = unlink.
+        hidden.value = '';
+        clearTimeout(timer);
+        var q = input.value.trim();
+        if (q.length < 2) { hideResults(); return; }
+        timer = setTimeout(function () {
+            fetch(searchUrl + '?q=' + encodeURIComponent(q), { headers: { 'Accept': 'application/json' } })
+                .then(function (r) { return r.ok ? r.json() : []; })
+                .then(render)
+                .catch(hideResults);
+        }, 250);
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!results.contains(e.target) && e.target !== input) hideResults();
+    });
+})();
+</script>
 @endsection
