@@ -19,7 +19,9 @@ class StorePersonRequest extends FormRequest
             'bio' => 'nullable|string|max:5000',
             'birth_date' => 'nullable|date',
             'death_date' => 'nullable|date|after_or_equal:birth_date',
-            'photo_url' => 'nullable|url|max:500',
+            // string, not url: the media picker fills in site-relative
+            // /storage/... paths, which the `url` rule rejects.
+            'photo_url' => 'nullable|string|max:255',
             'known_for' => 'nullable|string|max:255',
         ];
     }

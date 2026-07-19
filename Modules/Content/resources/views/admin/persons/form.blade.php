@@ -58,14 +58,14 @@
         <div class="card">
             <div class="card-header"><h6 class="mb-0">Photo</h6></div>
             <div class="card-body">
-                @if (!empty(old('photo_url', $person->photo_url)))
-                    <div class="mb-3 text-center">
-                        <img src="{{ old('photo_url', $person->photo_url) }}" alt="" class="rounded-circle" style="width:120px;height:120px;object-fit:cover;">
-                    </div>
-                @endif
-                <label for="photo_url" class="form-label">Photo URL</label>
-                <input type="url" class="form-control @error('photo_url') is-invalid @enderror" id="photo_url" name="photo_url" value="{{ old('photo_url', $person->photo_url) }}" placeholder="https://...">
-                @error('photo_url') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                @include('content::admin.partials.media-picker-field', [
+                    'key'         => 'photo_url',
+                    'label'       => 'Photo',
+                    'value'       => old('photo_url', $person->photo_url),
+                    'accept'      => ['jpg', 'jpeg', 'png', 'webp'],
+                    'aspect'      => '1/1',
+                    'placeholder' => 'https://... or /storage/media/cast/...',
+                ])
             </div>
         </div>
 
@@ -111,3 +111,5 @@
         <i class="ph ph-floppy-disk me-1"></i> Save person
     </button>
 </div>
+
+@include('content::admin.partials.media-picker-script')
