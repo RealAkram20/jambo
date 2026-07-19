@@ -59,16 +59,35 @@ class PerformanceController extends Controller
             $leaderboard = $this->leaderboard($since);
         }
 
-        // "Who did what" feed. Super-admin sees everyone; a regular admin
-        // sees only their own actions.
+        // Super-admin can narrow the feed to one admin (?actor=<id>) to
+        // see everything that person did in the period. Regular admins
+        // are pinned to themselves, so the param is ignored for them.
+        $actorId = $isSuperAdmin && ctype_digit((string) $request->query('actor'))
+            ? (int) $request->query('actor')
+            : null;
+
+        // "Who did what" feed. Super-admin sees everyone (or the one
+        // admin they filtered to); a regular admin sees only their own
+        // actions.
         $feedQuery = ContentActivity::query()
             ->with('actor')
             ->where('created_at', '>=', $since)
             ->orderByDesc('id');
         if (!$isSuperAdmin) {
             $feedQuery->where('actor_id', $user->id);
+        } elseif ($actorId !== null) {
+            $feedQuery->where('actor_id', $actorId);
         }
-        $feed = $feedQuery->limit(50)->get();
+        $feed = $feedQuery->limit(100)->get();
+
+        // Dropdown options: everyone who has ever appeared in the log,
+        // not just this period — so a quiet month still lets you pick
+        // an admin and confirm they did nothing.
+        $actors = $isSuperAdmin
+            ? User::whereIn('id', ContentActivity::query()->whereNotNull('actor_id')->distinct()->pluck('actor_id'))
+                ->orderBy('username')
+                ->get(['id', 'username'])
+            : collect();
 
         return view('DashboardPages.performance.index', [
             'period'       => $period,
@@ -80,6 +99,8 @@ class PerformanceController extends Controller
             'walletBalance' => $walletBalance,
             'leaderboard'  => $leaderboard,
             'feed'         => $feed,
+            'actors'       => $actors,
+            'actorId'      => $actorId,
         ]);
     }
 

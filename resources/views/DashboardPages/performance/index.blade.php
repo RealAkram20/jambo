@@ -26,7 +26,7 @@
         </div>
         <div class="btn-group" role="group" aria-label="Period">
             @foreach ($periods as $key => $label)
-                <a href="{{ route('dashboard.performance', ['period' => $key]) }}"
+                <a href="{{ route('dashboard.performance', array_filter(['period' => $key, 'actor' => $actorId])) }}"
                    class="btn btn-sm {{ $period === $key ? 'btn-primary' : 'btn-outline-secondary' }}">
                     {{ $label }}
                 </a>
@@ -126,32 +126,48 @@
         {{-- Activity feed --}}
         <div class="col-lg-{{ $isSuperAdmin ? '6' : '12' }}">
             <div class="card h-100">
-                <div class="card-header d-flex align-items-center">
+                <div class="card-header d-flex align-items-center gap-2">
                     <i class="ph ph-clock-counter-clockwise me-2"></i>
                     {{ $isSuperAdmin ? 'Activity — who did what' : 'Your recent activity' }}
+                    @if ($isSuperAdmin && $actors->isNotEmpty())
+                        <form method="GET" action="{{ route('dashboard.performance') }}" class="ms-auto">
+                            <input type="hidden" name="period" value="{{ $period }}">
+                            <select name="actor" class="form-select form-select-sm" style="width:auto;"
+                                    aria-label="Filter by admin" onchange="this.form.submit()">
+                                <option value="">All admins</option>
+                                @foreach ($actors as $a)
+                                    <option value="{{ $a->id }}" @selected($actorId === $a->id)>{{ $a->username }}</option>
+                                @endforeach
+                            </select>
+                        </form>
+                    @endif
                 </div>
-                <ul class="list-unstyled mb-0">
-                    @forelse ($feed as $item)
-                        @php $am = $actionMeta[$item->action] ?? ['icon' => 'ph-dot', 'colour' => 'secondary']; @endphp
-                        <li class="d-flex gap-3 px-3 py-2 border-bottom align-items-center">
-                            <span class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle bg-{{ $am['colour'] }}-subtle text-{{ $am['colour'] }}-emphasis"
-                                  style="width:34px;height:34px;">
-                                <i class="ph {{ $am['icon'] }}"></i>
-                            </span>
-                            <div class="flex-grow-1">
-                                <div class="small">
-                                    <strong>{{ $item->actor_name ?? ($item->actor?->username ?? 'Someone') }}</strong>
-                                    {{ $item->action }}
-                                    <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ $item->content_type }}</span>
-                                    {{ $item->content_title }}
+                {{-- Inner scroller: content teams add/update titles all
+                     day, so the feed must never stretch the page. --}}
+                <div class="overflow-auto" style="max-height:480px;">
+                    <ul class="list-unstyled mb-0">
+                        @forelse ($feed as $item)
+                            @php $am = $actionMeta[$item->action] ?? ['icon' => 'ph-dot', 'colour' => 'secondary']; @endphp
+                            <li class="d-flex gap-3 px-3 py-2 border-bottom align-items-center">
+                                <span class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle bg-{{ $am['colour'] }}-subtle text-{{ $am['colour'] }}-emphasis"
+                                      style="width:34px;height:34px;">
+                                    <i class="ph {{ $am['icon'] }}"></i>
+                                </span>
+                                <div class="flex-grow-1">
+                                    <div class="small">
+                                        <strong>{{ $item->actor_name ?? ($item->actor?->username ?? 'Someone') }}</strong>
+                                        {{ $item->action }}
+                                        <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ $item->content_type }}</span>
+                                        {{ $item->content_title }}
+                                    </div>
+                                    <div class="text-muted" style="font-size:11px;">{{ $item->created_at?->diffForHumans() }}</div>
                                 </div>
-                                <div class="text-muted" style="font-size:11px;">{{ $item->created_at?->diffForHumans() }}</div>
-                            </div>
-                        </li>
-                    @empty
-                        <li class="text-center text-muted py-4">No activity in this period.</li>
-                    @endforelse
-                </ul>
+                            </li>
+                        @empty
+                            <li class="text-center text-muted py-4">No activity in this period.</li>
+                        @endforelse
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
