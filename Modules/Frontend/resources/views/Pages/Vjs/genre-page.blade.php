@@ -68,7 +68,9 @@
         <div class="container-fluid px-3 px-md-4">
             <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mt-3 mb-4 pb-2 border-bottom border-dark">
                 <div>
-                    <h1 class="main-title text-capitalize mb-1">{{ $pageTitle }}</h1>
+                    {{-- h1 for the crawler, h4 scale for the eye — the tag
+                         carries the keyword; the size is design's call. --}}
+                    <h1 class="main-title text-capitalize mb-1 h4 fw-medium">{{ $pageTitle }}</h1>
                     <p class="text-muted mb-0 small">
                         {{ $items->total() }} {{ Str::plural('title', $items->total()) }}
                     </p>

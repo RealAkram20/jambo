@@ -85,8 +85,10 @@
                 <div class="d-flex align-items-center justify-content-between px-1 pb-2 border-bottom border-dark">
                     <div>
                         {{-- Page <h1>, in the spoken keyword order: "VJ Junior
-                             Movies". Was an <h3>; the page had no <h1> at all. --}}
-                        <h1 class="main-title text-capitalize mb-1">{{ $vj->display_name }} Movies</h1>
+                             Movies". Was an <h3>; the page had no <h1> at all.
+                             The h4 class keeps it at heading scale visually —
+                             the h1 tag is for the crawler, not the design. --}}
+                        <h1 class="main-title text-capitalize mb-1 h4 fw-medium">{{ $vj->display_name }} Movies</h1>
                         @if ($vj->description)
                             <p class="text-muted mb-0 small">{{ $vj->description }}</p>
                         @endif
