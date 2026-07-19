@@ -622,11 +622,22 @@ class StructuredData
             return null;
         }
 
+        // Google validates nested VideoObjects against the same required
+        // fields as top-level ones (name, thumbnailUrl, uploadDate) and a
+        // partial trailer node flags the WHOLE page in Search Console —
+        // same bail-don't-emit-partial rule as videoObject().
+        $thumbs     = self::images($model->poster_url, $model->backdrop_url);
+        $uploadDate = $model->published_at ?? $model->created_at;
+        if ($thumbs === [] || $uploadDate === null) {
+            return null;
+        }
+
         return array_filter([
             '@type'        => 'VideoObject',
             'name'         => $model->title . ' — Trailer',
             'description'  => self::description($model->synopsis, $model->title),
-            'thumbnailUrl' => self::images($model->poster_url, $model->backdrop_url),
+            'thumbnailUrl' => $thumbs,
+            'uploadDate'   => $uploadDate->format(\DateTimeInterface::ATOM),
             'embedUrl'     => $model->trailer_url,
             'url'          => $pageUrl,
         ], static fn ($v) => $v !== null && $v !== [] && $v !== '');
