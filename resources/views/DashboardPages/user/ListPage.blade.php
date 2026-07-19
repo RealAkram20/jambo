@@ -133,26 +133,6 @@
                                                 $isSuperAdmin = $u->hasRole('super-admin');
                                             @endphp
                                             <div class="btn-group" role="group">
-                                                @role('super-admin')
-                                                @if (!$isSuperAdmin)
-                                                <form method="POST" action="{{ route('backend.users.super-admin.grant', $u) }}" class="m-0 d-inline"
-                                                    onsubmit="return confirm('Make {{ $u->username }} a SUPER ADMIN? They will have full, unrestricted access to the entire platform.');">
-                                                    @csrf
-                                                    <button type="submit" class="btn btn-sm btn-outline-warning" title="Make super admin">
-                                                        <i class="ph ph-crown-simple"></i>
-                                                    </button>
-                                                </form>
-                                                @elseif ($u->id !== auth()->id())
-                                                <form method="POST" action="{{ route('backend.users.super-admin.revoke', $u) }}" class="m-0 d-inline"
-                                                    onsubmit="return confirm('Remove super admin from {{ $u->username }}? They will keep their admin role.');">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="btn btn-sm btn-warning" title="Remove super admin">
-                                                        <i class="ph ph-crown-simple-fill"></i>
-                                                    </button>
-                                                </form>
-                                                @endif
-                                                @endrole
                                                 @can('edit_users')
                                                 <a href="{{ route('dashboard.user-list.edit', $u) }}"
                                                     class="btn btn-sm btn-outline-primary" title="Edit">

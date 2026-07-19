@@ -187,6 +187,22 @@ class UserController extends Controller
     }
 
     /**
+     * Confirmation page for granting/revoking super-admin. The crown
+     * control on the user edit form links here; password.confirm on
+     * the route means the password gate has already been passed by
+     * the time this renders, so the confirm button submits cleanly.
+     */
+    public function confirmSuperAdmin(Request $request, User $user): View
+    {
+        return view('DashboardPages.user.SuperAdminConfirmPage', [
+            'title'        => 'Super admin',
+            'user'         => $user,
+            'isSuperAdmin' => $user->hasRole('super-admin'),
+            'isSelf'       => $user->id === $request->user()->id,
+        ]);
+    }
+
+    /**
      * Grant the super-admin (owner) tier. Route-gated to
      * role:super-admin + password.confirm — only an existing
      * super-admin who has just re-entered their password can reach
@@ -197,7 +213,8 @@ class UserController extends Controller
     public function grantSuperAdmin(Request $request, User $user): RedirectResponse
     {
         if ($user->hasRole('super-admin')) {
-            return back()->with('error', "\"{$user->username}\" is already a super-admin.");
+            return redirect()->route('dashboard.user-list')
+                ->with('error', "\"{$user->username}\" is already a super-admin.");
         }
 
         // Super-admins always also hold `admin` so role:admin-gated
@@ -214,7 +231,7 @@ class UserController extends Controller
             'by'        => $request->user()->username,
         ]);
 
-        return back()->with('success',
+        return redirect()->route('dashboard.user-list')->with('success',
             "\"{$user->username}\" is now a super-admin with full platform-owner access.");
     }
 
@@ -227,12 +244,13 @@ class UserController extends Controller
     public function revokeSuperAdmin(Request $request, User $user): RedirectResponse
     {
         if ($user->id === $request->user()->id) {
-            return back()->with('error',
+            return redirect()->route('dashboard.user-list')->with('error',
                 "You can't remove your own super-admin role — ask another super-admin to do it.");
         }
 
         if (!$user->hasRole('super-admin')) {
-            return back()->with('error', "\"{$user->username}\" is not a super-admin.");
+            return redirect()->route('dashboard.user-list')
+                ->with('error', "\"{$user->username}\" is not a super-admin.");
         }
 
         $user->removeRole('super-admin');
@@ -244,7 +262,7 @@ class UserController extends Controller
             'by'        => $request->user()->username,
         ]);
 
-        return back()->with('success',
+        return redirect()->route('dashboard.user-list')->with('success',
             "\"{$user->username}\" is no longer a super-admin. Their admin role is unchanged.");
     }
 

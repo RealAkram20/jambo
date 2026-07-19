@@ -159,6 +159,33 @@ class SuperAdminGuardTest extends TestCase
 
     /* ── Super-admin grant/revoke endpoints (backend.users.super-admin.*) ── */
 
+    public function test_confirm_page_gated_to_super_admin_with_confirmed_password(): void
+    {
+        $target = User::factory()->create([
+            'username' => 'target_' . uniqid(),
+            'email'    => 'target_' . uniqid() . '@test.local',
+        ]);
+        $target->assignRole('user');
+
+        // Without a fresh password confirmation → intercepted.
+        $this->actingAs($this->superAdmin)
+            ->get(route('backend.users.super-admin.confirm', $target))
+            ->assertRedirect(route('password.confirm'));
+
+        // With it → the page renders with the grant action.
+        $this->actingAs($this->superAdmin)
+            ->withSession(['auth.password_confirmed_at' => time()])
+            ->get(route('backend.users.super-admin.confirm', $target))
+            ->assertOk()
+            ->assertSee('Make super admin');
+
+        // Regular admins never reach it.
+        $this->actingAs($this->regularAdmin)
+            ->withSession(['auth.password_confirmed_at' => time()])
+            ->get(route('backend.users.super-admin.confirm', $target))
+            ->assertForbidden();
+    }
+
     public function test_super_admin_can_grant_super_admin_via_ui(): void
     {
         $target = User::factory()->create([

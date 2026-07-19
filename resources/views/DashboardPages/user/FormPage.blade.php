@@ -50,9 +50,10 @@
                     <i class="ph ph-crown-simple-fill mt-1"></i>
                     <div>
                         <strong>Super-admin account.</strong>
-                        This user owns the platform. Profile fields and roles can only be changed
-                        from the console. To remove super-admin status:
-                        <code style="font-size:12px;">php artisan tinker --execute='App\\Models\\User::where("email", "{{ $user->email }}")->first()->removeRole("super-admin");'</code>
+                        Profile fields are locked — only the account owner can edit them.
+                        @role('super-admin')
+                            Super-admin status can be changed with the crown control in Roles below.
+                        @endrole
                     </div>
                 </div>
             </div>
@@ -173,22 +174,48 @@
                                     </div>
                                 </div>
                             @endforeach
-                            @if ($targetIsSuperAdmin)
-                                {{-- Super-admin role isn't in $roles (the controller filters
-                                     it out of the picker), but the badge still appears so
-                                     the admin sees it's set. --}}
-                                <div class="col-md-4">
-                                    <div class="form-check">
-                                        <input type="checkbox" class="form-check-input" id="role-super-admin"
-                                            checked disabled>
-                                        <label class="form-check-label" for="role-super-admin">
-                                            <i class="ph ph-crown-simple-fill text-warning"></i>
-                                            Super-admin
-                                            <small class="text-muted d-block" style="font-size:11px;">console-managed</small>
-                                        </label>
+                            @role('super-admin')
+                                {{-- Super-admin isn't a picker checkbox (update() filters it
+                                     out of roles[] no matter what's submitted). The crown
+                                     link goes through the dedicated password-confirmed
+                                     grant/revoke flow instead. Links aren't disabled by the
+                                     surrounding fieldset, so this works even on a locked
+                                     super-admin row. --}}
+                                <div class="col-12">
+                                    <hr class="my-2">
+                                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                        <div class="form-check m-0">
+                                            <input type="checkbox" class="form-check-input" id="role-super-admin"
+                                                @checked($targetIsSuperAdmin) disabled>
+                                            <label class="form-check-label" for="role-super-admin">
+                                                <i class="ph ph-crown-simple-fill text-warning"></i> Super admin
+                                            </label>
+                                        </div>
+                                        @if ($isEdit && !$isSelfEdit)
+                                            <a href="{{ route('backend.users.super-admin.confirm', $user) }}"
+                                                class="btn btn-sm {{ $targetIsSuperAdmin ? 'btn-warning' : 'btn-outline-warning' }}">
+                                                <i class="ph {{ $targetIsSuperAdmin ? 'ph-crown-simple' : 'ph-crown-simple-fill' }} me-1"></i>
+                                                {{ $targetIsSuperAdmin ? 'Remove super admin' : 'Make super admin' }}
+                                            </a>
+                                        @elseif ($isSelfEdit && $targetIsSuperAdmin)
+                                            <span class="text-muted" style="font-size:12px;">Ask another super admin to change this.</span>
+                                        @endif
                                     </div>
                                 </div>
-                            @endif
+                            @else
+                                @if ($targetIsSuperAdmin)
+                                    {{-- Non-super-admin viewers just see that it's set. --}}
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input" id="role-super-admin"
+                                                checked disabled>
+                                            <label class="form-check-label" for="role-super-admin">
+                                                <i class="ph ph-crown-simple-fill text-warning"></i> Super admin
+                                            </label>
+                                        </div>
+                                    </div>
+                                @endif
+                            @endrole
                         </div>
                     </div>
                 </div>

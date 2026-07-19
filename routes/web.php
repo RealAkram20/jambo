@@ -243,23 +243,26 @@ Route::group(['as' => 'backend.', 'middleware' => ['auth', 'role:super-admin']],
 
     // Grant / revoke the super-admin tier. Super-admin-only (group
     // middleware) AND password re-confirmation — same bar as Access
-    // Control, because this endpoint mints owners. The user-list role
-    // picker still never offers super-admin; these are the only UI
-    // paths, alongside the users:make-super-admin console command.
+    // Control, because these endpoints mint owners. The user-form role
+    // picker still never offers super-admin; this flow is the only UI
+    // path, alongside the users:make-super-admin console command.
+    //
+    // Entry is the GET confirmation page (crown control on the user
+    // edit form links here). Gating password.confirm on the GET means
+    // the password interception happens BEFORE the page renders —
+    // password.confirm's intended-URL replay is a GET, so it lands
+    // right back on this page and the confirm button then submits
+    // inside the already-confirmed window. Never gate only the
+    // POST/DELETE: the replay would 405.
+    Route::get('users/{user}/super-admin', [AdminUserController::class, 'confirmSuperAdmin'])
+        ->name('users.super-admin.confirm')
+        ->middleware('password.confirm');
     Route::post('users/{user}/super-admin', [AdminUserController::class, 'grantSuperAdmin'])
         ->name('users.super-admin.grant')
         ->middleware('password.confirm');
     Route::delete('users/{user}/super-admin', [AdminUserController::class, 'revokeSuperAdmin'])
         ->name('users.super-admin.revoke')
         ->middleware('password.confirm');
-    // password.confirm stores the intended URL and replays it as a GET
-    // after the password is re-entered — which for the two POST/DELETE
-    // actions above would 405. Catch that replay and land back on the
-    // user list with a nudge instead.
-    Route::get('users/{user}/super-admin', function (\App\Models\User $user) {
-        return redirect()->route('dashboard.user-list')
-            ->with('success', 'Password confirmed — now click the crown action again to apply it.');
-    });
 });
 // Admin: System Settings (per-section saves so errors in one card
 // don't block saving another)
