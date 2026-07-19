@@ -69,6 +69,25 @@ class CategoryController extends Controller
         return redirect()->back()->with('success', "Category \"{$category->name}\" is {$state} the homepage.");
     }
 
+    /**
+     * Persist the drag-and-drop order from the admin table. Receives
+     * every category id in display order; position becomes sort_order,
+     * which the homepage rails follow directly.
+     */
+    public function reorder(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->validate([
+            'order'   => 'required|array',
+            'order.*' => 'integer|exists:categories,id',
+        ]);
+
+        foreach (array_values($data['order']) as $position => $id) {
+            Category::whereKey($id)->update(['sort_order' => $position]);
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
     public function destroy(Category $category): RedirectResponse
     {
         $name = $category->name;

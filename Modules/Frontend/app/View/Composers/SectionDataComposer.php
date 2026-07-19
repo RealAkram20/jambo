@@ -95,11 +95,11 @@ class SectionDataComposer
         $topMovies = app(TopPicksRecommender::class)->globalTopPicks(Movie::class, 10);
 
         // Homepage category shelves — ONE pool: every category the admin
-        // marked "Visible Home" (with published content), in sort_order.
-        // The first holds the fixed shelf slot; the rest rotate through
-        // the three random slots, drawn fresh per page load. Nothing
-        // outside this pool ever reaches the homepage, so the admin flag
-        // is the single source of truth.
+        // marked "Visible Home" (with published content), in the exact
+        // sort_order set by drag-and-drop on the admin Categories table.
+        // First fills the fixed shelf slot, the next three fill the
+        // remaining slots — no shuffling, the admin order IS the page
+        // order. Nothing outside this pool ever reaches the homepage.
         $categoryShelves = $this->shapeCategoryRails(
             Category::visibleHome()
                 ->orderBy('sort_order')
@@ -196,12 +196,13 @@ class SectionDataComposer
             // toggled category never shows a blank rail).
             'homeCategories' => $categoryShelves->take(1),
 
-            // Rotating category shelves — fill the slots left by the
+            // The next category shelves — fill the slots left by the
             // retired algorithmic rails (Top Picks / Popular Movies /
-            // Fresh Picks). The remaining Visible Home categories,
-            // shuffled per page load, three drawn per page; slice(1)
-            // guarantees they never duplicate the fixed shelf above.
-            'randomHomeCategories' => $categoryShelves->slice(1)->shuffle()->take(3)->values(),
+            // Fresh Picks) with the 2nd, 3rd and 4th categories in admin
+            // sort_order (shuffle removed 2026-07-19: the admin drag
+            // order is the page order). slice(1) guarantees they never
+            // duplicate the fixed shelf above.
+            'randomHomeCategories' => $categoryShelves->slice(1)->take(3)->values(),
         ];
     }
 

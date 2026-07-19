@@ -56,12 +56,15 @@
                     </div>
                     <div class="card-body">
                         <div class="table-view table-space">
+                            {{-- data-ordering/paging off: rows follow sort_order and are
+                                 rearranged by drag — DataTables must not re-sort or split
+                                 them across pages (its search box still works). --}}
                             <table id="seasonTable"
                                 class="data-tables table custom-table movie_table data-table-one custom-table-height"
-                                data-toggle="data-table1">
+                                data-toggle="data-table1" data-ordering="false" data-paging="false">
                                 <thead>
                                     <tr class="text-uppercase">
-                                    <tr class="text-uppercase">
+                                        <th class></th>
                                         <th class>
                                             <input type="checkbox" class="form-check-input" />
                                         </th>
@@ -72,9 +75,12 @@
                                         <th class>Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="categorySortBody">
                                     @forelse ($categories ?? [] as $category)
-                                        <tr>
+                                        <tr data-id="{{ $category->id }}">
+                                            <td class="category-drag-handle" style="cursor:grab;" data-bs-toggle="tooltip" data-bs-placement="top" title="Drag to reorder">
+                                                <i class="ph ph-dots-six-vertical fs-5"></i>
+                                            </td>
                                             <td><input type="checkbox" class="form-check-input" /></td>
                                             <td>{{ $category->name }}</td>
                                             <td>{{ $category->slug }}</td>
@@ -103,7 +109,7 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="6" class="text-center py-5 text-muted" style="font-size:14px;">No categories yet. Add one using the form.</td>
+                                            <td colspan="7" class="text-center py-5 text-muted" style="font-size:14px;">No categories yet. Add one using the form.</td>
                                         </tr>
                                     @endforelse
                                 </tbody>
@@ -163,4 +169,42 @@
             </div>
         </div>
     </div>
+
+    {{-- SortableJS only on this page (the admin bundle doesn't ship a
+         drag library) — same CDN pattern as the footer editor. Rows are
+         dragged by the handle; the id order is PATCHed immediately and
+         is exactly the order the homepage rails render in. --}}
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var tbody = document.getElementById('categorySortBody');
+            if (!tbody || !window.Sortable || !tbody.querySelector('tr[data-id]')) return;
+
+            new Sortable(tbody, {
+                handle: '.category-drag-handle',
+                animation: 150,
+                onEnd: function () {
+                    var order = Array.prototype.map.call(
+                        tbody.querySelectorAll('tr[data-id]'),
+                        function (tr) { return tr.getAttribute('data-id'); }
+                    );
+
+                    fetch('{{ route('admin.categories.reorder') }}', {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        },
+                        body: JSON.stringify({ order: order }),
+                    }).then(function (res) {
+                        if (!res.ok) throw new Error('save failed');
+                    }).catch(function () {
+                        alert('Could not save the new order. Reloading.');
+                        window.location.reload();
+                    });
+                },
+            });
+        });
+    </script>
 @endsection

@@ -496,7 +496,9 @@ class DashboardController extends Controller
     public function personCategories(Request $request)
     {
         $title = __('sidebar.categories');
-        $categories = Category::withCount(['movies', 'shows'])->orderBy('name')->get();
+        // Same order the homepage rails use, so the table IS the
+        // homepage lineup: drag rows to rewrite sort_order.
+        $categories = Category::withCount(['movies', 'shows'])->orderBy('sort_order')->orderBy('name')->get();
         return view('DashboardPages.persons.PersonCategoies', compact('title', 'categories'));
     }
 

@@ -93,6 +93,9 @@ Route::middleware(['auth', 'role:admin'])
         Route::delete('categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
         // Homepage-rail switch for the admin table (flips visible_home).
         Route::patch('categories/{category}/toggle-home', [CategoryController::class, 'toggleHome'])->name('categories.toggle-home');
+        // Drag-and-drop ordering from the admin table: the full id list
+        // in display order; sort_order = position. Drives homepage rails.
+        Route::patch('categories/reorder', [CategoryController::class, 'reorder'])->name('categories.reorder');
 
         // Moderation: ratings, reviews, comments (listing via DashboardController template pages)
         Route::patch('ratings/{rating}', [RatingController::class, 'update'])->name('ratings.update');
