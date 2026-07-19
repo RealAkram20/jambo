@@ -272,6 +272,7 @@ class ShowController extends Controller
     {
         $show->genres()->sync($data['genre_ids'] ?? []);
         $show->vjs()->sync($data['vj_ids'] ?? []);
+        event(new \Modules\Content\app\Events\VjCreditsSynced($show));
         $show->categories()->sync($data['category_ids'] ?? []);
         $show->tags()->sync($data['tag_ids'] ?? []);
 

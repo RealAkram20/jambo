@@ -663,6 +663,21 @@
                 <span class="item-name">Referrals</span>
             </a>
         </li>
+        {{-- Staff who are ALSO enrolled Monetization partners (content
+             creators before they were admins) get a shortcut into
+             their Creator Studio — its own earnings, statements, and
+             withdrawals live there, not in the admin panel. --}}
+        @role('partner')
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('partner.dashboard') }}">
+                    <i class="icon" data-bs-toggle="tooltip" title="Creator Studio" data-bs-placement="right"
+                        aria-label="Creator Studio" data-bs-original-title="Creator Studio">
+                        <i class="ph ph-video-camera fs-4"></i>
+                    </i>
+                    <span class="item-name">Creator Studio</span>
+                </a>
+            </li>
+        @endrole
         {{-- The signed-in staff member's own universal wallet:
              performance + referral earnings on one balance. --}}
         @if (Route::has('admin.wallet.index'))

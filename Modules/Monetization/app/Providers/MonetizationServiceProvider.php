@@ -31,6 +31,25 @@ class MonetizationServiceProvider extends ServiceProvider
             \Modules\Streaming\app\Events\PlaybackBeat::class,
             \Modules\Monetization\app\Listeners\RecordWatchAccrual::class,
         );
+
+        // Auto-attach title splits when a saved movie/show credits a
+        // VJ whose partner is enrolled (owner decision 2026-07-19:
+        // VJ-linked partners earn on their catalog without a manual
+        // split per title). Guarded — a splits bug must never break
+        // content saving.
+        Event::listen(
+            \Modules\Content\app\Events\VjCreditsSynced::class,
+            function (\Modules\Content\app\Events\VjCreditsSynced $event): void {
+                try {
+                    app(\Modules\Monetization\app\Services\VjTitleSplits::class)->syncTitle($event->title);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('[monetization] vj split sync failed', [
+                        'title' => $event->title->getMorphClass() . '#' . $event->title->getKey(),
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            },
+        );
     }
 
     /**

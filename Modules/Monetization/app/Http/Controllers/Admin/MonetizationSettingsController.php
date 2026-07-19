@@ -35,6 +35,7 @@ class MonetizationSettingsController extends Controller
             'daily_minutes_cap' => 'required|integer|min:60|max:1440',
             'payout_change_cooldown_days' => 'required|integer|min:0|max:90',
             'finance_can_view' => 'required|boolean',
+            'default_split_percent' => 'required|numeric|min:1|max:100',
         ]);
 
         $before = $this->currentValues();
@@ -59,6 +60,7 @@ class MonetizationSettingsController extends Controller
         setting(['monetization.daily_minutes_cap', (string) $data['daily_minutes_cap']]);
         setting(['monetization.payout_change_cooldown_days', (string) $data['payout_change_cooldown_days']]);
         setting(['monetization.finance_can_view', $data['finance_can_view'] ? '1' : '0']);
+        setting(['monetization.default_split_percent', (string) $data['default_split_percent']]);
 
         MonetizationSettings::flush();
 
@@ -85,6 +87,7 @@ class MonetizationSettingsController extends Controller
             'daily_minutes_cap' => (string) MonetizationSettings::dailyMinutesCap(),
             'payout_change_cooldown_days' => (string) MonetizationSettings::payoutChangeCooldownDays(),
             'finance_can_view' => MonetizationSettings::financeCanView() ? '1' : '0',
+            'default_split_percent' => MonetizationSettings::defaultSplitPercent(),
         ];
     }
 }

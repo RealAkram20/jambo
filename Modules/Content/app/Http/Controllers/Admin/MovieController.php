@@ -321,6 +321,7 @@ class MovieController extends Controller
     {
         $movie->genres()->sync($data['genre_ids'] ?? []);
         $movie->vjs()->sync($data['vj_ids'] ?? []);
+        event(new \Modules\Content\app\Events\VjCreditsSynced($movie));
         $movie->categories()->sync($data['category_ids'] ?? []);
         $movie->tags()->sync($data['tag_ids'] ?? []);
 

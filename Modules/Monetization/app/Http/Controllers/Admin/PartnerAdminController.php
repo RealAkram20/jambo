@@ -167,6 +167,24 @@ class PartnerAdminController extends Controller
     }
 
     /**
+     * Bulk-attach title splits for every movie/show credited to this
+     * partner's linked VJ, at the default split percent from
+     * Monetization settings. Idempotent — existing splits are kept.
+     */
+    public function syncVjSplits(MonetizationPartner $partner): RedirectResponse
+    {
+        if (!$partner->vj_id) {
+            return back()->with('error', 'This partner has no linked VJ — attach titles on the Splits page instead.');
+        }
+
+        $created = app(\Modules\Monetization\app\Services\VjTitleSplits::class)->attachAllForPartner($partner);
+
+        return back()->with('success', $created > 0
+            ? "{$created} title split" . ($created === 1 ? '' : 's') . " attached at " . \Modules\Monetization\app\Services\MonetizationSettings::defaultSplitPercent() . "%."
+            : 'No new splits — every credited title already has one (or no headroom is left).');
+    }
+
+    /**
      * Approve the partner's submitted payout profile. Withdrawals are
      * only possible against a verified profile.
      */

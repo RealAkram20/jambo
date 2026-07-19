@@ -28,6 +28,7 @@ class MonetizationSettings
         'monetization.daily_minutes_cap',
         'monetization.payout_change_cooldown_days',
         'monetization.finance_can_view',
+        'monetization.default_split_percent',
     ];
 
     protected static function get(string $key, $default = null)
@@ -141,6 +142,17 @@ class MonetizationSettings
     public static function financeCanView(): bool
     {
         return (string) static::get('monetization.finance_can_view', '1') === '1';
+    }
+
+    /**
+     * Percent a VJ-linked partner gets on each of their credited
+     * titles when splits are auto-attached (bulk button + new-upload
+     * sync). Clamped per title to the headroom left by existing
+     * splits; the remainder stays with the platform.
+     */
+    public static function defaultSplitPercent(): string
+    {
+        return (string) static::get('monetization.default_split_percent', '100');
     }
 
     /**

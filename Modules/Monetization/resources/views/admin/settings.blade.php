@@ -131,6 +131,15 @@
                                 </div>
                                 <small class="text-muted">Withdrawals freeze this long after a partner changes their payout number.</small>
                             </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Default title split</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" min="1" max="100" name="default_split_percent" class="form-control"
+                                           value="{{ old('default_split_percent', $values['default_split_percent']) }}">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <small class="text-muted">Auto-attached splits for VJ-linked partners; capped per title at 100% total.</small>
+                            </div>
                         </div>
 
                         <div class="d-flex justify-content-end">

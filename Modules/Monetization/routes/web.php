@@ -56,6 +56,7 @@ Route::middleware(['auth', 'role:admin', 'role:finance|super-admin', 'monetizati
             Route::get('partners/{partner}/edit', [PartnerAdminController::class, 'edit'])->name('partners.edit');
             Route::put('partners/{partner}', [PartnerAdminController::class, 'update'])->name('partners.update');
             Route::post('partners/{partner}/verify-payout', [PartnerAdminController::class, 'verifyPayout'])->name('partners.verify-payout');
+            Route::post('partners/{partner}/sync-vj-splits', [PartnerAdminController::class, 'syncVjSplits'])->name('partners.sync-vj-splits');
 
             Route::get('splits', [TitleSplitController::class, 'index'])->name('splits.index');
             Route::get('splits/{type}/{id}', [TitleSplitController::class, 'edit'])

@@ -66,7 +66,20 @@
                         </div>
                     </div>
 
-                    <h6 class="text-uppercase text-muted mb-2" style="font-size:11px;letter-spacing:.5px;">Title splits</h6>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="text-uppercase text-muted mb-0" style="font-size:11px;letter-spacing:.5px;">Title splits</h6>
+                        @role('super-admin')
+                        @if ($partner->vj_id)
+                            <form method="POST" action="{{ route('admin.monetization.partners.sync-vj-splits', $partner) }}" class="m-0"
+                                  onsubmit="return confirm('Attach splits for every title credited to {{ $partner->vj?->name }} at the default percent?');">
+                                @csrf
+                                <button class="btn btn-sm btn-primary-subtle">
+                                    <i class="ph ph-link me-1"></i> Attach VJ titles
+                                </button>
+                            </form>
+                        @endif
+                        @endrole
+                    </div>
                     <div class="table-responsive mb-4">
                         <table class="table custom-table align-middle mb-0">
                             <thead>
