@@ -113,11 +113,10 @@
             <section class="related-movie-block mt-5 mb-2">
                 <div class="d-flex align-items-center justify-content-between px-1 pb-2 border-bottom border-dark">
                     <div>
-                        {{-- The page's one and only <h1>. It was an <h3>, which
-                             left the page with no primary heading at all — the
-                             keyword it ranks for was stated nowhere in the
-                             markup. Same classes, so the styling is unchanged. --}}
-                        <h1 class="main-title text-capitalize mb-1">{{ $vj->display_name }}</h1>
+                        {{-- The page's one and only <h1>. The h4 class keeps it
+                             at heading scale visually, matching every other
+                             catalogue page — the tag is for the crawler. --}}
+                        <h1 class="main-title text-capitalize mb-1 h4 fw-medium">{{ $vj->display_name }}</h1>
                         {{-- The bio used to be repeated here as a muted one-liner.
                              It now lives in the About card at the foot of the page,
                              where it sits alongside the photo and the social links —

@@ -82,10 +82,9 @@
                         {{-- Page <h1>: "VJ Junior Series". Was an <h3>. The h4
                              class keeps it at heading scale visually — the h1
                              tag is for the crawler, not the design. --}}
+                        {{-- No bio paragraph here: the About card at the foot
+                             of the page is the single home for the VJ's prose. --}}
                         <h1 class="main-title text-capitalize mb-1 h4 fw-medium">{{ $vj->display_name }} Series</h1>
-                        @if ($vj->description)
-                            <p class="text-muted mb-0 small">{{ $vj->description }}</p>
-                        @endif
                     </div>
                 </div>
             </section>
@@ -130,6 +129,9 @@
                     <p class="text-muted">This VJ has no published series yet.</p>
                 </section>
             @endforelse
+
+            {{-- The VJ's About card — the one place the bio renders. --}}
+            @include('frontend::components.sections.vj-bio-card', ['vj' => $vj])
         </div>
     </div>
 

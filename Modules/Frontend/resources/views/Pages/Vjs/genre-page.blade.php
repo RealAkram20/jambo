@@ -94,6 +94,11 @@
                     {{ $items->links() }}
                 </div>
             @endif
+
+            {{-- The VJ's About card — same block as the hub and the parent
+                 catalogue, so every VJ-scoped page carries the entity's
+                 prose and social links. --}}
+            @include('frontend::components.sections.vj-bio-card', ['vj' => $vj])
         </div>
     </section>
 
