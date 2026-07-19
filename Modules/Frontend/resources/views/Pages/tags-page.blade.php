@@ -12,7 +12,7 @@
     <section class="section-padding">
         <div class="container-fluid">
             <div class="d-flex align-items-center justify-content-between mb-4">
-                <h4 class="main-title text-capitalize mb-0">{{ __('frontendheader.tags') }}</h4>
+                <h1 class="main-title text-capitalize mb-0 h4 fw-medium">{{ __('frontendheader.tags') }}</h1>
             </div>
             <div class="row g-3 g-lg-4 row-cols-3 row-cols-sm-3 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 row-cols-xxl-6">
                 @forelse ($tags as $t)

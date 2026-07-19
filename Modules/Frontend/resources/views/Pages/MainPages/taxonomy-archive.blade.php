@@ -88,7 +88,10 @@
          wishlist reveal on the outer cards. Same as /movie. --}}
     <div class="container-fluid pb-5 mb-4 px-2 px-md-3">
         <div class="pt-4">
-            <h2 class="main-title text-capitalize mb-0">{{ $heading }}</h2>
+            {{-- h1 for the crawler (this page's target keyword, e.g.
+                 "Action Movies"), h4 scale for the eye — matching the
+                 section headings everywhere else. --}}
+            <h1 class="main-title text-capitalize mb-0 h4 fw-medium">{{ $heading }}</h1>
         </div>
 
         @if ($hasMovies)

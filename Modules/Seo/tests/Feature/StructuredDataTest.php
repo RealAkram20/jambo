@@ -465,16 +465,23 @@ class StructuredDataTest extends TestCase
         $movie   = $this->publishedMovie();
         [$show, $episode] = $this->publishedEpisode();
 
+        $genre = Genre::create(['name' => 'Action', 'slug' => 'action']);
+        $vj->movies->first()->genres()->attach($genre->id);
+
         $urls = [
-            'home'         => route('frontend.ott'),
-            'movies list'  => route('frontend.movie'),
-            'series list'  => route('frontend.series'),
-            'movie detail' => route('frontend.movie_detail', $movie->slug),
-            'show detail'  => route('frontend.series_detail', $show->slug),
-            'episode'      => $episode->frontendUrl($show),
-            'vj hub'       => route('frontend.vj_detail', $vj->slug),
-            'vj movies'    => route('frontend.vj_movie_detail', $vj->slug),
-            'vj series'    => route('frontend.vj_series_detail', $vj->slug),
+            'home'          => route('frontend.ott'),
+            'movies list'   => route('frontend.movie'),
+            'series list'   => route('frontend.series'),
+            'movie detail'  => route('frontend.movie_detail', $movie->slug),
+            'show detail'   => route('frontend.series_detail', $show->slug),
+            'episode'       => $episode->frontendUrl($show),
+            'vj hub'        => route('frontend.vj_detail', $vj->slug),
+            'vj movies'     => route('frontend.vj_movie_detail', $vj->slug),
+            'vj series'     => route('frontend.vj_series_detail', $vj->slug),
+            'vj genre'      => route('frontend.vj_movie_genre', [$vj->slug, $genre->slug]),
+            'genre archive' => route('frontend.genres', $genre->slug),
+            'upcoming'      => route('frontend.upcoming'),
+            'search'        => route('frontend.search'),
         ];
 
         foreach ($urls as $label => $url) {

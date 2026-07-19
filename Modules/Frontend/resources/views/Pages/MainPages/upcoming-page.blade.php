@@ -54,7 +54,8 @@
         <div class="container-fluid">
             @if ($total === 0)
                 <div class="text-center py-5">
-                    <h4 class="mb-2">{{ __('sectionTitle.upcoming') }}</h4>
+                    {{-- h1 tag (the page had none), h4 scale. --}}
+                    <h1 class="mb-2 h4 fw-medium">{{ __('sectionTitle.upcoming') }}</h1>
                     <p class="text-muted">{{ __('streamTag.no_upcoming') }}</p>
                 </div>
             @else

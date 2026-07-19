@@ -7,7 +7,8 @@
                  search-page header so rail archives feel native. --}}
             <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mt-3 mb-4">
                 <div>
-                    <h4 class="main-title text-capitalize mb-1 fw-medium">{{ $title }}</h4>
+                    {{-- h1 tag (the page had none), h4 scale. --}}
+                    <h1 class="main-title text-capitalize mb-1 h4 fw-medium">{{ $title }}</h1>
                 </div>
             </div>
 

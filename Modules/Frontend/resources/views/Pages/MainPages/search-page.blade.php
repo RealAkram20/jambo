@@ -12,14 +12,14 @@
             <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mt-3 mb-4">
                 <div>
                     @if ($q !== '')
-                        <h4 class="main-title text-capitalize mb-1 fw-medium">
+                        <h1 class="main-title text-capitalize mb-1 h4 fw-medium">
                             {{ __('frontendheader.search') }}:
                             <span class="text-primary">"{{ $q }}"</span>
-                        </h4>
+                        </h1>
                     @else
-                        <h4 class="main-title text-capitalize mb-1 fw-medium">
+                        <h1 class="main-title text-capitalize mb-1 h4 fw-medium">
                             {{ __('frontendheader.search') }}
-                        </h4>
+                        </h1>
                         <p class="text-muted mb-0" style="font-size: 14px;">
                             Type at least two characters in the search bar above to find a movie or series.
                         </p>

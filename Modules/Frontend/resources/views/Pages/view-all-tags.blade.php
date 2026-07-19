@@ -4,7 +4,7 @@
     <section class="section-padding tag-section" id="allTags">
         <div class="container-fluid">
             <div class="d-flex align-items-center justify-content-between mb-4">
-                <h4 class="main-title text-capitalize mb-0">{{ __('frontendheader.tags') ?? 'Tags' }}</h4>
+                <h1 class="main-title text-capitalize mb-0 h4 fw-medium">{{ __('frontendheader.tags') ?? 'Tags' }}</h1>
             </div>
 
             @if ($tags->count())

@@ -14,7 +14,7 @@
             <div class="row">
                 <div class="col-sm-12 my-4">
                     <div class="d-flex align-items-center justify-content-between">
-                        <h5 class="main-title text-capitalize mb-0">{{ __('frontendheader.geners') }}</h5>
+                        <h1 class="main-title text-capitalize mb-0 h5 fw-medium">{{ __('frontendheader.geners') }}</h1>
                     </div>
                 </div>
             </div>

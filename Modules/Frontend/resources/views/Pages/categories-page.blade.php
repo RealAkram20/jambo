@@ -9,7 +9,7 @@
                     <div class="col-sm-12 my-4">
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
-                                <h5 class="main-title text-capitalize mb-1">{{ $category->name }}</h5>
+                                <h1 class="main-title text-capitalize mb-1 h5 fw-medium">{{ $category->name }}</h1>
                                 @if ($category->description)
                                     <p class="text-muted mb-0 small">{{ $category->description }}</p>
                                 @endif
@@ -80,7 +80,7 @@
                 <div class="row">
                     <div class="col-sm-12 my-4">
                         <div class="d-flex align-items-center justify-content-between">
-                            <h5 class="main-title text-capitalize mb-0">Categories</h5>
+                            <h1 class="main-title text-capitalize mb-0 h5 fw-medium">Categories</h1>
                         </div>
                     </div>
                 </div>
