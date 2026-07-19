@@ -69,15 +69,18 @@
 
     // Open Graph and Twitter Card both require absolute URLs for the
     // image; relative paths like "/storage/foo.jpg" silently get
-    // ignored by Facebook's scraper. Normalise here so admins can paste
-    // any of:
+    // ignored by Facebook's scraper. og_image_meta() absolutises AND,
+    // for locally-hosted files, reroutes through the /img/ Glide proxy
+    // as JPEG ≤1200px with real width/height — WhatsApp drops previews
+    // for WebP/oversized images, and Facebook renders the first share
+    // of a URL imageless unless dimensions are declared. Admins can
+    // still paste any of:
     //   /storage/branding/logo.png         (relative)
     //   storage/branding/logo.png          (no leading slash)
     //   https://jambofilms.com/...         (absolute)
-    // and the meta tag always renders an absolute URL.
-    if ($ogImage !== '' && !preg_match('#^https?://#i', $ogImage)) {
-        $ogImage = url(ltrim($ogImage, '/'));
-    }
+    //   https://cdn.example.com/...        (foreign host — passed through)
+    $ogImageMeta = og_image_meta($ogImage);
+    $ogImage = $ogImageMeta['url'];
 @endphp
 
 {{-- Canonical URL: tells Google which copy of duplicate content to
@@ -96,26 +99,18 @@
     {{-- WhatsApp + Telegram are noticeably pickier than LinkedIn /
          Facebook: they often drop the image when the supplementary
          tags are missing. secure_url pins the HTTPS variant; image
-         type lets the scraper short-circuit a HEAD request. We can
-         derive the type from the URL's extension; if it doesn't
-         match a known image extension we omit the tag rather than
-         lie about the MIME. Width/height are intentionally NOT
-         emitted — they'd be wrong for arbitrary admin-pasted URLs
-         (Dropbox / Contabo / external CDN). Operators who want them
-         can override per-page via @push('seo:head', ...) below. --}}
+         type lets the scraper short-circuit a HEAD request; width/
+         height let Facebook render the image on the FIRST share of a
+         URL instead of after an async re-fetch. og_image_meta() only
+         reports type/dimensions it actually knows — foreign-host URLs
+         (Dropbox / external CDN) get neither rather than a guess. --}}
     <meta property="og:image:secure_url" content="{{ $ogImage }}">
-    @php
-        $ogImageExt = strtolower((string) pathinfo(parse_url($ogImage, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION));
-        $ogImageType = match ($ogImageExt) {
-            'jpg', 'jpeg' => 'image/jpeg',
-            'png'         => 'image/png',
-            'webp'        => 'image/webp',
-            'gif'         => 'image/gif',
-            default       => null,
-        };
-    @endphp
-    @if ($ogImageType)
-        <meta property="og:image:type" content="{{ $ogImageType }}">
+    @if ($ogImageMeta['type'])
+        <meta property="og:image:type" content="{{ $ogImageMeta['type'] }}">
+    @endif
+    @if ($ogImageMeta['width'] && $ogImageMeta['height'])
+        <meta property="og:image:width" content="{{ $ogImageMeta['width'] }}">
+        <meta property="og:image:height" content="{{ $ogImageMeta['height'] }}">
     @endif
     {{-- Alt text is not strictly required but Facebook's Sharing
          Debugger flags its absence as a warning. Use the page title

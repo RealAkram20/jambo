@@ -193,6 +193,106 @@ if (! function_exists('media_srcset')) {
     }
 }
 
+if (! function_exists('og_image_meta')) {
+    /**
+     * Resolve an og:image value into scraper-friendly metadata:
+     *
+     *   ['url' => string, 'width' => ?int, 'height' => ?int, 'type' => ?string]
+     *
+     * WhatsApp silently drops link previews when the image is WebP or
+     * too heavy, and Facebook renders the FIRST share of a URL without
+     * its image unless og:image:width/height are present (it fetches
+     * the image asynchronously otherwise). Both problems disappear when
+     * we serve the preview image ourselves: locally-hosted images are
+     * routed through the /img/ Glide proxy as JPEG capped at 1200px,
+     * and width/height are read from the source file.
+     *
+     * Foreign-host URLs pass through unchanged (Glide can't fetch
+     * remote sources) with no dimensions — same behaviour as before.
+     * Same-host absolute URLs (asset() output for legacy bare
+     * filenames) are unwrapped back to a public-relative path so they
+     * get proxied too. A local path whose file can't be read falls
+     * back to the plain absolute URL rather than emitting a proxy URL
+     * that would 404.
+     */
+    function og_image_meta(?string $value): array
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return ['url' => '', 'width' => null, 'height' => null, 'type' => null];
+        }
+
+        $appUrl = rtrim((string) config('app.url'), '/');
+
+        if (preg_match('#^https?://#i', $value)) {
+            if ($appUrl === '' || stripos($value, $appUrl . '/') !== 0) {
+                return ['url' => $value, 'width' => null, 'height' => null, 'type' => og_image_mime($value)];
+            }
+            // Our own host — unwrap to an app-absolute path (keeps the
+            // leading slash) so the proxying below applies.
+            $value = substr($value, strlen($appUrl));
+        }
+
+        // Public-relative path, minus the subdirectory base segment on
+        // installs like APP_URL=http://localhost/Jambo (the FileManager
+        // stores paths WITH that segment — see media_img()).
+        $path = ltrim($value, '/');
+        $basePath = trim((string) parse_url($appUrl, PHP_URL_PATH), '/');
+        if ($basePath !== '' && str_starts_with($path, $basePath . '/')) {
+            $path = substr($path, strlen($basePath) + 1);
+        }
+
+        // Stored values arrive both raw ("Rio akram.png") and URL-encoded
+        // ("Rio%20akram.png"). Filesystem lookups need the decoded name;
+        // the emitted URL needs each segment encoded.
+        $decoded = rawurldecode($path);
+        $encoded = implode('/', array_map('rawurlencode', explode('/', $decoded)));
+
+        $file = public_path($decoded);
+        $dims = is_file($file) && preg_match('/\.(jpe?g|png|webp|gif|avif)$/i', $decoded)
+            ? @getimagesize($file)
+            : false;
+
+        if ($dims === false || empty($dims[0]) || empty($dims[1])) {
+            $url = url($encoded);
+            return ['url' => $url, 'width' => null, 'height' => null, 'type' => og_image_mime($url)];
+        }
+
+        [$srcW, $srcH] = $dims;
+        $w = min(1200, (int) $srcW);
+        $h = (int) round($srcH * $w / $srcW);
+
+        return [
+            // url('img/'.$encoded) rather than route() — mirrors media_img(),
+            // preserving forward slashes inside the path.
+            'url'    => url('img/' . $encoded) . '?w=' . $w . '&fm=jpg',
+            'width'  => $w,
+            'height' => $h,
+            'type'   => 'image/jpeg',
+        ];
+    }
+}
+
+if (! function_exists('og_image_mime')) {
+    /**
+     * MIME type for an image URL derived from its path extension, or
+     * null when the extension isn't a recognised image type — callers
+     * omit og:image:type rather than lie about the MIME.
+     */
+    function og_image_mime(string $url): ?string
+    {
+        $ext = strtolower((string) pathinfo((string) parse_url($url, PHP_URL_PATH), PATHINFO_EXTENSION));
+
+        return match ($ext) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png'         => 'image/png',
+            'webp'        => 'image/webp',
+            'gif'         => 'image/gif',
+            default       => null,
+        };
+    }
+}
+
 if (! function_exists('branding_asset')) {
     /**
      * Resolve a branding asset URL (logo, favicon, preloader).
