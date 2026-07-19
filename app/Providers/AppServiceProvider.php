@@ -38,7 +38,17 @@ class AppServiceProvider extends ServiceProvider
         $this->overrideMailConfigFromSettings();
         $this->overrideWebPushConfigFromSettings();
         $this->overrideGoogleAuthConfigFromSettings();
-        $this->overrideVideoCdnConfigFromSettings();
+
+        // Deferred until after ALL providers boot: this provider boots
+        // before the Streaming module, and mergeConfigFrom() is a SHALLOW
+        // merge — if we Config::set streaming.cdn.* first, the module's
+        // later merge sees the key taken and drops its own cdn block
+        // (including the per-zone `driver` entries), silently disabling
+        // every CDN rewrite. Only bites when cdn_* settings exist in the
+        // DB, which is why .env-only local setups never showed it.
+        $this->app->booted(function () {
+            $this->overrideVideoCdnConfigFromSettings();
+        });
 
         // Pay-per-upload: every `created` content-activity row credits
         // the acting admin's universal wallet at the configured rate.
