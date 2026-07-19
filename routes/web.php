@@ -128,6 +128,10 @@ Route::group(['as' => 'dashboard.', 'middleware' => ['auth', 'role:admin']], fun
     Route::get('user-list/{user}/edit', [AdminUserController::class, 'edit'])->name('user-list.edit')->middleware('permission:edit_users');
     Route::patch('user-list/{user}', [AdminUserController::class, 'update'])->name('user-list.update')->middleware('permission:edit_users');
     Route::delete('user-list/{user}', [AdminUserController::class, 'destroy'])->name('user-list.destroy')->middleware('permission:delete_users');
+    // Bulk verbs ride the same per-verb permissions as their row-level
+    // siblings: marking verified is an edit, deleting is a delete.
+    Route::post('user-list/bulk-verify', [AdminUserController::class, 'bulkVerify'])->name('user-list.bulk-verify')->middleware('permission:edit_users');
+    Route::post('user-list/bulk-delete', [AdminUserController::class, 'bulkDelete'])->name('user-list.bulk-delete')->middleware('permission:delete_users');
     Route::get('movie-list', [DashboardController::class, 'movieList'])->name('movie-list');
     Route::get('movie-genres', [DashboardController::class, 'movieGenres'])->name('movie-genres');
     Route::get('vjs', [DashboardController::class, 'vjs'])->name('vjs');

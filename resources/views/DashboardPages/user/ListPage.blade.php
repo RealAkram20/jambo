@@ -62,10 +62,49 @@
                         @endif
                     </form>
 
+                    @php
+                        // Bulk toolbar + checkbox column only render for admins who
+                        // hold at least one of the bulk verbs; the routes enforce the
+                        // same permissions server-side.
+                        $canBulkVerify = auth()->user()->can('edit_users');
+                        $canBulkDelete = auth()->user()->can('delete_users');
+                        $canBulk = $canBulkVerify || $canBulkDelete;
+                    @endphp
+
+                    @if ($canBulk)
+                        {{-- Lives outside the table: the rows already contain per-row
+                             delete <form>s, and nesting forms is invalid HTML. The
+                             checkboxes join in via the form="" attribute instead. --}}
+                        <form id="bulk-form" method="POST"
+                            class="d-flex align-items-center gap-2 mb-3"
+                            onsubmit="return this._confirmed !== false;">
+                            @csrf
+                            <span class="text-muted" style="font-size:12px;" data-bulk-count>0 selected</span>
+                            @if ($canBulkVerify)
+                                <button type="submit" class="btn btn-sm btn-primary" disabled data-bulk-btn
+                                    formaction="{{ route('dashboard.user-list.bulk-verify') }}">
+                                    <i class="ph ph-check-circle me-1"></i> Verify selected
+                                </button>
+                            @endif
+                            @if ($canBulkDelete)
+                                <button type="submit" class="btn btn-sm btn-outline-danger" disabled data-bulk-btn
+                                    data-bulk-confirm="Delete the selected users? This cannot be undone."
+                                    formaction="{{ route('dashboard.user-list.bulk-delete') }}">
+                                    <i class="ph ph-trash-simple me-1"></i> Delete selected
+                                </button>
+                            @endif
+                        </form>
+                    @endif
+
                     <div class="table-responsive">
                         <table class="table custom-table align-middle mb-0">
                             <thead>
                                 <tr class="text-uppercase" style="font-size:11px;letter-spacing:.5px;">
+                                    @if ($canBulk)
+                                        <th style="width:32px;">
+                                            <input type="checkbox" class="form-check-input" data-bulk-all>
+                                        </th>
+                                    @endif
                                     <th>User</th>
                                     <th>Email</th>
                                     <th>Phone</th>
@@ -82,6 +121,12 @@
                                         $isDeactivated = $u->deactivated_at !== null;
                                     @endphp
                                     <tr class="{{ $isDeactivated ? 'opacity-50' : '' }}">
+                                        @if ($canBulk)
+                                            <td>
+                                                <input type="checkbox" class="form-check-input" form="bulk-form"
+                                                    name="ids[]" value="{{ $u->id }}" data-bulk-row>
+                                            </td>
+                                        @endif
                                         <td>
                                             <div class="fw-semibold">{{ $fullName ?: $u->username }}</div>
                                             <div class="text-muted" style="font-size:11px;">
@@ -161,7 +206,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="text-center py-5 text-muted" style="font-size:13px;">
+                                        <td colspan="{{ $canBulk ? 8 : 7 }}" class="text-center py-5 text-muted" style="font-size:13px;">
                                             No users match these filters.
                                         </td>
                                     </tr>
@@ -180,4 +225,41 @@
         </div>
     </div>
 </div>
+
+@if ($canBulk)
+<script>
+    (function () {
+        const all = document.querySelector('[data-bulk-all]');
+        const rows = Array.from(document.querySelectorAll('[data-bulk-row]'));
+        const count = document.querySelector('[data-bulk-count]');
+        const buttons = document.querySelectorAll('[data-bulk-btn]');
+        const form = document.getElementById('bulk-form');
+
+        function sync() {
+            const checked = rows.filter(cb => cb.checked).length;
+            count.textContent = checked + ' selected';
+            buttons.forEach(btn => btn.disabled = checked === 0);
+            if (all) {
+                all.checked = checked > 0 && checked === rows.length;
+                all.indeterminate = checked > 0 && checked < rows.length;
+            }
+        }
+
+        if (all) all.addEventListener('change', () => {
+            rows.forEach(cb => cb.checked = all.checked);
+            sync();
+        });
+        rows.forEach(cb => cb.addEventListener('change', sync));
+
+        // Delete needs a confirm; formaction means the click target, not the
+        // form, knows which verb is firing — so gate at click time.
+        buttons.forEach(btn => btn.addEventListener('click', function () {
+            const msg = btn.getAttribute('data-bulk-confirm');
+            form._confirmed = msg ? window.confirm(msg) : true;
+        }));
+
+        sync();
+    })();
+</script>
+@endif
 @endsection

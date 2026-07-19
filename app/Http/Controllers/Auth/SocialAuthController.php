@@ -109,13 +109,18 @@ class SocialAuthController extends Controller
         );
 
         $user = User::create([
-            'first_name'        => $first ?: 'Jambo',
-            'last_name'         => $last ?: 'Viewer',
-            'username'          => $username,
-            'email'             => $email,
-            'password'          => bcrypt(Str::random(40)),  // unusable password
-            'email_verified_at' => now(),
+            'first_name' => $first ?: 'Jambo',
+            'last_name'  => $last ?: 'Viewer',
+            'username'   => $username,
+            'email'      => $email,
+            'password'   => bcrypt(Str::random(40)),  // unusable password
         ]);
+
+        // forceFill, not create(): email_verified_at is deliberately absent
+        // from $fillable (mass-assignable self-verification would be a hole),
+        // so inside the create() payload it was silently dropped and every
+        // Google signup landed as "Pending".
+        $user->forceFill(['email_verified_at' => now()])->save();
 
         if (Role::where('name', 'user')->exists()) {
             $user->assignRole('user');

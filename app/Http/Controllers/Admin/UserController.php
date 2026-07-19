@@ -187,6 +187,68 @@ class UserController extends Controller
     }
 
     /**
+     * Bulk mark-verified for the checkbox selection on the list page.
+     * Exists because the Google-signup bug (email_verified_at dropped
+     * by mass assignment) left a backlog of real, mailbox-verified
+     * users stuck on "Pending" — this is the shovel for that backlog,
+     * and generally useful after any import.
+     */
+    public function bulkVerify(Request $request): RedirectResponse
+    {
+        $count = User::whereIn('id', $this->bulkIds($request))
+            ->whereNull('email_verified_at')
+            ->update(['email_verified_at' => now()]);
+
+        return back()->with('success', $count === 0
+            ? 'All selected users were already verified.'
+            : "Marked {$count} user" . ($count === 1 ? '' : 's') . ' as verified.');
+    }
+
+    /**
+     * Bulk delete. Every row passes the same guards as destroy() —
+     * self, super-admin, last-admin — skipped rows are reported by
+     * name so the admin knows exactly what didn't happen and why.
+     */
+    public function bulkDelete(Request $request): RedirectResponse
+    {
+        $users = User::with('roles')->whereIn('id', $this->bulkIds($request))->get();
+
+        $deleted = 0;
+        $skipped = [];
+
+        foreach ($users as $user) {
+            if ($user->id === $request->user()->id) {
+                $skipped[] = "{$user->username} (yourself)";
+            } elseif ($user->hasRole('super-admin')) {
+                $skipped[] = "{$user->username} (super-admin)";
+            } elseif ($user->hasRole('admin') && User::role('admin')->count() <= 1) {
+                $skipped[] = "{$user->username} (last admin)";
+            } else {
+                $user->delete();
+                $deleted++;
+            }
+        }
+
+        $message = "Deleted {$deleted} user" . ($deleted === 1 ? '' : 's') . '.';
+        if ($skipped) {
+            $message .= ' Skipped: ' . implode(', ', $skipped) . '.';
+        }
+
+        return back()->with($deleted > 0 ? 'success' : 'error', $message);
+    }
+
+    /**
+     * Validate and return the checkbox selection for the bulk verbs.
+     */
+    private function bulkIds(Request $request): array
+    {
+        return $request->validate([
+            'ids'   => ['required', 'array', 'max:100'],
+            'ids.*' => ['integer'],
+        ])['ids'];
+    }
+
+    /**
      * Confirmation page for granting/revoking super-admin. The crown
      * control on the user edit form links here; password.confirm on
      * the route means the password gate has already been passed by
