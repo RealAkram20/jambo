@@ -10,19 +10,17 @@ use Spatie\Permission\Models\Role;
  * Promote a user to super-admin.
  *
  * Super-admin is the platform-owner tier. Once assigned, the admin UI
- * blocks any other admin (including other super-admins) from deleting
- * the user or changing their roles — protection only available from
- * the console, intentionally.
+ * blocks regular admins from deleting the user or changing their roles.
  *
- * Run once per environment for the account that owns that box:
+ * Run once per environment to bootstrap the FIRST owner account:
  *   php artisan users:make-super-admin you@example.com
  *
- * Idempotent: running it on an existing super-admin is a no-op.
+ * After that, an existing super-admin can grant or revoke the tier
+ * from the Users page (crown button — UserController::grantSuperAdmin /
+ * revokeSuperAdmin, gated role:super-admin + password.confirm). This
+ * command stays for bootstrap and lockout recovery.
  *
- * Demotion isn't exposed here on purpose — it's a deliberate two-key
- * action. To demote, drop into tinker:
- *   $u = App\Models\User::where('email', 'x@y')->first();
- *   $u->removeRole('super-admin');
+ * Idempotent: running it on an existing super-admin is a no-op.
  */
 class MakeSuperAdminCommand extends Command
 {

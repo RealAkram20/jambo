@@ -8,6 +8,7 @@ use App\Rules\ReservedUsername;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
@@ -186,6 +187,68 @@ class UserController extends Controller
     }
 
     /**
+     * Grant the super-admin (owner) tier. Route-gated to
+     * role:super-admin + password.confirm — only an existing
+     * super-admin who has just re-entered their password can reach
+     * this. The general role picker still never offers super-admin;
+     * this dedicated endpoint is the one UI path, mirroring what the
+     * users:make-super-admin console command does.
+     */
+    public function grantSuperAdmin(Request $request, User $user): RedirectResponse
+    {
+        if ($user->hasRole('super-admin')) {
+            return back()->with('error', "\"{$user->username}\" is already a super-admin.");
+        }
+
+        // Super-admins always also hold `admin` so role:admin-gated
+        // surfaces (/app, /admin/*) keep recognising them.
+        $user->assignRole('super-admin');
+        if (!$user->hasRole('admin')) {
+            $user->assignRole('admin');
+        }
+
+        Log::info('[rbac] super-admin granted', [
+            'target_id' => $user->id,
+            'target'    => $user->username,
+            'by_id'     => $request->user()->id,
+            'by'        => $request->user()->username,
+        ]);
+
+        return back()->with('success',
+            "\"{$user->username}\" is now a super-admin with full platform-owner access.");
+    }
+
+    /**
+     * Revoke the super-admin tier (the user keeps admin and any other
+     * roles). Self-revocation is refused, which also guarantees at
+     * least one super-admin always remains: the actor performing the
+     * revoke is a super-admin and can only demote OTHERS.
+     */
+    public function revokeSuperAdmin(Request $request, User $user): RedirectResponse
+    {
+        if ($user->id === $request->user()->id) {
+            return back()->with('error',
+                "You can't remove your own super-admin role — ask another super-admin to do it.");
+        }
+
+        if (!$user->hasRole('super-admin')) {
+            return back()->with('error', "\"{$user->username}\" is not a super-admin.");
+        }
+
+        $user->removeRole('super-admin');
+
+        Log::info('[rbac] super-admin revoked', [
+            'target_id' => $user->id,
+            'target'    => $user->username,
+            'by_id'     => $request->user()->id,
+            'by'        => $request->user()->username,
+        ]);
+
+        return back()->with('success',
+            "\"{$user->username}\" is no longer a super-admin. Their admin role is unchanged.");
+    }
+
+    /**
      * Shared validation for store + update. Password is required on
      * create, optional on edit (empty means "leave unchanged"). Email
      * + username uniqueness ignore the row being edited.
@@ -219,9 +282,11 @@ class UserController extends Controller
     /**
      * Sync roles with two safety nets and one filter:
      *
-     *   - Filter: super-admin can never be ASSIGNED via this UI.
-     *     Any 'super-admin' value in the incoming list is dropped.
-     *     The only way to grant super-admin is the console command.
+     *   - Filter: super-admin can never be ASSIGNED via the role
+     *     picker. Any 'super-admin' value in the incoming list is
+     *     dropped. Granting goes through grantSuperAdmin() (super-
+     *     admin-only + password.confirm) or the console command —
+     *     never this form, which regular admins can also submit.
      *
      *   - Preserve: if the user is currently a super-admin, that role
      *     stays on no matter what the form submitted. Stops one admin

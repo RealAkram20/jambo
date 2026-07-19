@@ -10,7 +10,7 @@ use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /**
- * Locks in the four guarantees the super-admin tier provides:
+ * Locks in the guarantees the super-admin tier provides:
  *
  *   1. A regular admin cannot delete a super-admin via the user-list UI.
  *   2. A regular admin cannot strip the super-admin role from another user.
@@ -18,6 +18,10 @@ use Tests\TestCase;
  *      super-admin via the role-edit form — even if the form is hand-
  *      crafted to include 'super-admin' in the roles array.
  *   4. A regular admin cannot edit any field on a super-admin's row at all.
+ *   5. A super-admin CAN grant/revoke the tier for OTHERS through the
+ *      dedicated backend.users.super-admin.* endpoints — but only with a
+ *      freshly confirmed password, never on themselves (revoke), and the
+ *      endpoints 403 for regular admins.
  *
  * Every super-admin path the UI offers funnels through
  * Admin\UserController::destroy / update / syncRoles. These tests
@@ -151,6 +155,96 @@ class SuperAdminGuardTest extends TestCase
             'syncRoles must filter super-admin out of the incoming list'
         );
         $this->assertTrue($fresh->hasRole('admin'), 'admin still applied');
+    }
+
+    /* ── Super-admin grant/revoke endpoints (backend.users.super-admin.*) ── */
+
+    public function test_super_admin_can_grant_super_admin_via_ui(): void
+    {
+        $target = User::factory()->create([
+            'username' => 'target_' . uniqid(),
+            'email'    => 'target_' . uniqid() . '@test.local',
+        ]);
+        $target->assignRole('user');
+
+        $response = $this->actingAs($this->superAdmin)
+            ->withSession(['auth.password_confirmed_at' => time()])
+            ->post(route('backend.users.super-admin.grant', $target));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $fresh = $target->fresh();
+        $this->assertTrue($fresh->hasRole('super-admin'));
+        $this->assertTrue($fresh->hasRole('admin'),
+            'Grant must also attach admin so role:admin middleware recognises the new owner');
+        $this->assertTrue($fresh->hasRole('user'), 'Existing roles must be kept');
+    }
+
+    public function test_regular_admin_cannot_reach_grant_endpoint(): void
+    {
+        $target = User::factory()->create([
+            'username' => 'target_' . uniqid(),
+            'email'    => 'target_' . uniqid() . '@test.local',
+        ]);
+        $target->assignRole('user');
+
+        $response = $this->actingAs($this->regularAdmin)
+            ->withSession(['auth.password_confirmed_at' => time()])
+            ->post(route('backend.users.super-admin.grant', $target));
+
+        $response->assertForbidden();
+        $this->assertFalse($target->fresh()->hasRole('super-admin'));
+    }
+
+    public function test_grant_endpoint_requires_password_confirmation(): void
+    {
+        $target = User::factory()->create([
+            'username' => 'target_' . uniqid(),
+            'email'    => 'target_' . uniqid() . '@test.local',
+        ]);
+        $target->assignRole('user');
+
+        // No auth.password_confirmed_at in the session → password.confirm
+        // must intercept before the controller runs.
+        $response = $this->actingAs($this->superAdmin)
+            ->post(route('backend.users.super-admin.grant', $target));
+
+        $response->assertRedirect(route('password.confirm'));
+        $this->assertFalse($target->fresh()->hasRole('super-admin'));
+    }
+
+    public function test_super_admin_can_revoke_another_super_admin(): void
+    {
+        $other = User::factory()->create([
+            'username' => 'other_' . uniqid(),
+            'email'    => 'other_' . uniqid() . '@test.local',
+        ]);
+        $other->assignRole('super-admin');
+        $other->assignRole('admin');
+
+        $response = $this->actingAs($this->superAdmin)
+            ->withSession(['auth.password_confirmed_at' => time()])
+            ->delete(route('backend.users.super-admin.revoke', $other));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $fresh = $other->fresh();
+        $this->assertFalse($fresh->hasRole('super-admin'));
+        $this->assertTrue($fresh->hasRole('admin'), 'Demotion keeps the admin role');
+    }
+
+    public function test_super_admin_cannot_revoke_own_super_admin(): void
+    {
+        $response = $this->actingAs($this->superAdmin)
+            ->withSession(['auth.password_confirmed_at' => time()])
+            ->delete(route('backend.users.super-admin.revoke', $this->superAdmin));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+        $this->assertTrue($this->superAdmin->fresh()->hasRole('super-admin'),
+            'Self-revocation must be refused — guarantees at least one super-admin remains');
     }
 
     public function test_super_admin_can_be_assigned_via_console_command(): void

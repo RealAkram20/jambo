@@ -240,6 +240,26 @@ Route::group(['as' => 'backend.', 'middleware' => ['auth', 'role:super-admin']],
     // Role & Permissions Crud
     Route::resource('permission', PermissionController::class);
     Route::resource('role', RoleController::class);
+
+    // Grant / revoke the super-admin tier. Super-admin-only (group
+    // middleware) AND password re-confirmation — same bar as Access
+    // Control, because this endpoint mints owners. The user-list role
+    // picker still never offers super-admin; these are the only UI
+    // paths, alongside the users:make-super-admin console command.
+    Route::post('users/{user}/super-admin', [AdminUserController::class, 'grantSuperAdmin'])
+        ->name('users.super-admin.grant')
+        ->middleware('password.confirm');
+    Route::delete('users/{user}/super-admin', [AdminUserController::class, 'revokeSuperAdmin'])
+        ->name('users.super-admin.revoke')
+        ->middleware('password.confirm');
+    // password.confirm stores the intended URL and replays it as a GET
+    // after the password is re-entered — which for the two POST/DELETE
+    // actions above would 405. Catch that replay and land back on the
+    // user list with a nudge instead.
+    Route::get('users/{user}/super-admin', function (\App\Models\User $user) {
+        return redirect()->route('dashboard.user-list')
+            ->with('success', 'Password confirmed — now click the crown action again to apply it.');
+    });
 });
 // Admin: System Settings (per-section saves so errors in one card
 // don't block saving another)
