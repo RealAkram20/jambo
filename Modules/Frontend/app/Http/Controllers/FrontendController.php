@@ -824,6 +824,12 @@ class FrontendController extends Controller
             // Guests get prompted to sign in and bounce back here;
             // authed users without the right tier go to pricing.
             if (!auth()->check()) {
+                // Link-preview scrapers can't sign in — bounce them to
+                // the public detail page (full OG tags) so a shared
+                // /watch link previews the movie, not the login form.
+                if (is_link_preview_bot()) {
+                    return redirect()->route('frontend.movie_detail', $movie->slug);
+                }
                 return redirect()->guest(route('login'));
             }
             return redirect()->route('frontend.pricing-page')
@@ -1128,6 +1134,11 @@ class FrontendController extends Controller
 
         if (!$canWatch) {
             if (!auth()->check()) {
+                // Same scraper bounce as movie_watch: preview the
+                // series page rather than the login form.
+                if (is_link_preview_bot()) {
+                    return redirect()->route('frontend.series_detail', $show->slug);
+                }
                 return redirect()->guest(route('login'));
             }
             return redirect()->route('frontend.pricing-page')

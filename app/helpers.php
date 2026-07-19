@@ -273,6 +273,30 @@ if (! function_exists('og_image_meta')) {
     }
 }
 
+if (! function_exists('is_link_preview_bot')) {
+    /**
+     * True when the current request comes from a social link-preview
+     * scraper (Facebook, WhatsApp, Twitter/X, Telegram, LinkedIn,
+     * Slack, Discord, iMessage).
+     *
+     * Auth-gated pages use this to bounce scrapers to the content's
+     * public detail page instead of /login — a scraper can't sign in,
+     * so sending it to the login form makes every shared /watch link
+     * preview as "Login - Jambo" (or nothing at all). Only ever use
+     * this to REDIRECT a bot to an already-public page; never to serve
+     * gated content itself, since any client can fake a user-agent.
+     */
+    function is_link_preview_bot(): bool
+    {
+        $ua = (string) request()->userAgent();
+
+        return $ua !== '' && preg_match(
+            '/facebookexternalhit|facebookcatalog|Facebot|WhatsApp|Twitterbot|TelegramBot|LinkedInBot|Slackbot|Discordbot|Applebot/i',
+            $ua
+        ) === 1;
+    }
+}
+
 if (! function_exists('og_image_mime')) {
     /**
      * MIME type for an image URL derived from its path extension, or
