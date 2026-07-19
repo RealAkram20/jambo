@@ -8,8 +8,8 @@ $tvshowdetailUpcoming = $tvshowdetailUpcoming ?? false;
         <h5 class="main-title text-capitalize mb-0">{{ __('widgets.Upcoming') }}</h5>
     </div>
     <div class="card-style-slider">
-        <div class="position-relative swiper swiper-card" data-slide="6" data-laptop="6" data-tab="3" data-mobile="2"
-            data-mobile-sm="2" data-autoplay="false" data-loop="false" data-navigation="true" data-pagination="true">
+        <div class="position-relative swiper swiper-card" data-slide="8" data-laptop="8" data-tab="4" data-mobile="3.5"
+            data-mobile-sm="3.5" data-autoplay="false" data-loop="false" data-navigation="true" data-pagination="true">
             <ul class="p-0 swiper-wrapper m-0  list-inline">
                 <li class="swiper-slide">
                     @include('frontend::components.cards.card-style', [
@@ -87,8 +87,8 @@ $tvshowdetailUpcoming = $tvshowdetailUpcoming ?? false;
         <h4 class="main-title text-capitalize mb-0">{{ __('widgets.Upcoming') }}</h4>
     </div>
     <div class="card-style-slider">
-        <div class="position-relative swiper swiper-card" data-slide="6" data-laptop="6" data-tab="3"
-            data-mobile="2" data-mobile-sm="2" data-autoplay="false" data-loop="false" data-navigation="true"
+        <div class="position-relative swiper swiper-card" data-slide="8" data-laptop="8" data-tab="4"
+            data-mobile="3.5" data-mobile-sm="3.5" data-autoplay="false" data-loop="false" data-navigation="true"
             data-pagination="true">
                       <ul class="p-0 swiper-wrapper m-0  list-inline">
                 <li class="swiper-slide">
@@ -167,8 +167,8 @@ $tvshowdetailUpcoming = $tvshowdetailUpcoming ?? false;
         <h4 class="main-title text-capitalize mb-0">{{ __('widgets.Upcoming') }}</h4>
     </div>
     <div class="card-style-slider">
-        <div class="position-relative swiper swiper-card" data-slide="6" data-laptop="6" data-tab="3"
-            data-mobile="2" data-mobile-sm="2" data-autoplay="false" data-loop="false" data-navigation="true"
+        <div class="position-relative swiper swiper-card" data-slide="8" data-laptop="8" data-tab="4"
+            data-mobile="3.5" data-mobile-sm="3.5" data-autoplay="false" data-loop="false" data-navigation="true"
             data-pagination="true">
             <ul class="p-0 swiper-wrapper m-0  list-inline">
                 <li class="swiper-slide">

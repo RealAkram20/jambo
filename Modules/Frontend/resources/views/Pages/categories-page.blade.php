@@ -26,7 +26,7 @@
                     <h6 class="main-title text-capitalize mt-4 mb-3">
                         {{ __('frontendheader.movies') ?? 'Movies' }}
                     </h6>
-                    <div class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-7 g-3">
+                    <div class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-8 g-3">
                         @foreach ($movies as $movie)
                             <div class="col">
                                 @include('frontend::components.cards.card-style', [
@@ -51,7 +51,7 @@
                     <h6 class="main-title text-capitalize mt-5 mb-3">
                         {{ __('frontendheader.tvshow') ?? 'Series' }}
                     </h6>
-                    <div class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-7 g-3">
+                    <div class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-8 g-3">
                         @foreach ($shows as $show)
                             <div class="col">
                                 @include('frontend::components.cards.card-style', [

@@ -223,7 +223,7 @@ class FrontendController extends Controller
      */
     public function upcomingPage(): \Illuminate\Contracts\View\View
     {
-        $pageSize = 20;
+        $pageSize = 24;
         $listing = app(TopPicksRecommender::class)->upcomingListing(0, $pageSize);
 
         // Hero mirrors the /movie banner — top 3 soonest releases
@@ -248,7 +248,7 @@ class FrontendController extends Controller
     public function upcomingLoadMore(Request $request): \Illuminate\Http\Response
     {
         $offset = max(0, (int) $request->query('offset', 0));
-        $limit = min(50, max(1, (int) $request->query('limit', 20)));
+        $limit = min(48, max(1, (int) $request->query('limit', 24)));
 
         $listing = app(TopPicksRecommender::class)->upcomingListing($offset, $limit);
 
@@ -547,8 +547,11 @@ class FrontendController extends Controller
             ->get();
 
         // Group the VJ's catalogue by genre. Each genre bucket keeps
-        // its first 15 movies plus a total-count + has-more flag so
-        // the load-more button knows whether to show.
+        // its first 24 movies plus a total-count + has-more flag so
+        // the load-more button knows whether to show. 24 because the
+        // grid is 8/6/4/3 cards per row across breakpoints — any page
+        // size that isn't a multiple of all four leaves a ragged last
+        // row at some viewport width.
         $genres = Genre::whereHas('movies', fn ($q) =>
             $q->published()->whereHas('vjs', fn ($v) => $v->where('vjs.id', $vj->id))
         )->orderBy('name')->get();
@@ -561,7 +564,7 @@ class FrontendController extends Controller
                 ->orderByDesc('created_at');
 
             $total = (clone $query)->count();
-            $initial = $query->take(15)->get();
+            $initial = $query->take(24)->get();
 
             return (object) [
                 'genre' => $genre,
@@ -585,7 +588,7 @@ class FrontendController extends Controller
         $vj = Vj::where('slug', $slug)->firstOrFail();
         $genreSlug = (string) $request->query('genre', '');
         $offset = max(0, (int) $request->query('offset', 0));
-        $limit  = min(60, max(1, (int) $request->query('limit', 15)));
+        $limit  = min(60, max(1, (int) $request->query('limit', 24)));
 
         $genre = Genre::where('slug', $genreSlug)->firstOrFail();
 
@@ -679,7 +682,7 @@ class FrontendController extends Controller
                 ->orderByDesc('created_at');
 
             $total = (clone $query)->count();
-            $initial = $query->take(15)->get();
+            $initial = $query->take(24)->get();
 
             return (object) [
                 'genre' => $genre,
@@ -702,7 +705,7 @@ class FrontendController extends Controller
         $vj = Vj::where('slug', $slug)->firstOrFail();
         $genreSlug = (string) $request->query('genre', '');
         $offset = max(0, (int) $request->query('offset', 0));
-        $limit  = min(60, max(1, (int) $request->query('limit', 15)));
+        $limit  = min(60, max(1, (int) $request->query('limit', 24)));
 
         $genre = Genre::where('slug', $genreSlug)->firstOrFail();
 
@@ -1882,7 +1885,7 @@ class FrontendController extends Controller
 
         ($def['order'])($query);
 
-        $items = $query->paginate(20);
+        $items = $query->paginate(24);
 
         return view('frontend::Pages.MainPages.rail-archive', [
             'railKey' => $rail,

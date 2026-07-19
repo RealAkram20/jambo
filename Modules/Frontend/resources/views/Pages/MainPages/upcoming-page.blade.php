@@ -59,7 +59,7 @@
                 </div>
             @else
                 <div class="card-style-grid">
-                    <div class="row gy-3 row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-7 data-listing"
+                    <div class="row gy-3 row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-8 data-listing"
                          id="jambo-upcoming-list"
                          data-offset="{{ $items->count() }}"
                          data-total="{{ $total }}">
@@ -107,7 +107,7 @@
             try {
                 var url = btn.dataset.endpoint
                     + '?offset=' + offset
-                    + '&limit=' + (btn.dataset.pageSize || 20);
+                    + '&limit=' + (btn.dataset.pageSize || 24);
 
                 var res = await fetch(url, {
                     credentials: 'same-origin',

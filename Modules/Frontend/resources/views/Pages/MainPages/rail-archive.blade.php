@@ -12,7 +12,7 @@
             </div>
 
             @if ($items->count())
-                <div class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-7 g-3">
+                <div class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-8 g-3">
                     @foreach ($items as $item)
                         @php $isShow = $type === 'show'; @endphp
                         <div class="col">

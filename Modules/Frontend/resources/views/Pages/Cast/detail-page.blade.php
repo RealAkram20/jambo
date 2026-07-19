@@ -77,7 +77,7 @@
                         </ul>
                         <div class="tab-content">
                             <div id="all" class="tab-pane animated fadeInUp active show" role="tabpanel">
-                                <div class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-7 g-3">
+                                <div class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-8 g-3">
                                     @foreach ($person->movies as $movie)
                                         <div class="col">
                                             @include('frontend::components.cards.card-style', [
@@ -110,7 +110,7 @@
                                 </div>
                             </div>
                             <div id="movies" class="tab-pane animated fadeInUp" role="tabpanel">
-                                <div class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-7 g-3">
+                                <div class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-8 g-3">
                                     @forelse ($person->movies as $movie)
                                         <div class="col">
                                             @include('frontend::components.cards.card-style', [
@@ -129,7 +129,7 @@
                                 </div>
                             </div>
                             <div id="tvshows" class="tab-pane animated fadeInUp" role="tabpanel">
-                                <div class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-7 g-3">
+                                <div class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-8 g-3">
                                     @forelse ($person->shows as $show)
                                         <div class="col">
                                             @include('frontend::components.cards.card-style', [

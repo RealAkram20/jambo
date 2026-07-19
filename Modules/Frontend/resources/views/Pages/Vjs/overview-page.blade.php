@@ -142,7 +142,7 @@
                     </div>
                     <div class="card-style-slider">
                         <div class="position-relative swiper swiper-card"
-                             data-slide="7" data-laptop="7" data-tab="4" data-mobile="3" data-mobile-sm="3"
+                             data-slide="8" data-laptop="8" data-tab="4" data-mobile="3.5" data-mobile-sm="3.5"
                              data-autoplay="false" data-loop="false"
                              data-navigation="true" data-pagination="true">
                             <ul class="p-0 swiper-wrapper m-0 list-inline">
@@ -184,7 +184,7 @@
                     </div>
                     <div class="card-style-slider">
                         <div class="position-relative swiper swiper-card"
-                             data-slide="7" data-laptop="7" data-tab="4" data-mobile="3" data-mobile-sm="3"
+                             data-slide="8" data-laptop="8" data-tab="4" data-mobile="3.5" data-mobile-sm="3.5"
                              data-autoplay="false" data-loop="false"
                              data-navigation="true" data-pagination="true">
                             <ul class="p-0 swiper-wrapper m-0 list-inline">

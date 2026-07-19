@@ -126,8 +126,8 @@
                     <h5 class="main-title text-capitalize mb-0 fw-medium">{{ __('sectionTitle.recommended_movie') }}</h5>
                 </div>
                 <div class="card-style-slider">
-                    <div class="position-relative swiper swiper-card mt-4 mb-5" data-slide="7"
-                        data-laptop="7" data-tab="4" data-mobile="3" data-mobile-sm="3"
+                    <div class="position-relative swiper swiper-card mt-4 mb-5" data-slide="8"
+                        data-laptop="8" data-tab="4" data-mobile="3.5" data-mobile-sm="3.5"
                         data-autoplay="false" data-loop="false" data-navigation="true" data-pagination="true">
                         <ul class="p-0 swiper-wrapper m-0 list-inline">
                             @foreach ($recommended as $rec)
@@ -158,8 +158,8 @@
                     <h5 class="main-title text-capitalize mb-0 fw-medium">Similar Movies</h5>
                 </div>
                 <div class="card-style-slider">
-                    <div class="position-relative swiper swiper-card mt-4 mb-5" data-slide="7"
-                        data-laptop="7" data-tab="4" data-mobile="3" data-mobile-sm="3"
+                    <div class="position-relative swiper swiper-card mt-4 mb-5" data-slide="8"
+                        data-laptop="8" data-tab="4" data-mobile="3.5" data-mobile-sm="3.5"
                         data-autoplay="false" data-loop="false" data-navigation="true" data-pagination="true">
                         <ul class="p-0 swiper-wrapper m-0 list-inline">
                             @foreach ($similar as $sim)

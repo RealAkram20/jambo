@@ -104,7 +104,7 @@
                         @endif
                     </div>
 
-                    <div class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-7 g-3 jambo-vj-grid">
+                    <div class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-8 g-3 jambo-vj-grid">
                         @foreach ($bucket->shows as $show)
                             @include('frontend::components.partials.vj-grid-card', ['item' => $show, 'contentKind' => 'show'])
                         @endforeach
@@ -135,7 +135,9 @@
     <script>
     (function () {
         var endpoint = {{ Js::from(route('frontend.vj_series_genre_more', ['slug' => $vj->slug])) }};
-        var LIMIT = 15;
+        // Must stay a multiple of every per-row count (8/6/4/3) or
+        // appended pages leave ragged lines. Matches the server's 24.
+        var LIMIT = 24;
 
         async function loadMore(section, expandAll) {
             var genreSlug = section.dataset.genreSlug;

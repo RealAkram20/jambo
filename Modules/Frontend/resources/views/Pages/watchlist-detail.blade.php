@@ -31,7 +31,7 @@
                     {{-- Movies --}}
                     <div class="tab-pane fade active show" id="pills-movie1" role="tabpanel" tabindex="0"
                         aria-labelledby="pills-movie-tab">
-                        <div class="row gy-4 row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-7 data-listing">
+                        <div class="row gy-4 row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-8 data-listing">
                             @forelse ($movies as $item)
                                 <div class="col" data-watchlist-row="{{ $item->id }}">
                                     @include('frontend::components.widgets.watchlist-detail-card', ['item' => $item, 'kind' => 'movie'])
@@ -45,7 +45,7 @@
                     {{-- TV shows --}}
                     <div class="tab-pane fade" id="pills-tvshow1" role="tabpanel" tabindex="0"
                         aria-labelledby="pills-tvshow-tab">
-                        <div class="row gy-4 row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-7 data-listing">
+                        <div class="row gy-4 row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-8 data-listing">
                             @forelse ($shows as $item)
                                 <div class="col" data-watchlist-row="{{ $item->id }}">
                                     @include('frontend::components.widgets.watchlist-detail-card', ['item' => $item, 'kind' => 'show'])
