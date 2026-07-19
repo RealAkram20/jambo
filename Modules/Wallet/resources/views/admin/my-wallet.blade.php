@@ -14,23 +14,30 @@
             <div class="card mb-0">
                 <div class="card-body text-center py-3">
                     <h4 class="mb-0">{{ $currency }} {{ number_format((float) $balance, 0) }}</h4>
-                    <span class="text-muted small">Wallet balance</span>
+                    <span class="text-muted small">Available balance</span>
                 </div>
             </div>
         </div>
         <div class="col-6 col-xl-3">
             <div class="card mb-0">
                 <div class="card-body text-center py-3">
-                    <h4 class="mb-0">{{ $currency }} {{ number_format((float) $performanceEarned, 0) }}</h4>
-                    <span class="text-muted small">Performance earnings</span>
+                    <h4 class="mb-0">{{ $currency }} {{ number_format((float) $earnedThisMonth, 0) }}</h4>
+                    <span class="text-muted small">Earned this month</span>
                 </div>
             </div>
         </div>
         <div class="col-6 col-xl-3">
             <div class="card mb-0">
                 <div class="card-body text-center py-3">
-                    <h4 class="mb-0">{{ $currency }} {{ number_format((float) $referralEarned, 0) }}</h4>
-                    <span class="text-muted small">Referral earnings</span>
+                    @if ($lastPayout)
+                        <h4 class="mb-0">{{ $currency }} {{ number_format((float) $earnedSinceLastPayout, 0) }}</h4>
+                        <span class="text-muted small">Earned since last payout
+                            ({{ $currency }} {{ number_format((float) $lastPayout->amount, 0) }}
+                            · {{ ($lastPayout->paid_at ?? $lastPayout->requested_at)?->format('M j, Y') }})</span>
+                    @else
+                        <h4 class="mb-0">—</h4>
+                        <span class="text-muted small">No payouts yet</span>
+                    @endif
                 </div>
             </div>
         </div>
@@ -43,6 +50,44 @@
             </div>
         </div>
     </div>
+
+    {{-- Monthly earnings — credit entries only, so withdrawing never
+         changes what a month shows as earned. --}}
+    @if (count($monthlyEarnings))
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4 class="card-title mb-0">Monthly earnings</h4>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table align-middle small mb-0">
+                        <thead class="text-muted">
+                            <tr>
+                                <th>Month</th>
+                                <th class="text-end">Uploads</th>
+                                <th class="text-end">Referrals</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($monthlyEarnings as $ym => $m)
+                                @php
+                                    $perf = $m['performance'] ?? '0';
+                                    $ref = $m['referral'] ?? '0';
+                                @endphp
+                                <tr>
+                                    <td>{{ \Illuminate\Support\Carbon::createFromFormat('Y-m', $ym)->format('F Y') }}</td>
+                                    <td class="text-end">{{ $currency }} {{ number_format((float) $perf, 0) }}</td>
+                                    <td class="text-end">{{ $currency }} {{ number_format((float) $ref, 0) }}</td>
+                                    <td class="text-end fw-semibold">{{ $currency }} {{ number_format((float) bcadd($perf, $ref, 2), 0) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    @endif
 
     {{-- Withdraw --}}
     <div class="card mb-4">

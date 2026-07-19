@@ -117,10 +117,10 @@ class PerformanceWalletTest extends TestCase
         $this->actingAs($this->admin)
             ->get(route('admin.wallet.index'))
             ->assertOk()
-            ->assertSee('Performance earnings')
-            ->assertSee('Referral earnings')
-            ->assertSee('2,000')   // performance tile
-            ->assertSee('3,000')   // referral tile
+            ->assertSee('Available balance')
+            ->assertSee('Monthly earnings')
+            ->assertSee('2,000')   // uploads column, this month's row
+            ->assertSee('3,000')   // referrals column, this month's row
             ->assertSee('5,000');  // one combined balance
 
         // Regular users have the profile-hub wallet, not the panel page.
