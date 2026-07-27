@@ -85,6 +85,34 @@
         </div>
     </div>
 
+    {{-- Admin wallet balances — what's LEFT on each account (all-time
+         credits minus payouts), the number a payout request is checked
+         against. Not period-scoped, unlike the leaderboard's Earned. --}}
+    @if ($isSuperAdmin && count($adminBalances))
+        <div class="d-flex align-items-center gap-2 mb-3">
+            <i class="ph ph-wallet"></i>
+            <h5 class="mb-0">Admin wallet balances</h5>
+        </div>
+        <div class="row g-3 mb-4">
+            @foreach ($adminBalances as $row)
+                <div class="col-6 col-md-4 col-xl-3">
+                    <div class="card h-100">
+                        <div class="card-body d-flex align-items-center gap-3">
+                            <div class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle bg-warning-subtle text-warning-emphasis"
+                                 style="width:48px;height:48px;">
+                                <i class="ph ph-wallet fs-4"></i>
+                            </div>
+                            <div>
+                                <div class="fs-4 fw-semibold lh-1">{{ $fmtMoney($row['balance']) }}</div>
+                                <div class="text-muted small">{{ $row['user']?->username ?? 'Unknown' }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    @endif
+
     <div class="row g-4">
         {{-- Super-admin leaderboard --}}
         @if ($isSuperAdmin)

@@ -55,8 +55,10 @@ class PerformanceController extends Controller
 
         // Super-admin also sees every admin's contribution, ranked.
         $leaderboard = [];
+        $adminBalances = [];
         if ($isSuperAdmin) {
             $leaderboard = $this->leaderboard($since);
+            $adminBalances = $this->adminBalances($currency);
         }
 
         // Super-admin can narrow the feed to one admin (?actor=<id>) to
@@ -98,6 +100,7 @@ class PerformanceController extends Controller
             'myEarnings'   => $myEarnings,
             'walletBalance' => $walletBalance,
             'leaderboard'  => $leaderboard,
+            'adminBalances' => $adminBalances,
             'feed'         => $feed,
             'actors'       => $actors,
             'actorId'      => $actorId,
@@ -216,6 +219,38 @@ class PerformanceController extends Controller
         }
 
         usort($out, fn ($a, $b) => $b['earnings'] <=> $a['earnings']);
+        return $out;
+    }
+
+    /**
+     * Every admin's CURRENT wallet balance (all-time ledger sum:
+     * credits minus payouts/debits), not period-scoped — this is the
+     * "how much is left on their account" number a payout request is
+     * checked against. One grouped query, sorted richest first.
+     *
+     * @return list<array{user:?User, balance:float}>
+     */
+    private function adminBalances(string $currency): array
+    {
+        $sums = \Modules\Wallet\app\Models\LedgerEntry::query()
+            ->where('owner_type', (new User())->getMorphClass())
+            ->where('currency', $currency)
+            ->groupBy('owner_id')
+            ->selectRaw('owner_id, SUM(amount) as balance')
+            ->pluck('balance', 'owner_id');
+
+        $users = User::whereIn('id', $sums->keys())->get()->keyBy('id');
+
+        $out = [];
+        foreach ($sums as $ownerId => $balance) {
+            $out[] = [
+                'user'    => $users->get($ownerId),
+                'balance' => (float) $balance,
+            ];
+        }
+
+        usort($out, fn ($a, $b) => $b['balance'] <=> $a['balance']);
+
         return $out;
     }
 
