@@ -87,30 +87,57 @@
 
     {{-- Admin wallet balances — what's LEFT on each account (all-time
          credits minus payouts), the number a payout request is checked
-         against. Not period-scoped, unlike the leaderboard's Earned. --}}
+         against. Not period-scoped, unlike the leaderboard's Earned.
+         A looping Swiper (the admin layout already bundles Swiper for
+         the dashboard sliders) so any number of admins stays one row. --}}
     @if ($isSuperAdmin && count($adminBalances))
         <div class="d-flex align-items-center gap-2 mb-3">
             <i class="ph ph-wallet"></i>
             <h5 class="mb-0">Admin wallet balances</h5>
         </div>
-        <div class="row g-3 mb-4">
-            @foreach ($adminBalances as $row)
-                <div class="col-6 col-md-4 col-xl-3">
-                    <div class="card h-100">
-                        <div class="card-body d-flex align-items-center gap-3">
-                            <div class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle bg-warning-subtle text-warning-emphasis"
-                                 style="width:48px;height:48px;">
-                                <i class="ph ph-wallet fs-4"></i>
-                            </div>
-                            <div>
-                                <div class="fs-4 fw-semibold lh-1">{{ $fmtMoney($row['balance']) }}</div>
-                                <div class="text-muted small">{{ $row['user']?->username ?? 'Unknown' }}</div>
+        <div class="swiper mb-4" id="admin-balances-slider">
+            <div class="swiper-wrapper">
+                @foreach ($adminBalances as $row)
+                    <div class="swiper-slide h-auto">
+                        <div class="card h-100 mb-0">
+                            <div class="card-body d-flex align-items-center gap-3">
+                                <div class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle bg-warning-subtle text-warning-emphasis"
+                                     style="width:48px;height:48px;">
+                                    <i class="ph ph-wallet fs-4"></i>
+                                </div>
+                                <div>
+                                    <div class="fs-4 fw-semibold lh-1">{{ $fmtMoney($row['balance']) }}</div>
+                                    <div class="text-muted small">{{ $row['user']?->username ?? 'Unknown' }}</div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            @endforeach
+                @endforeach
+            </div>
+            <div class="swiper-button-prev"></div>
+            <div class="swiper-button-next"></div>
         </div>
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                var el = document.getElementById('admin-balances-slider');
+                if (!el || !window.Swiper) return;
+
+                new Swiper(el, {
+                    loop: true,
+                    spaceBetween: 16,
+                    slidesPerView: 1,
+                    breakpoints: {
+                        576:  { slidesPerView: 2 },
+                        992:  { slidesPerView: 3 },
+                        1400: { slidesPerView: 4 },
+                    },
+                    navigation: {
+                        nextEl: el.querySelector('.swiper-button-next'),
+                        prevEl: el.querySelector('.swiper-button-prev'),
+                    },
+                });
+            });
+        </script>
     @endif
 
     <div class="row g-4">
