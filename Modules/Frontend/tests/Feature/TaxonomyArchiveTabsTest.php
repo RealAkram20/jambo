@@ -80,6 +80,50 @@ class TaxonomyArchiveTabsTest extends TestCase
             ->assertDontSee('Archive Movie Alpha');
     }
 
+    public function test_all_view_has_kind_rows_but_no_vj_grouping(): void
+    {
+        [$category, $movie] = $this->categoryWithBoth();
+        $vj = \Modules\Content\app\Models\Vj::create(['name' => 'Vj Junior', 'slug' => 'vj-junior']);
+        $movie->vjs()->attach($vj);
+
+        $this->get('/categories/' . $category->slug)
+            ->assertOk()
+            ->assertDontSee('by VJ') // no per-VJ grouping on All
+            ->assertDontSee('Vj Junior');
+    }
+
+    public function test_kind_view_groups_by_vj_with_term_scoped_view_all(): void
+    {
+        [$category, $movie] = $this->categoryWithBoth();
+        $vj = \Modules\Content\app\Models\Vj::create(['name' => 'Vj Junior', 'slug' => 'vj-junior']);
+        $movie->vjs()->attach($vj);
+
+        $this->get('/categories/' . $category->slug . '?kind=movies')
+            ->assertOk()
+            ->assertSee('Vj Junior')
+            ->assertSee('kind=movies&amp;vj=vj-junior', false);
+    }
+
+    public function test_vj_view_lists_only_that_vjs_titles_in_the_term(): void
+    {
+        [$category, $movie] = $this->categoryWithBoth();
+        $vj = \Modules\Content\app\Models\Vj::create(['name' => 'Vj Junior', 'slug' => 'vj-junior']);
+        $movie->vjs()->attach($vj);
+
+        $other = Movie::factory()->create([
+            'title'        => 'Archive Movie Gamma',
+            'status'       => Movie::STATUS_PUBLISHED,
+            'published_at' => now()->subDay(),
+        ]);
+        $category->movies()->attach($other); // in category, different/no VJ
+
+        $this->get('/categories/' . $category->slug . '?kind=movies&vj=vj-junior')
+            ->assertOk()
+            ->assertSee('Archive Movie Alpha')
+            ->assertDontSee('Archive Movie Gamma')
+            ->assertDontSee('by VJ'); // focused listing, no VJ grouping
+    }
+
     public function test_genre_and_tag_archives_share_the_layout(): void
     {
         [, $movie] = $this->categoryWithBoth();

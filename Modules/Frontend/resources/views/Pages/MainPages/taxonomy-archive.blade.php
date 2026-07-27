@@ -5,14 +5,21 @@
      *   /geners/{slug}      ($taxonomy === 'genres')
      *   /tag/{slug}         ($taxonomy === 'tags')
      *
-     * Layout: featured banner, then the catalogue itself — a
-     * newest-first poster grid of everything in the term with
-     * All | Movies | Series tabs — then per-VJ carousels scoped to the
-     * term. The tabs are real links (?kind=movies|series) so the
-     * whole page, VJ rows included, narrows to one kind server-side
-     * and every state stays a crawlable URL.
+     * Three drill-down levels, all on this one template:
+     *   All view      — banner, tabbed grid, then ONE Movies line and
+     *                   ONE Series line (View All → the kind views).
+     *                   No VJ grouping here.
+     *   Kind view     — ?kind=movies|series: that kind's grid, then
+     *                   per-VJ carousels scoped to the term; each VJ
+     *                   row's View All adds &vj={slug}.
+     *   VJ view       — ?kind=…&vj={slug}: just that VJ's titles in
+     *                   this term, as a grid.
+     * Tabs/links are real URLs so every state is crawlable.
      */
     $heading = $taxonomy === 'tags' ? '#' . $term->name : $term->name;
+    if ($vjFilter) {
+        $heading .= ' — ' . $vjFilter->name;
+    }
     $moviesLabel = __('frontendheader.movies');
     $seriesLabel = __('frontendheader.tvshow');
 
@@ -144,10 +151,32 @@
             </div>
         @endif
 
-        {{-- Per-VJ carousels, scoped to this term — each VJ's row holds
-             only their titles in this category/genre/tag. The blocks
-             follow the tab: the controller hands over empty collections
-             for the kind a narrowed page hides. --}}
+        {{-- All view: one line of the term's movies and one of its
+             series — View All jumps to the kind views, where the
+             catalogue is grouped by VJ. --}}
+        @if ($rowMovies->isNotEmpty())
+            @include('frontend::components.sections.vj-carousel', [
+                'vj' => null,
+                'rowTitle' => $moviesLabel,
+                'items' => $rowMovies,
+                'contentKind' => 'movie',
+                'viewAllUrl' => $tabs['movies']['url'],
+            ])
+        @endif
+
+        @if ($rowShows->isNotEmpty())
+            @include('frontend::components.sections.vj-carousel', [
+                'vj' => null,
+                'rowTitle' => $seriesLabel,
+                'items' => $rowShows,
+                'contentKind' => 'show',
+                'viewAllUrl' => $tabs['series']['url'],
+            ])
+        @endif
+
+        {{-- Kind views: per-VJ carousels, scoped to this term — each
+             VJ's row holds only their titles in this category/genre/
+             tag, and its View All drills into ?kind=…&vj={slug}. --}}
         @if ($movieVjs->isNotEmpty())
             <h5 class="main-title text-capitalize mt-5 mb-0">{{ $moviesLabel }} by VJ</h5>
 
@@ -159,6 +188,7 @@
                         'vj' => $vj,
                         'items' => $vj->movies,
                         'contentKind' => 'movie',
+                        'viewAllUrl' => $tabs['movies']['url'] . '&vj=' . $vj->slug,
                     ])
                 @endforeach
             </div>
@@ -186,6 +216,7 @@
                         'vj' => $vj,
                         'items' => $vj->shows,
                         'contentKind' => 'show',
+                        'viewAllUrl' => $tabs['series']['url'] . '&vj=' . $vj->slug,
                     ])
                 @endforeach
             </div>

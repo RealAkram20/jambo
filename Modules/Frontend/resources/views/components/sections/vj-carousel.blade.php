@@ -11,20 +11,24 @@
       $contentKind : 'movie' (default) or 'show' — drives which detail
                      URL and which View-All URL the card / header link to.
       $rowTitle    : optional header override; required when $vj is null.
+      $viewAllUrl  : optional View-All override — archives pass a URL
+                     that stays inside the term (?kind=…&vj=…) instead
+                     of the VJ's general catalogue.
 --}}
 @php
     $contentKind = $contentKind ?? 'movie';
     $isShow = $contentKind === 'show';
     $vj = $vj ?? null;
     $rowTitle = $rowTitle ?? $vj?->name;
-    // The movies "View All" goes to /vj-movie/{slug} (movies-only
-    // catalogue). /vj/{slug} is reserved for the combined overview
-    // and isn't what the user wants to land on after clicking
+    // Default: the movies "View All" goes to /vj-movie/{slug}
+    // (movies-only catalogue). /vj/{slug} is reserved for the combined
+    // overview and isn't what the user wants to land on after clicking
     // "View All" on a movies-row. A VJ-less row has no per-VJ page to
-    // drill into, so it renders without the link.
-    $viewAllUrl = ! $vj ? null : ($isShow
+    // drill into, so without an explicit $viewAllUrl it renders
+    // without the link.
+    $viewAllUrl = $viewAllUrl ?? (! $vj ? null : ($isShow
         ? route('frontend.vj_series_detail', $vj->slug)
-        : route('frontend.vj_movie_detail', $vj->slug));
+        : route('frontend.vj_movie_detail', $vj->slug)));
     $fallbackPoster = $isShow ? 'media/vikings-portrait.webp' : 'media/rabbit-portrait.webp';
     // Per-VJ display cap. The eager-loads in FrontendController
     // intentionally don't `->limit()` (Eloquent applies it to the

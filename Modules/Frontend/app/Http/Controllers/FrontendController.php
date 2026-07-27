@@ -2054,23 +2054,54 @@ class FrontendController extends Controller
             ? request()->query('kind')
             : 'all';
 
-        // The VJ rows follow the tab: All renders both blocks,
-        // Movies/Series only their own. Empty collections make the
-        // blade skip the hidden block entirely.
-        $movieVjs = $kind !== 'series' ? $this->topVjs('movies', 0, 100, $taxonomy, $term->id) : collect();
-        $showVjs  = $kind !== 'movies' ? $this->topVjs('shows', 0, 100, $taxonomy, $term->id) : collect();
+        // ?vj={slug} — third drill-down level: everything by ONE VJ in
+        // this term (the target of a VJ row's View All on the kind
+        // views). Unknown slugs 404 rather than render duplicates.
+        $vjFilter = request()->filled('vj')
+            ? Vj::where('slug', request()->query('vj'))->firstOrFail()
+            : null;
+
+        // Grouping by VJ happens ONLY on the kind views — the All view
+        // shows one Movies line + one Series line instead, and the
+        // VJ-filtered view is just that VJ's grid.
+        $withVjRows = $kind !== 'all' && ! $vjFilter;
+        $movieVjs = $withVjRows && $kind !== 'series' ? $this->topVjs('movies', 0, 100, $taxonomy, $term->id) : collect();
+        $showVjs  = $withVjRows && $kind !== 'movies' ? $this->topVjs('shows', 0, 100, $taxonomy, $term->id) : collect();
+
+        $inTerm = fn ($q) => $q->where("{$taxonomy}.id", $term->id);
+        $rowMovies = $kind === 'all' && ! $vjFilter
+            ? Movie::published()->whereHas($taxonomy, $inTerm)->with('genres')->orderByDesc('created_at')->take(20)->get()
+            : collect();
+        $rowShows = $kind === 'all' && ! $vjFilter
+            ? Show::published()->whereHas($taxonomy, $inTerm)->with('genres')->orderByDesc('created_at')->take(20)->get()
+            : collect();
 
         return view('frontend::Pages.MainPages.taxonomy-archive', [
             'taxonomy'      => $taxonomy,
             'term'          => $term,
             'kind'          => $kind,
-            'featured'      => $this->featuredForTaxonomy($taxonomy, $term->id, $kind),
-            'grid'          => $this->archiveGrid($taxonomy, $term->id, $kind),
+            'vjFilter'      => $vjFilter,
+            // The focused single-VJ listing skips the hero — a banner
+            // of other VJs' titles there would contradict the page.
+            'featured'      => $vjFilter ? collect() : $this->featuredForTaxonomy($taxonomy, $term->id, $kind),
+            'grid'          => $this->archiveGrid($taxonomy, $term->id, $kind, $vjFilter),
+            'rowMovies'     => $rowMovies,
+            'rowShows'      => $rowShows,
             'movieVjs'      => $movieVjs,
-            'movieVjsTotal' => $kind !== 'series' ? $this->countVjs('movies', $taxonomy, $term->id) : 0,
+            'movieVjsTotal' => $movieVjs->isNotEmpty() ? $this->countVjs('movies', $taxonomy, $term->id) : 0,
             'showVjs'       => $showVjs,
-            'showVjsTotal'  => $kind !== 'movies' ? $this->countVjs('shows', $taxonomy, $term->id) : 0,
+            'showVjsTotal'  => $showVjs->isNotEmpty() ? $this->countVjs('shows', $taxonomy, $term->id) : 0,
         ]);
+    }
+
+    /** Public URL of one term's archive page, by taxonomy. */
+    private function archiveUrl(string $taxonomy, string $slug): string
+    {
+        return match ($taxonomy) {
+            'categories' => route('frontend.category', $slug),
+            'genres'     => route('frontend.genres', $slug),
+            'tags'       => route('frontend.tag', $slug),
+        };
     }
 
     /**
@@ -2080,14 +2111,20 @@ class FrontendController extends Controller
      * which is what made the old separate "Other Movies" rows
      * redundant.
      */
-    private function archiveGrid(string $taxonomy, int $termId, string $kind): \Illuminate\Pagination\LengthAwarePaginator
+    private function archiveGrid(string $taxonomy, int $termId, string $kind, ?Vj $vjFilter = null): \Illuminate\Pagination\LengthAwarePaginator
     {
         $perPage = 24; // divisible by every row-cols breakpoint (3/4/6/8)
         $page = max(1, (int) request()->query('page', 1));
         $inTerm = fn ($q) => $q->where("{$taxonomy}.id", $termId);
+        $scope = function ($q) use ($taxonomy, $inTerm, $vjFilter) {
+            $q->whereHas($taxonomy, $inTerm);
+            if ($vjFilter) {
+                $q->whereHas('vjs', fn ($vq) => $vq->where('vjs.id', $vjFilter->id));
+            }
+        };
 
-        $movieQ = Movie::published()->whereHas($taxonomy, $inTerm)->with('genres')->orderByDesc('created_at');
-        $showQ  = Show::published()->whereHas($taxonomy, $inTerm)->with('genres')->orderByDesc('created_at');
+        $movieQ = Movie::published()->tap($scope)->with('genres')->orderByDesc('created_at');
+        $showQ  = Show::published()->tap($scope)->with('genres')->orderByDesc('created_at');
 
         if ($kind === 'movies') {
             $p = $movieQ->paginate($perPage);
@@ -2113,8 +2150,8 @@ class FrontendController extends Controller
             ->slice(($page - 1) * $perPage, $perPage)
             ->values();
 
-        $total = Movie::published()->whereHas($taxonomy, $inTerm)->count()
-               + Show::published()->whereHas($taxonomy, $inTerm)->count();
+        $total = Movie::published()->tap($scope)->count()
+               + Show::published()->tap($scope)->count();
 
         return (new \Illuminate\Pagination\LengthAwarePaginator($slice, $total, $perPage, $page, [
             'path' => request()->url(),
@@ -2146,6 +2183,11 @@ class FrontendController extends Controller
                 'vj' => $vj,
                 'items' => $vj->{$kind},
                 'contentKind' => $kind === 'shows' ? 'show' : 'movie',
+                // Stay inside the archive: View All drills into this
+                // VJ's titles in THIS term, not their general page.
+                'viewAllUrl' => $this->archiveUrl($taxonomy, $term->slug)
+                    . '?kind=' . ($kind === 'shows' ? 'series' : 'movies')
+                    . '&vj=' . $vj->slug,
             ])->render();
         }
 
