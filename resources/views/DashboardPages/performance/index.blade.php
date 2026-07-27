@@ -91,9 +91,24 @@
          A looping Swiper (the admin layout already bundles Swiper for
          the dashboard sliders) so any number of admins stays one row. --}}
     @if ($isSuperAdmin && count($adminBalances))
-        <div class="d-flex align-items-center gap-2 mb-3">
-            <i class="ph ph-wallet"></i>
-            <h5 class="mb-0">Admin wallet balances</h5>
+        <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+            <div class="d-flex align-items-center gap-2">
+                <i class="ph ph-wallet"></i>
+                <h5 class="mb-0">Admin wallet balances</h5>
+            </div>
+            {{-- Arrows live in the header, not overlaid on the cards:
+                 custom ids (not .swiper-button-*) so Swiper's absolute-
+                 position arrow CSS never applies. --}}
+            <div class="d-flex gap-2">
+                <button type="button" id="admin-balances-prev"
+                        class="btn btn-sm btn-icon btn-outline-secondary rounded" aria-label="Previous">
+                    <i class="ph ph-caret-left"></i>
+                </button>
+                <button type="button" id="admin-balances-next"
+                        class="btn btn-sm btn-icon btn-outline-secondary rounded" aria-label="Next">
+                    <i class="ph ph-caret-right"></i>
+                </button>
+            </div>
         </div>
         {{-- .swiper-container, NOT .swiper: the dashboard bundles Swiper 6,
              whose CSS (overflow:hidden etc.) is keyed to the old class name —
@@ -117,8 +132,6 @@
                     </div>
                 @endforeach
             </div>
-            <div class="swiper-button-prev"></div>
-            <div class="swiper-button-next"></div>
         </div>
         <script>
             document.addEventListener('DOMContentLoaded', function () {
@@ -135,8 +148,8 @@
                         1400: { slidesPerView: 4 },
                     },
                     navigation: {
-                        nextEl: el.querySelector('.swiper-button-next'),
-                        prevEl: el.querySelector('.swiper-button-prev'),
+                        nextEl: '#admin-balances-next',
+                        prevEl: '#admin-balances-prev',
                     },
                 });
             });
