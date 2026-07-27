@@ -103,6 +103,23 @@ body {
   }
 }
 
+// Page-title h1s (movie/show detail, watch, episode) inherit the full
+// Bootstrap heading-1 scale (~4.2rem on desktop). Long VJ titles wrap
+// to 3-4 lines at that size, and on the detail banners .details-parts
+// is bottom-anchored — extra lines push UP over the action row and
+// under the fixed header. movie-description.blade.php classes titles
+// by length; these steps keep any title to roughly two lines. Fluid
+// clamp() so laptops (1200-1600px) — where the overlap bit — shrink
+// hardest; class specificity outranks the h1/.texture-text element and
+// breakpoint rules.
+.trending-text.title-long {
+  font-size: clamp(1.75rem, 1.1rem + 2vw, 3rem);
+}
+
+.trending-text.title-xlong {
+  font-size: clamp(1.5rem, 1rem + 1.5vw, 2.5rem);
+}
+
 .trending-info {
   .movie-type-tag {
     padding: 0.5em 1em 0.5em 1em;

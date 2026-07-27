@@ -37,9 +37,13 @@
              branch above is the in-card variant ($isnotmovieTitle) and stays a
              heading-of-a-card, not a heading-of-the-page.
 
-             Same classes: .trending-text sets an explicit font-size at every
-             breakpoint, so the tag swap changes the semantics, not the look. --}}
-        <h1 class="trending-text fw-bold texture-text text-uppercase my-0 fadeInLeft animated d-inline-block"
+             Long VJ titles ("MISSION: IMPOSSIBLE - FALLOUT VJ JUNIOR") wrap to
+             3-4 lines at the full h1 scale; on the detail banners the text
+             block is bottom-anchored, so those extra lines grow UP over the
+             action buttons. The length classes step the size down so any
+             title holds ~2 lines (sizes in _page-content.scss). --}}
+        @php $titleLength = mb_strlen($moveName ?? ''); @endphp
+        <h1 class="trending-text fw-bold texture-text text-uppercase my-0 fadeInLeft animated d-inline-block {{ $titleLength > 42 ? 'title-xlong' : ($titleLength > 24 ? 'title-long' : '') }}"
             data-animation-in="fadeInLeft" data-delay-in="0.6" style="opacity: 1; animation-delay: 0.6s">
             {{ $moveName }}
         </h1>
