@@ -2047,17 +2047,78 @@ class FrontendController extends Controller
      */
     private function taxonomyArchive(string $taxonomy, $term): View
     {
+        // ?kind=movies|series narrows the whole page to one content
+        // kind; anything else means All. Real query param (not JS
+        // state) so tabs and Load More pages are crawlable URLs.
+        $kind = in_array(request()->query('kind'), ['movies', 'series'], true)
+            ? request()->query('kind')
+            : 'all';
+
+        // The VJ rows follow the tab: All renders both blocks,
+        // Movies/Series only their own. Empty collections make the
+        // blade skip the hidden block entirely.
+        $movieVjs = $kind !== 'series' ? $this->topVjs('movies', 0, 100, $taxonomy, $term->id) : collect();
+        $showVjs  = $kind !== 'movies' ? $this->topVjs('shows', 0, 100, $taxonomy, $term->id) : collect();
+
         return view('frontend::Pages.MainPages.taxonomy-archive', [
             'taxonomy'      => $taxonomy,
             'term'          => $term,
-            'featured'      => $this->featuredForTaxonomy($taxonomy, $term->id),
-            'movieVjs'      => $this->topVjs('movies', 0, 100, $taxonomy, $term->id),
-            'movieVjsTotal' => $this->countVjs('movies', $taxonomy, $term->id),
-            'showVjs'       => $this->topVjs('shows', 0, 100, $taxonomy, $term->id),
-            'showVjsTotal'  => $this->countVjs('shows', $taxonomy, $term->id),
-            'looseMovies'   => $this->untaggedTitles('movies', $taxonomy, $term->id),
-            'looseShows'    => $this->untaggedTitles('shows', $taxonomy, $term->id),
+            'kind'          => $kind,
+            'featured'      => $this->featuredForTaxonomy($taxonomy, $term->id, $kind),
+            'grid'          => $this->archiveGrid($taxonomy, $term->id, $kind),
+            'movieVjs'      => $movieVjs,
+            'movieVjsTotal' => $kind !== 'series' ? $this->countVjs('movies', $taxonomy, $term->id) : 0,
+            'showVjs'       => $showVjs,
+            'showVjsTotal'  => $kind !== 'movies' ? $this->countVjs('shows', $taxonomy, $term->id) : 0,
         ]);
+    }
+
+    /**
+     * The archive's lead grid: every published title in the term,
+     * newest first, movies and series interleaved (or one kind when
+     * the tab narrows it). Untagged-VJ titles are naturally included,
+     * which is what made the old separate "Other Movies" rows
+     * redundant.
+     */
+    private function archiveGrid(string $taxonomy, int $termId, string $kind): \Illuminate\Pagination\LengthAwarePaginator
+    {
+        $perPage = 24; // divisible by every row-cols breakpoint (3/4/6/8)
+        $page = max(1, (int) request()->query('page', 1));
+        $inTerm = fn ($q) => $q->where("{$taxonomy}.id", $termId);
+
+        $movieQ = Movie::published()->whereHas($taxonomy, $inTerm)->with('genres')->orderByDesc('created_at');
+        $showQ  = Show::published()->whereHas($taxonomy, $inTerm)->with('genres')->orderByDesc('created_at');
+
+        if ($kind === 'movies') {
+            $p = $movieQ->paginate($perPage);
+            $p->getCollection()->each(fn ($m) => $m->_isShow = false);
+            return $p->withQueryString();
+        }
+
+        if ($kind === 'series') {
+            $p = $showQ->paginate($perPage);
+            $p->getCollection()->each(fn ($s) => $s->_isShow = true);
+            return $p->withQueryString();
+        }
+
+        // All: the merged page's items always sit within the newest
+        // page*perPage of each kind, so two bounded queries + a sort
+        // replace a full-table merge.
+        $take = $page * $perPage;
+        $movies = $movieQ->take($take)->get()->each(fn ($m) => $m->_isShow = false);
+        $shows  = $showQ->take($take)->get()->each(fn ($s) => $s->_isShow = true);
+
+        $slice = $movies->concat($shows)
+            ->sortByDesc('created_at')
+            ->slice(($page - 1) * $perPage, $perPage)
+            ->values();
+
+        $total = Movie::published()->whereHas($taxonomy, $inTerm)->count()
+               + Show::published()->whereHas($taxonomy, $inTerm)->count();
+
+        return (new \Illuminate\Pagination\LengthAwarePaginator($slice, $total, $perPage, $page, [
+            'path' => request()->url(),
+        ]))->withQueryString();
     }
 
     /**
@@ -2109,37 +2170,21 @@ class FrontendController extends Controller
     }
 
     /**
-     * Titles in the archive that no VJ is credited on. /movie and
-     * /series never surface these — those pages are built from the Vj
-     * table outward — but an archive is a curated shelf: an untagged
-     * movie an admin dropped into "Trending" should still show up on
-     * Trending rather than silently vanishing.
-     */
-    private function untaggedTitles(string $kind, string $taxonomy, int $termId)
-    {
-        $model = $kind === 'shows' ? Show::class : Movie::class;
-
-        return $model::published()
-            ->whereHas($taxonomy, fn ($q) => $q->where("{$taxonomy}.id", $termId))
-            ->whereDoesntHave('vjs')
-            ->with('genres')
-            ->orderByDesc('created_at')
-            ->get();
-    }
-
-    /**
      * Up to 3 movies + 3 shows in the term, interleaved (movie, show,
      * movie, show, …) for the hero carousel. Mirrors the mixed-hero
      * pattern SectionDataComposer::buildHero() uses on the home page so
      * the visual rhythm is consistent. Each item is tagged `_isShow` so
      * the blade can pick the right detail route and relations without a
      * separate instance check.
+     *
+     * $kind narrows the hero with the archive's tab — a ?kind=series
+     * page must not open on a movie hero.
      */
-    private function featuredForTaxonomy(string $taxonomy, int $termId)
+    private function featuredForTaxonomy(string $taxonomy, int $termId, string $kind = 'all')
     {
         $inTerm = fn ($q) => $q->where("{$taxonomy}.id", $termId);
 
-        $movies = Movie::published()
+        $movies = $kind === 'series' ? collect() : Movie::published()
             ->whereHas($taxonomy, $inTerm)
             ->with('genres')
             ->orderByDesc('created_at')
@@ -2147,7 +2192,7 @@ class FrontendController extends Controller
             ->get()
             ->each(fn ($m) => $m->_isShow = false);
 
-        $shows = Show::published()
+        $shows = $kind === 'movies' ? collect() : Show::published()
             ->whereHas($taxonomy, $inTerm)
             ->with(['genres', 'seasons'])
             ->orderByDesc('created_at')

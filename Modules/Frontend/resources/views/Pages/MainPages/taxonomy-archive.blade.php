@@ -5,26 +5,29 @@
      *   /geners/{slug}      ($taxonomy === 'genres')
      *   /tag/{slug}         ($taxonomy === 'tags')
      *
-     * Layout matches /movie and /series: the catalogue is grouped into
-     * one carousel per VJ, most-published VJ first, movies then series.
-     * These pages were flat grids before, which made an archive read
-     * nothing like the two pages visitors browse most.
-     *
-     * Both blocks pull more VJs from the same endpoint, told apart by
-     * ?kind — see FrontendController::taxonomyMoreVjs().
+     * Layout: featured banner, then the catalogue itself — a
+     * newest-first poster grid of everything in the term with
+     * All | Movies | Series tabs — then per-VJ carousels scoped to the
+     * term. The tabs are real links (?kind=movies|series) so the
+     * whole page, VJ rows included, narrows to one kind server-side
+     * and every state stays a crawlable URL.
      */
     $heading = $taxonomy === 'tags' ? '#' . $term->name : $term->name;
     $moviesLabel = __('frontendheader.movies');
     $seriesLabel = __('frontendheader.tvshow');
 
-    $moreVjsUrl = fn (string $kind) => route('frontend.taxonomy_more_vjs', [
+    $tabUrl = fn (?string $k) => request()->url() . ($k ? '?kind=' . $k : '');
+    $tabs = [
+        'all'    => ['label' => 'All',        'url' => $tabUrl(null)],
+        'movies' => ['label' => $moviesLabel, 'url' => $tabUrl('movies')],
+        'series' => ['label' => $seriesLabel, 'url' => $tabUrl('series')],
+    ];
+
+    $moreVjsUrl = fn (string $k) => route('frontend.taxonomy_more_vjs', [
         'taxonomy' => $taxonomy,
         'slug'     => $term->slug,
-        'kind'     => $kind,
+        'kind'     => $k,
     ]);
-
-    $hasMovies = $movieVjs->isNotEmpty() || $looseMovies->isNotEmpty();
-    $hasShows  = $showVjs->isNotEmpty() || $looseShows->isNotEmpty();
 @endphp
 
 @extends('frontend::layouts.master', [
@@ -87,15 +90,66 @@
          the card bounds, so clipping here cuts off the Play Now +
          wishlist reveal on the outer cards. Same as /movie. --}}
     <div class="container-fluid pb-5 mb-4 px-2 px-md-3">
-        <div class="pt-4">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-4">
             {{-- h1 for the crawler (this page's target keyword, e.g.
                  "Action Movies"), h4 scale for the eye — matching the
                  section headings everywhere else. --}}
             <h1 class="main-title text-capitalize mb-0 h4 fw-medium">{{ $heading }}</h1>
+
+            <div class="btn-group" role="group" aria-label="{{ $heading }}">
+                @foreach ($tabs as $key => $tab)
+                    <a href="{{ $tab['url'] }}"
+                       class="btn btn-sm {{ $kind === $key ? 'btn-primary' : 'btn-outline-secondary' }}">
+                        {{ $tab['label'] }}
+                    </a>
+                @endforeach
+            </div>
         </div>
 
-        @if ($hasMovies)
-            <h5 class="main-title text-capitalize mt-5 mb-0">{{ $moviesLabel }}</h5>
+        @if ($grid->total())
+            <div id="archive-grid" class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-8 g-3 mt-1">
+                @foreach ($grid as $item)
+                    @php $isShow = (bool) ($item->_isShow ?? false); @endphp
+                    <div class="col">
+                        @include('frontend::components.cards.card-style', [
+                            'cardImage' => $item->poster_url ?: ($isShow ? 'media/vikings-portrait.webp' : 'media/rabbit-portrait.webp'),
+                            'cardTitle' => $item->title,
+                            'movietime' => ! $isShow && $item->runtime_minutes
+                                ? floor($item->runtime_minutes / 60) . 'hr : ' . ($item->runtime_minutes % 60) . 'mins'
+                                : null,
+                            'cardLang' => 'English',
+                            'cardPath' => $isShow
+                                ? route('frontend.series_detail', $item->slug)
+                                : route('frontend.movie_detail', $item->slug),
+                            'cardGenres' => $item->genres->take(2)->pluck('name')->all(),
+                            'productPremium' => (bool) $item->tier_required,
+                            'watchableType' => $isShow ? 'show' : 'movie',
+                            'watchableId'   => $item->id,
+                        ])
+                    </div>
+                @endforeach
+            </div>
+
+            @include('frontend::components.partials.load-more-pagination', [
+                'paginator'    => $grid,
+                'gridSelector' => '#archive-grid',
+            ])
+        @else
+            <div class="text-center py-5 my-4">
+                <i class="ph ph-film-strip text-muted" style="font-size: 56px;"></i>
+                <h5 class="mt-3 mb-2">{{ __('streamTag.no_results') ?? 'Nothing here yet' }}</h5>
+                <a href="{{ route('frontend.movie') }}" class="btn btn-primary mt-3">
+                    {{ __('frontendheader.movies') }}
+                </a>
+            </div>
+        @endif
+
+        {{-- Per-VJ carousels, scoped to this term — each VJ's row holds
+             only their titles in this category/genre/tag. The blocks
+             follow the tab: the controller hands over empty collections
+             for the kind a narrowed page hides. --}}
+        @if ($movieVjs->isNotEmpty())
+            <h5 class="main-title text-capitalize mt-5 mb-0">{{ $moviesLabel }} by VJ</h5>
 
             <div data-vj-list="movies"
                  data-offset="{{ $movieVjs->count() }}"
@@ -119,26 +173,10 @@
                     </button>
                 </div>
             @endif
-
-            {{-- Titles here that no VJ is credited on. Deliberately outside
-                 [data-vj-list]: Load More appends to the end of that
-                 container, so a row parked inside it would end up above the
-                 VJs that arrive later. /movie and /series never show these
-                 (they're built from the Vj table outward), but an archive is
-                 a curated shelf — an untagged title an admin put in Trending
-                 should still appear on Trending. --}}
-            @if ($looseMovies->isNotEmpty())
-                @include('frontend::components.sections.vj-carousel', [
-                    'vj' => null,
-                    'rowTitle' => 'Other ' . $moviesLabel,
-                    'items' => $looseMovies,
-                    'contentKind' => 'movie',
-                ])
-            @endif
         @endif
 
-        @if ($hasShows)
-            <h5 class="main-title text-capitalize mt-5 mb-0">{{ $seriesLabel }}</h5>
+        @if ($showVjs->isNotEmpty())
+            <h5 class="main-title text-capitalize mt-5 mb-0">{{ $seriesLabel }} by VJ</h5>
 
             <div data-vj-list="series"
                  data-offset="{{ $showVjs->count() }}"
@@ -162,25 +200,6 @@
                     </button>
                 </div>
             @endif
-
-            @if ($looseShows->isNotEmpty())
-                @include('frontend::components.sections.vj-carousel', [
-                    'vj' => null,
-                    'rowTitle' => 'Other ' . $seriesLabel,
-                    'items' => $looseShows,
-                    'contentKind' => 'show',
-                ])
-            @endif
-        @endif
-
-        @if (! $hasMovies && ! $hasShows)
-            <div class="text-center py-5 my-4">
-                <i class="ph ph-film-strip text-muted" style="font-size: 56px;"></i>
-                <h5 class="mt-3 mb-2">{{ __('streamTag.no_results') ?? 'Nothing here yet' }}</h5>
-                <a href="{{ route('frontend.movie') }}" class="btn btn-primary mt-3">
-                    {{ __('frontendheader.movies') }}
-                </a>
-            </div>
         @endif
     </div>
 
