@@ -178,17 +178,25 @@ body {
 }
 
 .movie-detail-part {
-  // Top-anchored, like the <1200px breakpoints already are: the
-  // action row sits at a fixed height in the banner on every title,
-  // and long content grows toward the banner's bottom, never up over
-  // the buttons/header. 28% parks the CTA row at the banner's
-  // center-left — first thing the eye lands on — while leaving room
-  // below for a two-line title + synopsis inside the banner.
-  position: absolute;
-  top: 28%;
-  bottom: auto;
-  left: 0;
-  right: 0;
+  // Phones/tablets: in flow — the details read below the banner video,
+  // exactly as they always have.
+  position: relative;
+
+  // Desktop: overlay ON the trailer, anchored from the top so the CTA
+  // row sits at the banner's center-left on every title (an empty
+  // banner reads as "the movie is playing" — the Start Watching row
+  // must be visible over it). Content flows top-to-bottom from there;
+  // a long title extends DOWN into the banner, never up over the
+  // buttons. The blade must not carry .position-relative (Bootstrap
+  // !important) or this rule loses.
+  @include media-breakpoint-up(xl) {
+    position: absolute;
+    top: 28%;
+    bottom: auto;
+    left: 0;
+    right: 0;
+    z-index: 2;
+  }
 }
 
 .live-customizer {

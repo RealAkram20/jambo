@@ -105,7 +105,10 @@
             @endif
         </div>
 
-        <div class="movie-detail-part position-relative">
+        {{-- No .position-relative here: Bootstrap's utility is !important and
+             would override the desktop position:absolute that overlays this
+             block on the trailer (_page-content.scss). --}}
+        <div class="movie-detail-part">
             <div class="trending-info pt-0 pb-0">
                 <div class="details-parts">
                     @include('frontend::components.cards.movie-description', [
