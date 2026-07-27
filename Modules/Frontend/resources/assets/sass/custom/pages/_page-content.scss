@@ -181,9 +181,11 @@ body {
   // Top-anchored, like the <1200px breakpoints already are: the
   // action row sits at a fixed height in the banner on every title,
   // and long content grows toward the banner's bottom, never up over
-  // the buttons/header.
+  // the buttons/header. 28% parks the CTA row at the banner's
+  // center-left — first thing the eye lands on — while leaving room
+  // below for a two-line title + synopsis inside the banner.
   position: absolute;
-  top: 22%;
+  top: 28%;
   bottom: auto;
   left: 0;
   right: 0;
