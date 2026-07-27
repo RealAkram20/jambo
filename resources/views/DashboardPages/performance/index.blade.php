@@ -95,7 +95,10 @@
             <i class="ph ph-wallet"></i>
             <h5 class="mb-0">Admin wallet balances</h5>
         </div>
-        <div class="swiper mb-4" id="admin-balances-slider">
+        {{-- .swiper-container, NOT .swiper: the dashboard bundles Swiper 6,
+             whose CSS (overflow:hidden etc.) is keyed to the old class name —
+             with .swiper the slides render unclipped across the page. --}}
+        <div class="swiper-container mb-4" id="admin-balances-slider">
             <div class="swiper-wrapper">
                 @foreach ($adminBalances as $row)
                     <div class="swiper-slide h-auto">
