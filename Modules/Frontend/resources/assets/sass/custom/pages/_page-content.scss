@@ -93,9 +93,11 @@ body {
 .movie-detail-part {
   .trending-info {
     .details-parts {
-      position: absolute;
-      top: auto;
-      bottom: 6em;
+      // In flow (NOT absolute-bottom-anchored): the block reads top to
+      // bottom — actions row stationed first, then genre/title/meta —
+      // and a tall title extends DOWNWARD into the banner's empty
+      // space instead of pushing the buttons up under the header.
+      position: relative;
       padding: 0 4em;
       width: 50%;
       z-index: 2;
@@ -176,8 +178,15 @@ body {
 }
 
 .movie-detail-part {
+  // Top-anchored, like the <1200px breakpoints already are: the
+  // action row sits at a fixed height in the banner on every title,
+  // and long content grows toward the banner's bottom, never up over
+  // the buttons/header.
   position: absolute;
-  bottom: 0;
+  top: 22%;
+  bottom: auto;
+  left: 0;
+  right: 0;
 }
 
 .live-customizer {
