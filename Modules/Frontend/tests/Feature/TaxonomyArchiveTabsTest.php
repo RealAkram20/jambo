@@ -101,7 +101,10 @@ class TaxonomyArchiveTabsTest extends TestCase
         $this->get('/categories/' . $category->slug . '?kind=movies')
             ->assertOk()
             ->assertSee('Vj Junior')
-            ->assertSee('kind=movies&amp;vj=vj-junior', false);
+            ->assertSee('kind=movies&amp;vj=vj-junior', false)
+            // Kind views browse BY VJ — the flat grid only exists on
+            // the All view and the single-VJ listing.
+            ->assertDontSee('archive-grid');
     }
 
     public function test_vj_view_lists_only_that_vjs_titles_in_the_term(): void

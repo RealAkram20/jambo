@@ -113,7 +113,10 @@
             </div>
         </div>
 
-        @if ($grid->total())
+        {{-- Kind views carry no grid ($grid is null) — the visitor
+             chose to browse by VJ, so the carousels below are the
+             content and the page must not repeat it as a grid. --}}
+        @if ($grid && $grid->total())
             <div id="archive-grid" class="row row-cols-3 row-cols-md-4 row-cols-lg-6 row-cols-xl-8 g-3 mt-1">
                 @foreach ($grid as $item)
                     @php $isShow = (bool) ($item->_isShow ?? false); @endphp
@@ -141,7 +144,9 @@
                 'paginator'    => $grid,
                 'gridSelector' => '#archive-grid',
             ])
-        @else
+        @elseif ($grid)
+            {{-- Only a present-but-empty grid means the term truly has
+                 nothing; a null grid (kind views) has VJ rows below. --}}
             <div class="text-center py-5 my-4">
                 <i class="ph ph-film-strip text-muted" style="font-size: 56px;"></i>
                 <h5 class="mt-3 mb-2">{{ __('streamTag.no_results') ?? 'Nothing here yet' }}</h5>

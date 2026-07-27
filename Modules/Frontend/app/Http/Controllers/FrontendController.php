@@ -2081,10 +2081,16 @@ class FrontendController extends Controller
             'term'          => $term,
             'kind'          => $kind,
             'vjFilter'      => $vjFilter,
-            // The focused single-VJ listing skips the hero — a banner
-            // of other VJs' titles there would contradict the page.
+            // Hero stays on the All and kind views (narrowed to the
+            // kind); only the focused single-VJ listing skips it.
             'featured'      => $vjFilter ? collect() : $this->featuredForTaxonomy($taxonomy, $term->id, $kind),
-            'grid'          => $this->archiveGrid($taxonomy, $term->id, $kind, $vjFilter),
+            // The poster grid is the catalogue on the All view and the
+            // single-VJ listing. The kind views have no grid — there
+            // the visitor chose to browse BY VJ, so the per-VJ
+            // carousels ARE the content.
+            'grid'          => ($kind === 'all' || $vjFilter)
+                ? $this->archiveGrid($taxonomy, $term->id, $kind, $vjFilter)
+                : null,
             'rowMovies'     => $rowMovies,
             'rowShows'      => $rowShows,
             'movieVjs'      => $movieVjs,
