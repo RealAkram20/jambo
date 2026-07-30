@@ -3,21 +3,27 @@
 namespace Modules\Content\app\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\AdminListContext;
 use App\Support\LocalTime;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Modules\Content\app\Http\Requests\StoreShowRequest;
 use Modules\Content\app\Http\Requests\UpdateShowRequest;
 use Modules\Content\app\Models\Category;
+use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Genre;
 use Modules\Content\app\Models\Person;
+use Modules\Content\app\Models\Season;
 use Modules\Content\app\Models\Show;
 use Modules\Content\app\Models\Tag;
 use Modules\Content\app\Models\Vj;
 use Modules\Content\app\Services\ContentAnnouncer;
+use Modules\Content\app\Services\ContentPlanAssigner;
+use Modules\Subscriptions\app\Support\ContentTiers;
 
 /**
  * Admin CRUD for shows.
@@ -72,6 +78,8 @@ class ShowController extends Controller
             'statusFilter' => $status,
             'sort' => $sort,
             'dir' => $dir,
+            'listQuery' => AdminListContext::remember('series', $request),
+            'tierOptions' => ContentTiers::pickerOptions(),
             'statusCounts' => [
                 'all' => Show::count(),
                 'draft' => Show::where('status', 'draft')->count(),
@@ -81,7 +89,7 @@ class ShowController extends Controller
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
         return view('content::admin.shows.create', [
             'show' => new Show(['status' => 'draft', 'year' => now()->year]),
@@ -95,6 +103,8 @@ class ShowController extends Controller
             'currentCategoryIds' => [],
             'currentTagIds' => [],
             'currentCast' => [],
+            'tierOptions' => ContentTiers::pickerOptions(),
+            'listQuery' => AdminListContext::resolve('series', $request),
         ]);
     }
 
@@ -133,11 +143,11 @@ class ShowController extends Controller
         $this->announcer->announceShow($show);
 
         return redirect()
-            ->route('admin.series.edit', $show)
+            ->route('admin.series.edit', ['show' => $show] + AdminListContext::resolve('series', $request))
             ->with('success', "Show \"{$show->title}\" created.");
     }
 
-    public function edit(Show $show): View
+    public function edit(Request $request, Show $show): View
     {
         $show->load(['genres', 'vjs', 'categories', 'tags', 'cast', 'seasons']);
 
@@ -146,6 +156,8 @@ class ShowController extends Controller
         return view('content::admin.shows.edit', [
             'show' => $show,
             'seasons' => $seasons,
+            'tierOptions' => ContentTiers::pickerOptions(),
+            'listQuery' => AdminListContext::resolve('series', $request),
             'genres' => Genre::orderBy('name')->get(),
             'vjs' => Vj::orderBy('name')->get(),
             'categories' => Category::orderBy('name')->get(),
@@ -210,17 +222,17 @@ class ShowController extends Controller
         $this->announcer->announceShow($show);
 
         return redirect()
-            ->route('admin.series.edit', $show)
+            ->route('admin.series.edit', ['show' => $show] + AdminListContext::resolve('series', $request))
             ->with('success', 'Show saved.');
     }
 
-    public function destroy(Show $show): RedirectResponse
+    public function destroy(Request $request, Show $show): RedirectResponse
     {
         $title = $show->title;
         $show->delete();
 
         return redirect()
-            ->route('admin.series.index')
+            ->route('admin.series.index', AdminListContext::resolve('series', $request))
             ->with('success', "Deleted \"$title\".");
     }
 
@@ -241,8 +253,70 @@ class ShowController extends Controller
         $shows->each(fn (Show $s) => $s->delete());
 
         return redirect()
-            ->route('admin.series.index')
+            ->route('admin.series.index', AdminListContext::resolve('series', $request))
             ->with('success', "Deleted $count series.");
+    }
+
+    /**
+     * Bulk-assign a subscription plan to the selected series, cascading the
+     * same tier down to every episode underneath them.
+     *
+     * The cascade is the point, not a convenience. A series row's
+     * `tier_required` is only half a paywall: episodes carry their own
+     * column, and anything left NULL there reads as free. Writing the tier
+     * to both means the gate holds no matter which route the viewer reaches
+     * — series page, episode page, bare player, or /watch/src passthrough.
+     *
+     * Deliberately overwrites per-episode tiers rather than only filling
+     * NULLs, so "set this series to Premium" means exactly that and can't
+     * leave a stale free episode behind from an earlier plan.
+     */
+    public function bulkTier(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'ids'   => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+            // See MovieController::bulkTier — Free is an explicit sentinel so
+            // an untouched picker can't mass-unlock a set of series.
+            'tier_required' => ['required', 'string', Rule::in(ContentTiers::assignableSlugs())],
+        ]);
+
+        $tier = ContentTiers::normalize($data['tier_required'] ?? null);
+
+        [$showCount, $episodeCount] = DB::transaction(function () use ($data, $tier) {
+            // The selected series go through assign() so each carries an
+            // attributable activity-log entry for the pricing change.
+            $shows = ContentPlanAssigner::assign(
+                Show::whereIn('id', $data['ids'])->get(),
+                $tier
+            );
+
+            // Episodes reach their show through seasons, so resolve the
+            // season ids first — hasManyThrough can't drive an UPDATE. These
+            // are dragged along rather than hand-picked and can number in the
+            // hundreds, so they take the mass-update path.
+            $seasonIds = Season::whereIn('show_id', $data['ids'])->pluck('id');
+
+            $episodes = $seasonIds->isEmpty()
+                ? 0
+                : ContentPlanAssigner::cascade(
+                    Episode::whereIn('season_id', $seasonIds),
+                    $tier
+                );
+
+            return [$shows, $episodes];
+        });
+
+        $plan = ContentTiers::describe($tier);
+        $episodeNote = $episodeCount > 0
+            ? " and $episodeCount episode" . ($episodeCount === 1 ? '' : 's')
+            : '';
+
+        return redirect()
+            ->route('admin.series.index', AdminListContext::resolve('series', $request))
+            ->with('success', $tier
+                ? "$showCount series$episodeNote now require $plan."
+                : "$showCount series$episodeNote set to Free.");
     }
 
     /* -------------------------------------------------------------------- */

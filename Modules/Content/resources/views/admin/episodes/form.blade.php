@@ -50,12 +50,17 @@
         <div class="card mt-4">
             <div class="card-header"><h6 class="mb-0">Access</h6></div>
             <div class="card-body">
-                <label for="tier_required" class="form-label">Required tier</label>
-                <select name="tier_required" id="tier_required" class="form-select">
-                    <option value="">Free (no subscription required)</option>
-                    <option value="basic" @selected(old('tier_required', $episode->tier_required) === 'basic')>Basic</option>
-                    <option value="premium" @selected(old('tier_required', $episode->tier_required) === 'premium')>Premium</option>
-                </select>
+                @include('components.partials.tier-select', [
+                    'current' => $episode->tier_required,
+                    'tierOptions' => $tierOptions,
+                ])
+                @if (!$episode->tier_required && $show->tier_required)
+                    <p class="text-warning mb-0 mt-2" style="font-size:12px;">
+                        <i class="ph ph-warning-circle me-1"></i>
+                        This episode has no plan of its own, so it falls back to the series plan
+                        ({{ \Modules\Subscriptions\app\Support\ContentTiers::label($show->tier_required) }}).
+                    </p>
+                @endif
             </div>
         </div>
     </div>

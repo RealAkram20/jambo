@@ -106,7 +106,7 @@
 </div>
 
 <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
-    <a href="{{ route('admin.persons.index') }}" class="btn btn-ghost">← Back to list</a>
+    <a href="{{ route('admin.persons.index', $listQuery ?? []) }}" class="btn btn-ghost">← Back to list</a>
     <button type="submit" class="btn btn-primary">
         <i class="ph ph-floppy-disk me-1"></i> Save person
     </button>

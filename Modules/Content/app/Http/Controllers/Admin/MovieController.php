@@ -3,12 +3,15 @@
 namespace Modules\Content\app\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\AdminListContext;
 use App\Support\LocalTime;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Modules\Subscriptions\app\Support\ContentTiers;
 use Modules\Content\app\Http\Requests\StoreMovieRequest;
 use Modules\Content\app\Http\Requests\UpdateMovieRequest;
 use Modules\Content\app\Models\Category;
@@ -18,6 +21,7 @@ use Modules\Content\app\Models\Movie;
 use Modules\Content\app\Models\Person;
 use Modules\Content\app\Models\Tag;
 use Modules\Content\app\Services\ContentAnnouncer;
+use Modules\Content\app\Services\ContentPlanAssigner;
 
 /**
  * Admin CRUD for movies.
@@ -73,6 +77,11 @@ class MovieController extends Controller
             'statusFilter' => $status,
             'sort' => $sort,
             'dir' => $dir,
+            // Threaded onto every row's Edit link so the detail page knows
+            // which page/filter to send the admin back to, and stashed in
+            // the session as a fallback for the POST-only actions.
+            'listQuery' => AdminListContext::remember('movies', $request),
+            'tierOptions' => ContentTiers::pickerOptions(),
             'statusCounts' => [
                 'all' => Movie::count(),
                 'draft' => Movie::where('status', 'draft')->count(),
@@ -82,7 +91,7 @@ class MovieController extends Controller
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
         return view('content::admin.movies.create', [
             'movie' => new Movie(['status' => 'draft', 'year' => now()->year]),
@@ -92,6 +101,8 @@ class MovieController extends Controller
             'tags' => Tag::orderBy('name')->get(),
             'persons' => Person::orderBy('last_name')->orderBy('first_name')->get(),
             'currentVjIds' => [],
+            'tierOptions' => ContentTiers::pickerOptions(),
+            'listQuery' => AdminListContext::resolve('movies', $request),
         ]);
     }
 
@@ -143,16 +154,18 @@ class MovieController extends Controller
         $this->announcer->announceMovie($movie);
 
         return redirect()
-            ->route('admin.movies.edit', $movie)
+            ->route('admin.movies.edit', ['movie' => $movie] + AdminListContext::resolve('movies', $request))
             ->with('success', "Movie \"{$movie->title}\" created.");
     }
 
-    public function edit(Movie $movie): View
+    public function edit(Request $request, Movie $movie): View
     {
         $movie->load(['genres', 'vjs', 'categories', 'tags', 'cast']);
 
         return view('content::admin.movies.edit', [
             'movie' => $movie,
+            'tierOptions' => ContentTiers::pickerOptions(),
+            'listQuery' => AdminListContext::resolve('movies', $request),
             'genres' => Genre::orderBy('name')->get(),
             'vjs' => Vj::orderBy('name')->get(),
             'categories' => Category::orderBy('name')->get(),
@@ -227,8 +240,10 @@ class MovieController extends Controller
         // and have we told anyone?", which the announcer owns.
         $this->announcer->announceMovie($movie);
 
+        // Stay on the edit form, but keep the list state in the URL so the
+        // form's "Back to list" still knows which page the admin came from.
         return redirect()
-            ->route('admin.movies.edit', $movie)
+            ->route('admin.movies.edit', ['movie' => $movie] + AdminListContext::resolve('movies', $request))
             ->with('success', 'Movie saved.');
     }
 
@@ -263,13 +278,13 @@ class MovieController extends Controller
         };
     }
 
-    public function destroy(Movie $movie): RedirectResponse
+    public function destroy(Request $request, Movie $movie): RedirectResponse
     {
         $title = $movie->title;
         $movie->delete();
 
         return redirect()
-            ->route('admin.movies.index')
+            ->route('admin.movies.index', AdminListContext::resolve('movies', $request))
             ->with('success', "Deleted \"$title\".");
     }
 
@@ -290,8 +305,48 @@ class MovieController extends Controller
         $movies->each(fn (Movie $m) => $m->delete());
 
         return redirect()
-            ->route('admin.movies.index')
+            ->route('admin.movies.index', AdminListContext::resolve('movies', $request))
             ->with('success', "Deleted $count movie" . ($count === 1 ? '' : 's') . '.');
+    }
+
+    /**
+     * Bulk-assign a subscription plan to the selected movies.
+     *
+     * `tier_required` holds a tier slug and NULL means free — see
+     * ContentTiers, which owns the "level 0 normalises to NULL" rule so a
+     * movie set to Free doesn't end up badged PREMIUM on the frontend.
+     *
+     * Goes through ContentPlanAssigner so the change is attributable: it
+     * saves each selected movie, which stamps `updated_by` and appends a
+     * content_activity_log row. Pricing decisions should show up in the
+     * activity feed like any other edit.
+     */
+    public function bulkTier(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'ids'   => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+            // Required, not nullable: Free posts ContentTiers::FREE, so an
+            // empty value means the picker was never touched and must fail
+            // rather than quietly setting the selection free.
+            'tier_required' => ['required', 'string', Rule::in(ContentTiers::assignableSlugs())],
+        ]);
+
+        $tier = ContentTiers::normalize($data['tier_required'] ?? null);
+
+        $count = ContentPlanAssigner::assign(
+            Movie::whereIn('id', $data['ids'])->get(),
+            $tier
+        );
+
+        $plan = ContentTiers::describe($tier);
+        $noun = $count === 1 ? 'movie' : 'movies';
+
+        return redirect()
+            ->route('admin.movies.index', AdminListContext::resolve('movies', $request))
+            ->with('success', $tier
+                ? "$count $noun now require $plan."
+                : "$count $noun set to Free.");
     }
 
     /* -------------------------------------------------------------------- */

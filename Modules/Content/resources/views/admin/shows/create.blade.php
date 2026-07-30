@@ -10,7 +10,7 @@
                     <h4 class="mb-1">Add series</h4>
                     <p class="text-muted mb-0" style="font-size:13px;">Create a new show and attach genres, categories, tags, and cast.</p>
                 </div>
-                <a href="{{ route('admin.series.index') }}" class="btn btn-ghost">← Back to list</a>
+                <a href="{{ route('admin.series.index', $listQuery ?? []) }}" class="btn btn-ghost">← Back to list</a>
             </div>
 
             @if ($errors->any())

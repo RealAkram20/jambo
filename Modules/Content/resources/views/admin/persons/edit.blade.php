@@ -12,7 +12,7 @@
                         · {{ $person->movies_count }} movies · {{ $person->shows_count }} shows
                     </p>
                 </div>
-                <a href="{{ route('admin.persons.index') }}" class="btn btn-ghost">← Back to list</a>
+                <a href="{{ route('admin.persons.index', $listQuery ?? []) }}" class="btn btn-ghost">← Back to list</a>
             </div>
 
             @if (session('success'))
@@ -30,7 +30,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('admin.persons.update', $person) }}">
+            <form method="POST" action="{{ route('admin.persons.update', ['person' => $person] + ($listQuery ?? [])) }}">
                 @method('PUT')
                 @include('content::admin.persons.form')
             </form>

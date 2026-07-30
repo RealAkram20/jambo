@@ -63,22 +63,35 @@
                     </form>
 
                     {{-- Bulk action bar — hidden until at least one row is checked.
-                         Submission is intercepted by JS so we can route through the
-                         SweetAlert2 confirm before posting to bulk-destroy. --}}
+                         Submissions are intercepted by JS so each action routes
+                         through its own SweetAlert2 confirm. Both forms get the
+                         selected ids mirrored in via data-bulk-ids. --}}
                     <div id="movies-bulk-bar" class="d-none align-items-center justify-content-between gap-3 mb-3 px-3 py-2 rounded"
                          style="background:#0f1422;border:1px solid rgba(255,255,255,.08);">
-                        <span class="text-light" style="font-size:13px;">
+                        <span class="text-light text-nowrap" style="font-size:13px;">
                             <span id="movies-bulk-count">0</span> selected
                         </span>
-                        <form id="movies-bulk-form" method="POST" action="{{ route('admin.movies.bulk-destroy') }}"
-                              data-jambo-confirm="bulk-delete-movies" class="m-0">
-                            @csrf
-                            @method('DELETE')
-                            <div id="movies-bulk-ids"></div>
-                            <button type="submit" class="btn btn-sm btn-danger">
-                                <i class="ph ph-trash-simple me-1"></i> Delete selected
-                            </button>
-                        </form>
+
+                        <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                            @include('components.partials.bulk-plan-form', [
+                                'scope' => 'movies',
+                                'action' => route('admin.movies.bulk-tier'),
+                                'confirmKey' => 'bulk-tier-movies',
+                                'tierOptions' => $tierOptions,
+                            ])
+
+                            <span aria-hidden="true" style="width:1px;height:24px;background:rgba(255,255,255,.12);"></span>
+
+                            <form id="movies-bulk-form" method="POST" action="{{ route('admin.movies.bulk-destroy') }}"
+                                  data-jambo-confirm="bulk-delete-movies" class="m-0">
+                                @csrf
+                                @method('DELETE')
+                                <div id="movies-bulk-ids"></div>
+                                <button type="submit" class="btn btn-sm btn-danger text-nowrap">
+                                    <i class="ph ph-trash-simple me-1"></i> Delete
+                                </button>
+                            </form>
+                        </div>
                     </div>
 
                     <div class="table-responsive">
@@ -94,6 +107,7 @@
                                     <th>Genres</th>
                                     <th>Cast</th>
                                     <th>Status</th>
+                                    <th>Plan</th>
                                     <th>{{ $sort === 'updated' ? 'Updated' : 'Added' }}</th>
                                     <th class="text-end">Actions</th>
                                 </tr>
@@ -118,9 +132,6 @@
                                             @if ($movie->rating)
                                                 <span class="badge bg-secondary" style="font-size:10px;">{{ $movie->rating }}</span>
                                             @endif
-                                            @if ($movie->tier_required)
-                                                <span class="badge bg-primary" style="font-size:10px;">{{ $movie->tier_required }}</span>
-                                            @endif
                                         </td>
                                         <td>{{ $movie->year ?: '—' }}</td>
                                         <td style="max-width:200px;">
@@ -143,10 +154,15 @@
                                                 <span class="badge bg-warning">Draft</span>
                                             @endif
                                         </td>
+                                        <td>
+                                            @include('components.partials.plan-badge', ['slug' => $movie->tier_required])
+                                        </td>
                                         <td style="font-size:12px;color:var(--bs-secondary);">{{ ($sort === 'updated' ? $movie->updated_at : $movie->created_at)?->diffForHumans() }}</td>
                                         <td class="text-end">
                                             <div class="d-inline-flex gap-1">
-                                                <a href="{{ route('admin.movies.edit', $movie) }}" class="btn btn-sm btn-success-subtle" title="Edit">
+                                                {{-- Carries the list's page/filter so the edit page can send
+                                                     the admin back to exactly where they were. --}}
+                                                <a href="{{ route('admin.movies.edit', ['movie' => $movie] + $listQuery) }}" class="btn btn-sm btn-success-subtle" title="Edit">
                                                     <i class="ph ph-pencil-simple"></i>
                                                 </a>
                                                 <form method="POST" action="{{ route('admin.movies.destroy', $movie) }}"
@@ -164,7 +180,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="9" class="text-center py-5 text-muted" style="font-size:14px;">
+                                        <td colspan="10" class="text-center py-5 text-muted" style="font-size:14px;">
                                             No movies yet.
                                             <a href="{{ route('admin.movies.create') }}">Add your first movie →</a>
                                         </td>
@@ -175,8 +191,12 @@
                     </div>
 
                     @if ($movies->hasPages())
-                        <div class="mt-3 d-flex justify-content-center">
+                        <div class="mt-3 d-flex flex-column align-items-center gap-2">
                             {{ $movies->links() }}
+                            <span class="text-muted" style="font-size:12px;">
+                                Showing {{ $movies->firstItem() }}–{{ $movies->lastItem() }}
+                                of {{ $movies->total() }}
+                            </span>
                         </div>
                     @endif
                 </div>

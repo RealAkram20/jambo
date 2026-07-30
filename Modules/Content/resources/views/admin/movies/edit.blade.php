@@ -15,7 +15,10 @@
                         @endif
                     </p>
                 </div>
-                <a href="{{ route('admin.movies.index') }}" class="btn btn-ghost">← Back to list</a>
+                {{-- $listQuery holds the page/filter the admin came from, so
+                     this returns to their place in the catalogue rather than
+                     dumping them on page 1. --}}
+                <a href="{{ route('admin.movies.index', $listQuery ?? []) }}" class="btn btn-ghost">← Back to list</a>
             </div>
 
             @include('content::admin.partials.movie-breadcrumb', ['movie' => $movie])
@@ -35,7 +38,10 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('admin.movies.update', $movie) }}" enctype="multipart/form-data">
+            {{-- List state rides along on the action URL so the post-save
+                 redirect lands back on the right page even if the session
+                 fallback has since been overwritten by another tab. --}}
+            <form method="POST" action="{{ route('admin.movies.update', ['movie' => $movie] + ($listQuery ?? [])) }}" enctype="multipart/form-data">
                 @method('PUT')
                 @include('content::admin.movies.form')
             </form>

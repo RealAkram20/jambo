@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Facades\DB;
 use Modules\Content\app\Models\Concerns\CleansContentMorphsOnDelete;
+use Modules\Content\app\Models\Concerns\HasPlanLabel;
 use Modules\Content\app\Models\Concerns\TracksContentActivity;
 use Modules\Content\database\factories\ShowFactory;
 
@@ -42,6 +43,7 @@ use Modules\Content\database\factories\ShowFactory;
 class Show extends Model
 {
     use HasFactory;
+    use HasPlanLabel;
     use CleansContentMorphsOnDelete;
     use TracksContentActivity;
 

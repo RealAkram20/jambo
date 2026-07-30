@@ -47,6 +47,19 @@ class TierGate
 
         $requiredSlug = $content->tier_required ?? null;
 
+        // Episodes inherit their series' tier when they don't carry one of
+        // their own. The admin Shows form (and the bulk plan action) set
+        // "Premium" on the parent series, so most episode rows leave
+        // tier_required null — and reading the episode alone treated every
+        // one of them as free. FrontendController::userCanWatch() already
+        // did this fallback, so the rich /watch page correctly refused
+        // while /player/episode/{id} and /watch/src/episode/{id} — the
+        // routes this middleware guards — streamed the same file for free.
+        // Same lookup as userCanWatch() so the two can't drift apart.
+        if ($content instanceof Episode && !$requiredSlug) {
+            $requiredSlug = ($content->season?->show ?? $content->show)?->tier_required;
+        }
+
         if (!$requiredSlug) {
             return $next($request);
         }

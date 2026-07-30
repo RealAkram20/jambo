@@ -62,20 +62,35 @@
                         </div>
                     </form>
 
+                    {{-- Bulk action bar — assigning a plan here cascades to every
+                         episode in the selected series, which is what makes the
+                         paywall hold on the episode player routes too. --}}
                     <div id="series-bulk-bar" class="d-none align-items-center justify-content-between gap-3 mb-3 px-3 py-2 rounded"
                          style="background:#0f1422;border:1px solid rgba(255,255,255,.08);">
-                        <span class="text-light" style="font-size:13px;">
+                        <span class="text-light text-nowrap" style="font-size:13px;">
                             <span id="series-bulk-count">0</span> selected
                         </span>
-                        <form id="series-bulk-form" method="POST" action="{{ route('admin.series.bulk-destroy') }}"
-                              data-jambo-confirm="bulk-delete-series" class="m-0">
-                            @csrf
-                            @method('DELETE')
-                            <div id="series-bulk-ids"></div>
-                            <button type="submit" class="btn btn-sm btn-danger">
-                                <i class="ph ph-trash-simple me-1"></i> Delete selected
-                            </button>
-                        </form>
+
+                        <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                            @include('components.partials.bulk-plan-form', [
+                                'scope' => 'series',
+                                'action' => route('admin.series.bulk-tier'),
+                                'confirmKey' => 'bulk-tier-series',
+                                'tierOptions' => $tierOptions,
+                            ])
+
+                            <span aria-hidden="true" style="width:1px;height:24px;background:rgba(255,255,255,.12);"></span>
+
+                            <form id="series-bulk-form" method="POST" action="{{ route('admin.series.bulk-destroy') }}"
+                                  data-jambo-confirm="bulk-delete-series" class="m-0">
+                                @csrf
+                                @method('DELETE')
+                                <div id="series-bulk-ids"></div>
+                                <button type="submit" class="btn btn-sm btn-danger text-nowrap">
+                                    <i class="ph ph-trash-simple me-1"></i> Delete
+                                </button>
+                            </form>
+                        </div>
                     </div>
 
                     <div class="table-responsive">
@@ -92,6 +107,7 @@
                                     <th>Seasons</th>
                                     <th>Cast</th>
                                     <th>Status</th>
+                                    <th>Plan</th>
                                     <th>{{ $sort === 'updated' ? 'Updated' : 'Added' }}</th>
                                     <th class="text-end">Actions</th>
                                 </tr>
@@ -115,9 +131,6 @@
                                             <div class="fw-semibold">{{ $show->title }}</div>
                                             @if ($show->rating)
                                                 <span class="badge bg-secondary" style="font-size:10px;">{{ $show->rating }}</span>
-                                            @endif
-                                            @if ($show->tier_required)
-                                                <span class="badge bg-primary" style="font-size:10px;">{{ $show->tier_required }}</span>
                                             @endif
                                         </td>
                                         <td>{{ $show->year ?: '—' }}</td>
@@ -144,10 +157,13 @@
                                                 <span class="badge bg-warning">Draft</span>
                                             @endif
                                         </td>
+                                        <td>
+                                            @include('components.partials.plan-badge', ['slug' => $show->tier_required])
+                                        </td>
                                         <td style="font-size:12px;color:var(--bs-secondary);">{{ ($sort === 'updated' ? $show->updated_at : $show->created_at)?->diffForHumans() }}</td>
                                         <td class="text-end">
                                             <div class="d-inline-flex gap-1">
-                                                <a href="{{ route('admin.series.edit', $show) }}" class="btn btn-sm btn-success-subtle" title="Edit">
+                                                <a href="{{ route('admin.series.edit', ['show' => $show] + $listQuery) }}" class="btn btn-sm btn-success-subtle" title="Edit">
                                                     <i class="ph ph-pencil-simple"></i>
                                                 </a>
                                                 <form method="POST" action="{{ route('admin.series.destroy', $show) }}"
@@ -165,7 +181,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="10" class="text-center py-5 text-muted" style="font-size:14px;">
+                                        <td colspan="11" class="text-center py-5 text-muted" style="font-size:14px;">
                                             No series yet.
                                             <a href="{{ route('admin.series.create') }}">Add your first series →</a>
                                         </td>
@@ -176,8 +192,12 @@
                     </div>
 
                     @if ($shows->hasPages())
-                        <div class="mt-3 d-flex justify-content-center">
+                        <div class="mt-3 d-flex flex-column align-items-center gap-2">
                             {{ $shows->links() }}
+                            <span class="text-muted" style="font-size:12px;">
+                                Showing {{ $shows->firstItem() }}–{{ $shows->lastItem() }}
+                                of {{ $shows->total() }}
+                            </span>
                         </div>
                     @endif
                 </div>

@@ -121,7 +121,7 @@
             <div class="details-parts">
                 @include('frontend::components.cards.movie-description', [
                     'moveName' => $movie->title,
-                    'movieType' => $movie->tier_required ? strtoupper($movie->tier_required) : 'PG',
+                    'movieType' => $movie->plan_label ? strtoupper($movie->plan_label) : 'PG',
                     'movieDuration' => $movie->runtime_minutes ? floor($movie->runtime_minutes / 60) . 'hr : ' . ($movie->runtime_minutes % 60) . 'mins' : '—',
                     'movieReleased' => $movie->year ?: ($movie->published_at?->format('Y') ?? ''),
                     'movieViews' => number_format($movie->views_count) . ' ' . __('streamTag.views'),

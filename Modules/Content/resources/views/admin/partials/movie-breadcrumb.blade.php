@@ -2,13 +2,15 @@
     Movies breadcrumb.
 
     Props:
-        movie — Movie model or null (null on create)
-        leaf  — optional trailing label (e.g. "Add movie")
+        movie     — Movie model or null (null on create)
+        leaf      — optional trailing label (e.g. "Add movie")
+        listQuery — optional list page/filter state, so the Movies crumb
+                    returns to where the admin was instead of page 1
 --}}
 <nav aria-label="breadcrumb" class="mb-4">
     <ol class="breadcrumb bg-body-tertiary rounded px-3 py-2 mb-0" style="font-size:13px;">
         <li class="breadcrumb-item">
-            <a href="{{ route('admin.movies.index') }}" class="text-decoration-none">
+            <a href="{{ route('admin.movies.index', $listQuery ?? []) }}" class="text-decoration-none">
                 <i class="ph ph-film-strip me-1"></i>Movies
             </a>
         </li>

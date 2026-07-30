@@ -52,7 +52,7 @@
                             'movieRating'  => true,
                             'movieTitle'   => $show->title,
                             'movieRange'   => $show->rating ?: '4.0',
-                            'movieCate'    => $show->tier_required ? strtoupper($show->tier_required) : 'PG',
+                            'movieCate'    => $show->plan_label ? strtoupper($show->plan_label) : 'PG',
                             'NoOfSeasons'  => $show->seasons()->count(),
                             'movieYear'    => $show->year ?: ($show->published_at?->format('F Y') ?? ''),
                             'calenderIcon' => true,

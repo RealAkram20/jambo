@@ -70,12 +70,10 @@
         <div class="card mt-4">
             <div class="card-header"><h6 class="mb-0">Access</h6></div>
             <div class="card-body">
-                <label for="tier_required" class="form-label">Required tier</label>
-                <select name="tier_required" id="tier_required" class="form-select">
-                    <option value="">Free (no subscription required)</option>
-                    <option value="basic" @selected(old('tier_required', $movie->tier_required) === 'basic')>Basic</option>
-                    <option value="premium" @selected(old('tier_required', $movie->tier_required) === 'premium')>Premium</option>
-                </select>
+                @include('components.partials.tier-select', [
+                    'current' => $movie->tier_required,
+                    'tierOptions' => $tierOptions,
+                ])
             </div>
         </div>
 
@@ -220,7 +218,7 @@
 </div>
 
 <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
-    <a href="{{ route('admin.movies.index') }}" class="btn btn-ghost">← Back to list</a>
+    <a href="{{ route('admin.movies.index', $listQuery ?? []) }}" class="btn btn-ghost">← Back to list</a>
     <button type="submit" class="btn btn-primary">
         <i class="ph ph-floppy-disk me-1"></i> Save movie
     </button>

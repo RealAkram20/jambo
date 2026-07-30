@@ -2,15 +2,17 @@
     Series → Season → Episode breadcrumb.
 
     Props:
-        show    — Show model (required)
-        season  — Season model or null
-        episode — Episode model or null
-        leaf    — optional extra trailing label (e.g. "Add season")
+        show      — Show model (required)
+        season    — Season model or null
+        episode   — Episode model or null
+        leaf      — optional extra trailing label (e.g. "Add season")
+        listQuery — optional list page/filter state, so the Series crumb
+                    returns to where the admin was instead of page 1
 --}}
 <nav aria-label="breadcrumb" class="mb-4">
     <ol class="breadcrumb bg-body-tertiary rounded px-3 py-2 mb-0" style="font-size:13px;">
         <li class="breadcrumb-item">
-            <a href="{{ route('admin.series.index') }}" class="text-decoration-none">
+            <a href="{{ route('admin.series.index', $listQuery ?? []) }}" class="text-decoration-none">
                 <i class="ph ph-television-simple me-1"></i>Series
             </a>
         </li>

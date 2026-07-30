@@ -46,8 +46,8 @@
                                                     <img src="{{ asset('frontend/images/pages/imdb-logo.svg') }}" alt="imdb logo" class="img-fluid imdb-img">
                                                 </span>
                                             @endif
-                                            @if ($movie->tier_required)
-                                                <span class="badge rounded-2 text-white bg-secondary font-size-12">{{ strtoupper($movie->tier_required) }}</span>
+                                            @if ($movie->plan_label)
+                                                <span class="badge rounded-2 text-white bg-secondary font-size-12">{{ strtoupper($movie->plan_label) }}</span>
                                             @endif
                                             @if ($movie->runtime_minutes)
                                                 <div class="d-flex align-items-center gap-1">

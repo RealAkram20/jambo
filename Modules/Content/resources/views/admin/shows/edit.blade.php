@@ -15,7 +15,7 @@
                         @endif
                     </p>
                 </div>
-                <a href="{{ route('admin.series.index') }}" class="btn btn-ghost">← Back to list</a>
+                <a href="{{ route('admin.series.index', $listQuery ?? []) }}" class="btn btn-ghost">← Back to list</a>
             </div>
 
             @include('content::admin.partials.series-breadcrumb', ['show' => $show, 'season' => null, 'episode' => null])
@@ -35,7 +35,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('admin.series.update', $show) }}">
+            <form method="POST" action="{{ route('admin.series.update', ['show' => $show] + ($listQuery ?? [])) }}">
                 @method('PUT')
                 @include('content::admin.shows.form')
             </form>

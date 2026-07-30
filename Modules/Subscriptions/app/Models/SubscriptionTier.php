@@ -5,6 +5,7 @@ namespace Modules\Subscriptions\app\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Subscriptions\app\Support\ContentTiers;
 
 /**
  * @property int $id
@@ -62,6 +63,18 @@ class SubscriptionTier extends Model
         self::PERIOD_MONTHLY,
         self::PERIOD_YEARLY,
     ];
+
+    /**
+     * ContentTiers memoises this table for the life of a request, so any
+     * write has to invalidate it — otherwise an admin who renames a plan or
+     * flips it inactive keeps seeing the old row for the rest of the
+     * request, and a queue worker would serve a stale table indefinitely.
+     */
+    protected static function booted(): void
+    {
+        static::saved(fn () => ContentTiers::flush());
+        static::deleted(fn () => ContentTiers::flush());
+    }
 
     public function userSubscriptions(): HasMany
     {

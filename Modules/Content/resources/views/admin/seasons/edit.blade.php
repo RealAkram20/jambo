@@ -1,4 +1,7 @@
-@extends('layouts.app', ['module_title' => 'Edit Season'])
+{{-- isSweetalert loads the confirm dialog used by the episodes bulk plan
+     action. Without it the helper falls back to a native confirm(), which
+     works but looks nothing like the rest of the admin. --}}
+@extends('layouts.app', ['module_title' => 'Edit Season', 'isSweetalert' => true])
 
 @section('content')
 <div class="container-fluid">
@@ -40,6 +43,8 @@
         </div>
     </div>
 </div>
+
+@include('components.partials.admin-bulk-confirm')
 
 {{-- Same live-refresh behaviour as the movies list: reload on Back
      so a stale browser snapshot can't hide newly-finished

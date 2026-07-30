@@ -29,7 +29,7 @@
                             'movieRating' => true,
                             'movieTitle' => $movie->title,
                             'movieRange' => $movie->rating ?: '4.0',
-                            'movieCate' => $movie->tier_required ? strtoupper($movie->tier_required) : 'PG',
+                            'movieCate' => $movie->plan_label ? strtoupper($movie->plan_label) : 'PG',
                             'movieTime' => $movie->runtime_minutes ? floor($movie->runtime_minutes / 60) . 'hr : ' . ($movie->runtime_minutes % 60) . 'm' : '1hr : 45m',
                             'movieYear' => $movie->year ?: ($movie->published_at?->format('F Y') ?? ''),
                             'calenderIcon' => true,

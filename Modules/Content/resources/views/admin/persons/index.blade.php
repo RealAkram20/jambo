@@ -82,7 +82,7 @@
                                         <td><span class="badge bg-info-subtle text-info-emphasis">{{ $person->shows_count }}</span></td>
                                         <td class="text-end">
                                             <div class="d-inline-flex gap-1">
-                                                <a href="{{ route('admin.persons.edit', $person) }}" class="btn btn-sm btn-success-subtle" title="Edit">
+                                                <a href="{{ route('admin.persons.edit', ['person' => $person] + $listQuery) }}" class="btn btn-sm btn-success-subtle" title="Edit">
                                                     <i class="ph ph-pencil-simple"></i>
                                                 </a>
                                                 <form method="POST" action="{{ route('admin.persons.destroy', $person) }}" class="d-inline" onsubmit="return confirm('Delete {{ trim($person->first_name . ' ' . $person->last_name) }}? This removes them from every movie and show credit.');">

@@ -48,6 +48,15 @@ Route::middleware(['auth', 'role:admin'])
         Route::delete('series/bulk', [ShowController::class, 'bulkDestroy'])
             ->name('series.bulk-destroy');
 
+        // Bulk plan assignment — sets `tier_required` on a selected set so
+        // the catalogue can be monetised without opening 40 edit forms.
+        // PATCH (not DELETE) and registered here for the same reason as the
+        // bulk-delete routes above: it must beat {movie}/{show} to the match.
+        Route::patch('movies/bulk-tier', [MovieController::class, 'bulkTier'])
+            ->name('movies.bulk-tier');
+        Route::patch('series/bulk-tier', [ShowController::class, 'bulkTier'])
+            ->name('series.bulk-tier');
+
         Route::resource('movies', MovieController::class);
 
         // Series (Shows) — slug-based; Seasons scoped by number under each
@@ -61,6 +70,14 @@ Route::middleware(['auth', 'role:admin'])
             ->parameters(['series' => 'show'])
             ->scoped(['season' => 'number'])
             ->except(['show']);
+
+        // Bulk plan assignment for one season's episodes. Registered before
+        // the episodes resource so `episodes/bulk-tier` isn't matched as
+        // episodes/{episode:number}. scopeBindings keeps {season} resolved
+        // within {show}, exactly like the resource below.
+        Route::patch('series/{show:slug}/seasons/{season:number}/episodes/bulk-tier', [EpisodeController::class, 'bulkTier'])
+            ->scopeBindings()
+            ->name('series.seasons.episodes.bulk-tier');
 
         Route::resource('series.seasons.episodes', EpisodeController::class)
             ->parameters(['series' => 'show'])

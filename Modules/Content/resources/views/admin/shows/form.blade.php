@@ -65,12 +65,15 @@
             <div class="card-header"><h6 class="mb-0">Streaming</h6></div>
             <div class="card-body">
                 <div class="mb-3">
-                    <label for="tier_required" class="form-label">Required tier</label>
-                    <select name="tier_required" id="tier_required" class="form-select">
-                        <option value="">Free (no subscription required)</option>
-                        <option value="basic" @selected(old('tier_required', $show->tier_required) === 'basic')>Basic</option>
-                        <option value="premium" @selected(old('tier_required', $show->tier_required) === 'premium')>Premium</option>
-                    </select>
+                    @include('components.partials.tier-select', [
+                        'current' => $show->tier_required,
+                        'tierOptions' => $tierOptions,
+                    ])
+                    <p class="text-muted mb-0 mt-2" style="font-size:12px;">
+                        Saving this form sets the plan on the series row only. To gate the
+                        episodes as well, use <strong>Apply plan</strong> on the series list —
+                        it cascades to every episode.
+                    </p>
                 </div>
             </div>
         </div>
@@ -212,7 +215,7 @@
 </div>
 
 <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
-    <a href="{{ route('admin.series.index') }}" class="btn btn-ghost">← Back to list</a>
+    <a href="{{ route('admin.series.index', $listQuery ?? []) }}" class="btn btn-ghost">← Back to list</a>
     <button type="submit" class="btn btn-primary">
         <i class="ph ph-floppy-disk me-1"></i> Save series
     </button>

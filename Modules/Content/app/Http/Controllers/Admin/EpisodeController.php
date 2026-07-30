@@ -11,8 +11,11 @@ use Modules\Content\app\Http\Requests\StoreEpisodeRequest;
 use Modules\Content\app\Http\Requests\UpdateEpisodeRequest;
 use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Season;
+use Illuminate\Validation\Rule;
 use Modules\Content\app\Models\Show;
 use Modules\Content\app\Services\ContentAnnouncer;
+use Modules\Content\app\Services\ContentPlanAssigner;
+use Modules\Subscriptions\app\Support\ContentTiers;
 
 /**
  * Admin CRUD for episodes (nested under Series → Season).
@@ -34,7 +37,11 @@ class EpisodeController extends Controller
             'episode' => new Episode([
                 'season_id' => $season->id,
                 'number' => ($season->episodes()->max('number') ?? 0) + 1,
+                // Inherit the series' plan so a new episode of a premium show
+                // isn't born free and quietly punch a hole in the paywall.
+                'tier_required' => $show->tier_required,
             ]),
+            'tierOptions' => ContentTiers::pickerOptions(),
         ]);
     }
 
@@ -84,6 +91,7 @@ class EpisodeController extends Controller
             'episode' => $episode,
             'season' => $season,
             'show' => $show,
+            'tierOptions' => ContentTiers::pickerOptions(),
         ]);
     }
 
@@ -130,6 +138,44 @@ class EpisodeController extends Controller
         return redirect()
             ->route('admin.series.seasons.episodes.edit', [$show, $season, $episode])
             ->with('success', 'Episode saved.');
+    }
+
+    /**
+     * Bulk-assign a subscription plan to selected episodes of one season.
+     *
+     * Per-episode granularity matters because a season isn't always uniform:
+     * a free pilot to hook viewers, or the back half of a run moved to
+     * Premium. The series-level bulk action overwrites the whole run, so this
+     * is how an admin sets individual episodes without opening each form.
+     *
+     * The update is constrained to episodes that actually belong to $season
+     * rather than trusting the posted ids — otherwise a crafted request could
+     * repricing any episode in the catalogue through this endpoint.
+     */
+    public function bulkTier(Request $request, Show $show, Season $season): RedirectResponse
+    {
+        $data = $request->validate([
+            'ids'   => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+            'tier_required' => ['required', 'string', Rule::in(ContentTiers::assignableSlugs())],
+        ]);
+
+        $tier = ContentTiers::normalize($data['tier_required']);
+
+        $episodes = Episode::where('season_id', $season->id)
+            ->whereIn('id', $data['ids'])
+            ->get();
+
+        $count = ContentPlanAssigner::assign($episodes, $tier);
+
+        $plan = ContentTiers::describe($tier);
+        $noun = 'episode' . ($count === 1 ? '' : 's');
+
+        return redirect()
+            ->route('admin.series.seasons.edit', [$show, $season])
+            ->with('success', $tier
+                ? "$count $noun now require $plan."
+                : "$count $noun set to Free.");
     }
 
     /**

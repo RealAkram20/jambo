@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Modules\Content\app\Models\Concerns\CleansContentMorphsOnDelete;
+use Modules\Content\app\Models\Concerns\HasPlanLabel;
 use Modules\Content\app\Models\Concerns\HasStreamSource;
 use Modules\Content\app\Models\Concerns\TracksContentActivity;
 use Modules\Content\database\factories\EpisodeFactory;
@@ -41,6 +42,7 @@ class Episode extends Model
 {
     use HasFactory;
     use HasStreamSource;
+    use HasPlanLabel;
     use CleansContentMorphsOnDelete;
     use TracksContentActivity;
 

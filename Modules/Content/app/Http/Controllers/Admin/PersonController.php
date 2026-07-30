@@ -3,6 +3,7 @@
 namespace Modules\Content\app\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\AdminListContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -45,13 +46,15 @@ class PersonController extends Controller
             'persons' => $persons,
             'search' => $search,
             'totalCount' => Person::count(),
+            'listQuery' => AdminListContext::remember('persons', $request),
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
         return view('content::admin.persons.create', [
             'person' => new Person(),
+            'listQuery' => AdminListContext::resolve('persons', $request),
         ]);
     }
 
@@ -75,13 +78,14 @@ class PersonController extends Controller
             ->with('success', "Added \"{$person->first_name} {$person->last_name}\".");
     }
 
-    public function edit(Person $person): View
+    public function edit(Request $request, Person $person): View
     {
         $person->loadCount(['movies', 'shows']);
         $person->load(['movies:id,title', 'shows:id,title']);
 
         return view('content::admin.persons.edit', [
             'person' => $person,
+            'listQuery' => AdminListContext::resolve('persons', $request),
         ]);
     }
 
@@ -109,17 +113,17 @@ class PersonController extends Controller
         $person->save();
 
         return redirect()
-            ->route('admin.persons.edit', $person)
+            ->route('admin.persons.edit', ['person' => $person] + AdminListContext::resolve('persons', $request))
             ->with('success', 'Person saved.');
     }
 
-    public function destroy(Person $person): RedirectResponse
+    public function destroy(Request $request, Person $person): RedirectResponse
     {
         $label = trim($person->first_name . ' ' . $person->last_name);
         $person->delete();
 
         return redirect()
-            ->route('admin.persons.index')
+            ->route('admin.persons.index', AdminListContext::resolve('persons', $request))
             ->with('success', "Deleted \"$label\".");
     }
 

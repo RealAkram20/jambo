@@ -77,7 +77,7 @@
                             'movieRating'  => true,
                             'movieTitle'   => $item->title,
                             'movieRange'   => $item->rating ?: '4.0',
-                            'movieCate'    => $item->tier_required ? strtoupper($item->tier_required) : 'PG',
+                            'movieCate'    => $item->plan_label ? strtoupper($item->plan_label) : 'PG',
                             'movieTime'    => (! $isShow && $item->runtime_minutes)
                                 ? floor($item->runtime_minutes / 60) . 'hr : ' . ($item->runtime_minutes % 60) . 'm'
                                 : ($isShow ? null : '1hr : 45m'),

@@ -24,7 +24,7 @@
                                 'movieRating' => true,
                                 'movieTitle' => $item->title,
                                 'movieRange' => $item->rating ?: '—',
-                                'movieCate' => $item->tier_required ? strtoupper($item->tier_required) : 'PG',
+                                'movieCate' => $item->plan_label ? strtoupper($item->plan_label) : 'PG',
                                 'movieTime' => $heroReleaseLabel,
                                 'movieYear' => $item->year ?: ($item->published_at?->format('F Y') ?? ''),
                                 'calenderIcon' => true,

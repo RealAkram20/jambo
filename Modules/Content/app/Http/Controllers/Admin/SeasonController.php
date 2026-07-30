@@ -10,6 +10,7 @@ use Modules\Content\app\Http\Requests\UpdateSeasonRequest;
 use Modules\Content\app\Models\Season;
 use Modules\Content\app\Models\Show;
 use Modules\Content\app\Services\ContentAnnouncer;
+use Modules\Subscriptions\app\Support\ContentTiers;
 
 /**
  * Admin CRUD for seasons (nested under a Series).
@@ -66,6 +67,8 @@ class SeasonController extends Controller
             'season' => $season,
             'show' => $show,
             'episodes' => $season->episodes,
+            // Feeds the episodes list's bulk plan picker.
+            'tierOptions' => ContentTiers::pickerOptions(),
         ]);
     }
 
