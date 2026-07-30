@@ -242,6 +242,7 @@ class DatabaseBackup
         $exe = $isWindows ? "$shortName.exe" : $shortName;
 
         $candidates = $isWindows ? [
+            "D:\\xampp\\mysql\\bin\\$exe",
             "C:\\xampp\\mysql\\bin\\$exe",
             "C:\\wamp64\\bin\\mysql\\mysql8.0\\bin\\$exe",
             "C:\\wamp\\bin\\mysql\\mysql8.0\\bin\\$exe",

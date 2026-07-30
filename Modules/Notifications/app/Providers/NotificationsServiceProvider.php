@@ -91,6 +91,8 @@ class NotificationsServiceProvider extends ServiceProvider
         }
 
         foreach ([
+            'D:/xampp/php/extras/openssl/openssl.cnf',
+            'D:/xampp/apache/conf/openssl.cnf',
             'C:/xampp/php/extras/openssl/openssl.cnf',
             'C:/xampp/apache/conf/openssl.cnf',
         ] as $candidate) {
