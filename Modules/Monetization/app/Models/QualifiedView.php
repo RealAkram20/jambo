@@ -5,10 +5,13 @@ namespace Modules\Monetization\app\Models;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Append-only earning facts. Application code inserts via
- * insertOrIgnore and never mutates rows — the saving/deleting guards
- * turn accidental writes into loud failures instead of silent
- * financial corruption.
+ * Earning facts, one per (viewer, title, month). Under the hybrid
+ * accrual model minutes GROW as the paid viewer watches (topped up to
+ * the full runtime at completion), so three accrual columns are
+ * mutable: minutes_credited (monotonically increasing), completed_at
+ * (stamped once), last_credited_at. Every identity column is frozen
+ * and rows can never be deleted — the guards below turn accidental
+ * writes into loud failures instead of silent financial corruption.
  *
  * @property int $id
  * @property ?int $user_id
@@ -18,6 +21,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Illuminate\Support\Carbon $period_month
  * @property int $minutes_credited
  * @property \Illuminate\Support\Carbon $qualified_at
+ * @property ?\Illuminate\Support\Carbon $completed_at
+ * @property ?\Illuminate\Support\Carbon $last_credited_at
  */
 class QualifiedView extends Model
 {
@@ -30,16 +35,27 @@ class QualifiedView extends Model
     protected $casts = [
         'period_month' => 'date',
         'qualified_at' => 'datetime',
+        'completed_at' => 'datetime',
+        'last_credited_at' => 'datetime',
     ];
+
+    /** The only columns the accrual path may change after insert. */
+    private const MUTABLE = ['minutes_credited', 'completed_at', 'last_credited_at'];
 
     protected static function booted(): void
     {
-        static::updating(function () {
-            throw new \LogicException('qualified_views rows are append-only.');
+        static::updating(function (QualifiedView $view) {
+            if (array_diff(array_keys($view->getDirty()), self::MUTABLE)) {
+                throw new \LogicException('qualified_views identity columns are immutable.');
+            }
+            if ($view->isDirty('minutes_credited')
+                && (int) $view->minutes_credited < (int) $view->getOriginal('minutes_credited')) {
+                throw new \LogicException('qualified_views minutes can only increase.');
+            }
         });
 
         static::deleting(function () {
-            throw new \LogicException('qualified_views rows are append-only.');
+            throw new \LogicException('qualified_views rows can never be deleted.');
         });
     }
 }

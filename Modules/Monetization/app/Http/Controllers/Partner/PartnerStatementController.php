@@ -65,13 +65,13 @@ class PartnerStatementController extends PartnerBaseController
             ->where('period_month', $month->toDateString())
             ->whereNull('show_id')
             ->groupBy('watchable_type', 'watchable_id')
-            ->selectRaw("CONCAT(watchable_type, '#', watchable_id) as k, SUM(minutes_credited) as minutes, COUNT(*) as views")
+            ->selectRaw("CONCAT(watchable_type, '#', watchable_id) as k, SUM(minutes_credited) as minutes, COUNT(*) as views, SUM(CASE WHEN completed_at IS NOT NULL THEN 1 ELSE 0 END) as completions")
             ->get()->keyBy('k');
         $showStats = QualifiedView::query()
             ->where('period_month', $month->toDateString())
             ->whereNotNull('show_id')
             ->groupBy('show_id')
-            ->selectRaw('show_id, SUM(minutes_credited) as minutes, COUNT(*) as views')
+            ->selectRaw('show_id, SUM(minutes_credited) as minutes, COUNT(*) as views, SUM(CASE WHEN completed_at IS NOT NULL THEN 1 ELSE 0 END) as completions')
             ->get()->keyBy('show_id');
 
         $rows = $partner->splits()->with('splittable')->get()->map(function ($split) use ($movieStats, $showStats) {
@@ -89,6 +89,7 @@ class PartnerStatementController extends PartnerBaseController
                 'exists' => $split->splittable !== null,
                 'percent' => (float) $split->percent,
                 'qualified_views' => (int) ($stat->views ?? 0),
+                'completions' => (int) ($stat->completions ?? 0),
                 'minutes' => $minutes,
                 'your_minutes' => round($minutes * ((float) $split->percent / 100), 1),
             ];

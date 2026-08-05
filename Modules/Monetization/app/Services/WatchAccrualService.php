@@ -22,7 +22,12 @@ use Modules\Subscriptions\app\Models\UserSubscription;
  *    beat (max 45s ≈ 3 heartbeats) — replaying beats or seeking to the
  *    end can't mint watch-time faster than real time passes.
  *  - Paused players credit nothing (position must advance).
- *  - Qualification requires an ACTIVE PAID subscription at that moment,
+ *  - HYBRID ACCRUAL: actual watched minutes credit continuously for
+ *    eligible viewers; crossing the completion threshold (default 70%,
+ *    i.e. "reached the credit words") tops the credit up to the full
+ *    runtime. Partial watching earns its real minutes; completion
+ *    earns the whole film.
+ *  - Crediting requires an ACTIVE PAID subscription at that moment,
  *    is denied to the title's own split-partners (self-farming), and is
  *    capped per user per day (a looping account plateaus).
  *  - Free titles mint minutes only when `free_content_earns` is on, and
@@ -70,9 +75,9 @@ class WatchAccrualService
             'period_month' => $now->copy()->startOfMonth()->toDateString(),
         ]);
 
-        if ($row->exists && $row->qualified) {
-            // Already earned this month — keep the row fresh but skip
-            // all further math.
+        if ($row->exists && $row->qualified && $row->completed_at !== null) {
+            // Fully settled this month — completed AND topped up to the
+            // full runtime. Keep the row fresh but skip all further math.
             $row->forceFill([
                 'last_position_seconds' => $beat->position,
                 'last_beat_at' => $now,
@@ -103,13 +108,19 @@ class WatchAccrualService
             'ip' => $beat->ip,
         ])->save();
 
+        // Completion marker: crossing the qualify threshold means the
+        // viewer effectively finished the film (the remaining tail is
+        // credit words — which is exactly why the threshold exists).
+        // Stamped for stats regardless of payment eligibility: a free
+        // viewer's completion is still a completion.
         $thresholdSeconds = (int) ceil($runtimeSeconds * MonetizationSettings::qualifyThresholdPercent() / 100);
-        if ($row->seconds_watched < $thresholdSeconds) {
-            return;
+        $completedNow = $row->seconds_watched >= $thresholdSeconds;
+        if ($completedNow && $row->completed_at === null) {
+            $row->forceFill(['completed_at' => $now])->save();
         }
 
         // Free titles only mint payable minutes when the program says
-        // they do. Checked BEFORE qualify() so a free title under an
+        // they do. Checked BEFORE credit() so a free title under a
         // "premium catalogue only" deal never touches the daily cap —
         // otherwise free viewing would eat the budget that a partner's
         // premium titles are supposed to spend.
@@ -122,7 +133,7 @@ class WatchAccrualService
             return;
         }
 
-        $this->qualify($beat, $row, $runtimeMinutes);
+        $this->credit($beat, $row, $runtimeMinutes, $completedNow);
     }
 
     /** A title with no tier_required sits on the free shelf. */
@@ -132,11 +143,45 @@ class WatchAccrualService
     }
 
     /**
-     * Threshold crossed this month — decide whether it becomes a
-     * payable fact. Runs at most once per (user, title, month).
+     * Hybrid accrual: actual watched minutes credit continuously for
+     * eligible viewers; crossing the completion threshold tops the
+     * credit up to the FULL runtime (closing during the credit words
+     * still pays the whole film, and a completed view stays worth
+     * more than an abandoned one).
+     *
+     * The eligibility queries below run only when there is at least
+     * one new whole minute to credit — i.e. at most ~once per minute
+     * per viewer, not on every 15s heartbeat.
      */
-    protected function qualify(PlaybackBeat $beat, WatchProgressMonthly $row, int $runtimeMinutes): void
+    protected function credit(PlaybackBeat $beat, WatchProgressMonthly $row, int $runtimeMinutes, bool $completedNow): void
     {
+        // Payable target so far: watched whole minutes, topped up to
+        // the full runtime at completion. Never exceeds the runtime —
+        // the runtime bound plus the (user, title, month) unique key
+        // is the double-pay protection.
+        $targetMinutes = $completedNow
+            ? $runtimeMinutes
+            : min(intdiv((int) $row->seconds_watched, 60), $runtimeMinutes);
+
+        if ($targetMinutes <= 0) {
+            return;
+        }
+
+        $view = QualifiedView::query()
+            ->where('user_id', $beat->userId)
+            ->where('watchable_type', $beat->item->getMorphClass())
+            ->where('watchable_id', $beat->item->getKey())
+            ->where('period_month', $row->period_month->toDateString())
+            ->first();
+
+        $already = $view ? (int) $view->minutes_credited : 0;
+        $delta = $targetMinutes - $already;
+        $needsCompletionStamp = $completedNow && (!$view || $view->completed_at === null);
+
+        if ($delta <= 0 && !$needsCompletionStamp) {
+            return; // nothing new this beat — the common hot-path exit
+        }
+
         // 1. Active PAID subscription right now (access_level >= 1;
         //    the free tier is level 0 and free users never pay out).
         $subscription = UserSubscription::query()
@@ -159,39 +204,65 @@ class WatchAccrualService
         }
 
         // 3. Daily sanity cap: even a genuine binge plateaus, and a
-        //    24/7 looping account stops minting minutes.
-        $creditedToday = (int) QualifiedView::query()
-            ->where('user_id', $beat->userId)
-            ->where('qualified_at', '>=', now()->startOfDay())
-            ->sum('minutes_credited');
+        //    24/7 looping account stops minting minutes. Conservative
+        //    on purpose: rows touched today count with their WHOLE
+        //    month-to-date minutes, so the cap can only trip early,
+        //    never late. A capped viewer resumes crediting tomorrow.
+        if ($delta > 0) {
+            $creditedToday = (int) QualifiedView::query()
+                ->where('user_id', $beat->userId)
+                ->where('last_credited_at', '>=', now()->startOfDay())
+                ->sum('minutes_credited');
 
-        if ($creditedToday + $runtimeMinutes > MonetizationSettings::dailyMinutesCap()) {
-            Log::notice('Monetization: daily minutes cap hit, view not credited', [
-                'user_id' => $beat->userId,
-                'watchable' => $beat->item->getMorphClass().'#'.$beat->item->getKey(),
-                'credited_today' => $creditedToday,
-            ]);
+            if ($creditedToday + $delta > MonetizationSettings::dailyMinutesCap()) {
+                Log::notice('Monetization: daily minutes cap hit, credit deferred', [
+                    'user_id' => $beat->userId,
+                    'watchable' => $beat->item->getMorphClass().'#'.$beat->item->getKey(),
+                    'credited_today' => $creditedToday,
+                ]);
 
-            return;
+                return;
+            }
         }
 
-        // insertOrIgnore: the unique (user, title, month) key absorbs
-        // concurrent double-beats and replays as silent no-ops.
-        QualifiedView::query()->insertOrIgnore([
-            'user_id' => $beat->userId,
-            'watchable_type' => $beat->item->getMorphClass(),
-            'watchable_id' => $beat->item->getKey(),
-            'show_id' => $showId,
-            'period_month' => $row->period_month->toDateString(),
-            'minutes_credited' => $runtimeMinutes,
-            'runtime_minutes_snapshot' => $runtimeMinutes,
-            'content_was_free' => self::isFreeContent($beat->item),
-            'user_subscription_id' => $subscription->id,
-            'session_id' => $beat->sessionId,
-            'ip' => $beat->ip,
-            'qualified_at' => now(),
-            'created_at' => now(),
-        ]);
+        $now = now();
+        if (!$view) {
+            // insertOrIgnore: the unique (user, title, month) key
+            // absorbs concurrent double-beats and replays. If we lost
+            // the race, re-read and fall through to the update path so
+            // the winner's row still reaches the right minute count.
+            QualifiedView::query()->insertOrIgnore([
+                'user_id' => $beat->userId,
+                'watchable_type' => $beat->item->getMorphClass(),
+                'watchable_id' => $beat->item->getKey(),
+                'show_id' => $showId,
+                'period_month' => $row->period_month->toDateString(),
+                'minutes_credited' => $targetMinutes,
+                'runtime_minutes_snapshot' => $runtimeMinutes,
+                'content_was_free' => self::isFreeContent($beat->item),
+                'user_subscription_id' => $subscription->id,
+                'session_id' => $beat->sessionId,
+                'ip' => $beat->ip,
+                'qualified_at' => $now,
+                'completed_at' => $completedNow ? $now : null,
+                'last_credited_at' => $now,
+                'created_at' => $now,
+            ]);
+            $view = QualifiedView::query()
+                ->where('user_id', $beat->userId)
+                ->where('watchable_type', $beat->item->getMorphClass())
+                ->where('watchable_id', $beat->item->getKey())
+                ->where('period_month', $row->period_month->toDateString())
+                ->first();
+        }
+
+        if ($view && ((int) $view->minutes_credited < $targetMinutes || ($completedNow && $view->completed_at === null))) {
+            $view->forceFill([
+                'minutes_credited' => max((int) $view->minutes_credited, $targetMinutes),
+                'completed_at' => $view->completed_at ?? ($completedNow ? $now : null),
+                'last_credited_at' => $now,
+            ])->save();
+        }
 
         $row->forceFill(['qualified' => true])->save();
     }

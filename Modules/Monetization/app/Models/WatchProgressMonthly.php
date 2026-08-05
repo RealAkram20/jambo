@@ -26,12 +26,13 @@ class WatchProgressMonthly extends Model
     protected $fillable = [
         'user_id', 'watchable_type', 'watchable_id', 'period_month',
         'seconds_watched', 'last_position_seconds', 'last_beat_at',
-        'qualified', 'session_id', 'ip',
+        'qualified', 'completed_at', 'session_id', 'ip',
     ];
 
     protected $casts = [
         'period_month' => 'date',
         'last_beat_at' => 'datetime',
         'qualified' => 'bool',
+        'completed_at' => 'datetime',
     ];
 }

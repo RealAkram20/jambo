@@ -8,7 +8,8 @@
                 <th>Title</th>
                 <th>Type</th>
                 <th>Your split</th>
-                <th>Qualified views</th>
+                <th>Viewers</th>
+                <th>Completed</th>
                 <th>Total minutes</th>
                 <th class="text-end">Your minutes</th>
                 <th class="text-end">Actions</th>
@@ -25,6 +26,12 @@
                     </td>
                     <td><code>{{ $row['percent'] }}%</code></td>
                     <td>{{ number_format($row['qualified_views']) }}</td>
+                    <td>
+                        {{ number_format($row['completions'] ?? 0) }}
+                        @if (($row['qualified_views'] ?? 0) > 0)
+                            <span class="text-muted" style="font-size:11px;">({{ round(100 * ($row['completions'] ?? 0) / $row['qualified_views']) }}%)</span>
+                        @endif
+                    </td>
                     <td>{{ number_format($row['minutes'], 0) }}</td>
                     <td class="text-end fw-bold">{{ number_format($row['your_minutes'], 1) }}</td>
                     <td class="text-end">
@@ -60,7 +67,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="7" class="text-center py-5 text-muted">No titles match — try a different search or tab.</td></tr>
+                <tr><td colspan="8" class="text-center py-5 text-muted">No titles match — try a different search or tab.</td></tr>
             @endforelse
         </tbody>
     </table>
