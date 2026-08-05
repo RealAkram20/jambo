@@ -228,12 +228,28 @@ class PerformanceController extends Controller
      * "how much is left on their account" number a payout request is
      * checked against. One grouped query, sorted richest first.
      *
+     * Scoped to STAFF wallets only. The universal ledger also holds
+     * ordinary members' referral-reward wallets under the same User
+     * owner type; without the role filter they all appear here, and
+     * this card is about staff performance pay, not the referral
+     * program (that has its own admin pages — and the full picture
+     * lives in Finance → All Wallets).
+     *
      * @return list<array{user:?User, balance:float}>
      */
     private function adminBalances(string $currency): array
     {
+        // Same role set PerformanceCredits pays — a finance-only user
+        // never earns performance credit, and listing them here would
+        // surface their referral-reward balance on a staff-pay card.
+        $staffIds = User::whereHas('roles', fn ($q) => $q
+                ->whereIn('name', ['admin', 'super-admin'])
+                ->where('guard_name', 'web'))
+            ->pluck('id');
+
         $sums = \Modules\Wallet\app\Models\LedgerEntry::query()
             ->where('owner_type', (new User())->getMorphClass())
+            ->whereIn('owner_id', $staffIds)
             ->where('currency', $currency)
             ->groupBy('owner_id')
             ->selectRaw('owner_id, SUM(amount) as balance')

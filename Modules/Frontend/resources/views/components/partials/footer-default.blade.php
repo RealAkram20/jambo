@@ -29,19 +29,39 @@
                         if ($emailLabel !== ''    && !str_ends_with($emailLabel, ':'))    $emailLabel    .= ':';
                         if ($helplineLabel !== '' && !str_ends_with($helplineLabel, ':')) $helplineLabel .= ':';
                     @endphp
+                    @php
+                        // Support numbers live in Admin → Settings → General
+                        // (support_phone / support_whatsapp) so they can be
+                        // changed without touching the footer page editor.
+                        // The old footer-meta helpline_phone remains as a
+                        // fallback for installs that never saved the setting.
+                        $supportPhone    = trim((string) (setting('support_phone') ?: ($contact['helpline_phone'] ?? '')));
+                        $supportWhatsapp = trim((string) setting('support_whatsapp'));
+                    @endphp
                     @if ($emailLabel !== '' || !empty($contact['email_address']))
                         <div class="mb-3">
                             {{ $emailLabel }}
                             @if (!empty($contact['email_address']))
-                                <span class="text-white">{{ $contact['email_address'] }}</span>
+                                <a href="mailto:{{ $contact['email_address'] }}" class="text-white">{{ $contact['email_address'] }}</a>
                             @endif
                         </div>
                     @endif
                     @if ($helplineLabel !== '')
                         <p class="mt-0 mb-2">{{ $helplineLabel }}</p>
                     @endif
-                    @if (!empty($contact['helpline_phone']))
-                        <a href="tel:{{ preg_replace('/[^0-9+]/', '', $contact['helpline_phone']) }}" class="helpline">{{ $contact['helpline_phone'] }}</a>
+                    @if ($supportPhone !== '')
+                        <a href="tel:{{ preg_replace('/[^0-9+]/', '', $supportPhone) }}" class="helpline">
+                            <i class="ph ph-phone-call me-1" aria-hidden="true"></i>{{ $supportPhone }}
+                        </a>
+                    @endif
+                    @if ($supportWhatsapp !== '')
+                        <p class="mt-3 mb-2">WhatsApp:</p>
+                        {{-- wa.me wants digits only (country code, no "+"). --}}
+                        <a href="https://wa.me/{{ preg_replace('/\D/', '', $supportWhatsapp) }}"
+                           target="_blank" rel="noopener" class="helpline"
+                           aria-label="Chat with us on WhatsApp">
+                            <i class="ph ph-whatsapp-logo me-1" aria-hidden="true" style="color:#25D366;"></i>{{ $supportWhatsapp }}
+                        </a>
                     @endif
                 </div>
 

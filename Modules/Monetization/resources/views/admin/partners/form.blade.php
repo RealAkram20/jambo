@@ -59,12 +59,26 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Linked VJ (catalog credit)</label>
-                                <select name="vj_id" class="form-select">
+                                <select name="vj_id" class="form-select" id="vj_id">
                                     <option value="">— none —</option>
                                     @foreach ($vjs as $vj)
                                         <option value="{{ $vj->id }}" @selected((int) old('vj_id', $partner->vj_id) === $vj->id)>{{ $vj->name }}</option>
                                     @endforeach
                                 </select>
+                                <small class="text-muted">
+                                    On save, a title split is attached for every movie/show credited to this VJ.
+                                </small>
+                            </div>
+                            {{-- Preview of what linking this VJ attaches. Filled
+                                 by JS from the vj-titles endpoint on select. --}}
+                            <div class="col-12" id="vj-titles-panel" hidden>
+                                <div class="border rounded p-3" style="background:rgba(255,255,255,0.02);">
+                                    <div class="d-flex align-items-center gap-2 mb-2">
+                                        <i class="ph ph-film-strip"></i>
+                                        <strong id="vj-titles-summary" style="font-size:13px;"></strong>
+                                    </div>
+                                    <div id="vj-titles-list" class="d-flex flex-wrap gap-2" style="max-height:160px;overflow-y:auto;"></div>
+                                </div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Multiplier</label>
@@ -180,6 +194,53 @@
     document.addEventListener('click', function (e) {
         if (!results.contains(e.target) && e.target !== input) hideResults();
     });
+})();
+
+// ---- VJ titles preview -------------------------------------------------
+(function () {
+    var select  = document.getElementById('vj_id');
+    var panel   = document.getElementById('vj-titles-panel');
+    var summary = document.getElementById('vj-titles-summary');
+    var list    = document.getElementById('vj-titles-list');
+    var titlesUrl = @json(route('admin.monetization.partners.vj-titles'));
+    if (!select || !panel) return;
+
+    function chip(text, kind) {
+        var el = document.createElement('span');
+        el.className = 'badge ' + (kind === 'show' ? 'bg-info-subtle text-info-emphasis' : 'bg-primary-subtle text-primary-emphasis');
+        el.style.fontWeight = '500';
+        el.textContent = text;
+        return el;
+    }
+
+    function loadTitles() {
+        var vjId = select.value;
+        if (!vjId) { panel.hidden = true; return; }
+
+        summary.textContent = 'Loading…';
+        list.innerHTML = '';
+        panel.hidden = false;
+
+        fetch(titlesUrl + '?vj_id=' + encodeURIComponent(vjId), { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.ok ? r.json() : { movies: [], shows: [] }; })
+            .then(function (data) {
+                var m = data.movies.length, s = data.shows.length;
+                if (!m && !s) {
+                    summary.textContent = 'This VJ has no credited movies or shows yet — nothing to attach. Credit titles to the VJ first.';
+                    return;
+                }
+                summary.textContent = m + ' movie' + (m === 1 ? '' : 's')
+                    + (s ? ' and ' + s + ' show' + (s === 1 ? '' : 's') : '')
+                    + ' will get a title split on save:';
+                data.movies.forEach(function (t) { list.appendChild(chip(t.title, 'movie')); });
+                data.shows.forEach(function (t) { list.appendChild(chip(t.title + ' (series)', 'show')); });
+            })
+            .catch(function () { summary.textContent = 'Could not load this VJ’s titles.'; });
+    }
+
+    select.addEventListener('change', loadTitles);
+    // Edit form / failed-validation resubmit arrives with a VJ selected.
+    if (select.value) loadTitles();
 })();
 </script>
 @endsection

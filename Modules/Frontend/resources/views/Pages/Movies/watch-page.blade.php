@@ -46,7 +46,11 @@
          public/frontend/css/player.css; the module script below registers
          the custom elements (<video-player>, <media-*>). --}}
     <link rel="stylesheet" href="{{ versioned_asset('frontend/css/player.css') }}">
-    <script type="module" src="https://cdn.jsdelivr.net/npm/@videojs/html/cdn/video-minimal-ui.js"></script>
+    {{-- Self-hosted @videojs/html 10.0.0-beta.25 (see vendor/videojs-html).
+         Was the unversioned jsDelivr URL, which silently rolled to each
+         new beta and broke the skin when beta.26 shipped. Chunk imports
+         are relative, so they resolve within the vendor dir. --}}
+    <script type="module" src="{{ versioned_asset('frontend/vendor/videojs-html/video-minimal-ui.js') }}"></script>
     <script src="{{ versioned_asset('frontend/js/jambo-settings-menu.js') }}" defer></script>
     <script src="{{ versioned_asset('frontend/js/jambo-player-gestures.js') }}" defer></script>
 

@@ -4,6 +4,7 @@ namespace Modules\Payments\app\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
@@ -52,9 +53,14 @@ class PaymentSettingsController extends Controller
     /**
      * Dedicated Orders list. Filters: status, gateway, date range,
      * and a free-text search that matches merchant_reference,
-     * order_tracking_id, or confirmation_code. Paginated 20 per page.
+     * order_tracking_id, confirmation_code, or the customer (name,
+     * username, email, phone). Paginated 20 per page.
+     *
+     * AJAX requests (the live search on the page) get JSON with the
+     * re-rendered table fragment + fresh status counts instead of the
+     * full page.
      */
-    public function orders(Request $request): View
+    public function orders(Request $request): View|JsonResponse
     {
         $query = PaymentOrder::query()
             ->with(['user:id,username,first_name,last_name,email'])
@@ -72,22 +78,49 @@ class PaymentSettingsController extends Controller
         if ($to = $request->query('to')) {
             $query->whereDate('created_at', '<=', $to);
         }
-        if ($search = trim((string) $request->query('q', ''))) {
-            $query->where(function ($q) use ($search) {
+        // Support agents get "help, my payment didn't go through" with
+        // a name, not a reference — so the same box also matches the
+        // customer. The order's own customer_* snapshot columns cover
+        // manual / guest orders with no user_id; the user relation
+        // covers accounts whose details changed since the order was
+        // placed. CONCAT lets "john richards" hit first+last across
+        // the space. A named closure so the status-count query below
+        // can apply the identical filter.
+        $search = trim((string) $request->query('q', ''));
+        $applySearch = function ($q) use ($search) {
+            $q->where(function ($q) use ($search) {
                 $q->where('merchant_reference', 'like', "%$search%")
                     ->orWhere('order_tracking_id', 'like', "%$search%")
-                    ->orWhere('confirmation_code', 'like', "%$search%");
+                    ->orWhere('confirmation_code', 'like', "%$search%")
+                    ->orWhere('customer_name', 'like', "%$search%")
+                    ->orWhere('customer_email', 'like', "%$search%")
+                    ->orWhere('customer_username', 'like', "%$search%")
+                    ->orWhereHas('user', function ($u) use ($search) {
+                        $u->where('first_name', 'like', "%$search%")
+                            ->orWhere('last_name', 'like', "%$search%")
+                            ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%$search%"])
+                            ->orWhere('username', 'like', "%$search%")
+                            ->orWhere('email', 'like', "%$search%")
+                            ->orWhere('phone', 'like', "%$search%");
+                    });
             });
+        };
+        if ($search !== '') {
+            $applySearch($query);
         }
 
         $orders = $query->paginate(20)->withQueryString();
 
-        // Status counts for the filter tabs. Scoped to the current
-        // filter's date range so "pending: 12" matches what the table
-        // shows, not a different window.
+        // Status counts for the filter tabs. Scoped to everything
+        // EXCEPT status (date range, gateway, search) so the numbers
+        // always describe the rows the table is actually showing —
+        // the AJAX live search re-renders these on every keystroke,
+        // which makes any mismatch immediately visible.
         $baseCountQuery = PaymentOrder::query();
         if ($from) $baseCountQuery->whereDate('created_at', '>=', $from);
         if ($to)   $baseCountQuery->whereDate('created_at', '<=', $to);
+        if ($gateway) $baseCountQuery->where('payment_gateway', $gateway);
+        if ($search !== '') $applySearch($baseCountQuery);
         $statusCounts = [
             'all' => (clone $baseCountQuery)->count(),
             'pending' => (clone $baseCountQuery)->where('status', 'pending')->count(),
@@ -95,6 +128,13 @@ class PaymentSettingsController extends Controller
             'failed' => (clone $baseCountQuery)->where('status', 'failed')->count(),
             'cancelled' => (clone $baseCountQuery)->where('status', 'cancelled')->count(),
         ];
+
+        if ($request->ajax()) {
+            return response()->json([
+                'table' => view('payments::admin.partials.orders-table', ['orders' => $orders])->render(),
+                'counts' => $statusCounts,
+            ]);
+        }
 
         return view('payments::admin.orders', [
             'orders' => $orders,

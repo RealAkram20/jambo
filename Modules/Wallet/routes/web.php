@@ -18,6 +18,20 @@ Route::middleware(['auth', 'role:admin|finance|super-admin'])
     ->get('admin/wallet', [\Modules\Wallet\app\Http\Controllers\Admin\MyWalletController::class, 'index'])
     ->name('admin.wallet.index');
 
+// Central wallet oversight: every wallet (staff, members, partner
+// profiles) with a per-wallet bank-statement view. Read-only — the
+// only write paths into the ledger remain the domain flows.
+Route::middleware(['auth', 'role:finance|super-admin'])
+    ->prefix('admin/wallets')
+    ->name('admin.wallet.wallets.')
+    ->group(function () {
+        Route::get('/', [\Modules\Wallet\app\Http\Controllers\Admin\WalletsController::class, 'index'])->name('index');
+        Route::get('{ownerType}/{ownerId}', [\Modules\Wallet\app\Http\Controllers\Admin\WalletsController::class, 'show'])
+            ->whereIn('ownerType', ['user', 'partner'])
+            ->whereNumber('ownerId')
+            ->name('show');
+    });
+
 Route::middleware(['auth', 'role:finance|super-admin'])
     ->prefix('admin/wallet/withdrawals')
     ->name('admin.wallet.withdrawals.')

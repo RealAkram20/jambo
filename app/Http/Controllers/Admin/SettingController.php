@@ -30,10 +30,19 @@ class SettingController extends Controller
         $data = $request->validate([
             'app_name'         => ['required', 'string', 'max:120'],
             'meta_description' => ['nullable', 'string', 'max:500'],
+            // Footer support contacts. Loose format ("+(256) 780-311-158")
+            // is fine — the footer strips to digits for the tel:/wa.me
+            // hrefs and shows the pretty version as typed.
+            'support_phone'    => ['nullable', 'string', 'max:40'],
+            'support_whatsapp' => ['nullable', 'string', 'max:40'],
+            'episode_layout_default' => ['nullable', 'in:scroller,grid'],
         ]);
 
         Setting::set('app_name', $data['app_name']);
         Setting::set('meta_description', $data['meta_description'] ?? '');
+        Setting::set('support_phone', trim($data['support_phone'] ?? ''));
+        Setting::set('support_whatsapp', trim($data['support_whatsapp'] ?? ''));
+        Setting::set('episode_layout_default', $data['episode_layout_default'] ?? 'scroller');
         Setting::flushCache();
 
         return redirect()->route('admin.settings.index')

@@ -14,7 +14,7 @@
     {{-- Jambo minimal player assets — mirror /watch and /episode so
          the in-page player behaves identically here. --}}
     <link rel="stylesheet" href="{{ versioned_asset('frontend/css/player.css') }}">
-    <script type="module" src="https://cdn.jsdelivr.net/npm/@videojs/html/cdn/video-minimal-ui.js"></script>
+    <script type="module" src="{{ versioned_asset('frontend/vendor/videojs-html/video-minimal-ui.js') }}"></script>
     <script src="{{ versioned_asset('frontend/js/jambo-settings-menu.js') }}" defer></script>
     <script src="{{ versioned_asset('frontend/js/jambo-player-gestures.js') }}" defer></script>
 

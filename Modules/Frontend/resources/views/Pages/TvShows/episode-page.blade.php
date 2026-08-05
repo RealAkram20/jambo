@@ -87,13 +87,18 @@
     $nextEpUrl   = $nextEpisode     ? $nextEpisode->frontendUrl()     : null;
     $prevEpLabel = $epLabel($previousEpisode);
     $nextEpLabel = $epLabel($nextEpisode);
+
+    // Site-wide default for the Episodes section layout, set in
+    // Admin → Settings → General. A viewer's own toggle choice
+    // (localStorage) overrides it client-side.
+    $epDefaultLayout = setting('episode_layout_default', 'scroller') === 'grid' ? 'grid' : 'scroller';
 @endphp
 
 @section('content')
 
 @if ($source)
     <link rel="stylesheet" href="{{ versioned_asset('frontend/css/player.css') }}">
-    <script type="module" src="https://cdn.jsdelivr.net/npm/@videojs/html/cdn/video-minimal-ui.js"></script>
+    <script type="module" src="{{ versioned_asset('frontend/vendor/videojs-html/video-minimal-ui.js') }}"></script>
     <script src="{{ versioned_asset('frontend/js/jambo-settings-menu.js') }}" defer></script>
     <script src="{{ versioned_asset('frontend/js/jambo-player-gestures.js') }}" defer></script>
 
@@ -176,6 +181,24 @@
             <div class="show-episode section-padding">
                 <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
                     <h5 class="main-title text-capitalize mb-0 fw-medium">{{ __('header.episodes') }}</h5>
+                    {{-- Layout switch: card scroller vs compact number grid.
+                         The grid exists for long seasons (90+ episodes) where
+                         swiping a carousel to reach EP 67 is hopeless.
+                         Site-wide default comes from Admin → Settings →
+                         General (episode_layout_default); a viewer's own
+                         toggle choice persists in localStorage and wins. --}}
+                    <div class="btn-group jambo-ep-layout-toggle" role="group" aria-label="Episode layout">
+                        <button type="button" class="btn btn-sm {{ $epDefaultLayout === 'scroller' ? 'active' : '' }}"
+                                data-ep-layout="scroller" title="Card view"
+                                aria-pressed="{{ $epDefaultLayout === 'scroller' ? 'true' : 'false' }}">
+                            <i class="ph ph-cards"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm {{ $epDefaultLayout === 'grid' ? 'active' : '' }}"
+                                data-ep-layout="grid" title="Grid view (all episodes)"
+                                aria-pressed="{{ $epDefaultLayout === 'grid' ? 'true' : 'false' }}">
+                            <i class="ph ph-squares-four"></i>
+                        </button>
+                    </div>
                 </div>
                 <ul class="nav nav-pills custom-tab-slider episode-nav-btn gap-3 mb-4 pb-2" role="tablist">
                     @foreach ($seasons as $s)
@@ -208,27 +231,45 @@
                             }
                         @endphp
                         <div id="season-{{ $s->number }}" class="tab-pane animated fadeInUp {{ $s->id === $season->id ? 'active show' : '' }}" role="tabpanel">
-                            <div class="card-style-slider">
-                                <div class="position-relative swiper swiper-card mt-4 mb-5 overflow-hidden" data-slide="5"
-                                    data-laptop="5" data-tab="3" data-mobile="2" data-mobile-sm="2"
-                                    data-autoplay="false" data-loop="false">
-                                    <div class="p-0 swiper-wrapper m-0 list-inline">
-                                        @foreach ($sEpisodes as $ep)
-                                            <div class="swiper-slide {{ $ep->id === $episode->id ? 'is-playing' : '' }}">
-                                                @include('frontend::components.cards.episode-card', [
-                                                    'episodePath' => $ep->frontendUrl($show),
-                                                    'showImg' => $ep->still_url ?: 'media/episode/s1e1-the-buddha.webp',
-                                                    'id' => $ep->id,
-                                                    'episodeNumber' => 'S' . str_pad($s->number, 2, '0', STR_PAD_LEFT) . 'E' . str_pad($ep->number, 2, '0', STR_PAD_LEFT),
-                                                    'episodTitle' => $ep->title,
-                                                    'episodeTitlesText' => $ep->title,
-                                                    'episodeDetailText' => $ep->synopsis ?: '',
-                                                    'episodTime' => $ep->runtime_minutes ? $ep->runtime_minutes . 'm' : '—',
-                                                ])
-                                            </div>
-                                        @endforeach
+                            <div class="jambo-ep-scroller" @if ($epDefaultLayout === 'grid') hidden @endif>
+                                <div class="card-style-slider">
+                                    <div class="position-relative swiper swiper-card mt-4 mb-5 overflow-hidden" data-slide="5"
+                                        data-laptop="5" data-tab="3" data-mobile="2" data-mobile-sm="2"
+                                        data-autoplay="false" data-loop="false">
+                                        <div class="p-0 swiper-wrapper m-0 list-inline">
+                                            @foreach ($sEpisodes as $ep)
+                                                <div class="swiper-slide {{ $ep->id === $episode->id ? 'is-playing' : '' }}">
+                                                    @include('frontend::components.cards.episode-card', [
+                                                        'episodePath' => $ep->frontendUrl($show),
+                                                        'showImg' => $ep->still_url ?: 'media/episode/s1e1-the-buddha.webp',
+                                                        'id' => $ep->id,
+                                                        'episodeNumber' => 'S' . str_pad($s->number, 2, '0', STR_PAD_LEFT) . 'E' . str_pad($ep->number, 2, '0', STR_PAD_LEFT),
+                                                        'episodTitle' => $ep->title,
+                                                        'episodeTitlesText' => $ep->title,
+                                                        'episodeDetailText' => $ep->synopsis ?: '',
+                                                        'episodTime' => $ep->runtime_minutes ? $ep->runtime_minutes . 'm' : '—',
+                                                    ])
+                                                </div>
+                                            @endforeach
+                                        </div>
                                     </div>
                                 </div>
+                            </div>
+                            {{-- Compact number grid — natural 1→N order (no
+                                 rotation: the grid is for jumping straight to
+                                 a specific episode number). --}}
+                            <div class="jambo-ep-grid mt-4 mb-5" @if ($epDefaultLayout !== 'grid') hidden @endif>
+                                @foreach ($s->episodes->sortBy('number')->values() as $ep)
+                                    <a href="{{ $ep->frontendUrl($show) }}"
+                                       class="jambo-ep-grid__item {{ $ep->id === $episode->id ? 'is-playing' : '' }}"
+                                       title="S{{ str_pad($s->number, 2, '0', STR_PAD_LEFT) }}E{{ str_pad($ep->number, 2, '0', STR_PAD_LEFT) }}{{ $ep->title ? ': ' . $ep->title : '' }}">
+                                        @if ($ep->id === $episode->id)
+                                            <i class="ph-fill ph-play-circle jambo-ep-grid__playing" aria-hidden="true"></i>
+                                        @endif
+                                        <span class="jambo-ep-grid__label">EP</span>
+                                        <span class="jambo-ep-grid__num">{{ str_pad($ep->number, 2, '0', STR_PAD_LEFT) }}</span>
+                                    </a>
+                                @endforeach
                             </div>
                         </div>
                     @endforeach
@@ -303,6 +344,124 @@
         @endif
     </div>
 </div>
+
+{{-- Episode layout toggle: card scroller vs compact number grid.
+     Inlined (like the footer's scoped CSS) so deploys don't need a
+     Vite rebuild to pick up changes. --}}
+<style>
+    .jambo-ep-layout-toggle .btn {
+        color: rgba(255, 255, 255, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: transparent;
+        font-size: 17px;
+        line-height: 1;
+        padding: 7px 12px;
+    }
+    .jambo-ep-layout-toggle .btn.active {
+        color: #fff;
+        background: var(--bs-primary);
+        border-color: var(--bs-primary);
+    }
+    .jambo-ep-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+        gap: 12px;
+    }
+    .jambo-ep-grid__item {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        padding: 14px 6px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.02);
+        color: #fff;
+        text-decoration: none;
+        transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+    }
+    .jambo-ep-grid__item:hover,
+    .jambo-ep-grid__item:focus {
+        color: #fff;
+        border-color: var(--bs-primary);
+        background: rgba(255, 255, 255, 0.06);
+        transform: translateY(-2px);
+    }
+    .jambo-ep-grid__item.is-playing {
+        background: var(--bs-primary);
+        border-color: var(--bs-primary);
+    }
+    .jambo-ep-grid__label {
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        color: var(--bs-primary);
+        font-weight: 600;
+    }
+    .jambo-ep-grid__item.is-playing .jambo-ep-grid__label { color: rgba(255, 255, 255, 0.85); }
+    .jambo-ep-grid__num {
+        font-size: 20px;
+        font-weight: 700;
+        line-height: 1.1;
+    }
+    .jambo-ep-grid__playing {
+        position: absolute;
+        top: 6px;
+        left: 8px;
+        font-size: 18px;
+    }
+</style>
+<script>
+(function () {
+    var KEY = 'jambo.episodeLayout';
+    var serverDefault = @json($epDefaultLayout ?? 'scroller');
+    var buttons = document.querySelectorAll('[data-ep-layout]');
+    if (!buttons.length) return;
+
+    function apply(layout) {
+        document.querySelectorAll('.jambo-ep-scroller').forEach(function (el) {
+            el.hidden = layout === 'grid';
+        });
+        document.querySelectorAll('.jambo-ep-grid').forEach(function (el) {
+            el.hidden = layout !== 'grid';
+        });
+        buttons.forEach(function (btn) {
+            var on = btn.dataset.epLayout === layout;
+            btn.classList.toggle('active', on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        // Swiper measures 0 while hidden; poke it after re-showing.
+        if (layout !== 'grid') window.dispatchEvent(new Event('resize'));
+    }
+
+    buttons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var layout = btn.dataset.epLayout;
+            try { localStorage.setItem(KEY, layout); } catch (e) {}
+            apply(layout);
+            // With 90+ episodes the playing one can sit way below the
+            // fold of the grid — nudge it into view on switch. Never on
+            // page load: that would scroll the viewer away from the
+            // player they came to watch.
+            if (layout === 'grid') {
+                var playing = document.querySelector('.tab-pane.active .jambo-ep-grid__item.is-playing');
+                if (playing && playing.scrollIntoView) {
+                    playing.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                }
+            }
+        });
+    });
+
+    // The admin-chosen default is already server-rendered (no flash).
+    // A viewer's own explicit choice, saved on a previous page, wins.
+    var saved = null;
+    try { saved = localStorage.getItem(KEY); } catch (e) {}
+    if ((saved === 'grid' || saved === 'scroller') && saved !== serverDefault) {
+        apply(saved);
+    }
+})();
+</script>
 
 {{-- Reviews & ratings — attached to the parent show, rendered here
      (not on the series detail page) so viewers can rate right after

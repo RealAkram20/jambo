@@ -678,6 +678,22 @@
                 </a>
             </li>
         @endrole
+        {{-- Central wallet oversight: every wallet on the platform
+             (staff, members, partners) with per-wallet statements. --}}
+        @if (Route::has('admin.wallet.wallets.index'))
+            @role('finance|super-admin')
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('admin.wallet.wallets.*') ? 'active' : '' }}"
+                        href="{{ route('admin.wallet.wallets.index') }}">
+                        <i class="icon" data-bs-toggle="tooltip" title="All Wallets" data-bs-placement="right"
+                            aria-label="All Wallets" data-bs-original-title="All Wallets">
+                            <i class="ph ph-bank fs-4"></i>
+                        </i>
+                        <span class="item-name">All Wallets</span>
+                    </a>
+                </li>
+            @endrole
+        @endif
         {{-- The signed-in staff member's own universal wallet:
              performance + referral earnings on one balance. --}}
         @if (Route::has('admin.wallet.index'))

@@ -76,6 +76,26 @@ class PartnerAdminController extends Controller
         );
     }
 
+    /**
+     * Titles credited to a VJ — fed to the preview panel on the
+     * partner form so the admin can see what the enrollment will
+     * attach splits for before saving.
+     */
+    public function vjTitles(Request $request)
+    {
+        $vj = Vj::find($request->integer('vj_id'));
+        if (!$vj) {
+            return response()->json(['movies' => [], 'shows' => []]);
+        }
+
+        return response()->json([
+            'movies' => $vj->movies()->orderBy('title')->get(['movies.id', 'movies.title'])
+                ->map(fn ($m) => ['id' => $m->id, 'title' => $m->title]),
+            'shows' => $vj->shows()->orderBy('title')->get(['shows.id', 'shows.title'])
+                ->map(fn ($s) => ['id' => $s->id, 'title' => $s->title]),
+        ]);
+    }
+
     public function create()
     {
         return view('monetization::admin.partners.form', [
@@ -99,9 +119,17 @@ class PartnerAdminController extends Controller
             'type', 'user_id', 'vj_id', 'display_name', 'status', 'multiplier',
         ])]);
 
+        // A VJ-linked partner earns nothing until their credited titles
+        // carry TitleSplit rows — attach them right away instead of
+        // relying on someone finding the manual sync button later.
+        $attached = $partner->vj_id
+            ? app(\Modules\Monetization\app\Services\VjTitleSplits::class)->attachAllForPartner($partner)
+            : 0;
+
         return redirect()
             ->route('admin.monetization.partners.show', $partner)
-            ->with('success', "Partner “{$partner->display_name}” enrolled.");
+            ->with('success', "Partner “{$partner->display_name}” enrolled."
+                . ($attached > 0 ? " {$attached} title split" . ($attached === 1 ? '' : 's') . ' attached.' : ''));
     }
 
     public function show(MonetizationPartner $partner)
@@ -148,9 +176,22 @@ class PartnerAdminController extends Controller
         $before = $partner->only($auditFields);
         $previousUserId = $partner->user_id;
 
+        $previousVjId = $partner->vj_id;
+
         $partner->update($data);
 
         $this->syncPartnerRole($previousUserId, $partner->user_id);
+
+        // VJ link added or changed → wire up the new catalogue.
+        // attachAllForPartner is idempotent, so re-linking the same VJ
+        // or overlapping catalogues never duplicates splits. Int-cast
+        // both sides: the request value arrives as a string and vj_id
+        // has no model cast, so a strict !== would see "5" !== 5 and
+        // re-sync on EVERY save — resurrecting splits an admin
+        // deliberately deleted on the Splits page.
+        if ($partner->vj_id && (int) $partner->vj_id !== (int) $previousVjId) {
+            app(\Modules\Monetization\app\Services\VjTitleSplits::class)->attachAllForPartner($partner);
+        }
 
         AuditLogger::logDiff(
             $data['status'] === MonetizationPartner::STATUS_SUSPENDED && $before['status'] !== $data['status']

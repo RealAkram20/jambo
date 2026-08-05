@@ -51,6 +51,7 @@ Route::middleware(['auth', 'role:admin', 'role:finance|super-admin', 'monetizati
             // Must register before the finance group's partners/{partner}
             // so "user-search" isn't captured as a model-bound id.
             Route::get('partners/user-search', [PartnerAdminController::class, 'userSearch'])->name('partners.user-search');
+            Route::get('partners/vj-titles', [PartnerAdminController::class, 'vjTitles'])->name('partners.vj-titles');
             Route::get('partners/create', [PartnerAdminController::class, 'create'])->name('partners.create');
             Route::post('partners', [PartnerAdminController::class, 'store'])->name('partners.store');
             Route::get('partners/{partner}/edit', [PartnerAdminController::class, 'edit'])->name('partners.edit');

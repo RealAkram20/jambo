@@ -1,0 +1,2 @@
+import{M as e,N as t,s as n,t as r}from"./create-player-D4yKg_dh.js";import{l as i}from"./constants-Bnj-5J6p.js";const{ProviderMixin:a}=r({features:n});var o=class extends a(t){static{this.tagName=`video-player`}};i(o),i(e);export{o as t};
+//# sourceMappingURL=player-CXUY45x3.js.map

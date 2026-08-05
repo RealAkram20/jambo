@@ -349,6 +349,48 @@
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="support_phone">
+                                    <i class="ph ph-phone-call me-1"></i> Helpline / Call number
+                                </label>
+                                <input type="text" name="support_phone" id="support_phone"
+                                    class="form-control @error('support_phone') is-invalid @enderror"
+                                    value="{{ old('support_phone', setting('support_phone')) }}"
+                                    placeholder="+(256) 780-311-158">
+                                <div class="form-text">Shown in the site footer as a clickable call link.</div>
+                                @error('support_phone')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="support_whatsapp">
+                                    <i class="ph ph-whatsapp-logo me-1"></i> WhatsApp number
+                                </label>
+                                <input type="text" name="support_whatsapp" id="support_whatsapp"
+                                    class="form-control @error('support_whatsapp') is-invalid @enderror"
+                                    value="{{ old('support_whatsapp', setting('support_whatsapp')) }}"
+                                    placeholder="+256 702349736">
+                                <div class="form-text">Shown in the site footer; opens a WhatsApp chat when clicked.</div>
+                                @error('support_whatsapp')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="episode_layout_default">
+                                    <i class="ph ph-squares-four me-1"></i> Default episode layout
+                                </label>
+                                <select name="episode_layout_default" id="episode_layout_default"
+                                        class="form-select @error('episode_layout_default') is-invalid @enderror">
+                                    <option value="scroller" @selected(old('episode_layout_default', setting('episode_layout_default', 'scroller')) === 'scroller')>Card scroller</option>
+                                    <option value="grid" @selected(old('episode_layout_default', setting('episode_layout_default', 'scroller')) === 'grid')>Number grid</option>
+                                </select>
+                                <div class="form-text">
+                                    Layout the episode page opens with. Viewers who use the on-page toggle keep their own choice.
+                                </div>
+                                @error('episode_layout_default')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
                             <div class="col-md-12">
                                 <label class="form-label" for="meta_description">Meta Description</label>
                                 <textarea name="meta_description" id="meta_description" rows="3"

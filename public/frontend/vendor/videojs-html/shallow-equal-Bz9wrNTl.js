@@ -1,0 +1,2 @@
+function e(){return`WebKitPlaybackTargetAvailabilityEvent`in globalThis}function t(t){return e()&&`webkitCurrentPlaybackTargetIsWireless`in t}const n=Object.prototype.hasOwnProperty;function r(e,t){if(Object.is(e,t))return!0;if(typeof e!=`object`||!e||typeof t!=`object`||!t)return!1;let r=Object.keys(e),i=Object.keys(t);if(r.length!==i.length)return!1;for(let i of r)if(!n.call(t,i)||!Object.is(e[i],t[i]))return!1;return!0}export{t as n,e as r,r as t};
+//# sourceMappingURL=shallow-equal-Bz9wrNTl.js.map
