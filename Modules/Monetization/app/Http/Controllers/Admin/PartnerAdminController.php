@@ -132,13 +132,50 @@ class PartnerAdminController extends Controller
                 . ($attached > 0 ? " {$attached} title split" . ($attached === 1 ? '' : 's') . ' attached.' : ''));
     }
 
-    public function show(MonetizationPartner $partner)
+    public function show(Request $request, MonetizationPartner $partner)
     {
-        $partner->load(['user:id,username,email', 'vj:id,name', 'splits.splittable']);
+        $partner->load(['user:id,username,email', 'vj:id,name']);
+
+        // Title splits: tabbed (movies/series), searchable, paginated —
+        // a real VJ catalogue is hundreds of rows, far too many to
+        // render flat. AJAX requests get just the re-rendered table.
+        $movieClass = \Modules\Content\app\Models\Movie::class;
+        $showClass = \Modules\Content\app\Models\Show::class;
+
+        $q = trim((string) $request->query('q', ''));
+        $base = \Modules\Monetization\app\Models\TitleSplit::query()->where('partner_id', $partner->id);
+        if ($q !== '') {
+            $base->whereHasMorph('splittable', [$movieClass, $showClass],
+                fn ($m) => $m->where('title', 'like', "%$q%"));
+        }
+
+        $counts = [
+            'all' => (clone $base)->count(),
+            'movie' => (clone $base)->where('splittable_type', (new $movieClass)->getMorphClass())->count(),
+            'show' => (clone $base)->where('splittable_type', (new $showClass)->getMorphClass())->count(),
+        ];
+
+        $type = in_array($request->query('type'), ['movie', 'show'], true) ? $request->query('type') : '';
+        if ($type !== '') {
+            $morph = $type === 'movie' ? (new $movieClass)->getMorphClass() : (new $showClass)->getMorphClass();
+            $base->where('splittable_type', $morph);
+        }
+
+        $splits = $base->with('splittable')->orderByDesc('id')->paginate(20)->withQueryString();
+
+        if ($request->ajax()) {
+            return response()->json([
+                'table' => view('monetization::admin.partners.partials.splits-table', ['splits' => $splits])->render(),
+                'counts' => $counts,
+            ]);
+        }
 
         return view('monetization::admin.partners.show', [
             'partner' => $partner,
             'balance' => $partner->walletBalance(),
+            'splits' => $splits,
+            'splitCounts' => $counts,
+            'splitFilters' => ['q' => $q, 'type' => $type],
             'recentStatements' => $partner->statements()->with('period')->latest()->limit(6)->get(),
             'openWithdrawals' => $partner->withdrawals()->whereIn('status', \Modules\Wallet\app\Models\WithdrawalRequest::OPEN_STATUSES)->get(),
         ]);

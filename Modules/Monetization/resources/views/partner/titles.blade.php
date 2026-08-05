@@ -13,72 +13,107 @@
                 @endunless
             </p>
         </div>
-        <form method="GET" action="{{ route('partner.titles') }}" class="d-flex gap-2">
+        <form method="GET" action="{{ route('partner.titles') }}" class="d-flex gap-2" id="titles-filter-form">
+            <input type="hidden" name="type" value="{{ $filters['type'] }}">
+            <input type="text" name="q" value="{{ $filters['q'] }}" class="form-control"
+                   placeholder="Search your titles…" style="min-width:180px;">
             <input type="month" name="month" class="form-control" value="{{ $month->format('Y-m') }}" max="{{ now()->format('Y-m') }}">
             <button class="btn btn-primary">Go</button>
         </form>
     </div>
     <div class="card-body">
-        <div class="table-responsive">
-            <table class="table custom-table align-middle mb-0">
-                <thead>
-                    <tr class="text-uppercase" style="font-size:11px;letter-spacing:.5px;">
-                        <th>Title</th>
-                        <th>Type</th>
-                        <th>Your split</th>
-                        <th>Qualified views</th>
-                        <th>Total minutes</th>
-                        <th class="text-end">Your minutes</th>
-                        <th class="text-end">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($rows as $row)
-                        <tr>
-                            <td><strong>{{ $row['title'] }}</strong></td>
-                            <td><span class="badge bg-secondary-subtle text-secondary-emphasis">{{ ucfirst($row['type']) }}</span></td>
-                            <td><code>{{ $row['percent'] }}%</code></td>
-                            <td>{{ number_format($row['qualified_views']) }}</td>
-                            <td>{{ number_format($row['minutes'], 0) }}</td>
-                            <td class="text-end fw-bold">{{ number_format($row['your_minutes'], 1) }}</td>
-                            <td class="text-end">
-                                @if ($row['exists'])
-                                    <div class="d-inline-flex gap-1">
-                                        @if ($row['slug'])
-                                            <a href="{{ $row['type'] === 'movie'
-                                                    ? route('frontend.movie_detail', ['slug' => $row['slug']])
-                                                    : route('frontend.series_detail', ['slug' => $row['slug']]) }}"
-                                               class="btn btn-sm btn-info-subtle" title="Watch">
-                                                <i class="ph ph-play"></i>
-                                            </a>
-                                        @endif
-                                        @if ($partner->can_edit_content)
-                                            <a href="{{ route('partner.content.edit', ['type' => $row['type'], 'id' => $row['id']]) }}"
-                                               class="btn btn-sm btn-success-subtle" title="Edit details">
-                                                <i class="ph ph-pencil-simple"></i>
-                                            </a>
-                                        @endif
-                                        @if ($partner->can_delete_content)
-                                            <form method="POST"
-                                                  action="{{ route('partner.content.destroy', ['type' => $row['type'], 'id' => $row['id']]) }}"
-                                                  class="d-inline"
-                                                  onsubmit="return confirm('Permanently delete “{{ $row['title'] }}” from Jambo? Viewers lose access immediately. Past earnings stay in your statements.');">
-                                                @csrf @method('DELETE')
-                                                <button class="btn btn-sm btn-danger-subtle" title="Delete">
-                                                    <i class="ph ph-trash-simple"></i>
-                                                </button>
-                                            </form>
-                                        @endif
-                                    </div>
-                                @endif
-                            </td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="7" class="text-center py-5 text-muted">No titles are attributed to you yet — contact the Jambo team.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
+        {{-- Movies / Series tabs. Counts follow the current search. --}}
+        <ul class="nav nav-pills gap-2 mb-3" id="titles-type-tabs">
+            @foreach ([['', 'All'], ['movie', 'Movies'], ['show', 'Series']] as [$val, $label])
+                <li class="nav-item">
+                    <button type="button"
+                            class="nav-link py-1 px-3 {{ $filters['type'] === $val ? 'active' : '' }}"
+                            data-type-tab="{{ $val }}">
+                        {{ $label }} (<span data-count="{{ $val ?: 'all' }}">{{ $counts[$val ?: 'all'] }}</span>)
+                    </button>
+                </li>
+            @endforeach
+        </ul>
+
+        <div id="titles-results">
+            @include('monetization::partner.partials.titles-table', ['rows' => $rows, 'partner' => $partner])
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+    var form    = document.getElementById('titles-filter-form');
+    var results = document.getElementById('titles-results');
+    if (!form || !results) return;
+
+    var qInput    = form.querySelector('[name="q"]');
+    var typeInput = form.querySelector('[name="type"]');
+    var debounce  = null;
+    var inflight  = null;
+
+    function formUrl() {
+        var params = new URLSearchParams(new FormData(form));
+        Array.from(params.keys()).forEach(function (k) {
+            if (!params.get(k)) params.delete(k);
+        });
+        var qs = params.toString();
+        return form.action + (qs ? '?' + qs : '');
+    }
+
+    function load(url) {
+        if (inflight) inflight.abort();
+        inflight = new AbortController();
+        results.style.opacity = '.45';
+
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, signal: inflight.signal })
+            .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+            .then(function (data) {
+                results.innerHTML = data.table;
+                results.style.opacity = '';
+                history.replaceState(null, '', url);
+                Object.keys(data.counts || {}).forEach(function (key) {
+                    var el = document.querySelector('[data-count="' + key + '"]');
+                    if (el) el.textContent = data.counts[key];
+                });
+            })
+            .catch(function (err) {
+                if (err.name === 'AbortError') return;
+                window.location.assign(url);
+            });
+    }
+
+    qInput.addEventListener('input', function () {
+        clearTimeout(debounce);
+        debounce = setTimeout(function () { load(formUrl()); }, 350);
+    });
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        clearTimeout(debounce);
+        load(formUrl());
+    });
+
+    document.querySelectorAll('[data-type-tab]').forEach(function (tab) {
+        tab.addEventListener('click', function () {
+            typeInput.value = tab.dataset.typeTab;
+            document.querySelectorAll('[data-type-tab]').forEach(function (t) {
+                t.classList.toggle('active', t === tab);
+            });
+            load(formUrl());
+        });
+    });
+
+    // Month changes reprice every row — full filter run, still AJAX.
+    form.querySelector('[name="month"]').addEventListener('change', function () { load(formUrl()); });
+
+    results.addEventListener('click', function (e) {
+        var link = e.target.closest('.pagination a');
+        if (!link) return;
+        e.preventDefault();
+        load(link.href);
+        results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+})();
+</script>
 @endsection

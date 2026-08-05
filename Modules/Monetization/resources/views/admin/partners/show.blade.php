@@ -50,7 +50,7 @@
                         </div>
                         <div class="col-6 col-md-3">
                             <div class="text-muted" style="font-size:12px;">Attributed titles</div>
-                            <div class="fw-bold" style="font-size:18px;">{{ $partner->splits->count() }}</div>
+                            <div class="fw-bold" style="font-size:18px;">{{ number_format($partner->splits()->count()) }}</div>
                         </div>
                         <div class="col-12">
                             <div class="text-muted" style="font-size:12px;">Content rights (own titles)</div>
@@ -80,29 +80,26 @@
                         @endif
                         @endrole
                     </div>
-                    <div class="table-responsive mb-4">
-                        <table class="table custom-table align-middle mb-0">
-                            <thead>
-                                <tr class="text-uppercase" style="font-size:11px;letter-spacing:.5px;">
-                                    <th>Title</th><th>Type</th><th class="text-end">Share</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse ($partner->splits as $split)
-                                    <tr>
-                                        <td>{{ $split->splittable->title ?? $split->splittable->name ?? '(deleted)' }}</td>
-                                        <td>
-                                            <span class="badge bg-secondary-subtle text-secondary-emphasis">
-                                                {{ str_contains($split->splittable_type, 'Movie') ? 'Movie' : 'Show' }}
-                                            </span>
-                                        </td>
-                                        <td class="text-end"><code>{{ $split->percent }}%</code></td>
-                                    </tr>
-                                @empty
-                                    <tr><td colspan="3" class="text-center text-muted py-3">No titles attributed yet — nothing accrues until splits are set.</td></tr>
-                                @endforelse
-                            </tbody>
-                        </table>
+                    {{-- Tabs + live search over the splits. A real VJ
+                         catalogue runs to hundreds of titles, so the
+                         table is paginated and re-rendered via AJAX. --}}
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                        <ul class="nav nav-pills gap-2 mb-0" id="splits-type-tabs">
+                            @foreach ([['', 'All'], ['movie', 'Movies'], ['show', 'Series']] as [$val, $label])
+                                <li class="nav-item">
+                                    <button type="button"
+                                            class="nav-link py-1 px-3 {{ $splitFilters['type'] === $val ? 'active' : '' }}"
+                                            data-split-tab="{{ $val }}">
+                                        {{ $label }} (<span data-split-count="{{ $val ?: 'all' }}">{{ $splitCounts[$val ?: 'all'] }}</span>)
+                                    </button>
+                                </li>
+                            @endforeach
+                        </ul>
+                        <input type="text" class="form-control form-control-sm" id="splits-search"
+                               value="{{ $splitFilters['q'] }}" placeholder="Search title…" style="max-width:220px;">
+                    </div>
+                    <div class="mb-4" id="splits-results">
+                        @include('monetization::admin.partners.partials.splits-table', ['splits' => $splits])
                     </div>
 
                     <h6 class="text-uppercase text-muted mb-2" style="font-size:11px;letter-spacing:.5px;">Recent statements</h6>
@@ -195,4 +192,71 @@
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+    var results = document.getElementById('splits-results');
+    var search  = document.getElementById('splits-search');
+    if (!results || !search) return;
+
+    var baseUrl  = @json(route('admin.monetization.partners.show', $partner));
+    var type     = @json($splitFilters['type']);
+    var debounce = null;
+    var inflight = null;
+
+    function buildUrl(page) {
+        var params = new URLSearchParams();
+        if (search.value.trim()) params.set('q', search.value.trim());
+        if (type) params.set('type', type);
+        if (page) params.set('page', page);
+        var qs = params.toString();
+        return baseUrl + (qs ? '?' + qs : '');
+    }
+
+    function load(url) {
+        if (inflight) inflight.abort();
+        inflight = new AbortController();
+        results.style.opacity = '.45';
+
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, signal: inflight.signal })
+            .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+            .then(function (data) {
+                results.innerHTML = data.table;
+                results.style.opacity = '';
+                history.replaceState(null, '', url);
+                Object.keys(data.counts || {}).forEach(function (key) {
+                    var el = document.querySelector('[data-split-count="' + key + '"]');
+                    if (el) el.textContent = data.counts[key];
+                });
+            })
+            .catch(function (err) {
+                if (err.name === 'AbortError') return;
+                window.location.assign(url);
+            });
+    }
+
+    search.addEventListener('input', function () {
+        clearTimeout(debounce);
+        debounce = setTimeout(function () { load(buildUrl()); }, 350);
+    });
+
+    document.querySelectorAll('[data-split-tab]').forEach(function (tab) {
+        tab.addEventListener('click', function () {
+            type = tab.dataset.splitTab;
+            document.querySelectorAll('[data-split-tab]').forEach(function (t) {
+                t.classList.toggle('active', t === tab);
+            });
+            load(buildUrl());
+        });
+    });
+
+    results.addEventListener('click', function (e) {
+        var link = e.target.closest('.pagination a');
+        if (!link) return;
+        e.preventDefault();
+        load(link.href);
+        results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+})();
+</script>
 @endsection
