@@ -147,6 +147,27 @@
         </div>
 
         <div class="content-inner container-fluid pb-0" id="page_layout">
+            @if (session()->has('impersonator_id'))
+                {{-- Super-admin is viewing this studio as the partner.
+                     Loud on purpose — it must be impossible to forget
+                     which account is acting. --}}
+                <div class="alert alert-info d-flex align-items-center justify-content-between gap-2 flex-wrap" style="font-size:14px;">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="ph ph-user-switch" style="font-size:20px;"></i>
+                        <div>
+                            Viewing as <strong>{{ auth()->user()?->full_name ?: ('@' . auth()->user()?->username) }}</strong> —
+                            everything you see is exactly what this partner sees.
+                        </div>
+                    </div>
+                    <form method="POST" action="{{ route('monetization.impersonation.leave') }}" class="m-0">
+                        @csrf
+                        <button class="btn btn-sm btn-primary">
+                            <i class="ph ph-arrow-u-up-left me-1"></i> Return to admin
+                        </button>
+                    </form>
+                </div>
+            @endif
+
             @if (empty(auth()->user()->two_factor_confirmed_at))
                 <div class="alert alert-warning d-flex align-items-center gap-2" style="font-size:14px;">
                     <i class="ph ph-shield-warning" style="font-size:20px;"></i>

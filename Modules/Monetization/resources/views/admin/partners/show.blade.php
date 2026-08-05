@@ -9,6 +9,12 @@
         <div class="alert alert-danger">{{ session('error') }}</div>
     @endif
 
+    <div class="d-flex align-items-center mb-3">
+        <a href="{{ route('admin.monetization.partners.index') }}" class="btn btn-sm btn-ghost">
+            <i class="ph ph-arrow-left me-1"></i> All partners
+        </a>
+    </div>
+
     <div class="row g-4">
         <div class="col-12 col-xl-7">
             <div class="card h-100">
@@ -28,6 +34,19 @@
                             <span class="badge bg-danger">Suspended</span>
                         @endif
                         @role('super-admin')
+                        @if ($partner->user_id)
+                            {{-- Log in as the partner's account to see the
+                                 Creator Studio exactly as they do. The
+                                 banner in the partner layout offers the
+                                 way back. --}}
+                            <form method="POST" action="{{ route('admin.monetization.partners.impersonate', $partner) }}" class="m-0"
+                                  onsubmit="return confirm('View the Creator Studio as {{ $partner->display_name }}? You will be signed in as their account until you click “Return to admin”.');">
+                                @csrf
+                                <button class="btn btn-sm btn-info-subtle">
+                                    <i class="ph ph-user-switch"></i> View as partner
+                                </button>
+                            </form>
+                        @endif
                         <a href="{{ route('admin.monetization.partners.edit', $partner) }}" class="btn btn-sm btn-success-subtle">
                             <i class="ph ph-pencil-simple"></i> Edit
                         </a>

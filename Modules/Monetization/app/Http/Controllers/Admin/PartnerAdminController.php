@@ -263,6 +263,57 @@ class PartnerAdminController extends Controller
     }
 
     /**
+     * Super-admin "view as partner": log in as the partner's linked
+     * account to see the Creator Studio exactly as they do. The
+     * admin's own id is kept in the session so the banner in the
+     * partner layout can offer a one-click way back — no re-login.
+     */
+    public function impersonate(Request $request, MonetizationPartner $partner): RedirectResponse
+    {
+        $target = $partner->user_id ? User::find($partner->user_id) : null;
+        if (!$target) {
+            return back()->with('error', 'This partner has no linked login account to view as.');
+        }
+        if ($target->hasRole('super-admin')) {
+            return back()->with('error', 'Cannot view as a super-admin account.');
+        }
+        if ($request->session()->has('impersonator_id')) {
+            return back()->with('error', 'Already viewing as another user — return to your admin account first.');
+        }
+
+        AuditLogger::log('partner.impersonation_started', $partner, ['after' => [
+            'admin_id' => $request->user()->id,
+            'target_user_id' => $target->id,
+        ]]);
+
+        // Order matters: plant the way-back flag first — login()
+        // migrates the session but carries its data across.
+        $request->session()->put('impersonator_id', $request->user()->id);
+        auth()->login($target);
+
+        return redirect()->route('partner.dashboard')
+            ->with('success', 'Viewing the Creator Studio as @' . ($target->username ?? $target->email) . '.');
+    }
+
+    /**
+     * Return from "view as partner" to the original admin account.
+     * Outside the admin role gates on purpose (the impersonated user
+     * is a partner); the session flag — only ever planted by the
+     * super-admin-gated impersonate route — is the authorization.
+     */
+    public function leaveImpersonation(Request $request): RedirectResponse
+    {
+        $adminId = $request->session()->pull('impersonator_id');
+        abort_unless($adminId, 403);
+
+        $admin = User::findOrFail($adminId);
+        auth()->login($admin);
+
+        return redirect()->route('admin.monetization.partners.index')
+            ->with('success', 'Back on your own account.');
+    }
+
+    /**
      * Approve the partner's submitted payout profile. Withdrawals are
      * only possible against a verified profile.
      */

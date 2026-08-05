@@ -57,6 +57,7 @@ Route::middleware(['auth', 'role:admin', 'role:finance|super-admin', 'monetizati
             Route::get('partners/{partner}/edit', [PartnerAdminController::class, 'edit'])->name('partners.edit');
             Route::put('partners/{partner}', [PartnerAdminController::class, 'update'])->name('partners.update');
             Route::post('partners/{partner}/verify-payout', [PartnerAdminController::class, 'verifyPayout'])->name('partners.verify-payout');
+            Route::post('partners/{partner}/impersonate', [PartnerAdminController::class, 'impersonate'])->name('partners.impersonate');
             Route::post('partners/{partner}/sync-vj-splits', [PartnerAdminController::class, 'syncVjSplits'])->name('partners.sync-vj-splits');
 
             Route::get('splits', [TitleSplitController::class, 'index'])->name('splits.index');
@@ -82,6 +83,15 @@ Route::middleware(['auth', 'role:admin', 'role:finance|super-admin', 'monetizati
         Route::get('withdrawals', [WithdrawalAdminController::class, 'index'])->name('withdrawals.index');
         Route::get('withdrawals/{withdrawal}', [WithdrawalAdminController::class, 'show'])->name('withdrawals.show');
     });
+
+// Leave impersonation: available to WHOEVER currently holds the
+// impersonated session — deliberately outside the role groups, since
+// the impersonated user is a partner, not an admin. The controller
+// refuses unless the session carries the impersonator flag, which
+// only the super-admin-gated impersonate route can plant.
+Route::middleware('auth')
+    ->post('monetization/impersonation/leave', [PartnerAdminController::class, 'leaveImpersonation'])
+    ->name('monetization.impersonation.leave');
 
 Route::middleware(['auth', 'role:partner'])
     ->prefix('partner')
