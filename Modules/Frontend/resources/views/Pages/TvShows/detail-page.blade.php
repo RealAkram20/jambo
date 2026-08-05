@@ -67,6 +67,11 @@
     $firstSeason  = $seasons->first();
     $firstEpisode = $firstSeason?->episodes->sortBy('number')->first();
     $firstEpUrl   = $firstEpisode ? $firstEpisode->frontendUrl($show) : '#';
+
+    // Site-wide default for the Episodes section layout, set in
+    // Admin → Settings → General. Same toggle as the episode watch
+    // page; a viewer's localStorage choice overrides client-side.
+    $epDefaultLayout = setting('episode_layout_default', 'scroller') === 'grid' ? 'grid' : 'scroller';
 @endphp
 
 @section('content')
@@ -138,6 +143,18 @@
                 <div class="show-episode section-padding">
                     <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
                         <h5 class="main-title text-capitalize mb-0 fw-medium">{{ __('header.episodes') }}</h5>
+                        <div class="btn-group jambo-ep-layout-toggle" role="group" aria-label="Episode layout">
+                            <button type="button" class="btn btn-sm {{ $epDefaultLayout === 'scroller' ? 'active' : '' }}"
+                                    data-ep-layout="scroller" title="Card view"
+                                    aria-pressed="{{ $epDefaultLayout === 'scroller' ? 'true' : 'false' }}">
+                                <i class="ph ph-cards"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm {{ $epDefaultLayout === 'grid' ? 'active' : '' }}"
+                                    data-ep-layout="grid" title="Grid view (all episodes)"
+                                    aria-pressed="{{ $epDefaultLayout === 'grid' ? 'true' : 'false' }}">
+                                <i class="ph ph-squares-four"></i>
+                            </button>
+                        </div>
                     </div>
                     <ul class="nav nav-pills custom-tab-slider episode-nav-btn gap-3 mb-4 pb-2" role="tablist">
                         @foreach ($seasons as $season)
@@ -153,32 +170,48 @@
                     <div class="tab-content">
                         @foreach ($seasons as $season)
                             <div id="season-{{ $season->number }}" class="tab-pane animated fadeInUp {{ $loop->first ? 'active show' : '' }}" role="tabpanel">
-                                <div class="card-style-slider">
-                                    <div class="position-relative swiper swiper-card mt-4 mb-5 overflow-hidden" data-slide="5"
-                                        data-laptop="5" data-tab="2" data-mobile="2" data-mobile-sm="1"
-                                        data-autoplay="false" data-loop="false">
-                                        <div class="p-0 swiper-wrapper m-0 list-inline">
-                                            @foreach ($season->episodes->sortBy('number') as $ep)
-                                                <div class="swiper-slide">
-                                                    @include('frontend::components.cards.episode-card', [
-                                                        'episodePath' => $ep->frontendUrl($show),
-                                                        'showImg' => $ep->still_url ?: 'media/episode/s1e1-the-buddha.webp',
-                                                        'id' => $ep->id,
-                                                        'episodeNumber' => 'S' . str_pad($season->number, 2, '0', STR_PAD_LEFT) . 'E' . str_pad($ep->number, 2, '0', STR_PAD_LEFT),
-                                                        'episodTitle' => $ep->title,
-                                                        'episodeTitlesText' => $ep->title,
-                                                        'episodeDetailText' => $ep->synopsis ?: '',
-                                                        'episodTime' => $ep->runtime_minutes ? $ep->runtime_minutes . 'm' : '—',
-                                                    ])
-                                                </div>
-                                            @endforeach
+                                <div class="jambo-ep-scroller" @if ($epDefaultLayout === 'grid') hidden @endif>
+                                    <div class="card-style-slider">
+                                        <div class="position-relative swiper swiper-card mt-4 mb-5 overflow-hidden" data-slide="5"
+                                            data-laptop="5" data-tab="2" data-mobile="2" data-mobile-sm="1"
+                                            data-autoplay="false" data-loop="false">
+                                            <div class="p-0 swiper-wrapper m-0 list-inline">
+                                                @foreach ($season->episodes->sortBy('number') as $ep)
+                                                    <div class="swiper-slide">
+                                                        @include('frontend::components.cards.episode-card', [
+                                                            'episodePath' => $ep->frontendUrl($show),
+                                                            'showImg' => $ep->still_url ?: 'media/episode/s1e1-the-buddha.webp',
+                                                            'id' => $ep->id,
+                                                            'episodeNumber' => 'S' . str_pad($season->number, 2, '0', STR_PAD_LEFT) . 'E' . str_pad($ep->number, 2, '0', STR_PAD_LEFT),
+                                                            'episodTitle' => $ep->title,
+                                                            'episodeTitlesText' => $ep->title,
+                                                            'episodeDetailText' => $ep->synopsis ?: '',
+                                                            'episodTime' => $ep->runtime_minutes ? $ep->runtime_minutes . 'm' : '—',
+                                                        ])
+                                                    </div>
+                                                @endforeach
+                                            </div>
                                         </div>
                                     </div>
+                                </div>
+                                {{-- Compact number grid — same toggle as the
+                                     episode watch page; grid is the fast path
+                                     for seasons with dozens of episodes. --}}
+                                <div class="jambo-ep-grid mt-4 mb-5" @if ($epDefaultLayout !== 'grid') hidden @endif>
+                                    @foreach ($season->episodes->sortBy('number')->values() as $ep)
+                                        <a href="{{ $ep->frontendUrl($show) }}"
+                                           class="jambo-ep-grid__item"
+                                           title="S{{ str_pad($season->number, 2, '0', STR_PAD_LEFT) }}E{{ str_pad($ep->number, 2, '0', STR_PAD_LEFT) }}{{ $ep->title ? ': ' . $ep->title : '' }}">
+                                            <span class="jambo-ep-grid__label">EP</span>
+                                            <span class="jambo-ep-grid__num">{{ str_pad($ep->number, 2, '0', STR_PAD_LEFT) }}</span>
+                                        </a>
+                                    @endforeach
                                 </div>
                             </div>
                         @endforeach
                     </div>
                 </div>
+                @include('frontend::components.partials.episode-layout-assets')
             @endif
 
             {{-- Starring --}}

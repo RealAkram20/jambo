@@ -26,6 +26,13 @@ class VjTitleSplits
     /**
      * Attach splits for every title credited to the partner's linked
      * VJ. Returns the number of splits created.
+     *
+     * Bulk implementation on purpose: a real VJ catalogue runs to
+     * hundreds of titles (VJ Junior: 850+), and the original
+     * one-attach()-per-title loop issued ~4 queries per title — enough
+     * to blow past max_execution_time mid-loop on production, leaving
+     * a handful of splits created and the rest silently missing. This
+     * version does the same work in a handful of set-based queries.
      */
     public function attachAllForPartner(MonetizationPartner $partner): int
     {
@@ -38,12 +45,73 @@ class VjTitleSplits
             return 0;
         }
 
-        $created = 0;
-        foreach ($vj->movies()->get(['movies.id']) as $movie) {
-            $created += (int) (bool) $this->attach($movie, $partner);
+        $titles = $vj->movies()->get(['movies.id'])
+            ->map(fn ($m) => ['type' => $m->getMorphClass(), 'id' => (int) $m->id])
+            ->concat($vj->shows()->get(['shows.id'])
+                ->map(fn ($s) => ['type' => $s->getMorphClass(), 'id' => (int) $s->id]));
+
+        if ($titles->isEmpty()) {
+            return 0;
         }
-        foreach ($vj->shows()->get(['shows.id']) as $show) {
-            $created += (int) (bool) $this->attach($show, $partner);
+
+        $defaultPercent = (float) MonetizationSettings::defaultSplitPercent();
+        $now = now();
+        $created = 0;
+
+        foreach ($titles->groupBy('type') as $type => $group) {
+            $ids = $group->pluck('id');
+
+            // Existing (title, this partner) splits — never touched, so
+            // a hand-tuned percent survives every later sync.
+            $mine = TitleSplit::query()
+                ->where('splittable_type', $type)
+                ->where('partner_id', $partner->id)
+                ->whereIn('splittable_id', $ids)
+                ->pluck('splittable_id')
+                ->flip();
+
+            // Percent already taken per title (all partners) — the new
+            // split is clamped to the remaining headroom; titles with
+            // none left are skipped.
+            $taken = TitleSplit::query()
+                ->where('splittable_type', $type)
+                ->whereIn('splittable_id', $ids)
+                ->groupBy('splittable_id')
+                ->selectRaw('splittable_id, SUM(percent) as total')
+                ->pluck('total', 'splittable_id');
+
+            $rows = [];
+            foreach ($ids as $id) {
+                if (isset($mine[$id])) {
+                    continue;
+                }
+                $percent = min($defaultPercent, 100 - (float) ($taken[$id] ?? 0));
+                if ($percent <= 0) {
+                    continue;
+                }
+                $rows[] = [
+                    'splittable_type' => $type,
+                    'splittable_id' => $id,
+                    'partner_id' => $partner->id,
+                    'percent' => number_format($percent, 2, '.', ''),
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+
+            foreach (array_chunk($rows, 500) as $chunk) {
+                TitleSplit::query()->insert($chunk);
+            }
+            $created += count($rows);
+        }
+
+        if ($created > 0) {
+            // One summary audit row instead of one per title — the
+            // per-split detail is reconstructable from title_splits.
+            AuditLogger::log('split.auto_attached_bulk', $partner, ['after' => [
+                'splits_created' => $created,
+                'default_percent' => (string) $defaultPercent,
+            ]]);
         }
 
         return $created;
