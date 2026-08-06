@@ -58,13 +58,21 @@ class PartnerDashboardController extends PartnerBaseController
             ]);
         }
 
-        // 'minutes': split-weighted qualified minutes for the last 6 months.
+        // 'minutes': split-weighted qualified minutes for the last 6
+        // months — one batched pass, not one query per split per month.
+        $months = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $months[] = now()->subMonthsNoOverflow($i)->startOfMonth();
+        }
+        $byMonth = $this->splitWeightedMinutesByMonth(
+            $partner->id,
+            array_map(fn ($m) => $m->toDateString(), $months),
+        );
         $labels = [];
         $data = [];
-        for ($i = 5; $i >= 0; $i--) {
-            $month = now()->subMonthsNoOverflow($i)->startOfMonth();
+        foreach ($months as $month) {
             $labels[] = $month->format('M Y');
-            $data[] = round($this->splitWeightedMinutes($partner->id, $month->toDateString()), 1);
+            $data[] = round($byMonth[$month->toDateString()] ?? 0.0, 1);
         }
 
         return response()->json([
@@ -80,29 +88,76 @@ class PartnerDashboardController extends PartnerBaseController
      */
     protected function splitWeightedMinutes(int $partnerId, string $periodMonth): float
     {
+        return $this->splitWeightedMinutesByMonth($partnerId, [$periodMonth])[$periodMonth] ?? 0.0;
+    }
+
+    /**
+     * Same math for a batch of months in a FIXED number of queries.
+     * The naive shape (one sum per split per month) was fine for a
+     * pilot but explodes on a real VJ catalogue: 863 splits made the
+     * dashboard ~6,000 queries per load.
+     *
+     * @param  list<string>  $months  period_month date strings
+     * @return array<string, float>  month => weighted minutes
+     */
+    protected function splitWeightedMinutesByMonth(int $partnerId, array $months): array
+    {
+        $out = array_fill_keys($months, 0.0);
+
         $splits = TitleSplit::query()
             ->where('partner_id', $partnerId)
             ->get(['splittable_type', 'splittable_id', 'percent']);
 
         if ($splits->isEmpty()) {
-            return 0.0;
+            return $out;
         }
 
-        $total = 0.0;
+        $showPercents = [];   // show_id => percent
+        $moviePercents = [];  // "type#id" => percent
         foreach ($splits as $split) {
-            $isShow = str_contains($split->splittable_type, 'Show');
-
-            $minutes = (float) QualifiedView::query()
-                ->where('period_month', $periodMonth)
-                ->when($isShow,
-                    fn ($q) => $q->where('show_id', $split->splittable_id),
-                    fn ($q) => $q->where('watchable_type', $split->splittable_type)
-                        ->where('watchable_id', $split->splittable_id))
-                ->sum('minutes_credited');
-
-            $total += $minutes * ((float) $split->percent / 100);
+            if (str_contains($split->splittable_type, 'Show')) {
+                $showPercents[$split->splittable_id] = (float) $split->percent;
+            } else {
+                $moviePercents[$split->splittable_type . '#' . $split->splittable_id] = (float) $split->percent;
+            }
         }
 
-        return $total;
+        if ($showPercents !== []) {
+            $rows = QualifiedView::query()
+                ->whereIn('period_month', $months)
+                ->whereIn('show_id', array_keys($showPercents))
+                ->groupBy('period_month', 'show_id')
+                ->selectRaw('period_month, show_id, SUM(minutes_credited) as minutes')
+                ->get();
+            foreach ($rows as $r) {
+                $month = $r->period_month->toDateString();
+                $out[$month] = ($out[$month] ?? 0.0)
+                    + (float) $r->minutes * ($showPercents[$r->show_id] / 100);
+            }
+        }
+
+        if ($moviePercents !== []) {
+            // Grouped over every watched movie for the months, matched
+            // to this partner's splits in PHP — the distinct watched
+            // titles per month bound this far tighter than a giant
+            // composite whereIn would.
+            $rows = QualifiedView::query()
+                ->whereIn('period_month', $months)
+                ->whereNull('show_id')
+                ->groupBy('period_month', 'watchable_type', 'watchable_id')
+                ->selectRaw('period_month, watchable_type, watchable_id, SUM(minutes_credited) as minutes')
+                ->get();
+            foreach ($rows as $r) {
+                $key = $r->watchable_type . '#' . $r->watchable_id;
+                if (!isset($moviePercents[$key])) {
+                    continue;
+                }
+                $month = $r->period_month->toDateString();
+                $out[$month] = ($out[$month] ?? 0.0)
+                    + (float) $r->minutes * ($moviePercents[$key] / 100);
+            }
+        }
+
+        return $out;
     }
 }
