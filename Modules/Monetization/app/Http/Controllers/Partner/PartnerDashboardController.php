@@ -69,7 +69,10 @@ class PartnerDashboardController extends PartnerBaseController
                 $key = $d->toDateString();
                 $minutes = $daily[$key] ?? 0.0;
                 $totalMinutes += $minutes;
-                $labels[] = $d->format('d M');
+                // Week reads as weekdays (Fri 01), Month as dates
+                // (01 Aug) — visibly different views even early in the
+                // month when the two windows overlap.
+                $labels[] = $period === 'Week' ? $d->format('D d') : $d->format('d M');
                 $data[] = $estimator->amountFor($partner, $minutes, $ctx);
             }
 
