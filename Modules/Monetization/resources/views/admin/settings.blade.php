@@ -45,6 +45,14 @@
                                     <option value="0" @selected(old('finance_can_view', $values['finance_can_view']) === '0')>No — super-admin only</option>
                                 </select>
                             </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Month settlement</label>
+                                <select name="auto_close" class="form-select">
+                                    <option value="1" @selected(old('auto_close', $values['auto_close']) === '1')>Automatic — settle on the 1st, credit wallets</option>
+                                    <option value="0" @selected(old('auto_close', $values['auto_close']) === '0')>Manual — wait for "Close &amp; Credit" review</option>
+                                </select>
+                                <small class="text-muted">Automatic runs nightly and settles any completed month still open.</small>
+                            </div>
                         </div>
 
                         <h6 class="text-uppercase text-muted mb-3" style="font-size:11px;letter-spacing:.5px;">Monthly pool</h6>

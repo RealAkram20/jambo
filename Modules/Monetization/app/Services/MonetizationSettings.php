@@ -29,6 +29,7 @@ class MonetizationSettings
         'monetization.payout_change_cooldown_days',
         'monetization.finance_can_view',
         'monetization.default_split_percent',
+        'monetization.auto_close',
     ];
 
     protected static function get(string $key, $default = null)
@@ -142,6 +143,18 @@ class MonetizationSettings
     public static function financeCanView(): bool
     {
         return (string) static::get('monetization.finance_can_view', '1') === '1';
+    }
+
+    /**
+     * Automatic month settlement (monetization:close-month). Default
+     * ON: once the operator has set the program's knobs, the system
+     * settles each completed month on its own — statements generated,
+     * wallets credited, partners notified. Switch OFF to require the
+     * manual "Close & Credit" review click instead.
+     */
+    public static function autoClose(): bool
+    {
+        return (string) static::get('monetization.auto_close', '1') === '1';
     }
 
     /**

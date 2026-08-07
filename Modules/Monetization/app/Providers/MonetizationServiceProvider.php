@@ -76,6 +76,7 @@ class MonetizationServiceProvider extends ServiceProvider
         // artisan call app-wide (migrate, seed, tinker, schedule).
         $commands = array_filter([
             \Modules\Monetization\app\Console\Commands\ComputeMonthlyDraftCommand::class,
+            \Modules\Monetization\app\Console\Commands\CloseMonthCommand::class,
             \Modules\Monetization\app\Console\Commands\VerifyWalletLedgerCommand::class,
         ], 'class_exists');
 
@@ -87,24 +88,43 @@ class MonetizationServiceProvider extends ServiceProvider
     /**
      * Register command Schedules.
      *
-     * The draft statement is computed on the 1st for the month that just
-     * ended — nothing is credited to wallets until a super-admin reviews
-     * the draft and clicks "Close & Credit". The ledger verify sweep is
-     * a cheap integrity assertion (SUM(amount) vs latest balance_after).
+     * Self-sustaining settlement cycle:
+     *  - compute-draft daily 02:30 keeps the current month's draft
+     *    preview fresh on the admin Statements page
+     *  - close-month daily 03:00 settles every COMPLETED month still
+     *    open (statements finalized, wallets credited, partners
+     *    notified). Normally that fires once, in the small hours of
+     *    the 1st; running daily makes it self-healing — a failed or
+     *    missed run is caught up next day. The monetization.auto_close
+     *    setting (default ON) is the operator's kill switch back to
+     *    manual "Close & Credit".
+     *  - verify-ledger weekly is a cheap integrity assertion
+     *    (SUM(amount) vs latest balance_after).
      */
     protected function registerCommandSchedules(): void
     {
         $this->app->booted(function () {
             $schedule = $this->app->make(\Illuminate\Console\Scheduling\Schedule::class);
 
-            $schedule->command('monetization:compute-draft')
-                ->monthlyOn(1, '02:30')
+            // --current (not a baked month string): under a long-lived
+            // schedule:work daemon a string built at boot goes stale
+            // after month rollover; the flag resolves at run time.
+            $schedule->command('monetization:compute-draft --current')
+                ->dailyAt('02:30')
                 ->withoutOverlapping()
+                ->onOneServer()
+                ->runInBackground();
+
+            $schedule->command('monetization:close-month')
+                ->dailyAt('03:00')
+                ->withoutOverlapping()
+                ->onOneServer()
                 ->runInBackground();
 
             $schedule->command('monetization:verify-ledger')
                 ->weeklyOn(1, '03:30')
-                ->withoutOverlapping();
+                ->withoutOverlapping()
+                ->onOneServer();
         });
     }
 

@@ -15,7 +15,8 @@ use Modules\Monetization\app\Services\MonthCloseService;
 class ComputeMonthlyDraftCommand extends Command
 {
     protected $signature = 'monetization:compute-draft
-        {--month= : Target month as YYYY-MM (defaults to the previous month)}';
+        {--month= : Target month as YYYY-MM (defaults to the previous month)}
+        {--current : Target the current month (used by the daily schedule so the month resolves at RUN time, not at scheduler boot)}';
 
     protected $description = 'Compute (or recompute) the draft monetization statement for a month';
 
@@ -27,9 +28,13 @@ class ComputeMonthlyDraftCommand extends Command
             return self::SUCCESS;
         }
 
-        $month = $this->option('month')
-            ? CarbonImmutable::createFromFormat('Y-m', $this->option('month'))
-            : CarbonImmutable::now()->subMonthNoOverflow();
+        // '!' resets unparsed fields (day → 1); plain 'Y-m' inherits
+        // today's day-of-month and can overflow into the next month.
+        $month = match (true) {
+            (bool) $this->option('current') => CarbonImmutable::now()->startOfMonth(),
+            (bool) $this->option('month') => CarbonImmutable::createFromFormat('!Y-m', $this->option('month')),
+            default => CarbonImmutable::now()->subMonthNoOverflow(),
+        };
 
         try {
             $period = $service->computeDraft($month);

@@ -106,7 +106,22 @@ class MonthCloseService
             $totalWeight, $platformWeight, $snapshot,
             $partnerMinutes, $weights, $sumPartnerWeight, $amounts, $partners, $partnerBreakdown
         ) {
-            $period = $existing ?? new MonetizationPeriod(['period_month' => $monthStart->toDateString()]);
+            // Re-check UNDER LOCK. The unlocked pre-check above can go
+            // stale during the (seconds-long) aggregation phase: a
+            // concurrent closeAndCredit could close and credit this
+            // period, and blindly saving here would flip it back to
+            // draft and DELETE already-credited statements — next
+            // sweep would then re-close the rebuilt statements and pay
+            // every partner twice. The lock serializes against
+            // closeAndCredit's own lockForUpdate on the same row.
+            $period = $existing
+                ? MonetizationPeriod::query()->lockForUpdate()->findOrFail($existing->id)
+                : new MonetizationPeriod(['period_month' => $monthStart->toDateString()]);
+
+            if ($period->exists && $period->isClosed()) {
+                throw new \RuntimeException("Period {$monthStart->format('Y-m')} is closed; refusing to recompute.");
+            }
+
             $period->fill([
                 'status' => MonetizationPeriod::STATUS_DRAFT,
                 'gross_revenue' => $gross,
@@ -164,8 +179,11 @@ class MonthCloseService
      * to its partner's wallet. Idempotent — a second click no-ops on
      * the status check, and the ledger's unique reference key would
      * refuse duplicate credits even if it didn't.
+     *
+     * $adminId null = automated close (monetization:close-month); the
+     * audit row then records the actor as "system".
      */
-    public function closeAndCredit(MonetizationPeriod $period, int $adminId): MonetizationPeriod
+    public function closeAndCredit(MonetizationPeriod $period, ?int $adminId): MonetizationPeriod
     {
         return DB::transaction(function () use ($period, $adminId) {
             $fresh = MonetizationPeriod::query()->lockForUpdate()->findOrFail($period->id);
