@@ -142,6 +142,9 @@
         </div>
     </div>
     @endhasanyrole
+    {{-- Subscriber growth is commercial data, same sensitivity tier
+         as revenue — finance/super-admin only, like the card above. --}}
+    @hasanyrole('finance|super-admin')
     <div class="col-lg-6">
         <div class="card card-dashboard">
             <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">
@@ -163,6 +166,7 @@
             </div>
         </div>
     </div>
+    @endhasanyrole
     <div class="col-lg-6">
         <div class="card card-block card-height card-dashboard">
             <div class="card-header d-flex justify-content-between">

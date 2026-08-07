@@ -60,21 +60,22 @@ class DashboardController extends Controller
         // the same shape it always has — admins can switch to
         // Month/Week via the dropdowns (handled by chartData()).
         //
-        // Revenue series is gated to finance/super-admin: the card
-        // is hidden in the view but the JSON payload below ships in
-        // a <script> tag in the page source, so a non-finance admin
-        // could still see the numbers via "view source" without this.
-        $canSeeRevenue = $request->user()?->hasAnyRole(['finance', 'super-admin']) ?? false;
+        // Revenue AND subscriber-growth series are gated to
+        // finance/super-admin: the cards are hidden in the view but
+        // the JSON payload below ships in a <script> tag in the page
+        // source, so a non-finance admin could still see the numbers
+        // via "view source" without this.
+        $canSeeFinance = $request->user()?->hasAnyRole(['finance', 'super-admin']) ?? false;
 
         $chartData = [
             'genres'      => $this->buildTopGenresChart(),
-            'newSubs'     => $this->buildNewSubscribersChart('Year'),
             'mostWatched' => $this->buildMostWatchedChart('Year'),
             'topRated'    => $this->buildTopRatedChart(),
         ];
 
-        if ($canSeeRevenue) {
+        if ($canSeeFinance) {
             $chartData['revenue'] = $this->buildMonthlyRevenueChart('Year');
+            $chartData['newSubs'] = $this->buildNewSubscribersChart('Year');
         }
 
         return view('DashboardPages.IndexPage1', compact(
@@ -263,10 +264,11 @@ class DashboardController extends Controller
             $period = 'Year';
         }
 
-        // Revenue is finance-gated. A non-finance admin clicking the
-        // (hidden) revenue dropdown would otherwise still get fresh
-        // numbers back from this JSON endpoint.
-        if ($chart === 'revenue' && ! ($request->user()?->hasAnyRole(['finance', 'super-admin']) ?? false)) {
+        // Revenue and subscriber growth are finance-gated. A
+        // non-finance admin hitting this JSON endpoint directly would
+        // otherwise still get fresh numbers back.
+        if (in_array($chart, ['revenue', 'newSubs'], true)
+            && ! ($request->user()?->hasAnyRole(['finance', 'super-admin']) ?? false)) {
             abort(403);
         }
 
