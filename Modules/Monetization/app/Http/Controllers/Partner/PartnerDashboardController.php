@@ -77,25 +77,32 @@ class PartnerDashboardController extends PartnerBaseController
         }
 
         // 'minutes': split-weighted qualified minutes for the last 6
-        // months — one batched pass, not one query per split per month.
+        // months, split Movies vs Series for the stacked bar — one
+        // batched pass, not one query per split per month.
         $months = [];
         for ($i = 5; $i >= 0; $i--) {
             $months[] = now()->subMonthsNoOverflow($i)->startOfMonth();
         }
-        $byMonth = $this->splitWeightedMinutesByMonth(
+        $breakdown = $this->splitWeightedMinutesBreakdown(
             $partner->id,
             array_map(fn ($m) => $m->toDateString(), $months),
         );
         $labels = [];
-        $data = [];
+        $movieData = [];
+        $showData = [];
         foreach ($months as $month) {
+            $key = $month->toDateString();
             $labels[] = $month->format('M Y');
-            $data[] = round($byMonth[$month->toDateString()] ?? 0.0, 1);
+            $movieData[] = round($breakdown['movies'][$key] ?? 0.0, 1);
+            $showData[] = round($breakdown['shows'][$key] ?? 0.0, 1);
         }
 
         return response()->json([
             'labels' => $labels,
-            'series' => [['name' => 'Qualified minutes', 'data' => $data]],
+            'series' => [
+                ['name' => 'Movies', 'data' => $movieData],
+                ['name' => 'Series', 'data' => $showData],
+            ],
         ]);
     }
 
@@ -120,7 +127,29 @@ class PartnerDashboardController extends PartnerBaseController
      */
     protected function splitWeightedMinutesByMonth(int $partnerId, array $months): array
     {
-        $out = array_fill_keys($months, 0.0);
+        $b = $this->splitWeightedMinutesBreakdown($partnerId, $months);
+
+        $out = [];
+        foreach ($months as $m) {
+            $out[$m] = ($b['movies'][$m] ?? 0.0) + ($b['shows'][$m] ?? 0.0);
+        }
+
+        return $out;
+    }
+
+    /**
+     * Movies/Series breakdown of the same weighted-minutes math —
+     * feeds the dashboard's stacked bar (Movies vs Series per month,
+     * matching the admin Most Watched card's shape).
+     *
+     * @param  list<string>  $months
+     * @return array{movies: array<string, float>, shows: array<string, float>}
+     */
+    protected function splitWeightedMinutesBreakdown(int $partnerId, array $months): array
+    {
+        $movies = array_fill_keys($months, 0.0);
+        $shows = array_fill_keys($months, 0.0);
+        $out = ['movies' => $movies, 'shows' => $shows];
 
         $splits = TitleSplit::query()
             ->where('partner_id', $partnerId)
@@ -149,7 +178,7 @@ class PartnerDashboardController extends PartnerBaseController
                 ->get();
             foreach ($rows as $r) {
                 $month = $r->period_month->toDateString();
-                $out[$month] = ($out[$month] ?? 0.0)
+                $out['shows'][$month] = ($out['shows'][$month] ?? 0.0)
                     + (float) $r->minutes * ($showPercents[$r->show_id] / 100);
             }
         }
@@ -171,7 +200,7 @@ class PartnerDashboardController extends PartnerBaseController
                     continue;
                 }
                 $month = $r->period_month->toDateString();
-                $out[$month] = ($out[$month] ?? 0.0)
+                $out['movies'][$month] = ($out['movies'][$month] ?? 0.0)
                     + (float) $r->minutes * ($moviePercents[$key] / 100);
             }
         }

@@ -124,25 +124,28 @@
 <script src="{{ asset('dashboard/vendor/apexcharts/apexcharts.min.js') }}"></script>
 <script>
 (function () {
-    function render(elId, url, type, colour) {
+    function render(elId, url, opts) {
         fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
             .then(r => r.json())
             .then(data => {
                 new ApexCharts(document.querySelector(elId), {
-                    chart: {type: type, height: 280, toolbar: {show: false}, foreColor: '#8A92A6'},
+                    chart: {type: opts.type, height: opts.height || 280, stacked: !!opts.stacked, toolbar: {show: false}, foreColor: '#8A92A6'},
                     series: data.series,
                     xaxis: {categories: data.labels},
-                    colors: [colour],
+                    colors: opts.colours,
                     dataLabels: {enabled: false},
-                    stroke: {curve: 'smooth', width: type === 'line' ? 3 : 0},
+                    stroke: {curve: 'smooth', width: opts.type === 'line' ? 3 : 0},
                     plotOptions: {bar: {borderRadius: 4, columnWidth: '45%'}},
                     grid: {borderColor: 'rgba(138,146,166,.15)'},
+                    legend: {position: 'bottom'},
                 }).render();
             })
             .catch(() => {});
     }
-    render('#chart-earnings', '{{ route('partner.charts', ['chart' => 'earnings']) }}', 'bar', '#1A98FF');
-    render('#chart-minutes', '{{ route('partner.charts', ['chart' => 'minutes']) }}', 'line', '#89F425');
+    render('#chart-earnings', '{{ route('partner.charts', ['chart' => 'earnings']) }}', {type: 'bar', height: 240, colours: ['#1A98FF']});
+    {{-- Movies vs Series stacked — same shape as the admin Most
+         Watched card, but scoped to this partner's split titles. --}}
+    render('#chart-minutes', '{{ route('partner.charts', ['chart' => 'minutes']) }}', {type: 'bar', stacked: true, colours: ['#1A98FF', '#B02A37']});
 })();
 </script>
 @endpush
