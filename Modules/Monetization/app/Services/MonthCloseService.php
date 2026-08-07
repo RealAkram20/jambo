@@ -207,7 +207,7 @@ class MonthCloseService
     }
 
     /** Completed subscription-tier order revenue inside the month. */
-    protected function grossSubscriptionRevenue(CarbonImmutable $monthStart): string
+    public function grossSubscriptionRevenue(CarbonImmutable $monthStart): string
     {
         $sum = PaymentOrder::query()
             ->where('status', PaymentOrder::STATUS_COMPLETED)
@@ -224,7 +224,7 @@ class MonthCloseService
      * @return array{0: array<int,string>, 1: array<int,array>, 2: string}
      *         [partnerId => minutes], [partnerId => breakdown[]], platformWeight
      */
-    protected function aggregateMinutes(CarbonImmutable $monthStart): array
+    public function aggregateMinutes(CarbonImmutable $monthStart): array
     {
         // Minutes per title: movies keyed by their own id, episodes
         // roll up to their parent show.

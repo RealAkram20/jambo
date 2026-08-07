@@ -226,12 +226,14 @@ class WatchAccrualService
         }
 
         $now = now();
+        $creditedDelta = 0;
         if (!$view) {
             // insertOrIgnore: the unique (user, title, month) key
-            // absorbs concurrent double-beats and replays. If we lost
-            // the race, re-read and fall through to the update path so
-            // the winner's row still reaches the right minute count.
-            QualifiedView::query()->insertOrIgnore([
+            // absorbs concurrent double-beats and replays. Its return
+            // value says whether WE inserted — if we lost the race,
+            // re-read and fall through to the update path so the
+            // winner's row still reaches the right minute count.
+            $inserted = QualifiedView::query()->insertOrIgnore([
                 'user_id' => $beat->userId,
                 'watchable_type' => $beat->item->getMorphClass(),
                 'watchable_id' => $beat->item->getKey(),
@@ -248,6 +250,9 @@ class WatchAccrualService
                 'last_credited_at' => $now,
                 'created_at' => $now,
             ]);
+            if ($inserted > 0) {
+                $creditedDelta = $targetMinutes;
+            }
             $view = QualifiedView::query()
                 ->where('user_id', $beat->userId)
                 ->where('watchable_type', $beat->item->getMorphClass())
@@ -256,12 +261,34 @@ class WatchAccrualService
                 ->first();
         }
 
-        if ($view && ((int) $view->minutes_credited < $targetMinutes || ($completedNow && $view->completed_at === null))) {
+        if ($creditedDelta === 0 && $view
+            && ((int) $view->minutes_credited < $targetMinutes || ($completedNow && $view->completed_at === null))) {
+            $creditedDelta = max(0, $targetMinutes - (int) $view->minutes_credited);
             $view->forceFill([
                 'minutes_credited' => max((int) $view->minutes_credited, $targetMinutes),
                 'completed_at' => $view->completed_at ?? ($completedNow ? $now : null),
                 'last_credited_at' => $now,
             ])->save();
+        }
+
+        // Daily roll-up behind the partner dashboard's Daily/Weekly
+        // earnings filter. Atomic increment on the (day, title) grain
+        // so concurrent viewers of the same title can't lose updates.
+        if ($creditedDelta > 0) {
+            \Illuminate\Support\Facades\DB::statement(
+                'INSERT INTO title_minutes_daily (day, watchable_type, watchable_id, show_id, minutes_credited, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE minutes_credited = minutes_credited + VALUES(minutes_credited), updated_at = VALUES(updated_at)',
+                [
+                    $now->toDateString(),
+                    $beat->item->getMorphClass(),
+                    $beat->item->getKey(),
+                    $showId,
+                    $creditedDelta,
+                    $now->toDateTimeString(),
+                    $now->toDateTimeString(),
+                ],
+            );
         }
 
         $row->forceFill(['qualified' => true])->save();

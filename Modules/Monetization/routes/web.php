@@ -100,6 +100,7 @@ Route::middleware(['auth', 'role:partner'])
         Route::get('/', [PartnerDashboardController::class, 'index'])->name('dashboard');
         Route::get('charts/{chart}', [PartnerDashboardController::class, 'chartData'])
             ->whereIn('chart', ['earnings', 'minutes'])->name('charts');
+        Route::get('estimate', [PartnerDashboardController::class, 'estimate'])->name('estimate');
 
         Route::get('statements', [PartnerStatementController::class, 'index'])->name('statements.index');
         Route::get('statements/{period}', [PartnerStatementController::class, 'show'])->name('statements.show');

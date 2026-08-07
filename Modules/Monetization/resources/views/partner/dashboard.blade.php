@@ -54,6 +54,65 @@
     </div>
 </div>
 
+{{-- Live earnings estimate. The pool grows with every subscription
+     payment and every partner's minutes shift the shares, so these
+     figures move until month close — the statement is the truth. --}}
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-muted" style="font-size:12px;">Estimated earnings</span>
+                        <span class="badge bg-warning-subtle text-warning-emphasis" style="font-size:10px;">ESTIMATE — settles at month close</span>
+                    </div>
+                    <div class="fw-bold" style="font-size:26px;" id="estimate-amount">
+                        {{ $estimate['currency'] }} {{ number_format($estimate['amount']) }}
+                    </div>
+                    <span class="text-muted" style="font-size:13px;" id="estimate-detail">
+                        from {{ number_format($estimate['minutes'], 0) }} weighted minutes this month
+                    </span>
+                </div>
+                <div class="btn-group" role="group" aria-label="Estimate window" id="estimate-window">
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-window="day">Today</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-window="week">7 days</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary active" data-window="month">This month</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@push('scripts')
+<script>
+(function () {
+    var group = document.getElementById('estimate-window');
+    if (!group) return;
+    var amountEl = document.getElementById('estimate-amount');
+    var detailEl = document.getElementById('estimate-detail');
+    var url = @json(route('partner.estimate'));
+    var labels = { day: 'today', week: 'in the last 7 days', month: 'this month' };
+
+    group.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-window]');
+        if (!btn) return;
+        group.querySelectorAll('[data-window]').forEach(function (b) {
+            b.classList.toggle('active', b === btn);
+        });
+        amountEl.style.opacity = '.45';
+        fetch(url + '?window=' + btn.dataset.window, { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                amountEl.textContent = d.currency + ' ' + Number(d.amount).toLocaleString();
+                detailEl.textContent = 'from ' + Number(d.minutes).toLocaleString() + ' weighted minutes ' + (labels[d.window] || '');
+                amountEl.style.opacity = '';
+            })
+            .catch(function () { amountEl.style.opacity = ''; });
+    });
+})();
+</script>
+@endpush
+
 <div class="row g-3">
     <div class="col-12 col-lg-7">
         <div class="card h-100">

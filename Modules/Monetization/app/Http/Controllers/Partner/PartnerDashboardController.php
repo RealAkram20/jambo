@@ -19,6 +19,8 @@ class PartnerDashboardController extends PartnerBaseController
         return view('monetization::partner.dashboard', [
             'partner' => $partner,
             'balance' => $partner->walletBalance(),
+            'estimate' => app(\Modules\Monetization\app\Services\EarningsEstimator::class)
+                ->estimate($partner, 'month'),
             'monthMinutes' => $this->splitWeightedMinutes($partner->id, $monthStart),
             'lastStatement' => $partner->statements()
                 ->whereHas('period', fn ($q) => $q->where('status', MonetizationPeriod::STATUS_CLOSED))
@@ -31,6 +33,22 @@ class PartnerDashboardController extends PartnerBaseController
                 ->first(),
             'titleCount' => $partner->splits()->count(),
         ]);
+    }
+
+    /**
+     * Live earnings estimate for the dashboard's Daily/Weekly/Monthly
+     * filter. Estimates only — statements at month close are the truth.
+     */
+    public function estimate(\Illuminate\Http\Request $request): JsonResponse
+    {
+        $window = in_array($request->query('window'), ['day', 'week', 'month'], true)
+            ? $request->query('window')
+            : 'month';
+
+        return response()->json(
+            app(\Modules\Monetization\app\Services\EarningsEstimator::class)
+                ->estimate($this->partner(), $window)
+        );
     }
 
     /**
