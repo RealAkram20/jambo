@@ -36,6 +36,94 @@ class PartnerDashboardController extends PartnerBaseController
     }
 
     /**
+     * The Earnings graph, filterable like the admin dashboard charts:
+     *   Week  — daily estimate bars, last 7 days
+     *   Month — daily estimate bars, current month so far
+     *   Year  — 12 monthly bars: settled statements, with the still-
+     *           open current month shown at its live estimate
+     * Always returns real bars (never an empty series), plus a
+     * headline total for the window so the card's big number stays in
+     * sync with the graph.
+     */
+    protected function earningsChart(\Illuminate\Http\Request $request, $partner): JsonResponse
+    {
+        $period = in_array($request->query('period'), ['Year', 'Month', 'Week'], true)
+            ? $request->query('period')
+            : 'Year';
+
+        $estimator = app(\Modules\Monetization\app\Services\EarningsEstimator::class);
+        $ctx = $estimator->context();
+        $currency = $ctx['currency'];
+
+        if ($period === 'Week' || $period === 'Month') {
+            $from = $period === 'Week'
+                ? \Carbon\CarbonImmutable::now()->subDays(6)->startOfDay()
+                : \Carbon\CarbonImmutable::now()->startOfMonth();
+
+            $daily = $estimator->dailyMinutes($partner, $from);
+
+            $labels = [];
+            $data = [];
+            $totalMinutes = 0.0;
+            for ($d = $from; $d->lte(\Carbon\CarbonImmutable::now()); $d = $d->addDay()) {
+                $key = $d->toDateString();
+                $minutes = $daily[$key] ?? 0.0;
+                $totalMinutes += $minutes;
+                $labels[] = $d->format('d M');
+                $data[] = $estimator->amountFor($partner, $minutes, $ctx);
+            }
+
+            return response()->json([
+                'labels' => $labels,
+                'series' => [['name' => "Estimated earnings ($currency)", 'data' => $data]],
+                'headline' => [
+                    'amount' => $estimator->amountFor($partner, $totalMinutes, $ctx),
+                    'detail' => 'estimated from ' . number_format($totalMinutes) . ' weighted minutes '
+                        . ($period === 'Week' ? 'in the last 7 days' : 'this month'),
+                ],
+            ]);
+        }
+
+        // Year: settled statements by month; the open current month
+        // rides at its live estimate so the chart is never blank.
+        $settled = $partner->statements()
+            ->whereHas('period', fn ($q) => $q->where('status', MonetizationPeriod::STATUS_CLOSED))
+            ->with('period')
+            ->get()
+            ->keyBy(fn ($s) => $s->period->period_month->toDateString());
+
+        $currentMonthKey = now()->startOfMonth()->toDateString();
+        $monthEstimate = $estimator->amountFor(
+            $partner,
+            (float) ($ctx['partner_minutes'][$partner->id] ?? 0),
+            $ctx,
+        );
+
+        $labels = [];
+        $data = [];
+        $total = 0.0;
+        for ($i = 11; $i >= 0; $i--) {
+            $month = now()->subMonthsNoOverflow($i)->startOfMonth();
+            $key = $month->toDateString();
+            $labels[] = $month->format('M Y');
+            $value = $key === $currentMonthKey
+                ? $monthEstimate
+                : (float) ($settled[$key]->amount ?? 0);
+            $data[] = round($value);
+            $total += $value;
+        }
+
+        return response()->json([
+            'labels' => $labels,
+            'series' => [['name' => "Earnings ($currency)", 'data' => $data]],
+            'headline' => [
+                'amount' => (int) round($total),
+                'detail' => 'last 12 months — settled statements, current month estimated',
+            ],
+        ]);
+    }
+
+    /**
      * Live earnings estimate for the dashboard's Daily/Weekly/Monthly
      * filter. Estimates only — statements at month close are the truth.
      */
@@ -55,54 +143,34 @@ class PartnerDashboardController extends PartnerBaseController
      * ApexCharts JSON feeds (same pattern as the admin dashboard's
      * chartData endpoint). Scoped to the authenticated partner.
      */
-    public function chartData(string $chart): JsonResponse
+    public function chartData(\Illuminate\Http\Request $request, string $chart): JsonResponse
     {
         $partner = $this->partner();
 
         if ($chart === 'earnings') {
-            $statements = $partner->statements()
-                ->whereHas('period', fn ($q) => $q->where('status', MonetizationPeriod::STATUS_CLOSED))
-                ->with('period')
-                ->get()
-                ->sortBy(fn ($s) => $s->period->period_month)
-                ->take(-12);
-
-            return response()->json([
-                'labels' => $statements->map(fn ($s) => $s->period->period_month->format('M Y'))->values(),
-                'series' => [[
-                    'name' => 'Earnings (UGX)',
-                    'data' => $statements->map(fn ($s) => (float) $s->amount)->values(),
-                ]],
-            ]);
+            return $this->earningsChart($request, $partner);
         }
 
         // 'minutes': split-weighted qualified minutes for the last 6
-        // months, split Movies vs Series for the stacked bar — one
-        // batched pass, not one query per split per month.
+        // months — one batched pass, not one query per split per month.
         $months = [];
         for ($i = 5; $i >= 0; $i--) {
             $months[] = now()->subMonthsNoOverflow($i)->startOfMonth();
         }
-        $breakdown = $this->splitWeightedMinutesBreakdown(
+        $byMonth = $this->splitWeightedMinutesByMonth(
             $partner->id,
             array_map(fn ($m) => $m->toDateString(), $months),
         );
         $labels = [];
-        $movieData = [];
-        $showData = [];
+        $data = [];
         foreach ($months as $month) {
-            $key = $month->toDateString();
             $labels[] = $month->format('M Y');
-            $movieData[] = round($breakdown['movies'][$key] ?? 0.0, 1);
-            $showData[] = round($breakdown['shows'][$key] ?? 0.0, 1);
+            $data[] = round($byMonth[$month->toDateString()] ?? 0.0, 1);
         }
 
         return response()->json([
             'labels' => $labels,
-            'series' => [
-                ['name' => 'Movies', 'data' => $movieData],
-                ['name' => 'Series', 'data' => $showData],
-            ],
+            'series' => [['name' => 'Qualified minutes', 'data' => $data]],
         ]);
     }
 

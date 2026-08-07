@@ -38,6 +38,34 @@ class EarningsEstimator
      */
     public function estimate(MonetizationPartner $partner, string $window): array
     {
+        $ctx = $this->context();
+
+        // ---- The partner's minutes inside the window ---------------
+        $windowMinutes = match ($window) {
+            'day' => $this->windowMinutes($partner, CarbonImmutable::now()->startOfDay()),
+            'week' => $this->windowMinutes($partner, CarbonImmutable::now()->subDays(6)->startOfDay()),
+            default => (float) ($ctx['partner_minutes'][$partner->id] ?? 0),
+        };
+
+        return [
+            'window' => $window,
+            'minutes' => round($windowMinutes, 1),
+            'amount' => $this->amountFor($partner, $windowMinutes, $ctx),
+            'rate_known' => $ctx['rate_known'],
+            'pool' => (int) $ctx['pool'],
+            'currency' => $ctx['currency'],
+        ];
+    }
+
+    /**
+     * Month-to-date pool + platform-wide weighted minutes + the
+     * resulting rate per weighted minute — shared by every estimate.
+     *
+     * @return array{pool: string, rate: string, rate_known: bool,
+     *               currency: string, partner_minutes: array<int, string>}
+     */
+    public function context(): array
+    {
         $month = CarbonImmutable::now()->startOfMonth();
         $currency = setting('payments.currency', config('payments.currency', 'UGX'));
 
@@ -62,28 +90,82 @@ class EarningsEstimator
             $totalWeight = bcadd($totalWeight, bcmul($minutes, (string) ($multipliers[$pid] ?? '1'), self::SCALE), self::SCALE);
         }
 
-        // Estimated shillings per weighted minute at this instant.
         $rateKnown = bccomp($totalWeight, '0', self::SCALE) > 0 && bccomp($pool, '0', 0) > 0;
-        $rate = $rateKnown ? bcdiv($pool, $totalWeight, self::SCALE) : '0';
-
-        // ---- The partner's minutes inside the window ---------------
-        $windowMinutes = match ($window) {
-            'day' => $this->windowMinutes($partner, CarbonImmutable::now()->startOfDay()),
-            'week' => $this->windowMinutes($partner, CarbonImmutable::now()->subDays(6)->startOfDay()),
-            default => (float) ($partnerMinutes[$partner->id] ?? 0),
-        };
-
-        $weighted = bcmul(number_format($windowMinutes, 4, '.', ''), (string) $partner->multiplier, self::SCALE);
-        $amount = (int) bcdiv(bcmul($weighted, $rate, self::SCALE), '1', 0);
 
         return [
-            'window' => $window,
-            'minutes' => round($windowMinutes, 1),
-            'amount' => $amount,
+            'pool' => $pool,
+            'rate' => $rateKnown ? bcdiv($pool, $totalWeight, self::SCALE) : '0',
             'rate_known' => $rateKnown,
-            'pool' => (int) $pool,
             'currency' => $currency,
+            'partner_minutes' => $partnerMinutes,
         ];
+    }
+
+    /** Estimated whole-currency amount for a partner's minutes at the current rate. */
+    public function amountFor(MonetizationPartner $partner, float $minutes, ?array $ctx = null): int
+    {
+        $ctx ??= $this->context();
+        $weighted = bcmul(number_format($minutes, 4, '.', ''), (string) $partner->multiplier, self::SCALE);
+
+        return (int) bcdiv(bcmul($weighted, $ctx['rate'], self::SCALE), '1', 0);
+    }
+
+    /**
+     * Per-day split-weighted minutes for the partner since $from —
+     * feeds the Earnings chart's Month/Week daily bars.
+     *
+     * @return array<string, float>  day (Y-m-d) => weighted minutes
+     */
+    public function dailyMinutes(MonetizationPartner $partner, CarbonImmutable $from): array
+    {
+        $splits = TitleSplit::query()
+            ->where('partner_id', $partner->id)
+            ->get(['splittable_type', 'splittable_id', 'percent']);
+
+        if ($splits->isEmpty()) {
+            return [];
+        }
+
+        $showPercents = [];
+        $moviePercents = [];
+        foreach ($splits as $split) {
+            if (str_contains($split->splittable_type, 'Show')) {
+                $showPercents[$split->splittable_id] = (float) $split->percent;
+            } else {
+                $moviePercents[$split->splittable_type . '#' . $split->splittable_id] = (float) $split->percent;
+            }
+        }
+
+        $out = [];
+
+        if ($showPercents !== []) {
+            $rows = DB::table('title_minutes_daily')
+                ->where('day', '>=', $from->toDateString())
+                ->whereIn('show_id', array_keys($showPercents))
+                ->groupBy('day', 'show_id')
+                ->selectRaw('day, show_id, SUM(minutes_credited) as minutes')
+                ->get();
+            foreach ($rows as $r) {
+                $out[$r->day] = ($out[$r->day] ?? 0.0) + (float) $r->minutes * ($showPercents[$r->show_id] / 100);
+            }
+        }
+
+        if ($moviePercents !== []) {
+            $rows = DB::table('title_minutes_daily')
+                ->where('day', '>=', $from->toDateString())
+                ->whereNull('show_id')
+                ->groupBy('day', 'watchable_type', 'watchable_id')
+                ->selectRaw('day, watchable_type, watchable_id, SUM(minutes_credited) as minutes')
+                ->get();
+            foreach ($rows as $r) {
+                $key = $r->watchable_type . '#' . $r->watchable_id;
+                if (isset($moviePercents[$key])) {
+                    $out[$r->day] = ($out[$r->day] ?? 0.0) + (float) $r->minutes * ($moviePercents[$key] / 100);
+                }
+            }
+        }
+
+        return $out;
     }
 
     /**

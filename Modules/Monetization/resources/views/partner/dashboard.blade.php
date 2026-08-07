@@ -54,59 +54,34 @@
     </div>
 </div>
 
-@push('scripts')
-<script>
-(function () {
-    var group = document.getElementById('estimate-window');
-    if (!group) return;
-    var amountEl = document.getElementById('estimate-amount');
-    var detailEl = document.getElementById('estimate-detail');
-    var url = @json(route('partner.estimate'));
-    var labels = { day: 'today', week: 'in the last 7 days', month: 'this month' };
-
-    group.addEventListener('click', function (e) {
-        var btn = e.target.closest('[data-window]');
-        if (!btn) return;
-        group.querySelectorAll('[data-window]').forEach(function (b) {
-            b.classList.toggle('active', b === btn);
-        });
-        amountEl.style.opacity = '.45';
-        fetch(url + '?window=' + btn.dataset.window, { headers: { 'Accept': 'application/json' } })
-            .then(function (r) { return r.json(); })
-            .then(function (d) {
-                amountEl.textContent = d.currency + ' ' + Number(d.amount).toLocaleString();
-                detailEl.textContent = 'from ' + Number(d.minutes).toLocaleString() + ' weighted minutes ' + (labels[d.window] || '');
-                amountEl.style.opacity = '';
-            })
-            .catch(function () { amountEl.style.opacity = ''; });
-    });
-})();
-</script>
-@endpush
 
 <div class="row g-3">
     <div class="col-12 col-lg-7">
         <div class="card h-100">
             <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
                 <h5 class="card-title mb-0">Earnings</h5>
-                <div class="btn-group" role="group" aria-label="Estimate window" id="estimate-window">
-                    <button type="button" class="btn btn-sm btn-outline-primary" data-window="day">Today</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary" data-window="week">7 days</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary active" data-window="month">This month</button>
+                {{-- Same filter chrome as the admin dashboard charts. --}}
+                <div class="dropdown">
+                    <button class="btn custom-btn-dark-dropdown dropdown-toggle" type="button"
+                            id="earnings-period" data-bs-toggle="dropdown" aria-expanded="false">Month</button>
+                    <ul class="dropdown-menu sub-dropdown" aria-labelledby="earnings-period">
+                        <li><a class="dropdown-item" href="javascript:void(0)" data-earnings-period="Week">Week</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0)" data-earnings-period="Month">Month</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0)" data-earnings-period="Year">Year</a></li>
+                    </ul>
                 </div>
             </div>
             <div class="card-body">
-                {{-- Live estimate for the selected window. Moves until
-                     month close credits the statement — the chart below
-                     shows those settled months. --}}
+                {{-- Headline mirrors the graph's window; estimates move
+                     until month close credits the statement. --}}
                 <div class="mb-3">
                     <div class="fw-bold" style="font-size:26px;" id="estimate-amount">
                         {{ $estimate['currency'] }} {{ number_format($estimate['amount']) }}
                     </div>
                     <span class="text-muted" style="font-size:13px;" id="estimate-detail">
-                        from {{ number_format($estimate['minutes'], 0) }} weighted minutes this month
+                        estimated from {{ number_format($estimate['minutes'], 0) }} weighted minutes this month
                     </span>
-                    <span class="badge bg-warning-subtle text-warning-emphasis ms-1" style="font-size:10px;">ESTIMATE — settles at month close</span>
+                    <span class="badge bg-warning-subtle text-warning-emphasis ms-1" style="font-size:10px;">ESTIMATES SETTLE AT MONTH CLOSE</span>
                 </div>
                 <div id="chart-earnings" style="min-height:240px;"></div>
             </div>
@@ -129,7 +104,7 @@
             .then(r => r.json())
             .then(data => {
                 new ApexCharts(document.querySelector(elId), {
-                    chart: {type: opts.type, height: opts.height || 280, stacked: !!opts.stacked, toolbar: {show: false}, foreColor: '#8A92A6'},
+                    chart: {type: opts.type, height: opts.height || 280, toolbar: {show: false}, foreColor: '#8A92A6'},
                     series: data.series,
                     xaxis: {categories: data.labels},
                     colors: opts.colours,
@@ -137,15 +112,58 @@
                     stroke: {curve: 'smooth', width: opts.type === 'line' ? 3 : 0},
                     plotOptions: {bar: {borderRadius: 4, columnWidth: '45%'}},
                     grid: {borderColor: 'rgba(138,146,166,.15)'},
-                    legend: {position: 'bottom'},
                 }).render();
             })
             .catch(() => {});
     }
-    render('#chart-earnings', '{{ route('partner.charts', ['chart' => 'earnings']) }}', {type: 'bar', height: 240, colours: ['#1A98FF']});
-    {{-- Movies vs Series stacked — same shape as the admin Most
-         Watched card, but scoped to this partner's split titles. --}}
-    render('#chart-minutes', '{{ route('partner.charts', ['chart' => 'minutes']) }}', {type: 'bar', stacked: true, colours: ['#1A98FF', '#B02A37']});
+    render('#chart-minutes', '{{ route('partner.charts', ['chart' => 'minutes']) }}', {type: 'line', colours: ['#89F425']});
+
+    // Earnings: dynamic Week/Month/Year graph + synced headline.
+    // Daily estimate bars for Week/Month; settled statements (current
+    // month at its live estimate) for Year.
+    (function () {
+        var chart = null;
+        var amountEl = document.getElementById('estimate-amount');
+        var detailEl = document.getElementById('estimate-detail');
+        var toggleEl = document.getElementById('earnings-period');
+        var currency = @json($estimate['currency']);
+        var baseUrl = '{{ route('partner.charts', ['chart' => 'earnings']) }}';
+
+        function load(period) {
+            fetch(baseUrl + '?period=' + period, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+                .then(r => r.json())
+                .then(data => {
+                    if (toggleEl) toggleEl.textContent = period;
+                    if (amountEl && data.headline) {
+                        amountEl.textContent = currency + ' ' + Number(data.headline.amount).toLocaleString();
+                        detailEl.textContent = data.headline.detail;
+                    }
+                    if (chart) {
+                        chart.updateOptions({series: data.series, xaxis: {categories: data.labels}});
+                        return;
+                    }
+                    chart = new ApexCharts(document.querySelector('#chart-earnings'), {
+                        chart: {type: 'bar', height: 240, toolbar: {show: false}, foreColor: '#8A92A6'},
+                        series: data.series,
+                        xaxis: {categories: data.labels},
+                        colors: ['#1A98FF'],
+                        dataLabels: {enabled: false},
+                        plotOptions: {bar: {borderRadius: 4, columnWidth: '55%'}},
+                        grid: {borderColor: 'rgba(138,146,166,.15)'},
+                        yaxis: {labels: {formatter: function (v) { return Number(v).toLocaleString(); }}},
+                        tooltip: {y: {formatter: function (v) { return currency + ' ' + Number(v).toLocaleString(); }}},
+                    });
+                    chart.render();
+                })
+                .catch(() => {});
+        }
+
+        document.querySelectorAll('[data-earnings-period]').forEach(function (item) {
+            item.addEventListener('click', function () { load(item.dataset.earningsPeriod); });
+        });
+
+        load('Month');
+    })();
 })();
 </script>
 @endpush
