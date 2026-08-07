@@ -54,35 +54,6 @@
     </div>
 </div>
 
-{{-- Live earnings estimate. The pool grows with every subscription
-     payment and every partner's minutes shift the shares, so these
-     figures move until month close — the statement is the truth. --}}
-<div class="row g-3 mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
-                <div>
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="text-muted" style="font-size:12px;">Estimated earnings</span>
-                        <span class="badge bg-warning-subtle text-warning-emphasis" style="font-size:10px;">ESTIMATE — settles at month close</span>
-                    </div>
-                    <div class="fw-bold" style="font-size:26px;" id="estimate-amount">
-                        {{ $estimate['currency'] }} {{ number_format($estimate['amount']) }}
-                    </div>
-                    <span class="text-muted" style="font-size:13px;" id="estimate-detail">
-                        from {{ number_format($estimate['minutes'], 0) }} weighted minutes this month
-                    </span>
-                </div>
-                <div class="btn-group" role="group" aria-label="Estimate window" id="estimate-window">
-                    <button type="button" class="btn btn-sm btn-outline-primary" data-window="day">Today</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary" data-window="week">7 days</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary active" data-window="month">This month</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 @push('scripts')
 <script>
 (function () {
@@ -116,8 +87,29 @@
 <div class="row g-3">
     <div class="col-12 col-lg-7">
         <div class="card h-100">
-            <div class="card-header"><h5 class="card-title mb-0">Monthly earnings</h5></div>
-            <div class="card-body"><div id="chart-earnings" style="min-height:280px;"></div></div>
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <h5 class="card-title mb-0">Earnings</h5>
+                <div class="btn-group" role="group" aria-label="Estimate window" id="estimate-window">
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-window="day">Today</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-window="week">7 days</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary active" data-window="month">This month</button>
+                </div>
+            </div>
+            <div class="card-body">
+                {{-- Live estimate for the selected window. Moves until
+                     month close credits the statement — the chart below
+                     shows those settled months. --}}
+                <div class="mb-3">
+                    <div class="fw-bold" style="font-size:26px;" id="estimate-amount">
+                        {{ $estimate['currency'] }} {{ number_format($estimate['amount']) }}
+                    </div>
+                    <span class="text-muted" style="font-size:13px;" id="estimate-detail">
+                        from {{ number_format($estimate['minutes'], 0) }} weighted minutes this month
+                    </span>
+                    <span class="badge bg-warning-subtle text-warning-emphasis ms-1" style="font-size:10px;">ESTIMATE — settles at month close</span>
+                </div>
+                <div id="chart-earnings" style="min-height:240px;"></div>
+            </div>
         </div>
     </div>
     <div class="col-12 col-lg-5">
