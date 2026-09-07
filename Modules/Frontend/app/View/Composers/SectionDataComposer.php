@@ -92,7 +92,11 @@ class SectionDataComposer
         // full set, the vertical hero slider uses the top 5 (so its
         // "#X in Movies Today" rank badge is honest without doubling the
         // per-slide work the right banner does).
-        $topMovies = app(TopPicksRecommender::class)->globalTopPicks(Movie::class, 10);
+        // Ranked by distinct 24h viewers, the same algorithm as the Top 10
+        // Series of the Day tab slider. It used to be globalTopPicks(), an
+        // all-time score with no day window, so the same ten titles showed
+        // every day under a "#X in Movies Today" badge (CHANGELOG 1.8.11).
+        $topMovies = app(TopPicksRecommender::class)->topMoviesOfTheDay(10);
 
         // Homepage category shelves — ONE pool: every category the admin
         // marked "Visible Home" (with published content), in the exact

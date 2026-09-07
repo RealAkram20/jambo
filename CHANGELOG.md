@@ -2,6 +2,44 @@
 
 ## Jambo
 
+### 1.8.11 — Top 10 Movies of the Day actually changes daily
+
+User report: the Top 10 Movies rail and the "#X in Movies Today"
+vertical hero slider showed the same titles every day, while Top 10
+Series of the Day rotated. Cause: the two rails were fed by different
+algorithms. The series tab slider uses `topSeriesOfTheDay()` (distinct
+viewers in the last 24h, cached on a per-date key), but `topMovies` in
+[SectionDataComposer.php](Modules/Frontend/app/View/Composers/SectionDataComposer.php)
+came from `globalTopPicks()`, an all-time weighted score (views,
+completions, watchlist adds, ratings, reviews, editor boost) with no
+day window at all — so it only moved when the all-time totals did,
+which for the top titles is never.
+
+Fix: `topMoviesOfTheDay()` in
+[TopPicksRecommender.php](Modules/Frontend/app/Services/TopPicksRecommender.php),
+a movie twin of the series method — same 24h distinct-viewer ranking,
+same per-date cache (flushed by CatalogCacheObserver on content
+changes like every other shelf), no episode hop because movies are
+watched directly. When daily activity is thin it backfills from
+`globalTopPicks()`, which is exactly what the rail showed before, so a
+quiet day looks like the old rail rather than a half-empty one. The
+composer feeds both the Top 10 Movies rail and the vertical slider's
+top 5 from it, so the "#X in Movies Today" badge is now honest.
+`globalTopPicks()` is untouched for its other callers (Top 10 Series
+to Watch rail, cold-start fallbacks).
+
+Verified: four new tests in
+[TopPicksRecommenderTest.php](Modules/Frontend/tests/Feature/TopPicksRecommenderTest.php)
+mirroring the series ones — daily viewers beat all-time popularity,
+watches older than 24h do not count, cold catalog falls back to the
+all-time ranking, second call in the day hits cache. The 24h guard
+was proven by mutation (widened the window, watched the test fail,
+restored). Not verified: on production data — whether movies have
+enough daily viewers to reorder the shelf on a given day, or fall back
+that day, depends on real traffic. Deploy: pull-only +
+`php artisan view:clear` (no migration; the daily cache key is new so
+no flush is needed).
+
 ### 1.8.10 — Detail/watch/episode pages: tighter rail rhythm
 
 Follow-up to 1.8.9 from the live series detail page: with the rails

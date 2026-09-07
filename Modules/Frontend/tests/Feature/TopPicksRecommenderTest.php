@@ -754,6 +754,68 @@ class TopPicksRecommenderTest extends TestCase
         );
     }
 
+    public function test_top_movies_of_the_day_ranks_by_recent_viewers(): void
+    {
+        // Same shape as the series test: daily viewers beat all-time
+        // popularity at the head, and the cold title is padded in.
+        $hot = $this->makePublishedMovie(['title' => 'Hot', 'views_count' => 100]);
+        $warm = $this->makePublishedMovie(['title' => 'Warm', 'views_count' => 5000]);
+        $cold = $this->makePublishedMovie(['title' => 'Cold', 'views_count' => 9999]);
+
+        $this->recordMovieWatches($hot, 3, watchedAt: now()->subHours(2));
+        $this->recordMovieWatches($warm, 1, watchedAt: now()->subHours(3));
+
+        $top = app(TopPicksRecommender::class)->topMoviesOfTheDay(10);
+
+        $this->assertGreaterThanOrEqual(3, $top->count());
+        $this->assertSame($hot->id, $top->first()->id, 'Movie with most daily viewers should lead.');
+        $this->assertSame($warm->id, $top->get(1)->id, 'Movie with fewer daily viewers should come second.');
+        $this->assertTrue($top->pluck('id')->contains($cold->id), 'Cold movie should be padded into the shelf.');
+    }
+
+    public function test_top_movies_of_the_day_ignores_watches_older_than_a_day(): void
+    {
+        // The point of the fix: yesterday's blockbuster must not hold
+        // the top slot on a day nobody watched it.
+        $yesterday = $this->makePublishedMovie(['title' => 'Yesterday', 'views_count' => 9999]);
+        $today = $this->makePublishedMovie(['title' => 'Today', 'views_count' => 10]);
+
+        $this->recordMovieWatches($yesterday, 5, watchedAt: now()->subDays(2));
+        $this->recordMovieWatches($today, 1, watchedAt: now()->subHour());
+
+        $top = app(TopPicksRecommender::class)->topMoviesOfTheDay(10);
+
+        $this->assertSame($today->id, $top->first()->id, 'Only the last 24h count toward the daily rank.');
+    }
+
+    public function test_top_movies_of_the_day_falls_back_when_no_daily_activity(): void
+    {
+        $a = $this->makePublishedMovie(['title' => 'Alpha', 'views_count' => 100]);
+        $b = $this->makePublishedMovie(['title' => 'Beta', 'views_count' => 9999]);
+
+        $top = app(TopPicksRecommender::class)->topMoviesOfTheDay(10);
+
+        // No daily signal: the shelf is the old all-time ranking, which
+        // on a cold catalog is views_count order.
+        $this->assertSame($b->id, $top->first()->id, 'Falls back to the all-time ranking when no daily activity exists.');
+        $this->assertTrue($top->pluck('id')->contains($a->id));
+    }
+
+    public function test_top_movies_of_the_day_is_cached_within_the_day(): void
+    {
+        $movie = $this->makePublishedMovie();
+        $this->recordMovieWatches($movie, 2, watchedAt: now()->subHour());
+
+        $recommender = app(TopPicksRecommender::class);
+        $recommender->topMoviesOfTheDay(10); // warms cache
+
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+        $recommender->topMoviesOfTheDay(10);
+
+        $this->assertCount(0, DB::getQueryLog(), 'Second call within the same day should hit cache and issue zero queries.');
+    }
+
     public function test_in_progress_candidate_ranks_below_equivalent_untouched(): void
     {
         $user = User::factory()->create();
@@ -846,6 +908,36 @@ class TopPicksRecommenderTest extends TestCase
                 'watchable_id' => $episode->id,
                 'position_seconds' => 600,
                 'duration_seconds' => 2400,
+                'completed' => false,
+                'watched_at' => $watchedAt,
+            ]);
+        }
+    }
+
+    private function makePublishedMovie(array $attrs = []): Movie
+    {
+        return Movie::factory()->create(array_merge([
+            'status' => Movie::STATUS_PUBLISHED,
+            'published_at' => now()->subDays(10),
+            'editor_boost' => 0,
+        ], $attrs));
+    }
+
+    /**
+     * Movie twin of recordEpisodeWatches(): $count distinct viewers on
+     * one movie, timestamped where the daily recommender will (or will
+     * not) see them.
+     */
+    private function recordMovieWatches(Movie $movie, int $count, \DateTimeInterface $watchedAt): void
+    {
+        for ($i = 0; $i < $count; $i++) {
+            $viewer = User::factory()->create();
+            WatchHistoryItem::create([
+                'user_id' => $viewer->id,
+                'watchable_type' => $movie->getMorphClass(),
+                'watchable_id' => $movie->id,
+                'position_seconds' => 600,
+                'duration_seconds' => 6000,
                 'completed' => false,
                 'watched_at' => $watchedAt,
             ]);

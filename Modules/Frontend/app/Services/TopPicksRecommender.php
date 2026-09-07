@@ -29,6 +29,8 @@ class TopPicksRecommender
     public const CACHE_KEY_GUEST = 'topPicks:guest:v1';
     public const CACHE_KEY_DAILY_SERIES_PREFIX = 'tab_series_of_the_day:';
     public const CACHE_KEY_DAILY_SERIES_SUFFIX = ':v1';
+    public const CACHE_KEY_DAILY_MOVIES_PREFIX = 'top_movies_of_the_day:';
+    public const CACHE_KEY_DAILY_MOVIES_SUFFIX = ':v1';
     public const CACHE_KEY_SMART_SHUFFLE_USER_SUFFIX = ':smart_shuffle:v1';
     public const CACHE_KEY_SMART_SHUFFLE_GUEST = 'smart_shuffle:guest:v1';
 
@@ -1271,6 +1273,90 @@ class TopPicksRecommender
             ->take($limit)
             ->get()
             ->values();
+    }
+
+    /**
+     * "Top 10 Movies of the Day" — movies ranked by distinct users who
+     * watched them in the last 24 hours. Same shape as
+     * topSeriesOfTheDay(): keyed on today's calendar date so the shelf
+     * is stable within the day and rolls over at local midnight.
+     *
+     * Exists because the home page's Top 10 Movies rail and the vertical
+     * hero slider ("#X in Movies Today") were fed by globalTopPicks(),
+     * an all-time weighted score with no day window at all — so the same
+     * ten titles showed every day while the series rail rotated. When
+     * daily activity is thin the shelf backfills from globalTopPicks(),
+     * which is exactly what the rail showed before, so a quiet day looks
+     * like the old rail rather than a half-empty one.
+     */
+    public function topMoviesOfTheDay(int $limit = 10): Collection
+    {
+        $cacheKey = self::CACHE_KEY_DAILY_MOVIES_PREFIX
+            . now()->toDateString()
+            . self::CACHE_KEY_DAILY_MOVIES_SUFFIX;
+
+        return $this->cache->remember($cacheKey, 86400, fn () => $this->computeTopMoviesOfTheDay($limit));
+    }
+
+    /**
+     * Two-pass build, mirroring computeTopSeriesOfTheDay():
+     *   1. Rank published movies by distinct 24h viewers straight off
+     *      watch_history (movies are watched directly, no episode hop).
+     *   2. Pad to $limit from the all-time weighted ranking, skipping
+     *      titles the daily pass already placed.
+     */
+    private function computeTopMoviesOfTheDay(int $limit): Collection
+    {
+        $since = now()->subDay();
+        $movieMorph = (new Movie)->getMorphClass();
+
+        $dailyIds = DB::table('movies')
+            ->select('movies.id')
+            ->selectRaw('COUNT(DISTINCT wh.user_id) as daily_viewers')
+            ->join('watch_history as wh', function ($join) use ($movieMorph) {
+                $join->on('wh.watchable_id', '=', 'movies.id')
+                    ->where('wh.watchable_type', '=', $movieMorph);
+            })
+            ->where('wh.watched_at', '>=', $since)
+            ->where('movies.status', Movie::STATUS_PUBLISHED)
+            ->whereNotNull('movies.published_at')
+            ->where('movies.published_at', '<=', now())
+            ->groupBy('movies.id')
+            ->orderByDesc('daily_viewers')
+            ->orderByDesc('movies.views_count')
+            ->orderByDesc('movies.published_at')
+            ->limit($limit)
+            ->pluck('movies.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $result = collect();
+
+        if (!empty($dailyIds)) {
+            // Re-filter through Movie::scopePublished, as the series
+            // version does — the raw query cannot apply the model scope.
+            $movies = Movie::published()
+                ->with('genres')
+                ->whereIn('id', $dailyIds)
+                ->get()
+                ->keyBy('id');
+
+            foreach ($dailyIds as $id) {
+                if (isset($movies[$id])) {
+                    $result->push($movies[$id]);
+                }
+            }
+        }
+
+        if ($result->count() < $limit) {
+            $extras = $this->globalTopPicks(Movie::class, $limit + count($dailyIds))
+                ->reject(fn (Movie $m) => in_array((int) $m->id, $dailyIds, true))
+                ->take($limit - $result->count());
+
+            $result = $result->concat($extras);
+        }
+
+        return $result->values();
     }
 
     /**
