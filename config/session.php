@@ -31,7 +31,13 @@ return [
     |
     */
 
-    'lifetime' => env('SESSION_LIFETIME', 120),
+    // 8 days idle (11520 min), not Laravel's 120-minute web-form default.
+    // A streaming service is opened a few times a week; at 120 minutes
+    // every viewer who did not tick "Remember me" was signed out between
+    // visits, and forms left open (signup, review) died with 419s. The
+    // production .env must carry the same value — env() wins over this
+    // default. CHANGELOG 1.8.16.
+    'lifetime' => env('SESSION_LIFETIME', 11520),
 
     'expire_on_close' => false,
 

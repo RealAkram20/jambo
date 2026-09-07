@@ -111,7 +111,11 @@ class StreamingController extends Controller
         $cap  = $tier?->max_concurrent_streams;
 
         $currentSessionId = $request->session()->getId();
-        $cutoff = now()->subMinutes((int) config('session.lifetime', 120))->timestamp;
+        // Sessions seen in the last day, or the whole lifetime if that is
+        // shorter. The lifetime is 8 days since 1.8.16; a device idle for
+        // days cannot be holding a stream (streams are heartbeat-keyed),
+        // so listing it here only pads the page the viewer must act on.
+        $cutoff = now()->subMinutes(min((int) config('session.lifetime', 120), 1440))->timestamp;
 
         $rawSessions = DB::table('sessions')
             ->where('user_id', $user->id)

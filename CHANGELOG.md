@@ -2,6 +2,49 @@
 
 ## Jambo
 
+### 1.8.16 — Sessions last 8 idle days instead of 2 hours
+
+Rio: "the session on the browser is reset every day, make it last at
+least 8 days." The cause was smaller than a day: every environment
+file, including `.env.production.example`, carried Laravel's
+`SESSION_LIFETIME=120` — two hours of inactivity, the default meant
+for web forms. A viewer who did not tick "Remember me" was signed out
+between visits, and the 1.8.0 signup 419s came from the same setting
+(that entry already suggested raising it).
+
+Changes: the default in [config/session.php](config/session.php) is
+11520 minutes (8 days idle) with the reasoning beside it; `.env`,
+`.env.example` and `.env.production.example` say 11520;
+`.env.production.example` now also says `SESSION_DRIVER=database`,
+which production has used since device management (final-polish.md
+Phase A) although the example still said `file`. The stream-limit page
+in [StreamingController.php](Modules/Streaming/app/Http/Controllers/StreamingController.php)
+listed every session younger than the lifetime as a device the viewer
+might need to log out; that window is now capped at one day, because
+a device idle for days cannot be holding a stream (streams are
+heartbeat-keyed) and eight days of sessions would only pad the page.
+The Devices page deliberately still lists everything — that is what
+it is for.
+
+The lifetime is idle time: each request refreshes the cookie and
+`last_activity`, so anyone who opens Jambo at least once a week stays
+signed in indefinitely; "Remember me" (5-year cookie) is unchanged and
+still opt-in, which is the right default for shared computers.
+
+**Deploy needs one server-side step**, because production's `.env`
+sets the value explicitly and env wins over the config default:
+
+```bash
+sudo -u jambo2820 -i bash -c 'cd /home/jambofilms.com/public_html && git pull \
+  && sed -i "s/^SESSION_LIFETIME=.*/SESSION_LIFETIME=11520/" .env \
+  && php artisan config:cache && php artisan view:clear'
+```
+
+Existing sessions pick up the new expiry on their next request; anyone
+already signed out signs in once more. Verified: the streaming and
+auth test suites pass; config default confirmed by `config:show`
+locally. Not verified: production, until the `.env` line is changed.
+
 ### 1.8.15 — Top 10 rails: slightly smaller rank numerals
 
 Rio's request from a screenshot of the Top 10 rail: the numerals
