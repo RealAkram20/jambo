@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Content\app\Http\Controllers\Admin\EpisodeController;
+use Modules\Content\app\Http\Controllers\Admin\FeaturedController;
 use Modules\Content\app\Http\Controllers\Admin\MovieController;
 use Modules\Content\app\Http\Controllers\Admin\PersonController;
 use Modules\Content\app\Http\Controllers\Admin\SeasonController;
@@ -97,6 +98,14 @@ Route::middleware(['auth', 'role:admin'])
         Route::put('genres/{genre}', [GenreController::class, 'update'])->name('genres.update');
         Route::delete('genres/{genre}', [GenreController::class, 'destroy'])->name('genres.destroy');
 
+
+        // Featured: the hand-picked OTT homepage hero. Order is owned by
+        // drag-and-drop on the index page, same contract as categories.
+        // Homepage hero only — the /movie and /series banners are separate.
+        Route::get('featured', [FeaturedController::class, 'index'])->name('featured.index');
+        Route::post('featured', [FeaturedController::class, 'store'])->name('featured.store');
+        Route::patch('featured/reorder', [FeaturedController::class, 'reorder'])->name('featured.reorder');
+        Route::delete('featured/{featured}', [FeaturedController::class, 'destroy'])->name('featured.destroy');
         Route::post('vjs', [VjController::class, 'store'])->name('vjs.store');
         Route::put('vjs/{vj}', [VjController::class, 'update'])->name('vjs.update');
         Route::delete('vjs/{vj}', [VjController::class, 'destroy'])->name('vjs.destroy');

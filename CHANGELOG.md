@@ -2,6 +2,64 @@
 
 ## Jambo
 
+### 1.8.19 — Featured: admins choose and order the homepage hero
+
+Rio: a new menu between Categories and Vjs where an admin picks which
+movie or series is the big homepage banner, dragged into the order they
+want, the same way the categories page works.
+
+**New screen at /admin/featured.** Add a movie or a series from two
+pickers, drag rows by the handle to reorder, remove with one click. The
+drag posts the new order immediately to
+`admin.featured.reorder`, the same contract as
+`admin.categories.reorder`, and the position column renumbers without a
+reload. SortableJS from the same CDN the categories page already uses.
+
+**The homepage hero follows that list.**
+[SectionDataComposer::buildHero()](Modules/Frontend/app/View/Composers/SectionDataComposer.php)
+now reads the featured rows first. With the list empty it keeps the old
+automatic behaviour — the three most-viewed movies and three most-viewed
+shows, interleaved — so deploying this changes nothing on the site until
+someone curates, and the hero can never end up blank.
+
+**Scope: the homepage hero only.** Rio asked explicitly that the /movie,
+/series and VJ page banners stay as they are. Those are a different
+partial (`movie-slider`) fed by FrontendController's own queries and are
+untouched; a test pins that.
+
+Two rules keep the screen honest for a non-technical admin:
+
+- **Only publishable titles reach the site.** A featured draft, or a
+  series with no published episode yet, is dropped from the homepage but
+  still listed on the admin screen with a "Hidden" badge. Silently
+  omitting it would leave nobody able to explain why the homepage looks
+  wrong. Announced-but-unaired series are the realistic case.
+- **Deleted titles stop holding a slot.** `FeaturedItem::prune()` sweeps
+  orphaned rows when the screen loads.
+
+New: `featured_items` table (morph target, `sort_order`, unique per
+title), [FeaturedItem](Modules/Content/app/Models/FeaturedItem.php),
+[FeaturedController](Modules/Content/app/Http/Controllers/Admin/FeaturedController.php),
+the admin view, four routes, and one sidebar entry.
+
+Verified: 14 tests in
+[FeaturedHeroTest.php](Modules/Content/tests/Feature/FeaturedHeroTest.php)
+covering the fallback, drag order beating view count, the movie/series
+mix, drafts and episode-less series being held back while staying
+visible in admin, add, duplicate rejection, reorder, remove, orphan
+sweep, admin-only access, and the scope guard on /movie. Mutating the
+`published()` filter out failed the draft test, restored. Rendered
+locally: the empty state, four featured rows with both badge states, and
+the homepage hero following the chosen order.
+
+One bug caught by rendering rather than by tests: the row loop assigned
+`$title`, and Blade shares a view's variables with its layout, where the
+admin header partial renders `$title`. An Eloquent model stringifies to
+JSON, so the whole movie record printed across the top of the page. The
+variable is now scoped, and a test asserts no model is stringified into
+the page.
+
+Deploy: `git pull`, `php artisan migrate`, `php artisan view:clear`.
 ### 1.8.18 — Created by badge: one name, not two
 
 Rio, on 1.8.17: "let it be one name not two names." The badge showed the

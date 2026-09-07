@@ -242,6 +242,19 @@
         </a>
     </li>
 
+    {{-- Featured: the hand-picked homepage hero. Sits between Categories
+         and Vjs because it is a content-curation screen, not a taxonomy. --}}
+    <li class="nav-item">
+        <a class="nav-link {{ activeRoute(route('admin.featured.index')) }}" aria-current="page"
+            href="{{ route('admin.featured.index') }}">
+            <i class="icon" data-bs-toggle="tooltip" title="Featured" data-bs-placement="right"
+                aria-label="Featured" data-bs-original-title="Featured">
+                <i class="ph ph-star fs-4"></i>
+            </i>
+            <span class="item-name">Featured</span>
+        </a>
+    </li>
+
     <li class="nav-item">
         <a class="nav-link {{ activeRoute(route('dashboard.vjs')) }}" aria-current="page" href="{{ route('dashboard.vjs') }}">
             <i class="icon" data-bs-toggle="tooltip" title="Vjs" data-bs-placement="right" aria-label="Vjs"

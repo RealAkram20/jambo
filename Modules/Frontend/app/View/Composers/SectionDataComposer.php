@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 use Modules\Content\app\Models\Category;
+use Modules\Content\app\Models\FeaturedItem;
 use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Genre;
 use Modules\Content\app\Models\Movie;
@@ -245,12 +246,29 @@ class SectionDataComposer
     }
 
     /**
-     * Mixed featured collection for the OTT hero (3 movies + 3 shows).
+     * The OTT homepage hero: the big banner and the poster rail beside it.
+     *
+     * Admins own this list at /admin/featured — hand-picked titles in a
+     * hand-dragged order (CHANGELOG 1.8.19). When they have not picked
+     * anything, or nothing they picked is currently published, this falls
+     * back to the original automatic mix of the 3 most-viewed movies and
+     * the 3 most-viewed shows, interleaved. So the hero is never empty and
+     * the feature can ship before anyone has curated it.
+     *
      * Each item is tagged with `_isShow` so the blade can branch without
      * instance checks, and comes with genres/tags/cast already loaded.
+     *
+     * Homepage only. The banners on /movie, /series and the VJ pages are a
+     * different partial fed by FrontendController and are not affected.
      */
     private function buildHero()
     {
+        $curated = FeaturedItem::heroItems();
+
+        if ($curated->isNotEmpty()) {
+            return $curated;
+        }
+
         $relations = [
             'genres',
             'tags',
