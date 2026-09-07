@@ -37,6 +37,9 @@
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
         gap: 12px;
+        /* Same bottom gap as a swiper rail (.swiper { margin-bottom: 3.75em })
+           so toggling scroller <-> grid never moves the section below. */
+        margin-bottom: 3.75em;
     }
     /* Load-bearing: .jambo-ep-grid's class display beats a bare
        [hidden] UA rule, so restate it at equal-or-higher specificity. */

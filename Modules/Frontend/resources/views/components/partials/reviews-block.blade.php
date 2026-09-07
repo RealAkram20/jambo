@@ -48,7 +48,7 @@
 }
 </style>
 
-<section class="jambo-reviews-block section-padding">
+<section class="jambo-reviews-block section-padding-bottom">
     <div class="container-fluid">
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
             <div>

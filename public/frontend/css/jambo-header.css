@@ -703,3 +703,121 @@
         width: 12.5%;
     }
 }
+
+
+/* ================================================================== */
+/* Hero + banner height — cap the vh-based vendor rules on tall       */
+/* viewports                                                          */
+/* ================================================================== */
+/*
+ * Streamit sizes every desktop hero from the viewport HEIGHT alone:
+ *   OTT home hero   (.iq-banner-thumb-slider, hero-banner.blade)   92vh
+ *   guest home hero (.banner-home-swiper, index-page.blade)        92vh
+ *   listing banner  (.movie-banner, movie-slider.blade: /movie,
+ *                    /series, /upcoming, /genres/*, VJ pages)      72vh
+ * On a 16:9 monitor 92vh is roughly a widescreen frame of the width,
+ * so it reads as intended. On a portrait or 5:4 screen the same rule
+ * made a 1069px-wide hero 1560px tall: title and CTA in the middle,
+ * empty backdrop above and below, and a full screen to scroll past
+ * before the first rail (report: "huge uncontrolled spacing for
+ * vertical screens").
+ *
+ * Fix: the vendor value stays as the ceiling, but a hero can never be
+ * taller than a widescreen frame of the viewport WIDTH. The floor
+ * keeps title, meta, synopsis, tags, CTA and (OTT) the poster rail
+ * from being squeezed on short landscape windows. On 16:9 landscape
+ * clamp() resolves to the vendor value, so desktop monitors do not
+ * change; only tall viewports get shorter heroes.
+ *
+ * Desktop-only on purpose: below Streamit's own mobile breakpoints
+ * (lg for the home heroes, 999px for .movie-banner) the vendor SCSS
+ * already replaces these vh rules with content-driven height
+ * (`min-height: inherit` + padding), and the caps must not fire there.
+ * Selectors mirror the vendor chains exactly so equal specificity plus
+ * load order (this file loads after the Vite bundle) wins without
+ * !important.
+ */
+:root {
+    --jambo-hero-max-h: 56.25vw;   /* a 16:9 frame of the viewport width */
+    --jambo-hero-min-h: 34em;      /* OTT hero: content + poster rail */
+    --jambo-banner-max-h: 50vw;    /* listing banners sit a little lower */
+    --jambo-banner-min-h: 26em;
+}
+
+@media (min-width: 992px) {
+    /* OTT home hero — the post-login landing at "/" */
+    .iq-banner-thumb-slider .slider .slider-bg .slider-images .slider--image,
+    .iq-banner-thumb-slider .slider .slider-bg .slider-images .swiper-wrapper .banner-bg .slider-content-full-height {
+        min-height: clamp(var(--jambo-hero-min-h), var(--jambo-hero-max-h), 92vh);
+    }
+
+    /* Guest home hero — "/home" */
+    .banner-home-swiper,
+    .banner-home-swiper .banner-home-swiper-image,
+    .banner-home-swiper .slider-content-full-height {
+        min-height: clamp(var(--jambo-hero-min-h), var(--jambo-hero-max-h), 92vh);
+    }
+}
+
+@media (min-width: 1000px) {
+    /* Listing banner — /movie, /series, /upcoming, /genres/*, VJ pages */
+    .movie-banner .swiper-banner-container,
+    .movie-banner .movie-banner-image,
+    .movie-banner .slider-content-full-height {
+        min-height: clamp(var(--jambo-banner-min-h), var(--jambo-banner-max-h), 72vh);
+    }
+}
+
+/* ================================================================== */
+/* Movie / series detail hero — drop the phantom header allowance     */
+/* ================================================================== */
+/*
+ * Streamit sizes the detail hero as a padded box:
+ *   .iq-main-slider.site-video { padding-bottom: calc(42% + var(--header-height, 5em)) }
+ * The `+ header` compensated for the template's fixed, transparent
+ * header overlapping the top of the hero. Jambo's header is sticky and
+ * in flow (see "Override old template padding" at the top of this
+ * file) and --header-height is never defined, so the 5em fallback put
+ * ~80px of black below the backdrop on every movie and series detail
+ * page. The box is now 21:9 — the same ratio as the inline
+ * aspect-ratio backdrop the detail pages render when there is no
+ * trailer — so image and box coincide and the band is gone. Trailers
+ * are absolutely positioned to fill the box, so they follow it. One
+ * rule covers every breakpoint: both vendor rules (base and <lg) have
+ * the same specificity and load earlier.
+ */
+.iq-main-slider.site-video {
+    padding-bottom: 42.8571%; /* 21:9 */
+}
+
+/* ================================================================== */
+/* Detail-page description: in flow on xl (1200–1399px), overlay     */
+/* only from xxl up                                                   */
+/* ================================================================== */
+/*
+ * _page-content.scss overlays .movie-detail-part on the trailer from
+ * xl up (position: absolute; top: 28%). On 1200–1399px the description
+ * column is 50% of a narrow page, so an ordinary VJ title wraps to
+ * three lines and the block runs ~200px past the 21:9 hero box,
+ * straight through the "Starring" heading (seen at 1280×1024; it was
+ * already colliding before 1.8.9). No banner height at these widths
+ * can hold that block, so the details go back into flow below the
+ * banner — the layout the page already uses below xl — and the
+ * overlay stays for xxl+, where the box is 600px+ and the column is
+ * wide enough for two-line titles. Same specificity as the vendor
+ * rules, later in the cascade.
+ */
+@media (min-width: 1200px) and (max-width: 1399.98px) {
+    .movie-detail-part {
+        position: relative;
+        top: auto;
+        bottom: auto;
+        left: auto;
+        right: auto;
+    }
+
+    .movie-detail-part .trending-info .details-parts {
+        width: 80%;
+        padding: 0 2em;
+    }
+}

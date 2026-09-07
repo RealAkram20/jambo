@@ -176,9 +176,10 @@
 </div>
 
 <div class="container-fluid">
-    <div class="overflow-hidden">
+    {{-- Rail rhythm: this wrapper carries the one top gap. Rails inside rely on the vendor .swiper bottom margin (3.75em, same as the home rails), so no section-padding or mt-4/mb-5 per block. CHANGELOG 1.8.9. --}}
+    <div class="overflow-hidden section-padding-top">
         @if ($seasons->count())
-            <div class="show-episode section-padding">
+            <div class="show-episode">
                 <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
                     <h5 class="main-title text-capitalize mb-0 fw-medium">{{ __('header.episodes') }}</h5>
                     {{-- Layout switch: card scroller vs compact number grid.
@@ -233,7 +234,7 @@
                         <div id="season-{{ $s->number }}" class="tab-pane animated fadeInUp {{ $s->id === $season->id ? 'active show' : '' }}" role="tabpanel">
                             <div class="jambo-ep-scroller" @if ($epDefaultLayout === 'grid') hidden @endif>
                                 <div class="card-style-slider">
-                                    <div class="position-relative swiper swiper-card mt-4 mb-5 overflow-hidden" data-slide="5"
+                                    <div class="position-relative swiper swiper-card overflow-hidden" data-slide="5"
                                         data-laptop="5" data-tab="3" data-mobile="2" data-mobile-sm="2"
                                         data-autoplay="false" data-loop="false">
                                         <div class="p-0 swiper-wrapper m-0 list-inline">
@@ -258,7 +259,7 @@
                             {{-- Compact number grid — natural 1→N order (no
                                  rotation: the grid is for jumping straight to
                                  a specific episode number). --}}
-                            <div class="jambo-ep-grid mt-4 mb-5" @if ($epDefaultLayout !== 'grid') hidden @endif>
+                            <div class="jambo-ep-grid" @if ($epDefaultLayout !== 'grid') hidden @endif>
                                 @foreach ($s->episodes->sortBy('number')->values() as $ep)
                                     <a href="{{ $ep->frontendUrl($show) }}"
                                        class="jambo-ep-grid__item {{ $ep->id === $episode->id ? 'is-playing' : '' }}"
@@ -278,12 +279,12 @@
         @endif
 
         @if (!empty($similarShows) && $similarShows->count())
-            <div class="show-episode section-padding">
+            <div class="show-episode">
                 <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
                     <h5 class="main-title text-capitalize mb-0 fw-medium">Similar Series</h5>
                 </div>
                 <div class="card-style-slider">
-                    <div class="position-relative swiper swiper-card mt-4 mb-5" data-slide="8"
+                    <div class="position-relative swiper swiper-card" data-slide="8"
                         data-laptop="8" data-tab="4" data-mobile="3.5" data-mobile-sm="3.5"
                         data-autoplay="false" data-loop="false" data-navigation="true" data-pagination="true">
                         <ul class="p-0 swiper-wrapper m-0 list-inline">
@@ -311,12 +312,12 @@
         @endif
 
         @if (!empty($recommendedShows) && $recommendedShows->count())
-            <div class="show-episode section-padding">
+            <div class="show-episode">
                 <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
                     <h5 class="main-title text-capitalize mb-0 fw-medium">{{ __('sectionTitle.recommended_tv_show') ?? 'Recommended Series' }}</h5>
                 </div>
                 <div class="card-style-slider">
-                    <div class="position-relative swiper swiper-card mt-4 mb-5" data-slide="8"
+                    <div class="position-relative swiper swiper-card" data-slide="8"
                         data-laptop="8" data-tab="4" data-mobile="3.5" data-mobile-sm="3.5"
                         data-autoplay="false" data-loop="false" data-navigation="true" data-pagination="true">
                         <ul class="p-0 swiper-wrapper m-0 list-inline">

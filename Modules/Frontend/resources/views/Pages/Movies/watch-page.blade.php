@@ -123,14 +123,15 @@
 </div>
 
 <div class="container-fluid">
-    <div class="overflow-hidden">
+    {{-- Rail rhythm: this wrapper carries the one top gap. Rails inside rely on the vendor .swiper bottom margin (3.75em, same as the home rails), so no section-padding or mt-4/mb-5 per block. CHANGELOG 1.8.9. --}}
+    <div class="overflow-hidden section-padding-top">
         @if ($recommended->count())
-            <div class="show-episode section-padding">
+            <div class="show-episode">
                 <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
                     <h5 class="main-title text-capitalize mb-0 fw-medium">{{ __('sectionTitle.recommended_movie') }}</h5>
                 </div>
                 <div class="card-style-slider">
-                    <div class="position-relative swiper swiper-card mt-4 mb-5" data-slide="8"
+                    <div class="position-relative swiper swiper-card" data-slide="8"
                         data-laptop="8" data-tab="4" data-mobile="3.5" data-mobile-sm="3.5"
                         data-autoplay="false" data-loop="false" data-navigation="true" data-pagination="true">
                         <ul class="p-0 swiper-wrapper m-0 list-inline">
@@ -157,12 +158,12 @@
         @endif
 
         @if ($similar->count())
-            <div class="show-episode section-padding">
+            <div class="show-episode">
                 <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
                     <h5 class="main-title text-capitalize mb-0 fw-medium">Similar Movies</h5>
                 </div>
                 <div class="card-style-slider">
-                    <div class="position-relative swiper swiper-card mt-4 mb-5" data-slide="8"
+                    <div class="position-relative swiper swiper-card" data-slide="8"
                         data-laptop="8" data-tab="4" data-mobile="3.5" data-mobile-sm="3.5"
                         data-autoplay="false" data-loop="false" data-navigation="true" data-pagination="true">
                         <ul class="p-0 swiper-wrapper m-0 list-inline">

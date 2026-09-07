@@ -2,6 +2,113 @@
 
 ## Jambo
 
+### 1.8.9 — Frontend: hero heights on tall screens + one rail rhythm on detail/watch pages
+
+Two reports from a portrait monitor (1069×1700): the home and
+listing heroes showed "huge uncontrolled spacing", and the movie /
+series / episode detail and watch pages had oversized gaps between
+sections. Four causes, all fixed without touching the Vite SCSS
+pipeline (same approach as the 9e8fef3 banner fix: rules live in
+[jambo-header.css](public/frontend/css/jambo-header.css), which loads
+after the bundle and is cache-busted by `versioned_asset()`; see
+ADR-0001).
+
+**1. Heroes were sized from viewport height alone.** Streamit pins
+the OTT home hero and the guest home hero to `min-height: 92vh` and
+the listing banner (`movie-slider` partial: /movie, /series,
+/upcoming, /genres/*, VJ pages) to `72vh`. On a 16:9 monitor that is
+roughly a widescreen frame of the width, so it looks intentional. On
+a portrait or 5:4 screen the same rule made a 1069px-wide hero
+1560px tall — title and CTA in the middle, empty backdrop above and
+below, a full screen to scroll before the first rail. Now the vendor
+value stays as the ceiling but a hero can never be taller than a
+widescreen frame of the viewport *width*: `clamp(34em, 56.25vw, 92vh)`
+for the home heroes, `clamp(26em, 50vw, 72vh)` for listing banners.
+On 16:9 landscape clamp() resolves to the vendor value, so desktop
+monitors do not change (1920×1080 before/after renders are
+identical); the 1069×1700 hero went from 1560px to ~600px.
+Desktop-only: below Streamit's own mobile breakpoints the vendor SCSS
+already switches to content-driven height, so the caps do not fire
+there. Selectors mirror the vendor chains so equal specificity plus
+load order wins without `!important`.
+
+**2. Detail hero carried a phantom header allowance.** The vendor
+sizes the detail hero box as `calc(42% + var(--header-height, 5em))`;
+the `+ header` compensated for the template's fixed transparent
+header overlapping the hero. Jambo's header is sticky and in flow and
+`--header-height` is never defined anywhere, so every movie and
+series detail page rendered ~80px of black below the backdrop. The
+box is now 21:9, matching the fallback backdrop's inline
+`aspect-ratio`; trailers are absolutely positioned and follow the box.
+
+**3. One rail rhythm on watch, episode, series-detail and
+movie-detail.** Rails on those pages stacked `.show-episode
+.section-padding` (3.75em top *and* bottom) with each swiper's own
+`mt-4 mb-5` and the vendor `.swiper { margin-bottom: 3.75em }`, so
+consecutive rails sat ~170px apart while home rails sit 60px apart.
+Now the `.overflow-hidden` wrapper carries the single top gap
+(`section-padding-top`, which the vendor already scales down on
+tablet and phone), each rail relies on the vendor swiper margin, the
+episode number grid gets the same 3.75em in
+[episode-layout-assets.blade.php](Modules/Frontend/Resources/views/components/partials/episode-layout-assets.blade.php)
+so toggling scroller/grid never moves the section below, and the
+reviews block drops its top padding (`section-padding-bottom`) since
+the rail above already ends with the swiper margin. Net: heading →
+cards 24px, cards → next heading 60px, identical to the home page.
+Edited: [watch-page.blade.php](Modules/Frontend/Resources/views/Pages/Movies/watch-page.blade.php),
+[episode-page.blade.php](Modules/Frontend/Resources/views/Pages/TvShows/episode-page.blade.php),
+[TvShows/detail-page.blade.php](Modules/Frontend/Resources/views/Pages/TvShows/detail-page.blade.php),
+[Movies/detail-page.blade.php](Modules/Frontend/Resources/views/Pages/Movies/detail-page.blade.php),
+[reviews-block.blade.php](Modules/Frontend/Resources/views/components/partials/reviews-block.blade.php).
+
+**4. Detail description overlay collided with "Starring" on xl
+laptops (found while verifying, pre-existing).** `_page-content.scss`
+overlays `.movie-detail-part` on the trailer from xl (1200px) up,
+absolutely positioned at `top: 28%`. On 1200–1399px the description
+column is 50% of a narrow page, an ordinary VJ title wraps to three
+lines, and the block ran ~200px past the hero box straight through
+the "Starring" heading (rendered at 1280×1024; the old 80px-taller
+box had the same collision). No banner height at those widths can
+hold that block, so between 1200 and 1399.98px the details go back
+into flow below the banner — the layout the page already uses below
+xl — with the 80%-width column; the overlay stays for 1400px+ where
+the box is 600px+ and titles fit in two lines (rendered at 1440×900,
+1920×1080). **Trade-off:** on a 1366×768 laptop the CTA row now sits
+at the bottom edge of the first screen instead of inside the banner.
+If that matters, the follow-up is a shorter (cropped) hero box at
+xl widths, not a return to the overlay.
+
+**Verified** by rendering locally (headless Edge driven over the
+DevTools protocol against `php artisan serve`, logged in as a
+throwaway subscribed user that was deleted afterwards), before and
+after: OTT home, /home, /movie, /series, series detail, movie detail,
+watch and episode pages at 1069×1700; OTT home and /movie at
+1920×1080 (unchanged); movie detail at 1280×1024, 1366×768, 1440×900
+and 1920×1080 for the overlay rule. Blades compile (pages served with
+the new markup after `view:clear`).
+
+**Not verified:** real phones (the caps deliberately do not fire
+below lg, so the vendor mobile layout is untouched, but it was not
+re-rendered); a detail page with a trailer that actually plays (seed
+data has dead YouTube URLs, so the box was checked with the fallback
+backdrop and the dead player); the series detail page at xl widths
+(same rule and markup as movie detail, not separately rendered);
+/upcoming, /genres/* and VJ pages (same `movie-slider` partial as
+/movie, not separately rendered).
+
+**Deliberately not built:** the SCSS source was not patched. The
+9e8fef3 fix patched both, but the CSS file already wins on load
+order regardless of rebuilds, and `jambo-setup.md` forbids editing
+template SCSS (ADR-0001 records the convention). `--header-height`
+was not defined either: its only other consumers are the vendor
+`.custom-header-relative .main-content` padding (already overridden
+to 0) and `.iq-restriction_box`, which is on no Jambo page. The
+/movie page's own ~108px gap between banner and first VJ rail is
+page padding, not the banner, and was left alone.
+
+Deploy: pull-only (§3a) + `php artisan view:clear`. No build, no
+migration, no dependency.
+
 ### 1.8.3 — Home: Smart Shuffle promoted to position 2
 
 User asked for Continue Watching → Smart Shuffle → Top 10 as the

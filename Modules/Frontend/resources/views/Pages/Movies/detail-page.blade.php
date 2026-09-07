@@ -141,7 +141,8 @@
 </div>
 
 <div class="container-fluid">
-    <div class="overflow-hidden">
+    {{-- Rail rhythm: this wrapper carries the one top gap. Rails inside rely on the vendor .swiper bottom margin (3.75em, same as the home rails), so no section-padding or mt-4/mb-5 per block. CHANGELOG 1.8.9. --}}
+    <div class="overflow-hidden section-padding-top">
         {{-- Starring start --}}
         @if ($cast->count())
             <div class="favourite-person-block section-wraper">

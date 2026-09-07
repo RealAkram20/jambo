@@ -137,10 +137,11 @@
     </div>
 
     <div class="container-fluid">
-        <div class="overflow-hidden">
+        {{-- Rail rhythm: this wrapper carries the one top gap. Rails inside rely on the vendor .swiper bottom margin (3.75em, same as the home rails), so no section-padding or mt-4/mb-5 per block. CHANGELOG 1.8.9. --}}
+        <div class="overflow-hidden section-padding-top">
             {{-- Seasons + Episodes --}}
             @if ($seasons->count())
-                <div class="show-episode section-padding">
+                <div class="show-episode">
                     <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
                         <h5 class="main-title text-capitalize mb-0 fw-medium">{{ __('header.episodes') }}</h5>
                         <div class="btn-group jambo-ep-layout-toggle" role="group" aria-label="Episode layout">
@@ -172,7 +173,7 @@
                             <div id="season-{{ $season->number }}" class="tab-pane animated fadeInUp {{ $loop->first ? 'active show' : '' }}" role="tabpanel">
                                 <div class="jambo-ep-scroller" @if ($epDefaultLayout === 'grid') hidden @endif>
                                     <div class="card-style-slider">
-                                        <div class="position-relative swiper swiper-card mt-4 mb-5 overflow-hidden" data-slide="5"
+                                        <div class="position-relative swiper swiper-card overflow-hidden" data-slide="5"
                                             data-laptop="5" data-tab="2" data-mobile="2" data-mobile-sm="1"
                                             data-autoplay="false" data-loop="false">
                                             <div class="p-0 swiper-wrapper m-0 list-inline">
@@ -197,7 +198,7 @@
                                 {{-- Compact number grid — same toggle as the
                                      episode watch page; grid is the fast path
                                      for seasons with dozens of episodes. --}}
-                                <div class="jambo-ep-grid mt-4 mb-5" @if ($epDefaultLayout !== 'grid') hidden @endif>
+                                <div class="jambo-ep-grid" @if ($epDefaultLayout !== 'grid') hidden @endif>
                                     @foreach ($season->episodes->sortBy('number')->values() as $ep)
                                         <a href="{{ $ep->frontendUrl($show) }}"
                                            class="jambo-ep-grid__item"
