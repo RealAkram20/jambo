@@ -2,6 +2,63 @@
 
 ## Jambo
 
+### 1.8.21 — Featured on the house shell, and the big banners auto-rotate
+
+Two things from Rio: the Featured screen should look like the rest of the
+admin, and "autoscroll is off for most of the sections that need it."
+
+**Featured now uses the Categories shell.** 1.8.20 invented its own
+layout. This rebuilds it on the same structure the Categories screen
+uses — a `col-lg-4` add card beside a `col-lg-8` list card, the same
+underlined headings, the same table classes, drag handle and delete
+button. An admin screen that invents its own layout costs more to learn
+than it gains in polish. The catalogue type-ahead from 1.8.20 is kept
+in the position Categories puts its form, and is the only element with
+scoped styles, because the admin has no house component for it.
+
+Craft lives in the details rather than the structure: tabular rank
+figures so digits do not jog mid-drag, the accent on slot 1, posters
+with real proportions and depth, a row hover, a settle on the row that
+was just moved, and an empty state that says what the homepage is doing
+instead. The "Main banner" pill moved off the primary tone — the admin
+accent is red, so it read as an error beside the green "Showing" and
+orange "Hidden" pills.
+
+**The banner sliders rotate now.** The template ships every slider with
+autoplay off: the hero's `autoplay: true` is commented out in
+`frontend/js/swiper.js`, and all 39 rails carry `data-autoplay="false"`.
+That is correct for the poster rails and wrong for the banners. A hero
+that never advances shows only the first title an admin curated under
+Featured, and the "#N in Movies Today" and "#N in Series Today" banners
+never reached #2.
+
+[jambo-banner-rotate.js](public/frontend/js/jambo-banner-rotate.js) is
+Jambo's file, not the template's (ADR-0001), and drives the existing
+Swiper instances rather than re-initialising them, so the template keeps
+every other slider setting. It covers the homepage hero (8s, it carries
+the most copy), the vertical "Movies Today" banner, the trending series
+tab slider and the /movie, /series and VJ listing banners (7s).
+
+**The poster rails deliberately still do not move.** Content that slides
+away while someone is reaching for it is hostile, and 39 rails moving at
+once would be unreadable. If any specific rail should rotate, it is one
+attribute on that section.
+
+Pausing, because WCAG 2.2.2 requires moving content to be stoppable:
+hover or keyboard focus inside the banner, a hidden browser tab, and a
+20-second hold after the viewer swipes or uses the arrows.
+`prefers-reduced-motion: reduce` disables rotation entirely.
+
+Verified in a real browser on the homepage: the hero advanced from slide
+0 to 1 on its own across nine slides; hovering held it at 0 and leaving
+resumed it; a poster rail stayed on slide 0 across the same window. The
+20 Featured tests still pass and the design detector is clean. Rendered
+the rebuilt admin screen with four rows and the live search dropdown.
+
+Not verified: the reduced-motion path, which is a read of the code path
+rather than an executed check; and drag with a real pointer.
+
+Deploy: pull-only + `php artisan view:clear`. No migration.
 ### 1.8.20 — Featured: catalogue search, and a screen shaped like the thing it controls
 
 Rio asked for more craft on the Featured screen and a search to find a

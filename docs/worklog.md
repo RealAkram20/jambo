@@ -131,3 +131,40 @@ SortableJS wiring is untouched from 1.8.19.
 - A hung run leaves headless Edge holding the profile directory, so the next
   run reuses a logged-in session, finds no login form, and throws. Kill stray
   `msedge` processes before re-running.
+
+### 2026-09-08 — Featured on the house shell + banner auto-rotation (1.8.21)
+
+**Status:** complete
+**Owns:** public/frontend/js/jambo-banner-rotate.js (new)
+**Shares:** Modules/Content/resources/views/admin/featured/index.blade.php —
+rebuilt on the Categories shell; components/partials/scripts/script.blade.php —
+one script tag after swiper.js; components/sections/tab-slider.blade.php —
+one data-jambo-rotate attribute.
+
+**What this is:** Rio pushed back that the Featured screen invented its own
+layout instead of using the Categories two-column shell, then asked for the
+missing autoscroll. Both done: screen rebuilt on the house shell with the
+craft kept in details rather than structure, and the banner sliders now
+rotate.
+
+**Verified:** in-browser probes on the homepage — hero advanced 0→1 across
+nine slides; hover held it and mouseleave resumed it; a poster rail stayed
+still over the same window. 20 Featured tests pass, detector clean, admin
+screen rendered.
+
+**Not verified:** prefers-reduced-motion (read of the code path, not run);
+real-pointer drag.
+
+**Deliberately not built:**
+- Poster rails still do not auto-advance. Moving a rail under a reaching
+  cursor is hostile and 39 at once is unreadable. Any single rail can opt in
+  with one `data-jambo-rotate` attribute.
+- No admin setting for rotation speed; the delays are constants in the file.
+
+**Gotcha:** the admin theme's `--bs-primary` is RED, not the frontend blue.
+`bg-primary-subtle` on an admin badge reads as an error next to green/orange
+status pills. Use `bg-info-subtle` for informational badges there.
+
+**Tool note:** `D:\OS	ools\cdp-shots.mjs` now logs the return value of an
+injected `js` step, which is how the rotation was actually confirmed rather
+than assumed.

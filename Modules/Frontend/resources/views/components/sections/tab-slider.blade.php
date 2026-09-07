@@ -2,7 +2,7 @@
 <div class="tab-slider otthome-tab-slider">
     <div class="slider">
         <div class="position-relative swiper swiper-card" data-slide="1" data-laptop="1" data-tab="1" data-mobile="1"
-            data-mobile-sm="1" data-autoplay="false" data-loop="false" data-navigation="true" data-pagination="true"
+            data-mobile-sm="1" data-autoplay="false" data-loop="false" data-navigation="true" data-pagination="true" data-jambo-rotate="7000"
             data-effect="fade">
             <ul class="p-0 swiper-wrapper m-0 list-inline">
                 @foreach ($series as $i => $item)
