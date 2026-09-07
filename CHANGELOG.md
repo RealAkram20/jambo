@@ -2,6 +2,51 @@
 
 ## Jambo
 
+### 1.8.14 — Rail titles say "This Week"; Movies Today shows ten; padded titles get no rank
+
+Two follow-ups to 1.8.13 from Rio, plus one honesty fix found on the way.
+
+**Titles.** The seven-day rails now say what they are:
+`Top 10 Movies This Week`, `Top 10 Series This Week`, and `Best in
+Series This Week` on /series (it is fed by the same weekly list).
+Strings only, in [lang/en/sectionTitle.php](lang/en/sectionTitle.php).
+
+**Ten in "Movies Today".** The vertical hero slider showed the top 5 of
+the daily ten; Rio wants up to ten. The composer now passes the whole
+daily shelf. The vendor swiper loops with three thumbs visible on
+desktop, so ten scroll in the thumb column as they do in the series
+tab slider.
+
+**No badge a title did not earn.** Both daily shelves pad themselves
+from all-time popularity on quiet days, and every slot wore a
+"#X in … Today" rank, so a padded title claimed a rank nobody gave it
+today; ten slots make that more likely than five. The recommender now
+sets `recent_viewers` (the distinct-viewer count that ranked the title)
+on ranked models only; it rides along into the cache. The two badge
+partials show "#X in Movies Today" / "#X in Series Today" when that
+count is present and "Popular on Jambo" otherwise, same gold pill, no
+number. Rank numbers still count from 1 in shelf order, so a shelf with
+four real titles reads #1–#4 then four "Popular on Jambo".
+
+Files: [TopPicksRecommender.php](Modules/Frontend/app/Services/TopPicksRecommender.php),
+[SectionDataComposer.php](Modules/Frontend/app/View/Composers/SectionDataComposer.php),
+[vertical-banner.blade.php](Modules/Frontend/Resources/views/components/partials/vertical-banner.blade.php),
+[tab-series-slide.blade.php](Modules/Frontend/Resources/views/components/partials/tab-series-slide.blade.php),
+[verticle-slider.blade.php](Modules/Frontend/Resources/views/components/sections/verticle-slider.blade.php),
+[lang/en/streamMovies.php](lang/en/streamMovies.php).
+
+Verified: two new tests assert the ranked title carries its count and
+the padded one carries none, for movies and series; the full
+recommender class is green. Home and /series rendered locally: ten
+slides in the Movies Today slider with the two badge variants, and the
+new titles in place. Not verified: production data, and the slider's
+loop behaviour with exactly ten slides on a real touch device.
+
+Deploy: pull-only + `php artisan view:clear`. The daily caches keep
+their keys: an entry cached before this deploy lacks `recent_viewers`,
+so until midnight every slide on that box reads "Popular on Jambo";
+run `php artisan cache:clear` after the pull to skip that.
+
 ### 1.8.13 — "To Watch" rails rank the last seven days; "Today" shelves stay daily
 
 User question after 1.8.11: can the all-time ranking be weekly, with

@@ -1348,7 +1348,7 @@ class TopPicksRecommender
         $since = now()->subDays($windowDays);
         $movieMorph = (new Movie)->getMorphClass();
 
-        $recentIds = DB::table('movies')
+        $recentCounts = DB::table('movies')
             ->select('movies.id')
             ->selectRaw('COUNT(DISTINCT wh.user_id) as recent_viewers')
             ->join('watch_history as wh', function ($join) use ($movieMorph) {
@@ -1364,9 +1364,10 @@ class TopPicksRecommender
             ->orderByDesc('movies.views_count')
             ->orderByDesc('movies.published_at')
             ->limit($limit)
-            ->pluck('movies.id')
-            ->map(fn ($id) => (int) $id)
+            ->pluck('recent_viewers', 'movies.id')
+            ->map(fn ($n) => (int) $n)
             ->all();
+        $recentIds = array_map('intval', array_keys($recentCounts));
 
         // Eloquent collection, not collect(): SectionDataComposer calls
         // loadAvg() on the top 5 for the vertical slider, and concat()/
@@ -1384,6 +1385,10 @@ class TopPicksRecommender
 
             foreach ($recentIds as $id) {
                 if (isset($movies[$id])) {
+                    // Carried on the model (and into the cache) so the
+                    // "#X in Movies Today" badge can tell a title ranked by
+                    // real viewers from one padded in from all-time popularity.
+                    $movies[$id]->setAttribute('recent_viewers', $recentCounts[$id]);
                     $result->push($movies[$id]);
                 }
             }
@@ -1435,7 +1440,7 @@ class TopPicksRecommender
         $since = now()->subDays($windowDays);
         $episodeMorph = (new Episode)->getMorphClass();
 
-        $recentIds = DB::table('shows')
+        $recentCounts = DB::table('shows')
             ->select('shows.id')
             ->selectRaw('COUNT(DISTINCT wh.user_id) as recent_viewers')
             ->join('seasons', 'seasons.show_id', '=', 'shows.id')
@@ -1453,8 +1458,10 @@ class TopPicksRecommender
             ->orderByDesc('shows.views_count')
             ->orderByDesc('shows.published_at')
             ->limit($limit)
-            ->pluck('shows.id')
+            ->pluck('recent_viewers', 'shows.id')
+            ->map(fn ($n) => (int) $n)
             ->all();
+        $recentIds = array_map('intval', array_keys($recentCounts));
 
         $result = (new Show)->newCollection();
 
@@ -1472,6 +1479,9 @@ class TopPicksRecommender
 
             foreach ($recentIds as $id) {
                 if (isset($shows[$id])) {
+                    // Same as the movie shelf: lets the "#X in Series Today"
+                    // badge skip titles that were only padded in.
+                    $shows[$id]->setAttribute('recent_viewers', $recentCounts[$id]);
                     $result->push($shows[$id]);
                 }
             }

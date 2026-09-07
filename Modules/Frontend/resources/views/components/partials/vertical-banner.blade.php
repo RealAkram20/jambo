@@ -37,8 +37,14 @@
             @isset($rank)
                 <div class="d-flex align-items-center gap-3 mb-3 justify-content-center justify-content-lg-start">
                     <img src="{{ asset('frontend/images/pages/trending-label.webp') }}"
-                         class="img-fluid trending-label-img rounded-3" alt="{{ __('sectionTitle.top_ten') }}">
-                    <span class="text-gold fw-bold font-size-18">#{{ $rank }} {{ __('streamMovies.movies_today') }}</span>
+                         class="img-fluid trending-label-img rounded-3" alt="{{ __('streamMovies.top_ten_label') }}">
+                    @if (($item->recent_viewers ?? 0) > 0)
+                        <span class="text-gold fw-bold font-size-18">#{{ $rank }} {{ __('streamMovies.movies_today') }}</span>
+                    @else
+                        {{-- Padded in from all-time popularity on a quiet day (see
+                             TopPicksRecommender): no rank it did not earn today. --}}
+                        <span class="text-gold fw-bold font-size-18">{{ __('streamMovies.popular_on_jambo') }}</span>
+                    @endif
                 </div>
             @endisset
             @if ($genres->count())

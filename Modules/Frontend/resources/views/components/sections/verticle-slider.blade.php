@@ -1,5 +1,5 @@
 @php
-    // $verticalFeatured is the top 5 of the Top 10 Movies of the Day
+    // $verticalFeatured is the Top 10 Movies of the Day (all ten since 1.8.14)
     // (see SectionDataComposer). Passing $loop->iteration as $rank to the
     // banner partial so the "#X in Movies Today" badge labels each slide.
     $items = $verticalFeatured ?? collect();

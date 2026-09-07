@@ -133,12 +133,12 @@ class SectionDataComposer
             'heroMovies'     => $movieBase()->orderByDesc('created_at')->take(3)->get(),
             'heroItems'      => $this->buildHero(),
 
-            // Vertical slider — top 5 of the Top 10 Movies of the DAY (24h
+            // Vertical slider — all ten of the Top 10 Movies of the DAY (24h
             // window, not the weekly rail above) so the "#X in Movies Today"
             // badge on each slide is accurate. loadAvg() pre-computes
             // ratings_avg_stars in one batch query so vertical-banner does
             // not N+1 a ratings()->avg() call per slide.
-            'verticalFeatured' => $recommender->topMoviesOfTheDay(10)->take(5)->loadAvg('ratings', 'stars'),
+            'verticalFeatured' => $recommender->topMoviesOfTheDay(10)->loadAvg('ratings', 'stars'),
 
             // Tab slider — Top 10 Series of the Day: ranked by distinct 24h
             // viewers, cached on a per-date key so the shelf is stable within

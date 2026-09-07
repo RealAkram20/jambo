@@ -31,7 +31,13 @@
                                     <img src="{{ asset('frontend/images/pages/trending-label.webp') }}"
                                         class="img-fluid trending-label-img rounded-3" alt="img">
                                 </a>
-                                <span class="text-gold fw-bold font-size-18">#{{ $rank }} {{ __('streamMovies.series_today') }}</span>
+                                @if (($item->recent_viewers ?? 0) > 0)
+                                    <span class="text-gold fw-bold font-size-18">#{{ $rank }} {{ __('streamMovies.series_today') }}</span>
+                                @else
+                                    {{-- Padded in from all-time popularity on a quiet day: no rank
+                                         it did not earn today (TopPicksRecommender::recent_viewers). --}}
+                                    <span class="text-gold fw-bold font-size-18">{{ __('streamMovies.popular_on_jambo') }}</span>
+                                @endif
                             </div>
                             {{-- <h2>, not <h1>. This partial renders once per slide,
                                  so as an <h1> it gave the home page ten of them —

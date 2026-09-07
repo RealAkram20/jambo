@@ -920,6 +920,36 @@ class TopPicksRecommenderTest extends TestCase
         $this->assertSame($thisWeek['show']->id, $top->first()->id, 'Only the last 7 days count toward the weekly rank.');
     }
 
+    public function test_daily_movie_shelf_marks_ranked_titles_with_their_viewer_count(): void
+    {
+        // The "#X in Movies Today" badge must only appear on titles that
+        // had viewers today; padded titles carry no recent_viewers.
+        $ranked = $this->makePublishedMovie(['title' => 'Ranked', 'views_count' => 10]);
+        $padded = $this->makePublishedMovie(['title' => 'Padded', 'views_count' => 9999]);
+
+        $this->recordMovieWatches($ranked, 2, watchedAt: now()->subHours(3));
+
+        $top = app(TopPicksRecommender::class)->topMoviesOfTheDay(10);
+
+        $this->assertSame($ranked->id, $top->first()->id);
+        $this->assertSame(2, $top->first()->recent_viewers, 'Ranked title carries its distinct-viewer count.');
+        $this->assertNull($top->firstWhere('id', $padded->id)->recent_viewers, 'Padded title carries no count, so it gets no rank badge.');
+    }
+
+    public function test_daily_series_shelf_marks_ranked_titles_with_their_viewer_count(): void
+    {
+        $ranked = $this->makeShowWithEpisode(['title' => 'Ranked', 'views_count' => 10]);
+        $padded = $this->makeShowWithEpisode(['title' => 'Padded', 'views_count' => 9999]);
+
+        $this->recordEpisodeWatches($ranked['episode'], 3, watchedAt: now()->subHours(2));
+
+        $top = app(TopPicksRecommender::class)->topSeriesOfTheDay(10);
+
+        $this->assertSame($ranked['show']->id, $top->first()->id);
+        $this->assertSame(3, $top->first()->recent_viewers);
+        $this->assertNull($top->firstWhere('id', $padded['show']->id)->recent_viewers);
+    }
+
     public function test_in_progress_candidate_ranks_below_equivalent_untouched(): void
     {
         $user = User::factory()->create();

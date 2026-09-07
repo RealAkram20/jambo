@@ -117,6 +117,10 @@ return [
     "season3" => "3 Season",
     "series_today" => "in Series Today",
     "movies_today" => "in Movies Today",
+    // Shown instead of a "#X in … Today" rank on titles the daily shelf
+    // padded in from all-time popularity — they earned no rank today.
+    "popular_on_jambo" => "Popular on Jambo",
+    "top_ten_label" => "Top 10",
 
     "sonil" => "sonil",
     "sonil_desc" => "sonil",
