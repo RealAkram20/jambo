@@ -822,6 +822,104 @@ class TopPicksRecommenderTest extends TestCase
         $this->assertCount(0, DB::getQueryLog(), 'Second call within the same day should hit cache and issue zero queries.');
     }
 
+    public function test_top_movies_of_the_week_counts_the_last_seven_days(): void
+    {
+        // Watches from five days ago count toward the weekly rail, and
+        // more viewers this week beat higher all-time totals.
+        $weekLeader = $this->makePublishedMovie(['title' => 'Week leader', 'views_count' => 100]);
+        $recent = $this->makePublishedMovie(['title' => 'Recent', 'views_count' => 5000]);
+        $cold = $this->makePublishedMovie(['title' => 'Cold', 'views_count' => 9999]);
+
+        $this->recordMovieWatches($weekLeader, 3, watchedAt: now()->subDays(5));
+        $this->recordMovieWatches($recent, 1, watchedAt: now()->subHours(2));
+
+        $top = app(TopPicksRecommender::class)->topMoviesOfTheWeek(10);
+
+        $this->assertInstanceOf(EloquentCollection::class, $top);
+        $this->assertSame($weekLeader->id, $top->first()->id, 'Most distinct viewers in 7 days should lead.');
+        $this->assertSame($recent->id, $top->get(1)->id);
+        $this->assertTrue($top->pluck('id')->contains($cold->id), 'Cold movie is padded in from all-time popularity.');
+    }
+
+    public function test_top_movies_of_the_week_ignores_watches_older_than_seven_days(): void
+    {
+        $old = $this->makePublishedMovie(['title' => 'Old', 'views_count' => 9999]);
+        $thisWeek = $this->makePublishedMovie(['title' => 'This week', 'views_count' => 10]);
+
+        $this->recordMovieWatches($old, 5, watchedAt: now()->subDays(9));
+        $this->recordMovieWatches($thisWeek, 1, watchedAt: now()->subDays(3));
+
+        $top = app(TopPicksRecommender::class)->topMoviesOfTheWeek(10);
+
+        $this->assertSame($thisWeek->id, $top->first()->id, 'Only the last 7 days count toward the weekly rank.');
+    }
+
+    public function test_daily_and_weekly_movie_shelves_can_disagree(): void
+    {
+        // This is the reason both exist: the week's most-watched title
+        // is not necessarily today's.
+        $weekLeader = $this->makePublishedMovie(['title' => 'Week leader', 'views_count' => 10]);
+        $todayLeader = $this->makePublishedMovie(['title' => 'Today leader', 'views_count' => 10]);
+
+        $this->recordMovieWatches($weekLeader, 3, watchedAt: now()->subDays(4));
+        $this->recordMovieWatches($todayLeader, 1, watchedAt: now()->subHour());
+
+        $recommender = app(TopPicksRecommender::class);
+
+        $this->assertSame($todayLeader->id, $recommender->topMoviesOfTheDay(10)->first()->id, 'Daily shelf follows the last 24h.');
+        $this->assertSame($weekLeader->id, $recommender->topMoviesOfTheWeek(10)->first()->id, 'Weekly rail follows the last 7 days.');
+    }
+
+    public function test_weekly_movie_shelf_has_its_own_daily_cache_key(): void
+    {
+        $movie = $this->makePublishedMovie();
+        $this->recordMovieWatches($movie, 2, watchedAt: now()->subDay());
+
+        $recommender = app(TopPicksRecommender::class);
+        $recommender->topMoviesOfTheWeek(10);
+
+        $weeklyKey = TopPicksRecommender::CACHE_KEY_WEEKLY_MOVIES_PREFIX . now()->toDateString() . TopPicksRecommender::CACHE_KEY_WEEKLY_MOVIES_SUFFIX;
+        $dailyKey = TopPicksRecommender::CACHE_KEY_DAILY_MOVIES_PREFIX . now()->toDateString() . TopPicksRecommender::CACHE_KEY_DAILY_MOVIES_SUFFIX;
+
+        $this->assertTrue(Cache::has($weeklyKey), 'Weekly shelf is cached on its own per-date key.');
+        $this->assertFalse(Cache::has($dailyKey), 'Warming the weekly shelf must not populate the daily key.');
+
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+        $recommender->topMoviesOfTheWeek(10);
+        $this->assertCount(0, DB::getQueryLog(), 'Second call within the same day should hit cache.');
+    }
+
+    public function test_top_series_of_the_week_counts_the_last_seven_days(): void
+    {
+        $weekLeader = $this->makeShowWithEpisode(['title' => 'Week leader', 'views_count' => 100]);
+        $recent = $this->makeShowWithEpisode(['title' => 'Recent', 'views_count' => 5000]);
+        $cold = $this->makeShowWithEpisode(['title' => 'Cold', 'views_count' => 9999]);
+
+        $this->recordEpisodeWatches($weekLeader['episode'], 3, watchedAt: now()->subDays(6));
+        $this->recordEpisodeWatches($recent['episode'], 1, watchedAt: now()->subHours(2));
+
+        $top = app(TopPicksRecommender::class)->topSeriesOfTheWeek(10);
+
+        $this->assertInstanceOf(EloquentCollection::class, $top);
+        $this->assertSame($weekLeader['show']->id, $top->first()->id, 'Most distinct viewers in 7 days should lead.');
+        $this->assertSame($recent['show']->id, $top->get(1)->id);
+        $this->assertTrue($top->pluck('id')->contains($cold['show']->id), 'Cold show is padded in from all-time popularity.');
+    }
+
+    public function test_top_series_of_the_week_ignores_watches_older_than_seven_days(): void
+    {
+        $old = $this->makeShowWithEpisode(['title' => 'Old', 'views_count' => 9999]);
+        $thisWeek = $this->makeShowWithEpisode(['title' => 'This week', 'views_count' => 10]);
+
+        $this->recordEpisodeWatches($old['episode'], 5, watchedAt: now()->subDays(8));
+        $this->recordEpisodeWatches($thisWeek['episode'], 1, watchedAt: now()->subDays(2));
+
+        $top = app(TopPicksRecommender::class)->topSeriesOfTheWeek(10);
+
+        $this->assertSame($thisWeek['show']->id, $top->first()->id, 'Only the last 7 days count toward the weekly rank.');
+    }
+
     public function test_in_progress_candidate_ranks_below_equivalent_untouched(): void
     {
         $user = User::factory()->create();

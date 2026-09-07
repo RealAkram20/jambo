@@ -88,15 +88,14 @@ class SectionDataComposer
         $movieBase = fn () => Movie::published()->with('genres');
         $showBase = fn () => Show::published()->with('genres');
 
-        // Compute Top 10 Movies once and reuse: the top-ten rail uses the
-        // full set, the vertical hero slider uses the top 5 (so its
-        // "#X in Movies Today" rank badge is honest without doubling the
-        // per-slide work the right banner does).
-        // Ranked by distinct 24h viewers, the same algorithm as the Top 10
-        // Series of the Day tab slider. It used to be globalTopPicks(), an
-        // all-time score with no day window, so the same ten titles showed
-        // every day under a "#X in Movies Today" badge (CHANGELOG 1.8.11).
-        $topMovies = app(TopPicksRecommender::class)->topMoviesOfTheDay(10);
+        // Two windows, on purpose (CHANGELOG 1.8.13):
+        //   "Top 10 … To Watch" rails  → distinct viewers over the last 7 days
+        //   "#X in … Today" shelves    → distinct viewers over the last 24h
+        // Both refresh daily on per-date cache keys. The rails used to be
+        // all-time (globalTopPicks), which the same titles hold for months;
+        // 1.8.11 briefly made the movie rail daily, which made it twitchy.
+        $recommender = app(TopPicksRecommender::class);
+        $topMovies = $recommender->topMoviesOfTheWeek(10);
 
         // Homepage category shelves — ONE pool: every category the admin
         // marked "Visible Home" (with published content), in the exact
@@ -126,7 +125,7 @@ class SectionDataComposer
             // Shows
             'latestShows'    => $showBase()->orderByDesc('created_at')->take(10)->get(),
             'popularShows'   => $showBase()->orderByDesc('views_count')->take(10)->get(),
-            'topShows'       => app(TopPicksRecommender::class)->globalTopPicks(Show::class, 10),
+            'topShows'       => $recommender->topSeriesOfTheWeek(10),
             'recommendedShows' => $showBase()->inRandomOrder()->take(10)->get(),
             'internationalShows' => $showBase()->inRandomOrder()->take(10)->get(),
 
@@ -134,12 +133,12 @@ class SectionDataComposer
             'heroMovies'     => $movieBase()->orderByDesc('created_at')->take(3)->get(),
             'heroItems'      => $this->buildHero(),
 
-            // Vertical slider — top 5 of the Top 10 Movies of the Day so
-            // the "#X in Movies Today" badge on each slide is accurate.
-            // loadAvg() pre-computes ratings_avg_stars in a single batch
-            // query so vertical-banner doesn't N+1 a ratings()->avg() call
-            // per slide.
-            'verticalFeatured' => $topMovies->take(5)->loadAvg('ratings', 'stars'),
+            // Vertical slider — top 5 of the Top 10 Movies of the DAY (24h
+            // window, not the weekly rail above) so the "#X in Movies Today"
+            // badge on each slide is accurate. loadAvg() pre-computes
+            // ratings_avg_stars in one batch query so vertical-banner does
+            // not N+1 a ratings()->avg() call per slide.
+            'verticalFeatured' => $recommender->topMoviesOfTheDay(10)->take(5)->loadAvg('ratings', 'stars'),
 
             // Tab slider — Top 10 Series of the Day: ranked by distinct 24h
             // viewers, cached on a per-date key so the shelf is stable within

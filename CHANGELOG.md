@@ -2,6 +2,53 @@
 
 ## Jambo
 
+### 1.8.13 — "To Watch" rails rank the last seven days; "Today" shelves stay daily
+
+User question after 1.8.11: can the all-time ranking be weekly, with
+the daily one kept? Yes. The home page now has two windows on purpose:
+
+| Section | Window | Refresh |
+|---|---|---|
+| Top 10 Movies To Watch, Top 10 Series To Watch (also Best In Series on /series) | distinct viewers, last 7 days | daily, per-date cache key |
+| "#X in Movies Today" slider, "#X in Series Today" tab slider | distinct viewers, last 24h | daily, per-date cache key |
+
+Before: the series rail used `globalTopPicks()`, an all-time weighted
+score the same titles hold for months, and 1.8.11 had put the movie
+rail on the 24h ranking, which made it twitchy and identical to the
+slider. Both rails now use a rolling seven-day window, so they move
+with the week; the all-time score remains only as the padding when a
+week is thin (movies) or as views_count order (series, unchanged), and
+for the cold-start fallbacks elsewhere.
+
+Implementation in [TopPicksRecommender.php](Modules/Frontend/app/Services/TopPicksRecommender.php):
+the two daily computations became `computeTopMoviesByRecentViewers()`
+and `computeTopSeriesByRecentViewers()` with a window in days; the
+daily wrappers pass 1, the new `topMoviesOfTheWeek()` /
+`topSeriesOfTheWeek()` pass 7 on their own per-date cache keys
+(`top_movies_of_the_week:{date}:v1`, `top_series_of_the_week:{date}:v1`;
+`CatalogCacheObserver` flushes the whole cache on content changes, so
+nothing new to wire). The series result is now an Eloquent collection
+too, closing the same trap 1.8.12 fixed for movies.
+[SectionDataComposer.php](Modules/Frontend/app/View/Composers/SectionDataComposer.php)
+feeds `topMovies` and `topShows` from the weekly shelves and the
+vertical slider from the daily one; comments say which is which.
+
+Section titles were left as they are ("… To Watch"); "… This Week"
+would be more explicit and is a one-line lang change if wanted.
+
+Verified: six new tests in
+[TopPicksRecommenderTest.php](Modules/Frontend/tests/Feature/TopPicksRecommenderTest.php)
+— five-day-old watches count and beat all-time totals, nine-day-old
+ones do not, the weekly shelf caches on its own key without touching
+the daily one, and a case where the day's leader and the week's leader
+differ shows each shelf following its own window. Full recommender
+class green; home page renders 200 locally on MySQL. Not verified: on
+production data, whether a week has enough viewers to reorder the
+rails or falls back that week.
+
+Deploy: pull-only + `php artisan view:clear`. New cache keys, no flush
+needed.
+
 ### 1.8.12 — Hotfix: 1.8.11 took the home page down (500)
 
 1.8.11 built the daily movie shelf with `collect()`, a base

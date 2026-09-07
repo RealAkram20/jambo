@@ -33,6 +33,12 @@ class TopPicksRecommender
     // v2: v1 entries hold a base Collection from 1.8.11 (loadAvg() crash);
     // a new suffix orphans them instead of needing a cache:clear on deploy.
     public const CACHE_KEY_DAILY_MOVIES_SUFFIX = ':v2';
+    // Rolling seven-day shelves ("Top 10 … To Watch"): same distinct-viewer
+    // ranking as the daily ones, wider window, refreshed on a per-date key.
+    public const CACHE_KEY_WEEKLY_SERIES_PREFIX = 'top_series_of_the_week:';
+    public const CACHE_KEY_WEEKLY_SERIES_SUFFIX = ':v1';
+    public const CACHE_KEY_WEEKLY_MOVIES_PREFIX = 'top_movies_of_the_week:';
+    public const CACHE_KEY_WEEKLY_MOVIES_SUFFIX = ':v1';
     public const CACHE_KEY_SMART_SHUFFLE_USER_SUFFIX = ':smart_shuffle:v1';
     public const CACHE_KEY_SMART_SHUFFLE_GUEST = 'smart_shuffle:guest:v1';
 
@@ -1297,7 +1303,37 @@ class TopPicksRecommender
             . now()->toDateString()
             . self::CACHE_KEY_DAILY_MOVIES_SUFFIX;
 
-        return $this->cache->remember($cacheKey, 86400, fn () => $this->computeTopMoviesOfTheDay($limit));
+        return $this->cache->remember($cacheKey, 86400, fn () => $this->computeTopMoviesByRecentViewers($limit, 1));
+    }
+
+    /**
+     * Top 10 Series To Watch: distinct viewers over the last seven days,
+     * refreshed once a day (per-date cache key) so the rail moves with the
+     * week instead of sitting on all-time totals that the same titles hold
+     * for months. Thin weeks are padded from all-time popularity, so the
+     * shelf is never shorter than the day's activity would make it.
+     */
+    public function topSeriesOfTheWeek(int $limit = 10): Collection
+    {
+        $cacheKey = self::CACHE_KEY_WEEKLY_SERIES_PREFIX
+            . now()->toDateString()
+            . self::CACHE_KEY_WEEKLY_SERIES_SUFFIX;
+
+        return $this->cache->remember($cacheKey, 86400, fn () => $this->computeTopSeriesByRecentViewers($limit, 7));
+    }
+
+    /**
+     * Top 10 Movies To Watch: the movie twin of topSeriesOfTheWeek().
+     * The "#X in Movies Today" slider keeps topMoviesOfTheDay(); the two
+     * can legitimately disagree, and that is the point of having both.
+     */
+    public function topMoviesOfTheWeek(int $limit = 10): Collection
+    {
+        $cacheKey = self::CACHE_KEY_WEEKLY_MOVIES_PREFIX
+            . now()->toDateString()
+            . self::CACHE_KEY_WEEKLY_MOVIES_SUFFIX;
+
+        return $this->cache->remember($cacheKey, 86400, fn () => $this->computeTopMoviesByRecentViewers($limit, 7));
     }
 
     /**
@@ -1307,14 +1343,14 @@ class TopPicksRecommender
      *   2. Pad to $limit from the all-time weighted ranking, skipping
      *      titles the daily pass already placed.
      */
-    private function computeTopMoviesOfTheDay(int $limit): Collection
+    private function computeTopMoviesByRecentViewers(int $limit, int $windowDays): Collection
     {
-        $since = now()->subDay();
+        $since = now()->subDays($windowDays);
         $movieMorph = (new Movie)->getMorphClass();
 
-        $dailyIds = DB::table('movies')
+        $recentIds = DB::table('movies')
             ->select('movies.id')
-            ->selectRaw('COUNT(DISTINCT wh.user_id) as daily_viewers')
+            ->selectRaw('COUNT(DISTINCT wh.user_id) as recent_viewers')
             ->join('watch_history as wh', function ($join) use ($movieMorph) {
                 $join->on('wh.watchable_id', '=', 'movies.id')
                     ->where('wh.watchable_type', '=', $movieMorph);
@@ -1324,7 +1360,7 @@ class TopPicksRecommender
             ->whereNotNull('movies.published_at')
             ->where('movies.published_at', '<=', now())
             ->groupBy('movies.id')
-            ->orderByDesc('daily_viewers')
+            ->orderByDesc('recent_viewers')
             ->orderByDesc('movies.views_count')
             ->orderByDesc('movies.published_at')
             ->limit($limit)
@@ -1337,16 +1373,16 @@ class TopPicksRecommender
         // values()/take() all keep whatever type they start from.
         $result = (new Movie)->newCollection();
 
-        if (!empty($dailyIds)) {
+        if (!empty($recentIds)) {
             // Re-filter through Movie::scopePublished, as the series
             // version does — the raw query cannot apply the model scope.
             $movies = Movie::published()
                 ->with('genres')
-                ->whereIn('id', $dailyIds)
+                ->whereIn('id', $recentIds)
                 ->get()
                 ->keyBy('id');
 
-            foreach ($dailyIds as $id) {
+            foreach ($recentIds as $id) {
                 if (isset($movies[$id])) {
                     $result->push($movies[$id]);
                 }
@@ -1354,8 +1390,8 @@ class TopPicksRecommender
         }
 
         if ($result->count() < $limit) {
-            $extras = $this->globalTopPicks(Movie::class, $limit + count($dailyIds))
-                ->reject(fn (Movie $m) => in_array((int) $m->id, $dailyIds, true))
+            $extras = $this->globalTopPicks(Movie::class, $limit + count($recentIds))
+                ->reject(fn (Movie $m) => in_array((int) $m->id, $recentIds, true))
                 ->take($limit - $result->count());
 
             $result = $result->concat($extras);
@@ -1381,7 +1417,7 @@ class TopPicksRecommender
             . now()->toDateString()
             . self::CACHE_KEY_DAILY_SERIES_SUFFIX;
 
-        return $this->cache->remember($cacheKey, 86400, fn () => $this->computeTopSeriesOfTheDay($limit));
+        return $this->cache->remember($cacheKey, 86400, fn () => $this->computeTopSeriesByRecentViewers($limit, 1));
     }
 
     /**
@@ -1394,14 +1430,14 @@ class TopPicksRecommender
      * Preserves the daily-signal ordering at the head of the list —
      * the padded tail is just "safety net" so the rail always fills.
      */
-    private function computeTopSeriesOfTheDay(int $limit): Collection
+    private function computeTopSeriesByRecentViewers(int $limit, int $windowDays): Collection
     {
-        $since = now()->subDay();
+        $since = now()->subDays($windowDays);
         $episodeMorph = (new Episode)->getMorphClass();
 
-        $dailyIds = DB::table('shows')
+        $recentIds = DB::table('shows')
             ->select('shows.id')
-            ->selectRaw('COUNT(DISTINCT wh.user_id) as daily_viewers')
+            ->selectRaw('COUNT(DISTINCT wh.user_id) as recent_viewers')
             ->join('seasons', 'seasons.show_id', '=', 'shows.id')
             ->join('episodes', 'episodes.season_id', '=', 'seasons.id')
             ->join('watch_history as wh', function ($join) use ($episodeMorph) {
@@ -1413,28 +1449,28 @@ class TopPicksRecommender
             ->whereNotNull('shows.published_at')
             ->where('shows.published_at', '<=', now())
             ->groupBy('shows.id')
-            ->orderByDesc('daily_viewers')
+            ->orderByDesc('recent_viewers')
             ->orderByDesc('shows.views_count')
             ->orderByDesc('shows.published_at')
             ->limit($limit)
             ->pluck('shows.id')
             ->all();
 
-        $result = collect();
+        $result = (new Show)->newCollection();
 
-        if (!empty($dailyIds)) {
+        if (!empty($recentIds)) {
             // Re-filter the daily IDs through Show::scopePublished so a
             // series that's flagged published but has no playable
             // (HLS-encoded) episode never lands in the rail. The raw
             // SQL above can't apply the model scope, so we apply it
             // here on the result fetch.
             $shows = Show::published()
-                ->whereIn('id', $dailyIds)
+                ->whereIn('id', $recentIds)
                 ->with(['seasons.episodes'])
                 ->get()
                 ->keyBy('id');
 
-            foreach ($dailyIds as $id) {
+            foreach ($recentIds as $id) {
                 if (isset($shows[$id])) {
                     $result->push($shows[$id]);
                 }
@@ -1444,7 +1480,7 @@ class TopPicksRecommender
         if ($result->count() < $limit) {
             $extras = Show::published()
                 ->with(['seasons.episodes'])
-                ->when(!empty($dailyIds), fn ($q) => $q->whereNotIn('id', $dailyIds))
+                ->when(!empty($recentIds), fn ($q) => $q->whereNotIn('id', $recentIds))
                 ->orderByDesc('views_count')
                 ->orderByDesc('published_at')
                 ->take($limit - $result->count())
