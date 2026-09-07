@@ -821,3 +821,35 @@
         padding: 0 2em;
     }
 }
+
+/* ================================================================== */
+/* Detail / watch / episode pages — tighter rail rhythm               */
+/* ================================================================== */
+/*
+ * 1.8.9 put these pages on the home rhythm (vendor .swiper margin,
+ * 3.75em between rails). Rio wanted them tighter still on the detail,
+ * watch and episode pages, where the rails are secondary to the title
+ * block above them. `.jambo-detail-rails` is the rails wrapper on those
+ * four pages only — the home page does not carry it, so home rails
+ * keep the vendor 3.75em. The episode number grid reads the same token
+ * from its inline CSS (episode-layout-assets.blade.php), so scroller
+ * and grid stay in step. The wrapper's own top gap uses the token too,
+ * so title block → first rail and rail → rail move together.
+ */
+:root {
+    --jambo-rail-gap: 2.5em;
+}
+
+@media (max-width: 991.98px) {
+    :root {
+        --jambo-rail-gap: 1.5em;
+    }
+}
+
+.jambo-detail-rails.section-padding-top {
+    padding-top: var(--jambo-rail-gap);
+}
+
+.jambo-detail-rails .swiper {
+    margin-bottom: var(--jambo-rail-gap);
+}

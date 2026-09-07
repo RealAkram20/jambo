@@ -2,6 +2,24 @@
 
 ## Jambo
 
+### 1.8.10 — Detail/watch/episode pages: tighter rail rhythm
+
+Follow-up to 1.8.9 from the live series detail page: with the rails
+on the home rhythm (3.75em between them) Rio still read the detail,
+watch and episode pages as too spaced out. Those pages are a title
+block followed by secondary rails, so they get their own token,
+`--jambo-rail-gap` (2.5em on desktop, 1.5em under lg), applied by a
+`.jambo-detail-rails` class on the rails wrapper of the four pages in
+[jambo-header.css](public/frontend/css/jambo-header.css): the
+wrapper's top gap and every swiper's bottom margin inside it. The
+episode number grid reads the same token from
+[episode-layout-assets.blade.php](Modules/Frontend/Resources/views/components/partials/episode-layout-assets.blade.php).
+Home rails do not carry the class and keep the vendor spacing.
+
+Verified by rendering the series detail page at 1069×1700 locally.
+Not verified: watch and episode pages (same wrapper class and token,
+not re-rendered this time). Deploy: pull-only + `php artisan view:clear`.
+
 ### 1.8.9 — Frontend: hero heights on tall screens + one rail rhythm on detail/watch pages
 
 Two reports from a portrait monitor (1069×1700): the home and

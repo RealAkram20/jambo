@@ -123,8 +123,8 @@
 </div>
 
 <div class="container-fluid">
-    {{-- Rail rhythm: this wrapper carries the one top gap. Rails inside rely on the vendor .swiper bottom margin (3.75em, same as the home rails), so no section-padding or mt-4/mb-5 per block. CHANGELOG 1.8.9. --}}
-    <div class="overflow-hidden section-padding-top">
+    {{-- Rail rhythm: this wrapper carries the one top gap. Rails inside rely on the swiper bottom margin, tightened to --jambo-rail-gap by .jambo-detail-rails in jambo-header.css (home rails keep the vendor 3.75em), so no section-padding or mt-4/mb-5 per block. CHANGELOG 1.8.9 / 1.8.10. --}}
+    <div class="overflow-hidden section-padding-top jambo-detail-rails">
         @if ($recommended->count())
             <div class="show-episode">
                 <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
