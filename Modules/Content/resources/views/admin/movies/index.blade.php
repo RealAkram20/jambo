@@ -107,6 +107,7 @@
                                     <th>Genres</th>
                                     <th>Cast</th>
                                     <th>Status</th>
+                                    <th>Created by</th>
                                     <th>Plan</th>
                                     <th>{{ $sort === 'updated' ? 'Updated' : 'Added' }}</th>
                                     <th class="text-end">Actions</th>
@@ -155,6 +156,9 @@
                                             @endif
                                         </td>
                                         <td>
+                                            @include('components.partials.creator-badge', ['model' => $movie])
+                                        </td>
+                                        <td>
                                             @include('components.partials.plan-badge', ['slug' => $movie->tier_required])
                                         </td>
                                         <td style="font-size:12px;color:var(--bs-secondary);">{{ ($sort === 'updated' ? $movie->updated_at : $movie->created_at)?->diffForHumans() }}</td>
@@ -180,7 +184,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="10" class="text-center py-5 text-muted" style="font-size:14px;">
+                                        <td colspan="11" class="text-center py-5 text-muted" style="font-size:14px;">
                                             No movies yet.
                                             <a href="{{ route('admin.movies.create') }}">Add your first movie →</a>
                                         </td>

@@ -2,6 +2,63 @@
 
 ## Jambo
 
+### 1.8.17 — Admin lists: a "Created by" badge naming who added each title
+
+Rio asked for a badge like the Draft one, carrying the name of the admin
+who created each movie or series, alongside Year, Genres, Cast and the
+rest.
+
+No migration was needed: `created_by` / `updated_by` and a `creator`
+relation have been on movies, shows, seasons and episodes since the
+2026_07_13 authorship migration, stamped by
+[TracksContentActivity](Modules/Content/app/Models/Concerns/TracksContentActivity.php)
+whenever a signed-in admin saves. Nothing was showing it.
+
+New column between Status and Plan on both
+[admin/movies](Modules/Content/resources/views/admin/movies/index.blade.php)
+and [admin/series](Modules/Content/resources/views/admin/shows/index.blade.php),
+rendered by one shared partial,
+[creator-badge.blade.php](resources/views/components/partials/creator-badge.blade.php),
+so the two lists cannot drift and episodes can reuse it. A grey pill with
+a user glyph, matching the genre and plan badges; the name truncates at
+130px with the full name on hover.
+
+**Where the name comes from**, in order of trust:
+
+1. the `creator` relation — the live user row;
+2. the append-only activity log's `actor_name` snapshot, which is the only
+   record left once an admin's user row is deleted (`created_by` is
+   ON DELETE SET NULL — confirmed against the live schema, DELETE_RULE
+   SET NULL). `hydrateCreatorLabels()` batches this into one query per
+   page rather than one per row;
+3. an em dash, with a tooltip saying why.
+
+**The em dash is deliberate and will be common at first.** Content added
+before 2026-07-13, or by a seeder, importer or console command, has no
+actor recorded anywhere. A guessed name would be wrong in a way that
+matters: the Performance dashboard counts uploads per admin, so a
+fabricated credit here becomes someone's payout there. There is no honest
+backfill — the log's `updated` rows name whoever last edited a title, not
+who added it. Titles added from now on show a name.
+
+Verified: eight tests in
+[CreatorCreditTest.php](Modules/Content/tests/Feature/CreatorCreditTest.php)
+covering the live name, the username fallback when an admin has no full
+name, the deleted-admin snapshot, the honest blank, the one-query
+guarantee, and both list pages rendering. Two mutations proved the guards
+bite — making the resolver guess "Admin" failed the two blank-state tests;
+making the log fallback a no-op failed the deleted-admin and query-count
+tests. Both restored. Rendered locally at 1500px with all three states on
+screen at once.
+
+Two notes from building it: the test DB is SQLite, which ignores a foreign
+key added by a later `Schema::table()` call, so the deleted-admin test
+stages the null itself instead of asserting a constraint that driver never
+applies; and `users.first_name` / `last_name` are NOT NULL, so "no full
+name" means empty strings, not null.
+
+Deploy: pull-only + `php artisan view:clear`. No migration, no new column.
+
 ### 1.8.16 — Sessions last 8 idle days instead of 2 hours
 
 Rio: "the session on the browser is reset every day, make it last at

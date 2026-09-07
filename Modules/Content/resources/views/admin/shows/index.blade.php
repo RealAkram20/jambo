@@ -107,6 +107,7 @@
                                     <th>Seasons</th>
                                     <th>Cast</th>
                                     <th>Status</th>
+                                    <th>Created by</th>
                                     <th>Plan</th>
                                     <th>{{ $sort === 'updated' ? 'Updated' : 'Added' }}</th>
                                     <th class="text-end">Actions</th>
@@ -158,6 +159,9 @@
                                             @endif
                                         </td>
                                         <td>
+                                            @include('components.partials.creator-badge', ['model' => $show])
+                                        </td>
+                                        <td>
                                             @include('components.partials.plan-badge', ['slug' => $show->tier_required])
                                         </td>
                                         <td style="font-size:12px;color:var(--bs-secondary);">{{ ($sort === 'updated' ? $show->updated_at : $show->created_at)?->diffForHumans() }}</td>
@@ -181,7 +185,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="11" class="text-center py-5 text-muted" style="font-size:14px;">
+                                        <td colspan="12" class="text-center py-5 text-muted" style="font-size:14px;">
                                             No series yet.
                                             <a href="{{ route('admin.series.create') }}">Add your first series →</a>
                                         </td>

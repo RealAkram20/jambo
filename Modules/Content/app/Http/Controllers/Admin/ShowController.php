@@ -44,7 +44,7 @@ class ShowController extends Controller
     public function index(Request $request): View
     {
         $query = Show::query()
-            ->with(['genres', 'categories'])
+            ->with(['genres', 'categories', 'creator'])
             ->withCount(['seasons', 'cast']);
 
         if ($search = trim((string) $request->query('q'))) {
@@ -71,6 +71,11 @@ class ShowController extends Controller
             ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
+
+        // Fills the "Created by" name for rows whose admin user row was
+        // deleted (created_by is ON DELETE SET NULL) from the activity-log
+        // snapshot. One query for the whole page.
+        Show::hydrateCreatorLabels($shows);
 
         return view('content::admin.shows.index', [
             'shows' => $shows,

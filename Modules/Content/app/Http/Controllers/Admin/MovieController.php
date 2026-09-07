@@ -43,7 +43,7 @@ class MovieController extends Controller
     public function index(Request $request): View
     {
         $query = Movie::query()
-            ->with(['genres', 'categories'])
+            ->with(['genres', 'categories', 'creator'])
             ->withCount('cast');
 
         if ($search = trim((string) $request->query('q'))) {
@@ -70,6 +70,11 @@ class MovieController extends Controller
             ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
+
+        // Fills the "Created by" name for rows whose admin user row was
+        // deleted (created_by is ON DELETE SET NULL) from the activity-log
+        // snapshot. One query for the whole page.
+        Movie::hydrateCreatorLabels($movies);
 
         return view('content::admin.movies.index', [
             'movies' => $movies,
