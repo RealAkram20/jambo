@@ -30,7 +30,9 @@ class TopPicksRecommender
     public const CACHE_KEY_DAILY_SERIES_PREFIX = 'tab_series_of_the_day:';
     public const CACHE_KEY_DAILY_SERIES_SUFFIX = ':v1';
     public const CACHE_KEY_DAILY_MOVIES_PREFIX = 'top_movies_of_the_day:';
-    public const CACHE_KEY_DAILY_MOVIES_SUFFIX = ':v1';
+    // v2: v1 entries hold a base Collection from 1.8.11 (loadAvg() crash);
+    // a new suffix orphans them instead of needing a cache:clear on deploy.
+    public const CACHE_KEY_DAILY_MOVIES_SUFFIX = ':v2';
     public const CACHE_KEY_SMART_SHUFFLE_USER_SUFFIX = ':smart_shuffle:v1';
     public const CACHE_KEY_SMART_SHUFFLE_GUEST = 'smart_shuffle:guest:v1';
 
@@ -1330,7 +1332,10 @@ class TopPicksRecommender
             ->map(fn ($id) => (int) $id)
             ->all();
 
-        $result = collect();
+        // Eloquent collection, not collect(): SectionDataComposer calls
+        // loadAvg() on the top 5 for the vertical slider, and concat()/
+        // values()/take() all keep whatever type they start from.
+        $result = (new Movie)->newCollection();
 
         if (!empty($dailyIds)) {
             // Re-filter through Movie::scopePublished, as the series

@@ -5,6 +5,7 @@ namespace Modules\Frontend\Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\DB;
 use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Genre;
@@ -767,6 +768,10 @@ class TopPicksRecommenderTest extends TestCase
 
         $top = app(TopPicksRecommender::class)->topMoviesOfTheDay(10);
 
+        // The composer calls loadAvg() on this for the vertical slider, which
+        // only exists on Eloquent collections. A base collect() here 500s
+        // every page that runs SectionDataComposer (1.8.11 shipped that).
+        $this->assertInstanceOf(EloquentCollection::class, $top);
         $this->assertGreaterThanOrEqual(3, $top->count());
         $this->assertSame($hot->id, $top->first()->id, 'Movie with most daily viewers should lead.');
         $this->assertSame($warm->id, $top->get(1)->id, 'Movie with fewer daily viewers should come second.');
@@ -797,6 +802,7 @@ class TopPicksRecommenderTest extends TestCase
 
         // No daily signal: the shelf is the old all-time ranking, which
         // on a cold catalog is views_count order.
+        $this->assertInstanceOf(EloquentCollection::class, $top, 'Fallback-only branch must also return an Eloquent collection.');
         $this->assertSame($b->id, $top->first()->id, 'Falls back to the all-time ranking when no daily activity exists.');
         $this->assertTrue($top->pluck('id')->contains($a->id));
     }

@@ -2,6 +2,36 @@
 
 ## Jambo
 
+### 1.8.12 — Hotfix: 1.8.11 took the home page down (500)
+
+1.8.11 built the daily movie shelf with `collect()`, a base
+`Illuminate\Support\Collection`. `SectionDataComposer` then calls
+`loadAvg('ratings', 'stars')` on the top 5 for the vertical hero
+slider, and `loadAvg()` exists only on Eloquent collections —
+`BadMethodCallException: Method Illuminate\Support\Collection::loadAvg
+does not exist`, on every page that runs the composer. The tests
+never called `loadAvg`, the manual check ran the method in isolation,
+and the home page was not re-rendered before the push. That is the
+whole failure: the 500 was shipped by me, not by the server.
+
+Fix in [TopPicksRecommender.php](Modules/Frontend/app/Services/TopPicksRecommender.php):
+the result starts as `(new Movie)->newCollection()`, so `concat()`,
+`values()` and `take()` keep the Eloquent type all the way to
+`loadAvg()`. The daily cache key suffix moves to `:v2`, because the
+first 1.8.11 request on every box already cached a base collection
+under today's `:v1` key and would keep serving it until midnight even
+after the code fix — the new suffix orphans that entry, so the deploy
+needs no `cache:clear` (running one is harmless).
+
+Verified: two new assertions in
+[TopPicksRecommenderTest.php](Modules/Frontend/tests/Feature/TopPicksRecommenderTest.php)
+require an Eloquent collection on both the padded and the
+fallback-only branch; they fail against the 1.8.11 code (checked by
+mutating the fix back) and pass with it. The home page renders 200
+locally on MySQL with the `:v2` key. Not verified: production.
+
+Deploy: pull-only + `php artisan view:clear`.
+
 ### 1.8.11 — Top 10 Movies of the Day actually changes daily
 
 User report: the Top 10 Movies rail and the "#X in Movies Today"
