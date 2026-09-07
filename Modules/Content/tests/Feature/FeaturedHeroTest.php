@@ -241,6 +241,85 @@ class FeaturedHeroTest extends TestCase
         $this->actingAs($viewer)->get(route('admin.featured.index'))->assertForbidden();
     }
 
+    public function test_search_finds_movies_and_series_by_title(): void
+    {
+        $movie = $this->publishedMovie(['title' => 'Dragon Eyes']);
+        $show = $this->publishedShow(['title' => 'Dragon Riders']);
+        $this->publishedMovie(['title' => 'Something else']);
+
+        $results = $this->actingAs($this->admin())
+            ->getJson(route('admin.featured.search', ['q' => 'dragon']))
+            ->assertOk()
+            ->json('results');
+
+        $this->assertCount(2, $results, 'Both kinds are searched, not just movies.');
+        $this->assertEqualsCanonicalizing(
+            [$movie->title, $show->title],
+            array_column($results, 'title'),
+        );
+        $this->assertEqualsCanonicalizing(['movie', 'show'], array_column($results, 'type'));
+    }
+
+    public function test_search_reaches_a_title_outside_the_newest_three_hundred(): void
+    {
+        // The reason the dropdowns were replaced: they only listed the newest
+        // 300 titles, so most of the catalogue was unreachable.
+        $old = $this->publishedMovie(['title' => 'Buried Treasure', 'created_at' => now()->subYears(3)]);
+        Movie::factory()->count(30)->create(['created_at' => now()]);
+
+        $results = $this->actingAs($this->admin())
+            ->getJson(route('admin.featured.search', ['q' => 'Buried']))
+            ->assertOk()
+            ->json('results');
+
+        $this->assertSame($old->id, $results[0]['id']);
+    }
+
+    public function test_search_flags_a_title_that_is_already_featured(): void
+    {
+        $movie = $this->publishedMovie(['title' => 'Already there']);
+        $this->feature($movie, 0);
+
+        $results = $this->actingAs($this->admin())
+            ->getJson(route('admin.featured.search', ['q' => 'Already']))
+            ->assertOk()
+            ->json('results');
+
+        $this->assertTrue($results[0]['featured'], 'A featured title is returned flagged, not hidden.');
+    }
+
+    public function test_search_ignores_a_term_shorter_than_two_characters(): void
+    {
+        $this->publishedMovie(['title' => 'A']);
+
+        $this->actingAs($this->admin())
+            ->getJson(route('admin.featured.search', ['q' => 'a']))
+            ->assertOk()
+            ->assertJson(['results' => []]);
+    }
+
+    public function test_search_includes_unpublished_titles_with_their_status(): void
+    {
+        // An admin legitimately queues a draft ahead of publishing it; the
+        // status rides along so the choice is informed.
+        Movie::factory()->create(['title' => 'Draft pick', 'status' => Movie::STATUS_DRAFT]);
+
+        $results = $this->actingAs($this->admin())
+            ->getJson(route('admin.featured.search', ['q' => 'Draft pick']))
+            ->assertOk()
+            ->json('results');
+
+        $this->assertSame('draft', $results[0]['status']);
+    }
+
+    public function test_search_is_admin_only(): void
+    {
+        $this->getJson(route('admin.featured.search', ['q' => 'x']))->assertUnauthorized();
+        $this->actingAs(User::factory()->create())
+            ->getJson(route('admin.featured.search', ['q' => 'x']))
+            ->assertForbidden();
+    }
+
     private function admin(): User
     {
         $user = User::factory()->create([

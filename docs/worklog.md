@@ -103,3 +103,31 @@ a test asserting no model is stringified into the page.
   scope and still use FrontendController's own queries.
 - No search in the two pickers; they list the 300 most recent titles each.
   Worth revisiting once the catalogue outgrows that.
+
+### 2026-09-08 — Featured screen: catalogue search + craft pass (1.8.20)
+
+**Status:** complete
+**Owns:** same files as the 1.8.19 entry above.
+**Shares:** none new.
+
+**What this is:** Rio asked for AJAX search and a more considered screen,
+functionality unchanged. The two 300-row dropdowns became one debounced
+type-ahead over movies and series (`admin.featured.search`); the list was
+reshaped so slot 1 reads as the 16:9 banner and the rest as the 2:3 rail.
+
+**Verified:** 20 tests (6 new for search). Rendered at 1500px and 390px:
+empty, search open, four rows including a draft. Impeccable detector clean.
+
+**Not verified:** real-pointer drag; the endpoint is tested directly and the
+SortableJS wiring is untouched from 1.8.19.
+
+**Gotchas for whoever is next:**
+- Local seed posters are `picsum.photos` URLs. `media_img()` passes external
+  URLs through untouched, so a blank poster locally is external latency, not
+  a layout bug. Do not chase it.
+- `tools/cdp-shots.mjs`: never inject JS that awaits every image. Images with
+  `loading="lazy"` below the fold never fire load/error, so the promise never
+  settles and the run hangs. Force `loading='eager'` and wait a fixed time.
+- A hung run leaves headless Edge holding the profile directory, so the next
+  run reuses a logged-in session, finds no login form, and throws. Kill stray
+  `msedge` processes before re-running.

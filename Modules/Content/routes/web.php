@@ -103,6 +103,7 @@ Route::middleware(['auth', 'role:admin'])
         // drag-and-drop on the index page, same contract as categories.
         // Homepage hero only — the /movie and /series banners are separate.
         Route::get('featured', [FeaturedController::class, 'index'])->name('featured.index');
+        Route::get('featured/search', [FeaturedController::class, 'search'])->name('featured.search');
         Route::post('featured', [FeaturedController::class, 'store'])->name('featured.store');
         Route::patch('featured/reorder', [FeaturedController::class, 'reorder'])->name('featured.reorder');
         Route::delete('featured/{featured}', [FeaturedController::class, 'destroy'])->name('featured.destroy');

@@ -24,23 +24,74 @@ use Modules\Content\app\Models\Show;
  */
 class FeaturedController extends Controller
 {
-    /** Titles offered in the picker. Enough to choose from, not the whole catalogue. */
-    private const PICKER_LIMIT = 300;
+    /** Rows returned per search. Enough to choose from without a scroll marathon. */
+    private const SEARCH_LIMIT = 12;
 
     public function index(): View
     {
         // A title deleted from the catalogue should not hold a hero slot.
         FeaturedItem::prune();
 
-        $items = FeaturedItem::forAdmin();
-        $taken = $items->map(fn ($i) => $i->featurable_type . ':' . $i->featurable_id)->all();
-
         return view('content::admin.featured.index', [
-            'items' => $items,
-            // Already-featured titles are excluded so the picker cannot
-            // offer a duplicate the unique index would reject anyway.
-            'movieOptions' => $this->pickerOptions(Movie::query(), (new Movie)->getMorphClass(), $taken),
-            'showOptions' => $this->pickerOptions(Show::query(), (new Show)->getMorphClass(), $taken),
+            'items' => FeaturedItem::forAdmin(),
+        ]);
+    }
+
+    /**
+     * Type-ahead over the whole catalogue, movies and series together.
+     *
+     * Replaces the two 300-row dropdowns this screen shipped with: those
+     * could not reach a title outside the newest 300, which is most of the
+     * catalogue. Results carry the poster, year and status so an admin can
+     * tell two similarly-named VJ translations apart before adding one,
+     * and already-featured titles come back flagged rather than missing,
+     * so a search for something already in the hero explains itself.
+     */
+    public function search(Request $request): JsonResponse
+    {
+        $term = trim((string) $request->query('q', ''));
+
+        if (mb_strlen($term) < 2) {
+            return response()->json(['results' => []]);
+        }
+
+        $taken = FeaturedItem::get(['featurable_type', 'featurable_id'])
+            ->map(fn ($i) => $i->featurable_type . ':' . $i->featurable_id)
+            ->flip();
+
+        $map = function ($model, string $kind) use ($taken) {
+            return [
+                'type' => $kind,
+                'id' => $model->id,
+                'title' => $model->title,
+                'year' => $model->year,
+                'status' => $model->status,
+                'poster' => $model->poster_url ? media_img($model->poster_url, 120) : null,
+                'featured' => $taken->has($model->getMorphClass() . ':' . $model->id),
+            ];
+        };
+
+        $movies = Movie::where('title', 'like', "%{$term}%")
+            ->orderByDesc('created_at')
+            ->limit(self::SEARCH_LIMIT)
+            ->get(['id', 'title', 'year', 'status', 'poster_url'])
+            ->map(fn ($m) => $map($m, 'movie'));
+
+        $shows = Show::where('title', 'like', "%{$term}%")
+            ->orderByDesc('created_at')
+            ->limit(self::SEARCH_LIMIT)
+            ->get(['id', 'title', 'year', 'status', 'poster_url'])
+            ->map(fn ($s) => $map($s, 'show'));
+
+        // Alphabetical across both kinds. Each side was fetched newest-first
+        // so a huge catalogue still surfaces recent titles, but the list an
+        // admin reads is ordered by name — scanning for a remembered title
+        // beats scanning by upload date.
+        return response()->json([
+            'results' => $movies->concat($shows)
+                ->sortBy('title', SORT_NATURAL | SORT_FLAG_CASE)
+                ->take(self::SEARCH_LIMIT)
+                ->values(),
         ]);
     }
 
@@ -105,24 +156,4 @@ class FeaturedController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    /**
-     * Options for one of the two picker selects, newest first, with the
-     * already-featured titles removed and unpublished ones labelled so an
-     * admin is not surprised when the pick does not appear on the site.
-     */
-    private function pickerOptions($query, string $morphClass, array $taken): array
-    {
-        return $query->select('id', 'title', 'status', 'year')
-            ->orderByDesc('created_at')
-            ->limit(self::PICKER_LIMIT)
-            ->get()
-            ->reject(fn ($m) => in_array($morphClass . ':' . $m->id, $taken, true))
-            ->map(fn ($m) => [
-                'id' => $m->id,
-                'label' => trim($m->title . ($m->year ? " ({$m->year})" : ''))
-                    . ($m->status === 'published' ? '' : ' — ' . ucfirst((string) $m->status)),
-            ])
-            ->values()
-            ->all();
-    }
 }

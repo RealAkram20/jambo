@@ -2,6 +2,65 @@
 
 ## Jambo
 
+### 1.8.20 — Featured: catalogue search, and a screen shaped like the thing it controls
+
+Rio asked for more craft on the Featured screen and a search to find a
+title, keeping the behaviour from 1.8.19.
+
+**Type-ahead over the whole catalogue.** The two dropdowns are gone. They
+listed the newest 300 movies and the newest 300 series, so most of the
+catalogue was simply unreachable — the wrong shape for a library that
+grows daily. One field now searches movies and series together through
+`admin.featured.search`, debounced so a fast typist sends one request
+rather than one per keystroke, and each in-flight request is aborted when
+a newer keystroke supersedes it. Results carry the poster, kind, year and
+status, so two similarly-named VJ translations can be told apart before
+one is added. A title already in the hero comes back listed and disabled
+rather than missing, because a search that silently returns nothing for a
+title you can see on the page reads as a bug. Arrow keys, Enter and
+Escape work; the add itself is still a plain form post, so it behaves the
+same without JavaScript.
+
+**The list is now shaped like the hero it controls.** Slot 1 renders in
+the banner's own 16:9 with the accent rank and a "Main banner" pill; the
+rest are 2:3 posters, the way they appear in the rail beside it. Posters
+carry the row instead of sitting in a 48px column, because the poster is
+what an admin actually recognises. Dragging renumbers live, relabels the
+new slot 1, and settles the moved row.
+
+Craft fixes found by rendering rather than by tests:
+
+- The reorder failure path was a blocking `alert()` reading "Could not
+  save the new order. Reloading." It is now an inline status that names
+  the problem and the recovery, and does not throw work away.
+- Four elements sat under the contrast floor: the rank numeral, the
+  search placeholder, the result meta line and the drag handle.
+- The role label was a coloured uppercase kicker above the heading. Same
+  information, moved into the meta line as a pill.
+- On a wide monitor the row stretched the full card, putting a metre
+  between a title and its remove button. The list is capped at a reading
+  width.
+- On a phone the lead title truncated to "Hidden Stor…" and the meta line
+  left a dangling separator before the status badge.
+
+Also: tabular figures on the rank so digits do not jog while dragging,
+a themed focus ring, `prefers-reduced-motion` honoured, and every colour
+drawn from a Bootstrap theme variable so the screen follows the admin
+theme rather than pinning its own.
+
+Verified: 20 tests, six of them new for search — both kinds found, a
+title outside the newest 300 reachable, already-featured flagged,
+sub-two-character terms ignored, unpublished titles returned with their
+status, and admin-only access. Rendered at 1500px and 390px wide: empty
+state, live search dropdown, and four featured rows including a draft.
+The design detector reports clean.
+
+Not verified: drag-and-drop with a real pointer; the reorder endpoint is
+tested directly and the SortableJS wiring is unchanged from 1.8.19.
+Local seed posters point at an external placeholder service, so a
+poster that is slow there is a data artifact, not a layout fault.
+
+Deploy: pull-only + `php artisan view:clear`. No migration.
 ### 1.8.19 — Featured: admins choose and order the homepage hero
 
 Rio: a new menu between Categories and Vjs where an admin picks which
