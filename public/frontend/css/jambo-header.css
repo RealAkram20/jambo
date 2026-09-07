@@ -853,3 +853,25 @@
 .jambo-detail-rails .swiper {
     margin-bottom: var(--jambo-rail-gap);
 }
+
+/* ================================================================== */
+/* Top 10 rails — smaller rank numeral                                 */
+/* ================================================================== */
+/*
+ * Streamit sets .top-ten-numbers to 7.5em on desktop and 4.5em below
+ * 992px (_top-ten-card.scss). At 8 posters across (1.8.x standard) the
+ * numeral covered most of the poster and read as the card's subject.
+ * Rio asked for "slightly smaller": one sixth off at both breakpoints,
+ * same anchor and hover lift. Two rules because the vendor's mobile
+ * rule has the same specificity and loads earlier — a single base
+ * override here would win on phones too and drop 4.5em to 6.25em.
+ */
+.iq-top-ten-block .block-image .top-ten-numbers {
+    font-size: 6.25em;
+}
+
+@media (max-width: 991px) {
+    .iq-top-ten-block .block-image .top-ten-numbers {
+        font-size: 3.75em;
+    }
+}

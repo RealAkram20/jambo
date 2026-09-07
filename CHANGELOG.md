@@ -2,6 +2,19 @@
 
 ## Jambo
 
+### 1.8.15 — Top 10 rails: slightly smaller rank numerals
+
+Rio's request from a screenshot of the Top 10 rail: the numerals
+covered most of each poster. Streamit sets `.top-ten-numbers` to 7.5em
+on desktop and 4.5em below 992px. Both drop by one sixth, to 6.25em and
+3.75em, in [jambo-header.css](public/frontend/css/jambo-header.css) per
+ADR-0001 — two rules, because the vendor's mobile rule shares the
+specificity and loads earlier, so a single base override would have
+won on phones too. Anchor and hover lift unchanged.
+
+Verified by rendering the home page rail locally at 1920×1080 and
+390×844. Deploy: pull-only + `php artisan view:clear`.
+
 ### 1.8.14 — Rail titles say "This Week"; Movies Today shows ten; padded titles get no rank
 
 Two follow-ups to 1.8.13 from Rio, plus one honesty fix found on the way.
