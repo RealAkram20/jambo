@@ -42,8 +42,10 @@ sudo -u jambo2820 -i bash -c 'cd /home/jambofilms.com/public_html && git pull \
 
 Existing sessions pick up the new expiry on their next request; anyone
 already signed out signs in once more. Verified: the streaming and
-auth test suites pass; config default confirmed by `config:show`
-locally. Not verified: production, until the `.env` line is changed.
+auth test suites pass, and `config('session.lifetime')` reads 11520
+both from `.env` and from the code default (checked with the `.env`
+line temporarily removed). Not verified: production, until the `.env`
+line is changed.
 
 ### 1.8.15 — Top 10 rails: slightly smaller rank numerals
 
