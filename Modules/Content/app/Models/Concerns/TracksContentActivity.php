@@ -61,7 +61,7 @@ trait TracksContentActivity
      * Name shape matches ContentActivity::record() so a live name and a
      * snapshot of the same person read identically.
      */
-    public function creatorLabel(): ?string
+    public function creatorFullLabel(): ?string
     {
         if ($this->creator) {
             $name = trim(($this->creator->first_name ?? '') . ' ' . ($this->creator->last_name ?? ''));
@@ -70,6 +70,26 @@ trait TracksContentActivity
         }
 
         return $this->creator_label_snapshot ?: null;
+    }
+
+    /**
+     * The badge form: one name, never two. "Grace Nakato" shows as
+     * "Grace"; a username like "vj_junior" is already one token and is
+     * unchanged. The full name stays on the badge's hover title, because
+     * two admins can share a first name and this column is the visible
+     * half of the per-admin upload credit.
+     *
+     * Applies to the log snapshot too, so a live name and a snapshot of
+     * the same person still read identically.
+     */
+    public function creatorLabel(): ?string
+    {
+        $full = $this->creatorFullLabel();
+        if (!$full) {
+            return null;
+        }
+
+        return preg_split('/\s+/', trim($full))[0] ?: null;
     }
 
     /**

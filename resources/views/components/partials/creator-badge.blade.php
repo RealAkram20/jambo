@@ -17,13 +17,17 @@
     becomes a payout there.
 --}}
 @php
+    // One name on the badge, the full name on hover — two admins can share
+    // a first name, and this column is the visible half of the per-admin
+    // upload credit.
     $creatorLabel = $model->creatorLabel();
+    $creatorFullLabel = $model->creatorFullLabel();
 @endphp
 
 @if ($creatorLabel)
     <span class="badge bg-secondary-subtle text-secondary-emphasis d-inline-flex align-items-center gap-1"
-          style="font-size:10px;max-width:130px;"
-          title="Added by {{ $creatorLabel }}">
+          style="font-size:10px;max-width:120px;"
+          title="Added by {{ $creatorFullLabel }}">
         <i class="ph ph-user-circle" style="font-size:11px;flex:0 0 auto;"></i>
         <span class="text-truncate">{{ $creatorLabel }}</span>
     </span>

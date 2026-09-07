@@ -40,7 +40,8 @@ class CreatorCreditTest extends TestCase
         $movie = $this->actingAs($admin)->createMovie('Dragon Eyes');
 
         $this->assertSame($admin->id, $movie->created_by, 'Creating while signed in stamps created_by.');
-        $this->assertSame('Grace Nakato', $movie->fresh()->creatorLabel());
+        $this->assertSame('Grace', $movie->fresh()->creatorLabel(), 'The badge shows one name, never two.');
+        $this->assertSame('Grace Nakato', $movie->fresh()->creatorFullLabel(), 'The hover title keeps the full name.');
     }
 
     public function test_creator_label_falls_back_to_username_when_no_full_name(): void
@@ -75,9 +76,10 @@ class CreatorCreditTest extends TestCase
 
         $this->assertSame(
             'Grace Nakato',
-            $movie->creatorLabel(),
+            $movie->creatorFullLabel(),
             'The activity-log snapshot keeps the credit readable after the user row is gone.',
         );
+        $this->assertSame('Grace', $movie->creatorLabel(), 'A snapshot shortens to one name exactly like a live record.');
     }
 
     public function test_creator_label_is_null_when_no_actor_was_ever_recorded(): void
@@ -119,11 +121,11 @@ class CreatorCreditTest extends TestCase
         $admin = $this->admin(['first_name' => 'Grace', 'last_name' => 'Nakato']);
         $this->actingAs($admin)->createMovie('The Lincoln Lawyer');
 
-        $this->actingAs($admin)
-            ->get(route('admin.movies.index'))
-            ->assertOk()
-            ->assertSee('Created by')
-            ->assertSee('Grace Nakato');
+        $html = $this->actingAs($admin)->get(route('admin.movies.index'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('Created by', $html);
+        $this->assertStringContainsString('>Grace</span>', $html, 'Badge carries one name.');
+        $this->assertStringContainsString('Added by Grace Nakato', $html, 'Hover carries the full name.');
     }
 
     public function test_admin_series_list_shows_the_creator_name(): void
@@ -137,11 +139,11 @@ class CreatorCreditTest extends TestCase
             'status' => Show::STATUS_DRAFT,
         ]);
 
-        $this->actingAs($admin)
-            ->get(route('admin.series.index'))
-            ->assertOk()
-            ->assertSee('Created by')
-            ->assertSee('Grace Nakato');
+        $html = $this->actingAs($admin)->get(route('admin.series.index'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('Created by', $html);
+        $this->assertStringContainsString('>Grace</span>', $html, 'Badge carries one name.');
+        $this->assertStringContainsString('Added by Grace Nakato', $html, 'Hover carries the full name.');
     }
 
     public function test_list_renders_an_em_dash_for_content_with_no_creator(): void

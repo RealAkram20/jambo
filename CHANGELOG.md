@@ -2,6 +2,30 @@
 
 ## Jambo
 
+### 1.8.18 — Created by badge: one name, not two
+
+Rio, on 1.8.17: "let it be one name not two names." The badge showed the
+admin's full name; it now shows the first name only — "Grace Nakato"
+renders as "Grace". A username like `vj_junior` is already one token and
+is unchanged.
+
+The full name moves to the badge's hover title ("Added by Grace Nakato"),
+because two admins can share a first name and this column is the visible
+half of the per-admin upload credit that the Performance dashboard pays
+against. `creatorFullLabel()` holds the full form,
+[creatorLabel()](Modules/Content/app/Models/Concerns/TracksContentActivity.php)
+takes its first word, so the activity-log snapshot of a deleted admin
+shortens exactly like a live record instead of staying long. The badge's
+max width drops from 130px to 120px.
+
+Verified: the eight tests from 1.8.17, now pinning both forms — the badge
+carries one name, the hover carries the full name, on the live path and
+the snapshot path. Mutating `creatorLabel()` back to the full name failed
+four of them; restored. Rendered locally with "Grace" (live) and "Daniel"
+(snapshot) side by side.
+
+Deploy: pull-only + `php artisan view:clear`.
+
 ### 1.8.17 — Admin lists: a "Created by" badge naming who added each title
 
 Rio asked for a badge like the Draft one, carrying the name of the admin
