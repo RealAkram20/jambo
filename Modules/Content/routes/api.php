@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Content\app\Http\Controllers\Api\V1\CatalogueController;
+use Modules\Content\app\Http\Controllers\Api\V1\CommentController;
+use Modules\Content\app\Http\Controllers\Api\V1\ReviewController;
 use Modules\Content\app\Http\Controllers\Api\V1\TaxonomyController;
 
 /*
@@ -43,4 +45,44 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     Route::get('vjs/{slug}', [TaxonomyController::class, 'vj'])->name('vjs.show');
 
     Route::get('cast/{slug}', [TaxonomyController::class, 'person'])->name('cast.show');
+
+    // Reviews and comments: reading is public, exactly as on the website,
+    // and writing needs a signed-in viewer.
+    //
+    // The path is the title's own catalogue path plus /reviews, so the app
+    // does not learn a second vocabulary for the same thing. Reviews attach
+    // to a movie or a series and never to an episode - that is the morph the
+    // table was built with.
+    // api.viewer, not auth:sanctum: reading is public, but a signed-in app
+    // must still get `mine` on a review thread and `is_mine` on a comment.
+    // A public route resolves no bearer token on its own, so without this
+    // those fields are silently null for a viewer who IS signed in - the
+    // same trap /home hit.
+    Route::middleware('api.viewer')->group(function () {
+        Route::get('{type}/{slug}/reviews', [ReviewController::class, 'index'])
+            ->where('type', 'movies|series')
+            ->name('reviews.index');
+
+        Route::get('episodes/{id}/comments', [CommentController::class, 'index'])
+            ->where('id', '[0-9]+')
+            ->name('comments.index');
+    });
+
+    Route::middleware(['auth:sanctum', 'device.active'])->group(function () {
+        // updateOrCreate, so posting twice edits rather than duplicating -
+        // which also makes it safe to retry on a connection that drops.
+        Route::post('{type}/{slug}/reviews', [ReviewController::class, 'store'])
+            ->where('type', 'movies|series')
+            ->name('reviews.store');
+        Route::delete('{type}/{slug}/reviews', [ReviewController::class, 'destroy'])
+            ->where('type', 'movies|series')
+            ->name('reviews.destroy');
+
+        Route::post('episodes/{id}/comments', [CommentController::class, 'store'])
+            ->where('id', '[0-9]+')
+            ->name('comments.store');
+        Route::delete('comments/{id}', [CommentController::class, 'destroy'])
+            ->where('id', '[0-9]+')
+            ->name('comments.destroy');
+    });
 });

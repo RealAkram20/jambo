@@ -2,6 +2,49 @@
 
 ## Jambo
 
+### 1.8.27 — Reviews, comments, and an honest list of what the API still cannot do
+
+Reviews on movies and series, comments on episodes, and — because Rio asked
+whether the API is finished — a coverage audit derived from the router rather
+than from memory.
+
+**Reviews and comments follow the website's rules, not new ones.** One review
+per viewer per title via `updateOrCreate`, so posting again edits rather than
+duplicating and a retry over a dropped connection is safe. `NewReviewPosted`
+fires only on a genuinely new row, so editing does not ping an admin twice.
+Comments keep the approved-only filter and now nest their replies, which the
+data model always supported and the website has not rendered yet.
+
+Two things the API adds because a public thread should not leak: a reply whose
+`parent_id` belongs to a different episode is refused rather than silently
+grafted onto the wrong thread, and someone else's comment answers NOT_FOUND
+rather than 403, so the delete endpoint cannot be used to confirm a comment
+exists. Author blocks carry a username and a display name and nothing else —
+never an email.
+
+The public read endpoints run `api.viewer` rather than `auth:sanctum`, so a
+signed-in app gets `mine` on a review thread and `is_mine` on a comment while a
+guest still gets the thread. That is the same trap `/home` hit in 1.8.25: a
+public route resolves no bearer token on its own.
+
+**[docs/api/coverage.md](docs/api/coverage.md) is new, and it is the honest
+answer.** 34 endpoints are shipped and **eight capability areas are still
+open** — account creation and recovery, profile, notifications, subscription
+and billing, cross-device concurrency, some catalogue completeness, static
+pages, and referrals. Each gap names the website route it corresponds to. The
+API is the only connection between the webapp and the app, so a capability with
+no endpoint is a screen the app cannot build.
+
+**One thing deliberately not built.** `ratings` rows are only ever written by
+`InteractionSeeder`. The website has no viewer-facing way to rate a title — the
+table is read for star averages and moderated in admin, and a viewer's stars
+reach it through a review. Building `POST /ratings` would add a product feature
+the website does not have, so it is left for Rio to rule on.
+
+**Verified.** 446 tests, 1565 assertions; the same two pre-existing
+`PricingPageCurrentPlanTest` failures. Entirely additive — no webapp file was
+modified.
+
 ### 1.8.26 — Taxonomy pages and the watchlist, for the app
 
 The screens the home rails tap through to, and the list the detail page's main

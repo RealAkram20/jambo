@@ -561,3 +561,46 @@ here Phase 1 is new files only.
   /api/v1/continue-watching prefixes. They do not collide (different segment
   counts and methods) but check `route:list` after adding anything there.
 
+### 2026-09-08 — Mobile app Phase 1f: reviews, comments, and the coverage audit
+
+**Status:** complete
+**Owns:** Modules/Content/app/Http/Controllers/Api/V1/{Review,Comment}Controller.php,
+tests/Feature/Api/V1/ReviewsAndCommentsTest.php, docs/api/coverage.md
+**Shares:** Modules/Content/routes/api.php, docs/api/openapi.yaml,
+CHANGELOG.md 1.8.27
+
+**What this is:** reviews and comments on the website's own rules, plus the
+answer to Rio's question "are we done with the API".
+
+**We are NOT done.** docs/api/coverage.md is derived from the router: every
+viewer-facing web route paired against every /api/v1 route. 34 endpoints
+shipped, EIGHT capability areas open. In rough priority: account creation and
+recovery (register, forgot/reset password, Google, verify email), profile and
+security, notifications and push, subscription and billing, cross-device
+concurrency (the app cannot see or boot a BROWSER session, and
+EnforceDeviceLimit still counts sessions only), catalogue completeness
+(search suggest, tags, rail archive, VJ sub-pages), static pages, referrals
+and wallet.
+
+**Verified:** 446 tests, 1565 assertions; same 2 pre-existing failures.
+Entirely additive — no webapp file modified.
+
+**Not verified:** reviews and comments were not exercised on real dev data,
+only in tests. No notification listener was run end to end; the events are
+asserted as dispatched, not as delivered.
+
+**Decision raised, not taken:** ratings. The `ratings` table is written ONLY by
+InteractionSeeder — the website gives a viewer no way to rate a title, and a
+viewer's stars reach the table through a Review instead. POST /ratings is in
+the plan's §5 but would be a new product feature, so it is not built. Rio to
+rule.
+
+**For whoever is next:**
+- Symfony's YAML parser rejects an unquoted comma inside an inline `{ }` map.
+  It has now bitten twice in this spec. Quote every description containing a
+  comma, and do NOT write a regex to bulk-fix them — mine mangled an already
+  quoted line because leading whitespace defeated its own guard.
+- Public API routes that personalise need `api.viewer`. `auth:sanctum` is
+  wrong there (fails closed on a guest) and no middleware at all is worse
+  (silently null for a signed-in viewer). Three endpoints now depend on this.
+

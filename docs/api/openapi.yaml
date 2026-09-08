@@ -546,6 +546,166 @@ paths:
           description: NOT_FOUND
           content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
 
+  /{type}/{slug}/reviews:
+    parameters:
+      - { name: type, in: path, required: true, schema: { type: string, enum: [movies, series] } }
+      - { name: slug, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [Viewer]
+      summary: The review thread for a title
+      description: |
+        Published reviews, newest first, plus the aggregate shown beside the
+        stars and this viewer's own review — so a detail screen needs one
+        request rather than three.
+
+        Public, but send a bearer token to get `mine` populated.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data: { $ref: '#/components/schemas/ReviewThread' }
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+    post:
+      tags: [Viewer]
+      summary: Write or replace your review
+      description: |
+        One review per viewer per title. Posting again edits the existing one
+        rather than adding a second, which also makes this safe to retry.
+        Only a genuinely new review notifies an admin; an edit does not.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [stars, body]
+              properties:
+                stars: { type: integer, minimum: 1, maximum: 5 }
+                title: { type: string, maxLength: 200, nullable: true }
+                body: { type: string, minLength: 3, maxLength: 4000 }
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          review: { $ref: '#/components/schemas/Review' }
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+        '422':
+          description: VALIDATION_FAILED
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+    delete:
+      tags: [Viewer]
+      summary: Remove your review
+      description: Idempotent — removing one that is not there is a success.
+      responses:
+        '200':
+          description: Removed
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeOk' } } }
+
+  /episodes/{id}/comments:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [Viewer]
+      summary: The comment thread under an episode
+      description: |
+        Approved top-level comments, newest first, each with its replies
+        nested. Public, but send a bearer token to get `is_mine` populated.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          items: { type: array, items: { $ref: '#/components/schemas/CommentThread' } }
+                          next_cursor: { type: string, nullable: true }
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+    post:
+      tags: [Viewer]
+      summary: Post a comment or a reply
+      description: A `parent_id` must belong to the same episode, or the reply is refused.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, minLength: 2, maxLength: 2000 }
+                parent_id: { type: integer, nullable: true, description: The comment being replied to. }
+      responses:
+        '201':
+          description: Posted
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          comment: { $ref: '#/components/schemas/Comment' }
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+        '422':
+          description: VALIDATION_FAILED
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /comments/{id}:
+    delete:
+      tags: [Viewer]
+      summary: Delete your own comment
+      description: |
+        Admins may delete any. Somebody else's comment answers NOT_FOUND
+        rather than 403, so the endpoint cannot be used to confirm a comment
+        exists.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Removed
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeOk' } } }
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
   /watchlist:
     get:
       tags: [Viewer]
@@ -979,6 +1139,61 @@ components:
           properties:
             type: { type: string, enum: [movie, show] }
             id: { type: integer }
+
+    ReviewThread:
+      type: object
+      properties:
+        stats:
+          type: object
+          properties:
+            count: { type: integer }
+            average:
+              type: number
+              description: |
+                Rounded to one decimal, matching the website's star display.
+                JSON drops a zero fraction, so a whole average arrives as 4
+                rather than 4.0 - parse as a float.
+        mine:
+          allOf: [{ $ref: '#/components/schemas/Review' }]
+          nullable: true
+          description: This viewer's own review, or null. Requires a bearer token.
+        items: { type: array, items: { $ref: '#/components/schemas/Review' } }
+        next_cursor: { type: string, nullable: true }
+
+    Review:
+      type: object
+      properties:
+        id: { type: integer }
+        stars: { type: integer, minimum: 1, maximum: 5 }
+        title: { type: string, nullable: true }
+        body: { type: string }
+        created_at: { type: string, format: date-time, nullable: true }
+        updated_at: { type: string, format: date-time, nullable: true }
+        author: { $ref: '#/components/schemas/Author' }
+
+    Comment:
+      type: object
+      properties:
+        id: { type: integer }
+        body: { type: string }
+        created_at: { type: string, format: date-time, nullable: true }
+        author: { $ref: '#/components/schemas/Author' }
+        is_mine: { type: boolean, description: Whether the signed-in viewer wrote it. False for guests. }
+
+    CommentThread:
+      allOf:
+        - $ref: '#/components/schemas/Comment'
+        - type: object
+          properties:
+            replies: { type: array, items: { $ref: '#/components/schemas/Comment' } }
+
+    Author:
+      type: object
+      nullable: true
+      description: Only what attribution needs. No email address, ever.
+      properties:
+        username: { type: string }
+        name: { type: string, description: 'Full name, falling back to the username.' }
 
     TaxonomyPage:
       type: object
