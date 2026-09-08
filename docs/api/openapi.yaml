@@ -2520,7 +2520,17 @@ components:
         title: { type: string }
         year: { type: integer, nullable: true }
         runtime_minutes: { type: integer, nullable: true }
-        rating: { type: number, nullable: true }
+        rating:
+          type: string
+          nullable: true
+          description: |
+            A content certification - G, PG, PG-13, R, NC-17 - NOT a star
+            rating. The website renders it as a certification badge
+            (hero-banner.blade.php falls back to the literal 'PG'). The
+            five-star display on the site comes from a different source,
+            `ratings()->avg('stars')`, which no catalogue endpoint exposes.
+            Typed as a number until 2026-09-09, which would have had the app
+            drawing "NC-17" stars.
         poster_url: { type: string }
         tier_required:
           type: string
@@ -2549,7 +2559,17 @@ components:
         slug: { type: string }
         title: { type: string }
         year: { type: integer, nullable: true }
-        rating: { type: number, nullable: true }
+        rating:
+          type: string
+          nullable: true
+          description: |
+            A content certification - G, PG, PG-13, R, NC-17 - NOT a star
+            rating. The website renders it as a certification badge
+            (hero-banner.blade.php falls back to the literal 'PG'). The
+            five-star display on the site comes from a different source,
+            `ratings()->avg('stars')`, which no catalogue endpoint exposes.
+            Typed as a number until 2026-09-09, which would have had the app
+            drawing "NC-17" stars.
         poster_url: { type: string }
         tier_required:
           type: string

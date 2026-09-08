@@ -199,6 +199,164 @@ export const auth = {
 } as const;
 
 /**
+ * The home screen's rails, and the cards in them.
+ *
+ * Every value here is a token read off the rendered site. Two of them are
+ * worth knowing the story of:
+ *
+ * `gap` is NOT `tokens.space.railGap`. That token is `--jambo-rail-gap`, which
+ * jambo-header.css scopes to `.jambo-detail-rails` — the wrapper the detail,
+ * watch and episode pages carry and the home page does not. Home keeps the
+ * vendor's own spacing, which measures 30 at a phone viewport. Reaching for
+ * the token that already existed would have made the home screen a third
+ * tighter than the website's.
+ *
+ * `cardsPerView` is Streamit's own `data-mobile` / `data-tab` / `data-slide`
+ * attributes from the rail markup. The half card is deliberate: it is the peek
+ * that tells a viewer the rail scrolls sideways, and it is the reason a rail
+ * must never be sized to a whole number of cards.
+ */
+export const rail = {
+  /** Between the bottom of one rail and the heading of the next. */
+  gap: tokens.space.homeRailGap,
+  /** Between a rail's heading and its first card. */
+  headingGap: tokens.space.homeRailHeadingGap,
+  /** The gutter between two cards: the site's slide padding, doubled. */
+  cardGap: tokens.space.posterGap,
+
+  /**
+   * How many cards span the width, per breakpoint, from the site's own swiper
+   * config (`public/frontend/js/swiper.js` reads these off the markup).
+   *
+   * The width thresholds are Streamit's: 576, 768, 1025, 1500. A 10" tablet
+   * and a TV therefore get the layout the website gives that width, which is
+   * what makes Phase 4 a configuration rather than a second design.
+   */
+  cardsPerView: [
+    { minWidth: 0, cards: 3.5 },
+    { minWidth: 576, cards: 3.5 },
+    { minWidth: 768, cards: 4 },
+    { minWidth: 1025, cards: 8 },
+    { minWidth: 1500, cards: 8 },
+  ],
+
+  headingColor: tokens.color.text,
+  viewAllColor: tokens.color.viewAll,
+  viewAllSize: tokens.font.size.viewAll,
+} as const;
+
+/**
+ * The poster card.
+ *
+ * **The site's poster card is the poster, and nothing else.** Its title, year,
+ * runtime, watchlist button and "Play now" all live in `.card-description`,
+ * which is `opacity: 0; visibility: hidden` until `.iq-card:hover` — so no
+ * phone viewer has ever seen them, and no remote could reach them either.
+ * Reproducing that as a hover state is impossible; inventing an always-visible
+ * version would be inventing styling. The card is therefore the poster, the
+ * whole card is the press target, and the title travels as the accessibility
+ * label exactly as the site ships it as the image's `alt`.
+ */
+export const card = {
+  /** 0.714 — five by seven, read off the rendered box rather than assumed 2:3. */
+  aspect: tokens.size.posterAspect,
+  radius: tokens.radius.poster,
+  titleSize: tokens.font.size.cardTitle,
+  titleWeight: tokens.font.weight.cardTitle,
+  titleColor: tokens.color.cardTitle,
+  metaSize: tokens.font.size.cardMeta,
+
+  /** The crown that `tier_required` draws. A circle, hence radius = width / 2. */
+  badgeSize: tokens.size.premiumBadge,
+  badgeRadius: tokens.radius.premiumBadge,
+  badgeBg: tokens.color.premiumBadgeBg,
+  badgeIcon: tokens.color.premiumBadge,
+  badgeIconSize: tokens.size.premiumBadgeIcon,
+} as const;
+
+/**
+ * The Top 10 rank numeral.
+ *
+ * Not a coloured glyph: Streamit fills the letterform with a texture image
+ * through `background-clip: text`, so its computed `color` is transparent and
+ * an app that read that alone would draw nothing. The app reproduces it with
+ * `react-native-svg` — already a dependency — masking the same texture file,
+ * which is Streamit's own and is copied out of `public/frontend/images/pages/`
+ * rather than downloaded.
+ */
+export const topTen = {
+  size: tokens.font.size.topTenNumber,
+  weight: tokens.font.weight.topTenNumber,
+} as const;
+
+/**
+ * Continue Watching, which is the one card on the home screen that is not a
+ * poster: Streamit gives it `aspect-ratio: 5/3` and a dark gradient under the
+ * still, which is what makes the title and progress strip readable over
+ * arbitrary artwork.
+ *
+ * The gradient is captured as a CSS string and re-expressed here as the stops
+ * `expo-linear-gradient` takes. The numbers are the site's, not chosen: black
+ * at the bottom, clear at 51.04%, half-black at the top.
+ */
+export const watching = {
+  aspect: tokens.size.watchingAspect,
+  radius: tokens.radius.watchingCard,
+  scrimColors: ['rgba(0, 0, 0, 0.5)', 'rgba(0, 0, 0, 0)', 'rgb(0, 0, 0)'] as const,
+  scrimLocations: [0.01, 0.4896, 1] as const,
+  progressTrack: tokens.color.progressTrack,
+  progressBar: tokens.color.progressBar,
+  progressHeight: tokens.size.progressBarHeight,
+
+  /**
+   * The remove button. `continue-watch-card.blade.php` sets it inline at
+   * `width: 2em; height: 2em` — 32 at the site's 16px root — with a comment
+   * saying it was made "slightly larger than the CSS default so it's an
+   * easier tap/click target". That reasoning applies at least as much on a
+   * handset, so the size is kept rather than rounded to something tidier.
+   */
+  removeSize: 32,
+} as const;
+
+/**
+ * The bottom tab bar, which is the website's `.jambo-mobile-nav` — the fixed
+ * four-tab bar it already renders below 992px. The app does not invent a
+ * navigation shape; it ports the one the site has.
+ */
+export const tabBar = {
+  background: tokens.color.tabBarBg,
+  border: tokens.color.tabBarBorder,
+  padding: tokens.space.tabBarPadding,
+  idle: tokens.color.tabIdle,
+  active: tokens.color.tabActive,
+  iconSize: tokens.size.tabIcon,
+  labelSize: tokens.font.size.tabLabel,
+} as const;
+
+export const hero = {
+  titleSize: tokens.font.size.heroHeadline,
+  titleWeight: tokens.font.weight.heroHeadline,
+  tracking: tokens.size.heroTracking,
+} as const;
+
+/**
+ * The focus ring, for a remote and for a keyboard.
+ *
+ * The site's own focused control takes the primary colour on its border
+ * (`colors.borderFocus`, read from a focused sign-in field), so the app's
+ * focus state is the site's focus state rather than a new idea. It is drawn on
+ * every interactive element from this slice onward, phone build included:
+ * ADR-0002 wants one codebase, and a focus state that only exists in the TV
+ * variant is a focus state nobody tests until Phase 4.
+ */
+export const focus = {
+  color: colors.borderFocus,
+  width: 2,
+  /** How far the ring sits outside the thing it rings. */
+  offset: 2,
+} as const;
+
+/**
  * The heights the site draws, and the target the platform requires.
  *
  * The site's field is 44dp and its button 46dp. Android's accessibility

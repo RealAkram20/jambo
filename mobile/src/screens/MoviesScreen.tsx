@@ -1,0 +1,1 @@
+export { MoviesScreen } from './CatalogueScreen';

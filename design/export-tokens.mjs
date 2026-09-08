@@ -97,6 +97,98 @@ const PROBES = [
   { name: 'header', selectors: ['#main-header', 'header', '.jambo-header'], props: ['background-color', 'height'] },
 
   /*
+   * The home rails and the cards in them (slice 2b).
+   *
+   * WHY THE HOME RAIL RHYTHM IS NOT `--jambo-rail-gap`. That custom property
+   * is already captured as `space.railGap`, and it is the wrong number for
+   * this screen: jambo-header.css scopes it to `.jambo-detail-rails`, the
+   * wrapper the detail, watch and episode pages carry and the home page does
+   * not. Home keeps the vendor's own 3.75em between rails. Reusing the token
+   * that happens to exist would have made the app's home screen 24px where
+   * the website's is 60 — a value that is honest about a different page.
+   *
+   * Likewise the heading gap. §6.1 of the plan records 24px from a desktop
+   * capture; the markup is `mb-2 pb-1 mb-md-4 pb-md-0`, so a phone gets 12
+   * and only a tablet gets 24. That is what a phone viewport is for.
+   */
+  { name: 'railSection', selectors: ['.latest-block.section-wraper', '.section-wraper', '.card-style-slider'], props: ['margin-bottom', 'padding-bottom'] },
+  { name: 'railSwiper', selectors: ['.card-style-slider .swiper-card', '.swiper-card', '.section-wraper .swiper'], props: ['margin-bottom', 'padding-bottom'] },
+  { name: 'railHeadingRow', selectors: ['.section-wraper .d-flex.justify-content-between', '.section-wraper > .d-flex'], props: ['margin-bottom', 'padding-bottom'] },
+  { name: 'railViewAll', selectors: ['.iq-view-all'], props: ['color', 'font-size', 'font-weight'] },
+
+  /*
+   * The poster card. `.swiper-slide` width is the used value the browser
+   * computed from Streamit's own `data-mobile="3.5"` — three and a half cards
+   * across a phone, the half being the peek that says the rail scrolls. It is
+   * read rather than divided out by hand so the app cannot disagree with the
+   * site about how wide a poster is.
+   */
+  // Swiper is configured `spaceBetween: 0` at every breakpoint
+  // (public/frontend/js/swiper.js), so the visible gutter between posters is
+  // the slide's own padding, not a margin. Both are read; whichever is real
+  // is what the app spaces its rail by.
+  { name: 'posterSlide', selectors: ['.swiper-card .swiper-slide', '.card-style-slider .swiper-slide', '.swiper-slide'], props: ['width', 'margin-right', 'padding-left', 'padding-right'] },
+  { name: 'railContainer', selectors: ['.card-style-slider', '.section-wraper'], props: ['padding-left', 'padding-right'] },
+  { name: 'posterImage', selectors: ['.iq-card .block-images img', '.block-images img'], props: ['width', 'height', RADIUS] },
+  { name: 'cardTitle', selectors: ['.iq-card .iq-title', '.iq-title'], props: ['font-size', 'font-weight', 'color', 'line-height'] },
+  { name: 'cardMeta', selectors: ['.iq-card .cart-content small', '.cart-content small', '.iq-card small'], props: ['font-size', 'color'] },
+  { name: 'premiumBadge', selectors: ['.premium-product'], props: ['background-color', 'width', 'height', RADIUS] },
+  // The crown's own colour, not the badge div's. They happen to be the same
+  // here (the icon inherits) but reading the element that draws the glyph is
+  // the only version of this that stays right if Streamit ever styles the `i`.
+  { name: 'premiumBadgeIcon', selectors: ['.premium-product i', '.premium-product'], props: ['color', 'font-size'] },
+
+  /*
+   * The Top 10 numeral. Streamit draws it as a texture-filled outline rather
+   * than a solid colour, so the fill lives in `background-image` and the
+   * outline in `-webkit-text-stroke-*`. All three are captured: an app that
+   * read `color` alone would get `transparent` and draw nothing.
+   */
+  { name: 'topTenNumber', selectors: ['.iq-top-ten-block .top-ten-numbers', '.top-ten-numbers'], props: ['font-size', 'font-weight', 'line-height', 'color', '-webkit-text-stroke-color', '-webkit-text-stroke-width', 'background-image'] },
+
+  /* The hero headline, which is `.big-font`, not the `h1` the heroTitle probe finds. */
+  { name: 'heroHeadline', selectors: ['.slider-content .big-font', '.banner-bg .big-font', '.big-font'], props: ['font-size', 'font-weight', 'line-height', 'letter-spacing', 'color'] },
+
+  /*
+   * Continue Watching. A guest home page has no such rail, so the progress
+   * bar and its overlay are injected — the same trick the auth alert uses,
+   * and for the same reason: the page's own stylesheet is asked what the
+   * state looks like instead of a hex being copied out of the SCSS by hand.
+   */
+  { name: 'progressTrack', inject: { className: 'progress' }, props: ['background-color', RADIUS] },
+  { name: 'progressBar', inject: { className: 'progress-bar', wrap: 'progress' }, props: ['background-color'] },
+  /*
+   * The Continue Watching card is NOT a poster. Streamit gives it
+   * `aspect-ratio: 5/3` and lays the still over a dark gradient on
+   * `.iq-image-box`, which is where the readable text at the bottom comes
+   * from — `.iq-preogress` itself has no background at all, so probing it was
+   * asking the wrong element. The full ancestry is injected because a guest
+   * home page has no Continue Watching rail to read.
+   */
+  { name: 'watchingBox', inject: { className: 'iq-image-box', wrap: ['iq-watching-block', 'block-images'], parent: 'body' }, props: ['background-image', RADIUS] },
+  { name: 'watchingStill', inject: { className: 'x', wrap: ['iq-watching-block', 'block-images', 'iq-image-box'], parent: 'body', tag: 'img' }, props: ['aspect-ratio', 'mix-blend-mode', 'object-fit'] },
+
+  /*
+   * The phone bottom navigation — `.jambo-mobile-nav`, which the website
+   * renders below 992px and the app reproduces as its tab bar. Captured at
+   * the phone viewport where it is actually displayed; the tablet capture
+   * reads the same values through `display: none`, which is harmless.
+   */
+  { name: 'tabBar', selectors: ['.jambo-mobile-nav'], props: ['background-color', 'border-top-color', 'border-top-width', 'padding-top', 'padding-left'] },
+  // `:not(.is-active)` is load-bearing. The first `.jambo-mobile-nav__item` in
+  // the document is the Home tab, and on the home page that tab is active — so
+  // the bare selector handed back #ffffff and the app's idle and active tabs
+  // were the same colour. The site's real idle is rgba(255,255,255,0.65).
+  { name: 'tabItem', selectors: ['.jambo-mobile-nav__item:not(.is-active)'], props: ['color', RADIUS, 'padding-top', 'padding-left'] },
+  // No fallback selector on purpose. `.jambo-mobile-nav__item` would match and
+  // hand back the *inactive* colour, which is a plausible-looking wrong answer
+  // — and the active tab is the one thing this probe exists to find. The home
+  // page has Home active, so a miss here is a real miss.
+  { name: 'tabItemActive', selectors: ['.jambo-mobile-nav__item.is-active'], props: ['color'] },
+  { name: 'tabIcon', selectors: ['.jambo-mobile-nav__icon'], props: ['font-size'] },
+  { name: 'tabLabel', selectors: ['.jambo-mobile-nav__label'], props: ['font-size', 'line-height', 'letter-spacing'] },
+
+  /*
    * The sign-in screen's own tokens, read from the site's sign-in page.
    *
    * These are Jambo's classes rather than Streamit's — `jambo-auth-card`,
@@ -299,11 +391,32 @@ async function probePage(input) {
       const el = document.createElement(probe.inject.tag ?? 'div');
       el.className = probe.inject.className;
       el.textContent = 'probe';
-      parent.appendChild(el);
+      /*
+       * `wrap` exists because some components are only themselves inside their
+       * own parent. Bootstrap declares the progress *bar*'s colour as
+       * `--bs-progress-bar-bg` on `.progress`, so a `.progress-bar` injected
+       * on its own computes to transparent — which reads as "the bar has no
+       * colour" rather than "you asked the wrong element". Injecting the
+       * wrapper too asks the question the way the page answers it.
+       */
+      let attach = el;
+      const wraps = probe.inject.wrap
+        ? (Array.isArray(probe.inject.wrap) ? probe.inject.wrap : [probe.inject.wrap])
+        : [];
+      // Outermost first, so `['iq-watching-block', 'block-images']` builds the
+      // ancestry a descendant selector like
+      // `.iq-watching-block .block-images .iq-image-box` actually needs.
+      for (const className of [...wraps].reverse()) {
+        const wrapper = document.createElement('div');
+        wrapper.className = className;
+        wrapper.appendChild(attach);
+        attach = wrapper;
+      }
+      parent.appendChild(attach);
       const style = getComputedStyle(el, probe.pseudo ?? null);
       const values = {};
       for (const prop of probe.props) values[prop] = style.getPropertyValue(prop).trim();
-      el.remove();
+      attach.remove();
       out.probes[probe.name] = { selector: `injected .${probe.inject.className}`, values };
       continue;
     }
@@ -590,6 +703,215 @@ if (railGap) {
 
 const railHeadingGap = probe('railHeading', 'margin-bottom');
 put('space.railHeadingGap', toNumber(railHeadingGap.value), railHeadingGap.from);
+
+// Home rails ----------------------------------------------------------------
+/*
+ * The rhythm of the home screen, which is NOT `space.railGap` above.
+ *
+ * That token is `--jambo-rail-gap`, scoped in jambo-header.css to
+ * `.jambo-detail-rails` — the wrapper the detail, watch and episode pages
+ * carry. The home page does not carry it and keeps the vendor's own spacing,
+ * so the app needs its own number or its home screen is a third of the gap
+ * the website draws.
+ *
+ * The heading gap is summed rather than read from one property because the
+ * markup expresses it as two utilities, `mb-2 pb-1`, and the app wants the
+ * distance between the heading and the first poster, not either half of it.
+ */
+const homeRailGap = probe('railSwiper', 'margin-bottom');
+put('space.homeRailGap', toNumber(homeRailGap.value), homeRailGap.from);
+
+const headingRowMargin = probe('railHeadingRow', 'margin-bottom');
+const headingRowPadding = probe('railHeadingRow', 'padding-bottom');
+if (headingRowMargin.value !== null) {
+  const gap = (toNumber(headingRowMargin.value) ?? 0) + (toNumber(headingRowPadding.value) ?? 0);
+  put('space.homeRailHeadingGap', gap, `${headingRowMargin.from} + padding-bottom`);
+}
+
+const viewAllColor = probe('railViewAll', 'color');
+put('color.viewAll', toHex(viewAllColor.value), viewAllColor.from);
+
+const viewAllSize = probe('railViewAll', 'font-size');
+put('font.size.viewAll', toNumber(viewAllSize.value), viewAllSize.from);
+
+// The poster card -----------------------------------------------------------
+/*
+ * `size.posterWidth` is the used width the browser computed from Streamit's
+ * `data-mobile="3.5"` at a 390px viewport: three and a half cards across, the
+ * half being the peek that tells a viewer the rail scrolls. Read, never
+ * divided out by hand — and `size.posterAspect` comes from the rendered box
+ * rather than from the 2:3 everyone assumes, because the site's own posters
+ * are whatever the admin uploaded.
+ */
+const slideWidth = probe('posterSlide', 'width');
+put('size.posterWidth', toNumber(slideWidth.value), slideWidth.from);
+
+/*
+ * The gutter between posters. Swiper runs `spaceBetween: 0` at every
+ * breakpoint, so a margin of 0 is the expected answer and the real gap — if
+ * there is one — is the slide's padding. Recorded from whichever is non-zero
+ * rather than assumed to be either.
+ */
+const slideMargin = toNumber(probe('posterSlide', 'margin-right').value) ?? 0;
+const slidePad = toNumber(probe('posterSlide', 'padding-right').value) ?? 0;
+put(
+  'space.posterGap',
+  slideMargin || slidePad * 2,
+  slidePad && !slideMargin
+    ? `${probe('posterSlide', 'padding-right').from} × 2 (swiper spaceBetween is 0)`
+    : probe('posterSlide', 'margin-right').from,
+);
+
+const railPadding = probe('railContainer', 'padding-left');
+put('space.railInset', toNumber(railPadding.value), railPadding.from);
+
+const posterW = toNumber(probe('posterImage', 'width').value);
+const posterH = toNumber(probe('posterImage', 'height').value);
+if (posterW && posterH) {
+  put(
+    'size.posterAspect',
+    Math.round((posterW / posterH) * 1000) / 1000,
+    `${probe('posterImage', 'width').from} ÷ height`,
+  );
+}
+
+const posterRadius = probe('posterImage', RADIUS);
+put('radius.poster', toNumber(posterRadius.value), posterRadius.from);
+
+const cardTitleSize = probe('cardTitle', 'font-size');
+put('font.size.cardTitle', toNumber(cardTitleSize.value), cardTitleSize.from);
+
+const cardTitleWeight = probe('cardTitle', 'font-weight');
+put('font.weight.cardTitle', cardTitleWeight.value ? Number(cardTitleWeight.value) : null, cardTitleWeight.from);
+
+const cardTitleColor = probe('cardTitle', 'color');
+put('color.cardTitle', toHex(cardTitleColor.value), cardTitleColor.from);
+
+const cardMetaSize = probe('cardMeta', 'font-size');
+put('font.size.cardMeta', toNumber(cardMetaSize.value), cardMetaSize.from);
+
+const badgeBg = probe('premiumBadge', 'background-color');
+put('color.premiumBadgeBg', toHex(badgeBg.value), badgeBg.from);
+
+const badgeFg = probe('premiumBadgeIcon', 'color');
+put('color.premiumBadge', toHex(badgeFg.value), badgeFg.from);
+
+const badgeIconSize = probe('premiumBadgeIcon', 'font-size');
+put('size.premiumBadgeIcon', toNumber(badgeIconSize.value), badgeIconSize.from);
+
+const badgeSize = probe('premiumBadge', 'width');
+put('size.premiumBadge', toNumber(badgeSize.value), badgeSize.from);
+
+/*
+ * The badge is a circle, declared as `border-radius: 50%`, and `toNumber`
+ * only understands px. Half the measured width is the same circle in the
+ * units a React Native style accepts, and the provenance says it was a
+ * percentage so nobody later reads 14 as a designed corner radius.
+ */
+const badgeRadius = probe('premiumBadge', RADIUS);
+if (badgeRadius.value === '50%' && toNumber(badgeSize.value)) {
+  put('radius.premiumBadge', toNumber(badgeSize.value) / 2, `${badgeRadius.from} = 50%, resolved against width`);
+} else {
+  put('radius.premiumBadge', toNumber(badgeRadius.value), badgeRadius.from);
+}
+
+// Top 10 --------------------------------------------------------------------
+/*
+ * The rank numeral is not a coloured glyph. `color` computes to transparent
+ * and there is no text stroke: Streamit fills the letterform with a texture
+ * image through `background-clip: text`. An app that read `color` alone would
+ * draw nothing at all, which is why the capture asks for `background-image`.
+ *
+ * The URL is recorded rather than the bytes. The file is Streamit's own, and
+ * it is already in this repository at `public/frontend/images/pages/` — so the
+ * app copies it from source control instead of downloading it, and this token
+ * is the record of which file the site is actually using.
+ */
+const topTenSize = probe('topTenNumber', 'font-size');
+put('font.size.topTenNumber', toNumber(topTenSize.value), topTenSize.from);
+
+const topTenWeight = probe('topTenNumber', 'font-weight');
+put('font.weight.topTenNumber', topTenWeight.value ? Number(topTenWeight.value) : null, topTenWeight.from);
+
+const topTenFill = probe('topTenNumber', 'background-image');
+const topTenUrl = topTenFill.value?.match(/url\(["']?([^"')]+)["']?\)/)?.[1] ?? null;
+put('asset.topTenTexture', topTenUrl, topTenFill.from);
+
+// Continue Watching ---------------------------------------------------------
+const progressTrackBg = probe('progressTrack', 'background-color');
+put('color.progressTrack', toHex(progressTrackBg.value), progressTrackBg.from);
+
+/*
+ * Read from a `.progress-bar` injected inside a `.progress`, because Bootstrap
+ * declares the fill as `--bs-progress-bar-bg` on the wrapper. Injected alone
+ * it computes to transparent, and "the progress bar is transparent" is the
+ * kind of answer that looks like a finding and is really a bad question.
+ */
+const progressBarBg = probe('progressBar', 'background-color');
+put('color.progressBar', toHex(progressBarBg.value), progressBarBg.from);
+
+/*
+ * The scrim under the title and progress strip. It belongs to `.iq-image-box`,
+ * not to `.iq-preogress` — that element has no background at all, which is
+ * what the first pass of this probe found and what would have been recorded as
+ * "the overlay is transparent" if the question had not been asked again.
+ */
+const watchScrim = probe('watchingBox', 'background-image');
+put('gradient.watchingScrim', watchScrim.value === 'none' ? null : watchScrim.value, watchScrim.from);
+
+const watchRadius = probe('watchingBox', RADIUS);
+put('radius.watchingCard', toNumber(watchRadius.value), watchRadius.from);
+
+/*
+ * 5:3, and read rather than assumed. Continue Watching is the one rail on the
+ * home screen that is not a portrait poster, so a card component that took the
+ * poster aspect would crop every still.
+ */
+const watchAspect = probe('watchingStill', 'aspect-ratio');
+if (watchAspect.value) {
+  const [w, h] = watchAspect.value.split('/').map((n) => Number(n.trim()));
+  put('size.watchingAspect', w && h ? Math.round((w / h) * 1000) / 1000 : null, watchAspect.from);
+}
+
+/*
+ * The blade sets `style="height: 2px"` inline on the bar, so the stylesheet's
+ * own track height is not what a viewer sees. The inline value is the design
+ * and it is recorded here with that provenance rather than probed, because
+ * there is nothing on a guest page to probe it from.
+ */
+put('size.progressBarHeight', 2, 'cards/continue-watch-card.blade.php { style="height: 2px" }');
+
+// The phone tab bar ---------------------------------------------------------
+const tabBarBg = probe('tabBar', 'background-color');
+put('color.tabBarBg', toHex(tabBarBg.value), tabBarBg.from);
+
+const tabBarBorder = probe('tabBar', 'border-top-color');
+put('color.tabBarBorder', toHex(tabBarBorder.value), tabBarBorder.from);
+
+const tabBarPad = probe('tabBar', 'padding-top');
+put('space.tabBarPadding', toNumber(tabBarPad.value), tabBarPad.from);
+
+const tabIdle = probe('tabItem', 'color');
+put('color.tabIdle', toHex(tabIdle.value), tabIdle.from);
+
+const tabActive = probe('tabItemActive', 'color');
+put('color.tabActive', toHex(tabActive.value), tabActive.from);
+
+const tabIconSize = probe('tabIcon', 'font-size');
+put('size.tabIcon', toNumber(tabIconSize.value), tabIconSize.from);
+
+const tabLabelSize = probe('tabLabel', 'font-size');
+put('font.size.tabLabel', toNumber(tabLabelSize.value), tabLabelSize.from);
+
+// The hero ------------------------------------------------------------------
+const heroSize = probe('heroHeadline', 'font-size');
+put('font.size.heroHeadline', toNumber(heroSize.value), heroSize.from);
+
+const heroWeight = probe('heroHeadline', 'font-weight');
+put('font.weight.heroHeadline', heroWeight.value ? Number(heroWeight.value) : null, heroWeight.from);
+
+const heroTracking = probe('heroHeadline', 'letter-spacing');
+put('size.heroTracking', toNumber(heroTracking.value), heroTracking.from);
 
 // ------------------------------------------------------------------ output
 

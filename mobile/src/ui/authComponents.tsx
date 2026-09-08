@@ -43,8 +43,28 @@ export function AuthField({
         {accessory}
       </View>
 
-      <View style={[styles.well, focused && styles.wellFocused, invalid && styles.wellInvalid]}>
-        <View style={styles.wellIcon}>{icon}</View>
+      {/*
+        The focus glow lives on its own layer, behind the field and beside it
+        in the tree — never as an ancestor of the TextInput.
+
+        🔴 It used to be a style on the well itself, and that made the form
+        unusable: adding `elevation` to a View on Android makes the platform
+        rebuild that view, which destroyed the TextInput inside it the instant
+        it took focus. The keyboard opened, one character sometimes landed in
+        the race, and then nothing. Rio reported it as "on the signin screen i
+        cannot enter anything" (2026-09-09) and it reproduced from a clean
+        launch every time.
+
+        Two things keep it fixed. The glow is a sibling, so re-rendering it
+        cannot touch the input; and its `elevation` is constant, with only
+        `shadowColor` changing between transparent and the brand blue, so no
+        view is rebuilt at all when focus moves.
+      */}
+      <View style={styles.wellLayer}>
+        <View pointerEvents="none" style={[styles.glow, focused && styles.glowOn]} />
+
+        <View style={[styles.well, focused && styles.wellFocused, invalid && styles.wellInvalid]}>
+          <View style={styles.wellIcon}>{icon}</View>
 
         <TextInput
           accessibilityLabel={label}
@@ -59,8 +79,9 @@ export function AuthField({
             setFocused(false);
             input.onBlur?.(e);
           }}
-          style={styles.input}
-        />
+            style={styles.input}
+          />
+        </View>
       </View>
 
       {invalid ? (
@@ -267,6 +288,8 @@ const styles = StyleSheet.create({
   label: { fontFamily: 'Roboto_700Bold', fontSize: 15, lineHeight: 20, color: colors.fieldText },
 
   well: {
+    // Above the glow layer, which carries elevation 6. Constant, never toggled.
+    elevation: 7,
     height: auth.inputHeight,
     borderRadius: auth.inputRadius,
     backgroundColor: auth.inputBg,
@@ -276,15 +299,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
   },
-  wellFocused: {
-    borderColor: colors.primary,
-    // Android draws elevation shadows in the shadow colour, which gives the
-    // mockup's glow without a blur layer.
-    shadowColor: colors.primary,
+  /*
+   * Border only. The glow is on `styles.glow` below, deliberately — see the
+   * note in the component.
+   */
+  wellFocused: { borderColor: colors.primary },
+
+  wellLayer: { position: 'relative' },
+  glow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: auth.inputRadius,
+    // Elevation needs something to cast from, and this matches the well it
+    // sits behind so the layer is invisible in its own right.
+    backgroundColor: auth.inputBg,
+    // Constant, so focus never rebuilds a native view. Only shadowColor moves.
+    elevation: 6,
+    shadowColor: 'transparent',
     shadowOpacity: 0.6,
     shadowRadius: 8,
-    elevation: 6,
   },
+  glowOn: { shadowColor: colors.primary },
   wellInvalid: { borderColor: colors.errorBorder },
   wellIcon: { marginRight: spacing.md },
   input: {

@@ -1203,3 +1203,72 @@ without a second layout.
 **Verified by rotating the emulator**, not by reasoning: landscape now centres,
 keeps the portrait proportions, and scrolls to the button and the footer;
 portrait is unchanged. Auto-rotate was restored afterwards.
+
+### 2026-09-09 — Mobile app Phase 2b: Home, the rail kit, and the rest of §6.2
+
+**Status:** in progress
+**Owns:** design/export-tokens.mjs (new probes), design/tokens.json,
+mobile/src/ui/tokens.json (both generated), mobile/src/ui/rails/*,
+mobile/src/ui/media.ts, mobile/src/ui/metrics.ts,
+mobile/src/screens/{Home,Movies,Series,MovieDetail,SeriesDetail,Search,
+Genre,Category,Vj,Person,Watchlist,History,Profile}Screen.tsx,
+mobile/src/navigation/TabNavigator.tsx
+**Shares:**
+- mobile/src/ui/theme.ts — new semantic blocks for the rail kit. Additive; the
+  `auth` block is not touched.
+- mobile/src/api/endpoints.ts — the catalogue calls, appended.
+- mobile/src/navigation/{types,RootNavigator}.tsx — the tab navigator replaces
+  the two-screen app stack.
+- CHANGELOG.md — the `## Jambo App` section.
+
+**version.txt is NOT bumped.** Same reason as every app slice: it is what
+`UpdateManager` version_compares against the update manifest, and bumping it
+advertises a webapp update containing nothing.
+
+**What this is:** slice 2b of Phase 2 — the Home screen, the rail UI kit the
+whole app is built from, and then the rest of the §6.2 screen inventory except
+Downloads. The 35 tokens slice 2a exported and never used get their first real
+exercise here, and the ones the site has that the export never probed get
+added.
+
+**Three findings from reading, before any code:**
+
+1. **The app's chrome is already designed on the website.**
+   `components/widgets/mobile-footer.blade.php` renders a fixed four-tab bottom
+   nav below 992px — Home, Movies, Series, Watchlist, Phosphor icons in
+   regular/fill — and `partials/header-default.blade.php` puts search, the bell
+   and the avatar in the phone header. The app ports those rather than
+   inventing a navigation shape.
+
+2. **`space.railGap` (24) is the detail-page rhythm, not Home's.**
+   `jambo-header.css:840` scopes `--jambo-rail-gap` to `.jambo-detail-rails`,
+   which the home page does not carry; home rails keep the vendor 3.75em. The
+   heading-to-cards gap on a phone is `mb-2 pb-1` = 12px, not the 24px §6.1
+   records from desktop. New probes, rather than reusing a token that is honest
+   about a different page.
+
+3. 🔴 **The catalogue API hands the app full-size posters.**
+   `MovieResource::card()` uses `media_url()`, which returns the original
+   upload; the website's own cards use `media_img($src, 640)` and a srcset
+   through the `/img` proxy. Thirteen rails of originals into 100dp cards is
+   the `ui-performance` skill's item 2 on a Ugandan connection. Fixed in the
+   app for now (see below), with the server-side version named.
+
+**Deliberately not built in this slice** (named so nobody rebuilds them badly):
+- The player, and no Kotlin: `expo-jambo-media` is still not created. Play
+  controls route to the detail screen rather than to a control that cannot
+  play.
+- Everything in Phase 3: downloads, licences, the vault, the offline home.
+- TV beyond keeping the structure ready: no leanback manifest, no banner, no
+  EXPO_TV profile, no device-code sign-in, no TVFocusGuideView.
+- In-app checkout / PesaPal. The variant flag ships; the flow does not, and it
+  does not exist server-side either.
+- Standalone star ratings — the website has no viewer-facing way to rate a
+  title, so building one is a product decision.
+- VJ genre-filtered sub-pages and the guest view counter: `docs/api/coverage.md`
+  records both as still open server-side.
+- Push delivery. The registry exists, the sender does not.
+- Guest browsing. The app stays sign-in-first; raised with Rio as a fork rather
+  than decided quietly.
+
+**For whoever is next:** see the closing notes at the end of this entry.

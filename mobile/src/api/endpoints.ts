@@ -1,4 +1,5 @@
 import type { ApiClient } from './client';
+import type { Home, MovieList, SeriesList, TitleCard } from './catalogue';
 import { required } from './errors';
 import type { components } from './schema';
 import { deviceRegistration } from '../device/deviceId';
@@ -133,6 +134,85 @@ export class JamboApi {
       devices: data.devices ?? [],
       countsAppDevices: data.counts_app_devices ?? false,
     };
+  }
+
+  /**
+   * The home screen.
+   *
+   * Public, but personalising: with a bearer token Continue Watching appears
+   * and the personalised rails become personal, and without one the guest home
+   * screen comes back rather than an error. The app sends the token because it
+   * only ever calls this signed in, but the endpoint not requiring one is why
+   * a dropped session shows a home screen instead of a wall.
+   *
+   * `rails` is an ordered list, not a fixed object, so a rail added on the
+   * server needs no app release. Nothing here reshapes it — the screen renders
+   * what it is given, in the order it is given.
+   */
+  async home(): Promise<Home> {
+    const { data } = await this.client.request<Home>('/home');
+    return data;
+  }
+
+  /**
+   * Published movies, newest first, cursor-paginated.
+   *
+   * The cursor is the server's and is passed back opaquely. The app never
+   * builds one: the endpoint's own note records that an offset cursor on
+   * `created_at` skipped every tied row on real data, which is the kind of
+   * thing a client that invents pagination reproduces.
+   */
+  async movies(cursor?: string): Promise<MovieList> {
+    const { data } = await this.client.request<MovieList>(
+      cursor === undefined ? '/movies' : `/movies?cursor=${encodeURIComponent(cursor)}`,
+    );
+    return data;
+  }
+
+  /** Published series, newest first, cursor-paginated. */
+  async series(cursor?: string): Promise<SeriesList> {
+    const { data } = await this.client.request<SeriesList>(
+      cursor === undefined ? '/series' : `/series?cursor=${encodeURIComponent(cursor)}`,
+    );
+    return data;
+  }
+
+  /**
+   * The viewer's watchlist.
+   *
+   * Not paginated by the contract, and deliberately not paged here either —
+   * inventing a `?cursor=` the server ignores would look like it worked until
+   * somebody had more than a page of titles.
+   */
+  async watchlist(): Promise<{ items: TitleCard[] }> {
+    const { data } = await this.client.request<{ items?: TitleCard[] }>('/watchlist');
+    return { items: data.items ?? [] };
+  }
+
+  /**
+   * Put a title on the watchlist.
+   *
+   * Idempotent by design on the server: adding something already on the list
+   * succeeds and changes nothing, so a retry after a dropped connection is
+   * safe. That is why this is not the website's toggle — a retried toggle
+   * silently undoes itself, which over a mobile connection is a bug a viewer
+   * cannot explain.
+   */
+  async addToWatchlist(type: 'movie' | 'show' | 'episode', id: number): Promise<boolean> {
+    const { data } = await this.client.request<{ in_list?: boolean }>('/watchlist', {
+      method: 'POST',
+      body: { type, id },
+    });
+    return data.in_list ?? true;
+  }
+
+  /** Take a title off the watchlist. Idempotent: removing what is not there is a success. */
+  async removeFromWatchlist(type: 'movie' | 'show' | 'episode', id: number): Promise<boolean> {
+    const { data } = await this.client.request<{ in_list?: boolean }>(
+      `/watchlist/${type}/${id}`,
+      { method: 'DELETE' },
+    );
+    return data.in_list ?? false;
   }
 
   /** Sign one device out. Takes a device uuid or a browser session id. */

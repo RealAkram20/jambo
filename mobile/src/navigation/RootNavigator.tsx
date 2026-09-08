@@ -11,6 +11,7 @@ import { RegisterScreen } from '../screens/RegisterScreen';
 import { SignInScreen } from '../screens/SignInScreen';
 import { TwoFactorScreen } from '../screens/TwoFactorScreen';
 import { UpdateRequiredScreen } from '../screens/UpdateRequiredScreen';
+import { TabNavigator } from './TabNavigator';
 import type { AppStackParams, AuthStackParams } from './types';
 
 const AuthStack = createNativeStackNavigator<AuthStackParams>();
@@ -72,6 +73,16 @@ export function RootNavigator() {
     <NavigationContainer theme={navigationTheme}>
       {phase === 'signedIn' ? (
         <AppStack.Navigator screenOptions={screenOptions}>
+          {/*
+            The tabs are the app's home, and they carry their own headers. The
+            stack above them exists for the screens that push over the tabs —
+            Account, Devices, and the detail screens that follow in this slice.
+          */}
+          <AppStack.Screen
+            name="Tabs"
+            component={TabNavigator}
+            options={{ headerShown: false }}
+          />
           <AppStack.Screen
             name="Account"
             component={AccountScreen}

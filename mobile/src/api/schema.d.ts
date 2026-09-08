@@ -4260,7 +4260,16 @@ export interface components {
             title?: string;
             year?: number | null;
             runtime_minutes?: number | null;
-            rating?: number | null;
+            /**
+             * @description A content certification - G, PG, PG-13, R, NC-17 - NOT a star
+             *     rating. The website renders it as a certification badge
+             *     (hero-banner.blade.php falls back to the literal 'PG'). The
+             *     five-star display on the site comes from a different source,
+             *     `ratings()->avg('stars')`, which no catalogue endpoint exposes.
+             *     Typed as a number until 2026-09-09, which would have had the app
+             *     drawing "NC-17" stars.
+             */
+            rating?: string | null;
             poster_url?: string;
             /** @description Plan slug this title needs, or null for free. Draw the lock badge from this. */
             tier_required?: string | null;
@@ -4283,7 +4292,16 @@ export interface components {
             slug?: string;
             title?: string;
             year?: number | null;
-            rating?: number | null;
+            /**
+             * @description A content certification - G, PG, PG-13, R, NC-17 - NOT a star
+             *     rating. The website renders it as a certification badge
+             *     (hero-banner.blade.php falls back to the literal 'PG'). The
+             *     five-star display on the site comes from a different source,
+             *     `ratings()->avg('stars')`, which no catalogue endpoint exposes.
+             *     Typed as a number until 2026-09-09, which would have had the app
+             *     drawing "NC-17" stars.
+             */
+            rating?: string | null;
             poster_url?: string;
             /** @description What this series' episodes inherit when they carry no plan of their own. */
             tier_required?: string | null;
