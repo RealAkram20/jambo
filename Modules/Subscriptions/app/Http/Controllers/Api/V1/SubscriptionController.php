@@ -106,6 +106,9 @@ class SubscriptionController extends Controller
         $orders = PaymentOrder::query()
             ->where('user_id', $request->user()->id)
             ->latest()
+            // id as a tiebreaker: created_at is not unique, and a cursor on a
+            // tied column silently drops every row that ties.
+            ->orderByDesc('id')
             ->cursorPaginate(15);
 
         return ApiResponse::ok([

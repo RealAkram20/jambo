@@ -196,7 +196,9 @@ class TaxonomyController extends Controller
             ])
             ->orderByRaw('(movies_count + shows_count) DESC')
             ->orderBy('id')
-            ->cursorPaginate(40);
+            // Offset, not cursor: the primary order is a raw expression a
+            // cursor cannot be built from.
+            ->paginate(40);
 
         return ApiResponse::ok([
             'items' => $people->getCollection()->map(fn (Person $person) => [
@@ -206,7 +208,10 @@ class TaxonomyController extends Controller
                 'movies_count' => $person->movies_count,
                 'shows_count' => $person->shows_count,
             ])->values(),
-            'next_cursor' => $people->nextCursor()?->encode(),
+            'page' => $people->currentPage(),
+            'per_page' => $people->perPage(),
+            'total' => $people->total(),
+            'next_page' => $people->hasMorePages() ? $people->currentPage() + 1 : null,
         ]);
     }
 

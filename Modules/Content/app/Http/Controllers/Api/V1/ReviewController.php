@@ -54,6 +54,9 @@ class ReviewController extends Controller
         $reviews = (clone $published)
             ->with('user:id,username,first_name,last_name')
             ->latest()
+            // id as a tiebreaker: created_at is not unique, and a cursor on a
+            // tied column silently drops every row that ties.
+            ->orderByDesc('id')
             ->cursorPaginate(self::PAGE_SIZE);
 
         $mine = $request->user()

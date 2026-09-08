@@ -85,13 +85,23 @@ class HomeController extends Controller
         }
 
         $perPage = max(1, min((int) $request->query('per_page', 24), 60));
-        $page = $catalog->query($rail)->cursorPaginate($perPage);
+
+        // Offset paging, not a cursor, and for two reasons. The pinned rails
+        // order with a raw FIELD() clause, which a cursor cannot be built
+        // from; and the plain rails order on created_at, which seeded and
+        // bulk-imported titles share to the second — a cursor on it skipped
+        // every tied row, and page 2 of latest-movies came back empty on
+        // real data during review. The website pages these by offset too.
+        $page = $catalog->query($rail)->paginate($perPage);
 
         return ApiResponse::ok([
             'key' => $rail,
             'title' => $catalog->title($rail),
             'items' => $this->cards($page->getCollection(), $request),
-            'next_cursor' => $page->nextCursor()?->encode(),
+            'page' => $page->currentPage(),
+            'per_page' => $page->perPage(),
+            'total' => $page->total(),
+            'next_page' => $page->hasMorePages() ? $page->currentPage() + 1 : null,
         ]);
     }
 

@@ -43,7 +43,9 @@ class NotificationController extends Controller
     {
         $user = $request->user();
 
-        $rows = $user->notifications()->cursorPaginate(self::PER_PAGE);
+        // The relation orders by created_at; id breaks ties so a cursor does
+        // not drop notifications sent in the same second.
+        $rows = $user->notifications()->orderByDesc('id')->cursorPaginate(self::PER_PAGE);
 
         return ApiResponse::ok([
             'unread_count' => $user->unreadNotifications()->count(),

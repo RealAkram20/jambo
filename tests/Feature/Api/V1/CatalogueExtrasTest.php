@@ -133,10 +133,12 @@ class CatalogueExtrasTest extends TestCase
 
         $response = $this->getJson('/api/v1/collections/latest-movies?per_page=1')->assertOk();
 
+        // Offset-paged since the review pass: a cursor on created_at dropped
+        // every tied title, and page 2 came back empty on real data.
         $response->assertJsonPath('data.key', 'latest-movies')
-            ->assertJsonCount(1, 'data.items');
-
-        $this->assertNotNull($response->json('data.next_cursor'));
+            ->assertJsonCount(1, 'data.items')
+            ->assertJsonPath('data.total', 2)
+            ->assertJsonPath('data.next_page', 2);
     }
 
     public function test_the_exclusives_archive_only_carries_gated_titles(): void

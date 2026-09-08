@@ -99,7 +99,9 @@ class ReferralController extends Controller
     {
         $user = $request->user();
 
-        $entries = $ledger->entriesFor($user)->cursorPaginate(20);
+        // id appended as a tiebreaker after whatever order the ledger sets:
+        // two entries in the same second must not lose one to the cursor.
+        $entries = $ledger->entriesFor($user)->orderByDesc('id')->cursorPaginate(20);
 
         return ApiResponse::ok([
             'currency' => config('payments.currency', 'UGX'),

@@ -8,10 +8,13 @@ openapi: 3.0.3
 # drift between a shipped APK and a live server cannot be hot-fixed the way a
 # web page can.
 #
-# Two rules that apply everywhere and are not repeated per endpoint:
+# Three rules that apply everywhere and are not repeated per endpoint:
 #   * Every response uses the envelope in components/schemas/Envelope*.
 #   * Clients branch on `code`, never on `message`. Message text is reworded;
 #     codes are a contract and only change with a new API version.
+#   * Send `X-Device-Id: <the device uuid>` on EVERY request, signed in or not.
+#     Rate limits key on it before the address; without it a guest shares one
+#     bucket with every other handset behind the same carrier NAT.
 
 info:
   title: Jambo API
@@ -1720,10 +1723,13 @@ paths:
     get:
       tags: [Catalogue]
       summary: Everyone with published work
-      description: Ordered by how much of the catalogue they appear in, which is what makes the grid useful.
+      description: |
+        Ordered by how much of the catalogue they appear in, which is what
+        makes the grid useful. Paged by offset: the primary order is a raw
+        expression a cursor cannot be built from.
       security: []
       parameters:
-        - { name: cursor, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
       responses:
         '200':
           description: OK
@@ -1737,7 +1743,10 @@ paths:
                         type: object
                         properties:
                           items: { type: array, items: { $ref: '#/components/schemas/PersonCard' } }
-                          next_cursor: { type: string, nullable: true }
+                          page: { type: integer }
+                          per_page: { type: integer }
+                          total: { type: integer }
+                          next_page: { type: integer, nullable: true }
 
   /collections:
     get:
@@ -1776,12 +1785,18 @@ paths:
         Personalised rails (top-picks, smart-shuffle, fresh-picks) pin the
         viewer's own recommendations to the front, so send a bearer token to
         get a personal ordering.
+
+        Paged by offset, unlike the catalogue lists. Pinned rails order with
+        a raw expression a cursor cannot be built from, and plain rails order
+        on created_at, which bulk-imported titles share to the second - a
+        cursor on it dropped every tied row. The website pages these by
+        offset too.
       security:
         - {}
         - bearerAuth: []
       parameters:
         - { name: rail, in: path, required: true, schema: { type: string } }
-        - { name: cursor, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
         - { name: per_page, in: query, schema: { type: integer, default: 24, maximum: 60 } }
       responses:
         '200':
@@ -1803,7 +1818,10 @@ paths:
                               oneOf:
                                 - $ref: '#/components/schemas/MovieCard'
                                 - $ref: '#/components/schemas/SeriesCard'
-                          next_cursor: { type: string, nullable: true }
+                          page: { type: integer }
+                          per_page: { type: integer }
+                          total: { type: integer }
+                          next_page: { type: integer, nullable: true, description: null on the last page. }
         '404':
           description: NOT_FOUND
           content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }

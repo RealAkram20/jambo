@@ -2,6 +2,60 @@
 
 ## Jambo
 
+### 1.8.34 — The review pass: four defects the suite could not see
+
+Rio asked to look at what had just been finished. So every one of the 85
+endpoints was walked against the real dev database rather than the test
+suite, and the diff was read for the sharp edges. Four defects came out, and
+the pattern behind all four is the same: each was invisible to a suite that
+fakes mail, seeds one row at a time, and runs on SQLite.
+
+**A cursor on a tied column drops every row that ties.** `GET
+/collections/latest-movies` returned an empty second page on a database with
+twenty movies in it. Seeded and bulk-imported titles share a `created_at` to
+the second, and a cursor on that column alone skips everything that ties. The
+same shape sat under reviews, comments, history, orders, the ledger and
+notifications — every list paged on `latest()`. Each now carries `id` as a
+tiebreaker, and there is a test that inserts thirty-one rows with an identical
+timestamp and pages through all of them. Collections and the cast grid, whose
+primary order is a raw expression a cursor cannot be built from at all, page
+by offset now — exactly as the website does.
+
+**An unhandled exception left the envelope.** The handler rendered validation,
+authentication and 404 into the contract's shape and let everything else fall
+through to Laravel's default 500 — not enveloped, and in debug mode carrying
+the exception class and message. `SERVER_ERROR` was in the enum and nothing
+emitted it. A catch-all now does, hiding the message outside debug, and a
+deliberate `abort(401|403|429)` keeps its own status with the matching code.
+
+**A mail outage turned forgot-password into an account-enumeration oracle.**
+The endpoint promises an identical answer whether or not the address has an
+account — but a fake address never touches mail, and a real one tries to send.
+With the transport down, the real one threw and the fake one did not, so a
+500 meant "this email exists" to anyone probing. The send is now wrapped, the
+failure logged for ops with a hashed address, and the viewer sees the same
+sentence either way. Found because the dev box points `MAIL_HOST` at a Docker
+hostname that does not exist here; the website's own form has the same shape.
+
+**Rate limits were keyed on the address for guests, and for Google sign-in.**
+Behind carrier NAT that is one bucket per cell tower, and the type-ahead sends
+a request per keystroke. The `api` limiter now keys on the viewer, else the
+`X-Device-Id` header, else the address — with the address kept as a loose
+outer layer at ten times the rate. The `auth` limiter falls through to the
+device uuid before the address, which Google sign-in was missing because it
+carries neither an email nor a challenge token. **The app must send
+`X-Device-Id` on every request**, and the spec now says so at the top.
+
+**Verified.** 544 tests, 2049 assertions; the same two pre-existing
+`PricingPageCurrentPlanTest` failures. All 75 smoke calls against the real
+database answer in the envelope with the status the contract says — up from
+74 before this pass. The homepage still diffs clean against its pre-refactor
+fingerprint.
+
+**Not verified.** The pinned rails still order with MySQL's `FIELD()` and
+still cannot execute under the SQLite suite; they were confirmed paging
+correctly on real MariaDB. No real handset has sent `X-Device-Id` yet.
+
 ### 1.8.33 — Plans, billing, refer and earn — and the two things left out on purpose
 
 Gaps 4 and 8 from [the coverage audit](docs/api/coverage.md), which closes the

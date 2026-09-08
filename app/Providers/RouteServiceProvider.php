@@ -26,8 +26,21 @@ class RouteServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Keyed on the viewer, else the app install, else the address - with
+        // the address only as a loose outer layer. East African carriers put
+        // thousands of handsets behind one CGNAT address; a per-IP bucket on
+        // the public catalogue would be one bucket per cell tower, and the
+        // type-ahead alone sends a request per keystroke. The app sends
+        // X-Device-Id on every request for exactly this.
         RateLimiter::for('api', function (Request $request) {
-            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+            $who = $request->user()?->id
+                ?: $request->header('X-Device-Id')
+                ?: $request->ip();
+
+            return [
+                Limit::perMinute(60)->by('api|' . $who),
+                Limit::perMinute(600)->by('api-ip|' . $request->ip()),
+            ];
         });
 
         // Sign-in and the two-factor challenge. Keyed on email+ip, not ip
@@ -37,7 +50,15 @@ class RouteServiceProvider extends ServiceProvider
         // key the browser login already uses, so the two front doors share
         // one budget rather than offering five attempts each.
         RateLimiter::for('auth', function (Request $request) {
-            $identifier = Str::lower((string) $request->input('email', $request->input('challenge_token', '')));
+            // Google sign-in carries neither an email nor a challenge token,
+            // only a device block - without this fallback it was keyed on
+            // the address alone, ten attempts per cell tower.
+            $identifier = Str::lower((string) (
+                $request->input('email')
+                ?: $request->input('challenge_token')
+                ?: $request->input('device.uuid')
+                ?: ''
+            ));
 
             return [
                 Limit::perMinute(10)->by($identifier . '|' . $request->ip()),

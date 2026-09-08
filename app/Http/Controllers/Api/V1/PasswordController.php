@@ -9,11 +9,13 @@ use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
 use Laravel\Sanctum\PersonalAccessToken;
 use Modules\Streaming\app\Models\Device;
+use Throwable;
 
 /**
  * Forgotten, reset and changed passwords.
@@ -38,7 +40,26 @@ class PasswordController extends Controller
     {
         $request->validate(['email' => ['required', 'email']]);
 
-        Password::sendResetLink($request->only('email'));
+        // The send is wrapped, and the reason is not tidiness. For an address
+        // with no account the broker returns without touching mail; for a
+        // real one it tries to send. If the transport is down, the real
+        // account throws and the fake one does not - and "500 means it
+        // exists" is an account-enumeration oracle, the exact thing the
+        // neutral message below is meant to prevent. So a mail failure is
+        // logged for ops and the viewer sees the same sentence either way.
+        //
+        // Found 2026-09-08: locally MAIL_HOST points at a Docker hostname,
+        // and this endpoint answered a bare TransportException for real
+        // accounts only.
+        try {
+            Password::sendResetLink($request->only('email'));
+        } catch (Throwable $e) {
+            Log::error('[auth] password reset mail failed', [
+                'email_hash' => hash('sha256', Str::lower((string) $request->input('email'))),
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+            ]);
+        }
 
         return ApiResponse::ok(
             null,

@@ -11,6 +11,7 @@ use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
 
@@ -80,6 +81,54 @@ class Handler extends ExceptionHandler
             return ApiResponse::error(
                 ApiErrorCode::NotFound,
                 'Not found.',
+            );
+        });
+
+        // Everything else. Without this, any exception the three above do not
+        // name - a mail transport down, a database gone away, a bug - reaches
+        // the app as Laravel's default 500: not in the envelope, and in debug
+        // mode carrying the exception class and message. The contract says
+        // every response is enveloped and SERVER_ERROR is in the enum for
+        // exactly this; found on 2026-09-08 when forgot-password hit a dead
+        // SMTP host and answered with a bare TransportException.
+        //
+        // HttpException subclasses (403, 429, 503...) keep their own status,
+        // because those are deliberate answers rather than failures. The
+        // message is only exposed in debug: a production stack trace is not
+        // something to hand a phone.
+        $this->renderable(function (Throwable $e, $request) {
+            if (! $this->isTokenApiRequest($request)) {
+                return null;
+            }
+
+            if ($e instanceof ValidationException
+                || $e instanceof AuthenticationException
+                || $e instanceof NotFoundHttpException
+                || $e instanceof ModelNotFoundException) {
+                return null; // handled above
+            }
+
+            if ($e instanceof HttpExceptionInterface) {
+                $code = match ($e->getStatusCode()) {
+                    401 => ApiErrorCode::Unauthenticated,
+                    403 => ApiErrorCode::Forbidden,
+                    404 => ApiErrorCode::NotFound,
+                    429 => ApiErrorCode::RateLimited,
+                    default => ApiErrorCode::ServerError,
+                };
+
+                return ApiResponse::error(
+                    $code,
+                    $e->getMessage() ?: 'Request refused.',
+                    status: $e->getStatusCode(),
+                );
+            }
+
+            return ApiResponse::error(
+                ApiErrorCode::ServerError,
+                config('app.debug')
+                    ? get_class($e) . ': ' . $e->getMessage()
+                    : 'Something went wrong on our side. Please try again in a moment.',
             );
         });
 

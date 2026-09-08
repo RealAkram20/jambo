@@ -140,6 +140,8 @@ class WatchlistController extends Controller
         $rows = WatchHistoryItem::query()
             ->where('user_id', $request->user()->id)
             ->orderByDesc('watched_at')
+            // Tiebreaker: two beats in the same second must not drop one.
+            ->orderByDesc('id')
             ->with(['watchable' => function (MorphTo $morphTo) {
                 $morphTo->morphWith([
                     Movie::class => ['genres'],

@@ -829,3 +829,38 @@ service and were not cross-checked against a real referral chain.
 - Modules/Referrals was the SECOND module today found with no api route
   mapping (Pages was the first). If a module's routes/api.php seems ignored,
   check its RouteServiceProvider::map() actually calls mapApiRoutes().
+
+### 2026-09-08 — Review pass over the finished API
+
+**Status:** complete
+**Owns:** tests/Feature/Api/V1/{ApiFailureEnvelopeTest,PaginationAndLimitsTest}.php
+**Shares:** app/Exceptions/Handler.php (catch-all renderer, 401 mapping),
+app/Providers/RouteServiceProvider.php (both limiters re-keyed),
+app/Http/Controllers/Api/V1/PasswordController.php (forgot() swallows a
+transport failure), eight API controllers (paging), docs/api/openapi.yaml,
+CHANGELOG.md 1.8.34
+
+**What this is:** Rio asked to look at what had just been finished. Every
+endpoint walked against real MySQL (scratchpad/full_smoke.php, 75 calls) and
+the diff read for defects. Four found and fixed; see CHANGELOG 1.8.34.
+
+**The lesson worth keeping, because it will recur.** All four were invisible
+to a green suite of 533 tests. The suite fakes mail, creates one row per test,
+and runs on SQLite. Real data has tied timestamps, real mail can be down, and
+real viewers sit behind CGNAT. **A green suite is necessary and not
+sufficient; walk the surface against the real database before calling
+anything finished.** full_smoke.php is the shape of that walk - recreate it.
+
+**Verified:** 544 tests, 2049 assertions, 2 pre-existing failures. 75/75
+smoke. Homepage fingerprint identical.
+
+**Not verified:** no handset has sent X-Device-Id; the pinned FIELD() rails
+were confirmed on MariaDB only.
+
+**For whoever is next:**
+- Never cursorPaginate on a timestamp alone. Add ->orderByDesc('id').
+- Never cursorPaginate over orderByRaw. Use offset paginate().
+- A public API route is IP-keyed for guests unless it reads X-Device-Id.
+- Any endpoint that promises a neutral answer (forgot-password, register
+  collision messages) must swallow downstream failures, or the failure itself
+  becomes the oracle.
