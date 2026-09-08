@@ -2,6 +2,46 @@
 
 ## Jambo
 
+### 1.8.33 — Plans, billing, refer and earn — and the two things left out on purpose
+
+Gaps 4 and 8 from [the coverage audit](docs/api/coverage.md), which closes the
+audit's list. Plans, the viewer's current plan, payment history, refer and
+earn, and the wallet.
+
+**Read-only, and that is the design rather than a shortcut.** ADR-0004 makes
+the Google Play build consumption-only: it shows a plan and a renewal date and
+sells nothing, because Play's Payments policy requires Play Billing for
+subscription content in Uganda and consumption-only is the documented way to
+stay compliant. So `GET /plans` is public — the Play build must be able to
+price a plan it cannot sell — and everything else here serves both builds.
+
+**In-app checkout is deliberately not built.**
+`PaymentController::createOrder` holds real money logic: the price is copied
+off the tier server-side so a client cannot name its own, the amount is frozen
+in a snapshot so an admin editing a price mid-checkout cannot void a genuine
+payment, a referral discount is computed and recorded server-side, and it
+explicitly refuses a client pairing an arbitrary amount with a
+`SubscriptionTier` payable — the attack that would otherwise buy Premium for
+one shilling. Reusing that safely means extracting it into a service both
+callers share. Money code earns its own careful slice; it does not get tacked
+onto the end of another one.
+
+**Withdrawal is out for the same reason.** Money leaving the business is not
+something to add at the end of a long session.
+
+One rule worth naming because it looks like a bug otherwise: refer-and-earn is
+a 404 while the programme is switched off — *except* for a viewer who already
+has wallet history. Money someone earned must not become unreachable because
+an admin flipped a setting. That is the website's rule, and it is now the
+API's.
+
+The Referrals module had web routes only and gained the API mapping the other
+modules already had — the second module today to be missing one.
+
+**Verified.** 533 tests, 1945 assertions; the same two pre-existing
+`PricingPageCurrentPlanTest` failures. The homepage still diffs clean against
+its pre-refactor fingerprint.
+
 ### 1.8.32 — Notifications, and a push registry that clears itself
 
 Gap 3 from [the coverage audit](docs/api/coverage.md): the notification list,

@@ -1350,6 +1350,176 @@ paths:
           description: Unregistered
           content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeOk' } } }
 
+  /plans:
+    get:
+      tags: [App]
+      summary: The plans on offer
+      description: |
+        Public. The Google Play build is consumption-only under ADR-0004 — it
+        shows what a plan costs and sells nothing — so this has to be readable
+        without a token.
+
+        `max_concurrent_streams` null means the plan sets no cap. Render
+        "unlimited", never "0" and never "none".
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          plans: { type: array, items: { $ref: '#/components/schemas/Plan' } }
+
+  /subscription:
+    get:
+      tags: [Viewer]
+      summary: The viewer's plan, with the plan list beside it
+      description: |
+        `GET /me` carries a summary for the launch screen; this is the
+        membership screen. The plan list comes with it so an upgrade prompt can
+        be drawn from one request.
+
+        **There is no checkout endpoint.** The Play build may not sell, and the
+        direct APK's in-app PesaPal is not built yet — reusing the website's
+        order creation safely means extracting money code (server-authored
+        price, frozen price snapshot, referral discount) into a shared service.
+        See docs/api/coverage.md.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          subscription:
+                            nullable: true
+                            allOf: [{ $ref: '#/components/schemas/Subscription' }]
+                          plans: { type: array, items: { $ref: '#/components/schemas/Plan' } }
+
+  /subscription/orders:
+    get:
+      tags: [Viewer]
+      summary: Payment history
+      description: Amounts come off the order row — an invoice says what was paid, not what the plan costs today.
+      parameters:
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          items: { type: array, items: { $ref: '#/components/schemas/PaymentOrder' } }
+                          next_cursor: { type: string, nullable: true }
+
+  /subscription/orders/{reference}:
+    get:
+      tags: [Viewer]
+      summary: One order
+      parameters:
+        - { name: reference, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          order: { $ref: '#/components/schemas/PaymentOrder' }
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /referrals:
+    get:
+      tags: [Viewer]
+      summary: Refer and earn
+      description: |
+        404 while the referral programme is switched off — **except** for a
+        viewer who already has wallet history, whose earned money must not
+        become unreachable because a setting changed. That is the website's
+        rule and it looks like a bug otherwise.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data: { $ref: '#/components/schemas/ReferralDashboard' }
+        '404':
+          description: NOT_FOUND — the programme is off and this viewer has no wallet history
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /referrals/code:
+    put:
+      tags: [Viewer]
+      summary: Set a custom referral code
+      description: |
+        The code shares a namespace with usernames — a profile lives at
+        /{username} — so it must be free against both columns.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string, minLength: 3, maxLength: 50, pattern: '^[a-zA-Z0-9_.\-]+$' }
+      responses:
+        '200':
+          description: Updated
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeOk' } } }
+        '422':
+          description: VALIDATION_FAILED — taken, or colliding with a username
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /wallet:
+    get:
+      tags: [Viewer]
+      summary: Balance and ledger
+      description: |
+        Every entry records the balance after it, so a client never adds money
+        up itself. Withdrawal is deliberately not exposed: money leaving the
+        business earns its own slice.
+      parameters:
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data: { $ref: '#/components/schemas/Wallet' }
+
   /watchlist:
     get:
       tags: [Viewer]
@@ -2096,6 +2266,80 @@ components:
         - type: object
           properties:
             replies: { type: array, items: { $ref: '#/components/schemas/Comment' } }
+
+    Plan:
+      type: object
+      properties:
+        slug: { type: string }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        price: { type: string, description: 'Decimal string. Do not parse as a float for display.' }
+        currency: { type: string }
+        billing_period: { type: string, enum: [daily, weekly, monthly, yearly] }
+        access_level: { type: integer }
+        max_concurrent_streams:
+          type: integer
+          nullable: true
+          description: null means no cap. Render "unlimited".
+
+    Subscription:
+      type: object
+      properties:
+        status: { type: string }
+        starts_at: { type: string, format: date-time, nullable: true }
+        ends_at: { type: string, format: date-time, nullable: true }
+        auto_renew: { type: boolean }
+        tier: { $ref: '#/components/schemas/Plan' }
+
+    PaymentOrder:
+      type: object
+      properties:
+        reference: { type: string }
+        status: { type: string }
+        amount: { type: string, description: 'What was actually paid, not the current plan price.' }
+        currency: { type: string }
+        description: { type: string, nullable: true }
+        created_at: { type: string, format: date-time, nullable: true }
+
+    ReferralDashboard:
+      type: object
+      properties:
+        code: { type: string, nullable: true }
+        share_url: { type: string, nullable: true }
+        currency: { type: string }
+        stats:
+          type: object
+          properties:
+            balance: { type: string, nullable: true }
+            total_earned: { type: string, nullable: true }
+            total_referrals: { type: integer }
+            qualified: { type: integer }
+        terms:
+          type: object
+          properties:
+            reward_percent: { type: string, description: 'Percent of a payment credited to the referrer.' }
+            discount_percent: { type: string, description: "Percent off the referred viewer's first payment." }
+            min_withdrawal: { type: string }
+
+    Wallet:
+      type: object
+      properties:
+        currency: { type: string }
+        balance: { type: string }
+        min_withdrawal: { type: string }
+        entries:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              type: { type: string }
+              amount: { type: string }
+              balance_after: { type: string }
+              currency: { type: string }
+              memo: { type: string, nullable: true }
+              created_at: { type: string, format: date-time, nullable: true }
+        next_cursor: { type: string, nullable: true }
 
     Notification:
       type: object

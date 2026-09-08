@@ -1,6 +1,6 @@
 # API v1 coverage — what the app can do, and what it cannot
 
-**Updated:** 2026-09-08 (repo v1.8.32)
+**Updated:** 2026-09-08 (repo v1.8.33)
 **Purpose:** the API is the only connection between the webapp and the mobile
 app. Anything a viewer can do on jambofilms.com that has no endpoint here is a
 screen the app cannot build.
@@ -11,7 +11,8 @@ partner and Streamit template demo routes (`dashboard.*`, `backend.*`) are out
 of scope — the app is a viewer client, and ADR-0004's Play build is
 consumption-only.
 
-**Status today: 72 endpoints shipped, 2 capability areas still open.**
+**Status today: 79 endpoints shipped. All eight audited capability areas are
+addressed; what remains is named below and is deliberate, not forgotten.**
 
 ---
 
@@ -98,18 +99,18 @@ device checklist (backgrounded, killed, locked, Android 13+ permission,
 Android 14+ full-screen intent, fallback poll alone) is Phase 2 work with a
 handset in hand.
 
-### 4. Subscription and billing
+### 4. Subscription and billing — CLOSED (read) in 1.8.33
 
-ADR-0004 splits this by build variant. The `play` build shows status only; the
-`direct` build carries PesaPal checkout.
+`GET /plans` (public), `GET /subscription`, `GET /subscription/orders` and
+`/orders/{reference}`.
 
-| Missing | Website route | Which build |
-|---|---|---|
-| Plans / pricing | `frontend.pricing-page` | both (informational on `play`) |
-| Subscription status | `profile.membership` | both — partially in `GET /me` |
-| Start checkout | `payment.create-order` | `direct` only |
-| Poll order status | `payment.status` | `direct` only |
-| Billing history / invoice | `profile.billing`, `profile.invoice` | both |
+**In-app checkout is deliberately NOT built.**
+`PaymentController::createOrder` carries server-authored pricing, a frozen
+price snapshot, a server-computed referral discount, and a guard against
+pairing an arbitrary amount with a `SubscriptionTier` payable. Reusing it
+safely means extracting it into a shared service — a money-code slice of its
+own. The Play build needs no checkout at all under ADR-0004; only the direct
+APK does.
 
 ### 5. Concurrency across web and app — ✅ CLOSED in 1.8.31
 
@@ -139,39 +140,28 @@ what is missing is the genre-filtered slice within one VJ.
 `GET /pages` and `GET /pages/{slug}`, CMS-backed, so a page added in the admin
 reaches the app with no release.
 
-### 8. Referrals and wallet
+### 8. Referrals and wallet — CLOSED (read) in 1.8.33
 
-| Missing | Website route |
+`GET /referrals`, `PUT /referrals/code`, `GET /wallet`.
+
+**Withdrawal is deliberately NOT built** — money leaving the business earns its
+own slice.
+
+---
+
+## What is still genuinely open
+
+Everything below is a decision or a piece of work that was named rather than
+missed.
+
+| Open | Why it is open |
 |---|---|
-| Refer and earn, referral code | `profile.refer`, `profile.refer.code` |
-| Apply / check a code | `referrals.apply-code`, `referrals.check-code` |
-| Wallet, subscribe from wallet, withdraw | `profile.wallet`, `referrals.wallet.*` |
-
----
-
-## Decisions still needed
-
-**Standalone star ratings.** `ratings` rows are only ever written by
-`InteractionSeeder`. The website has no viewer-facing way to rate a title — the
-table is read for star averages and moderated in admin, and a viewer's stars
-reach it through a Review. `POST /ratings` appears in the plan's §5, but
-building it would add a product feature the website does not have. **Not built.
-Rio to decide** whether the app gets tap-a-star rating, and if so whether the
-website gets it too.
-
-**Push transport.** The website uses web-push subscriptions. The app needs FCM.
-These are different enough that `notifications.push.subscribe` cannot simply be
-reused; see the `background-push` standard.
-
-**TV sign-in.** Device-code (RFC 8628) plus a `/tv` page on the website. Listed
-in Phase 1 but grouped with the TV work, since nobody types a password with a
-remote.
-
----
-
-## How this file stays true
-
-`tests/Feature/Api/V1/OpenApiSpecTest.php` fails when a route exists that
-`docs/api/openapi.yaml` does not describe, so the spec cannot drift from the
-code. This file is the layer above that: it tracks what has no route *at all*.
-Re-run the audit whenever a section is closed.
+| In-app checkout (`direct` build) | Needs money code extracted into a shared service. See gap 4. |
+| Wallet withdrawal | Money leaving the business. See gap 8. |
+| Standalone star ratings | The website has no viewer-facing way to rate a title; building one is a product decision. |
+| VJ sub-pages, guest view counter | Small catalogue leftovers. See gap 6. |
+| TV device-code sign-in | Needs a `/tv` page on the website; grouped with the TV work. |
+| Push *delivery* | The registry and the polled fallback exist; no sender, and nothing tested on a real handset. |
+| `streams.count_app_devices` | Built and switched OFF. Turning it on tightens the live cap for anyone with both a browser and the app. |
+| Reset-password deep link | The reset link lands on the website rather than in the app. |
+| Play Integrity on signup | The replacement for the reCAPTCHA that does not port to native. |

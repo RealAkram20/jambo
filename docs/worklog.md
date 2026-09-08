@@ -791,3 +791,41 @@ token can belong to only one install, and pushable() is what a sender queries.
   envelopes are built, or a mismatch deletes the wrong viewer's token.
 - Never put viewer identity in the payload; a lock screen is readable by
   whoever holds the phone.
+
+### 2026-09-08 — Mobile app Phase 1l: subscription, billing, referrals, wallet
+
+**Status:** complete (read side)
+**Owns:** Modules/Subscriptions/app/Http/Controllers/Api/V1/SubscriptionController.php,
+Modules/Referrals/app/Http/Controllers/Api/V1/ReferralController.php,
+Modules/{Subscriptions,Referrals}/routes/api.php,
+tests/Feature/Api/V1/SubscriptionAndReferralsTest.php
+**Shares:** Modules/Referrals/app/Providers/RouteServiceProvider.php — gained
+mapApiRoutes(); docs/api/*, CHANGELOG.md 1.8.33
+
+**What this is:** gaps 4 and 8, read side. Plans, current plan, payment
+history, refer and earn, wallet.
+
+**DELIBERATELY NOT BUILT, and both are money:**
+- **In-app checkout.** PaymentController::createOrder carries server-authored
+  pricing, a frozen price snapshot (so an admin editing a price mid-checkout
+  cannot void a genuine payment), a server-computed referral discount, and an
+  explicit guard against pairing an arbitrary `amount` with a SubscriptionTier
+  payable — the attack that buys Premium for one shilling. Reusing it means
+  extracting it into a shared service. **That is a money-code slice of its
+  own.** The Play build needs no checkout at all under ADR-0004.
+- **Wallet withdrawal.** Money leaving the business.
+
+**Verified:** 533 tests, 1945 assertions; same 2 pre-existing failures.
+Homepage fingerprint identical.
+
+**Not verified:** no real PesaPal order was created or polled; orders in tests
+are seeded rows. The referral dashboard numbers come from the website's own
+service and were not cross-checked against a real referral chain.
+
+**For whoever is next:**
+- ReferralSettings caches per request and compares the STRING '1'. In a test,
+  `setting(['referrals.active', '1'])` alone does nothing — call
+  `ReferralSettings::flush()` after it.
+- Modules/Referrals was the SECOND module today found with no api route
+  mapping (Pages was the first). If a module's routes/api.php seems ignored,
+  check its RouteServiceProvider::map() actually calls mapApiRoutes().
