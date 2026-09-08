@@ -2,6 +2,40 @@
 
 ## Jambo
 
+### 1.8.29 — The profile and security screens
+
+Gap 2 from [the coverage audit](docs/api/coverage.md): view and edit a
+profile, change the photo, manage two-factor, and deactivate an account.
+
+**The rules that protect an account are the website's, not softer ones.**
+Changing the account email costs the current password and clears the verified
+flag — email is the recovery anchor, so with a stolen token an attacker could
+swap it and then reset their way into a full takeover. Turning two-factor off
+costs the password too: the website puts that behind password-confirmation
+middleware, which is a session idea, and the token equivalent is asking here.
+Removing a second factor must cost more than holding an unlocked handset.
+
+**Two-factor setup is three calls, on purpose.** Start mints a pending secret
+and recovery codes, confirm proves the viewer's authenticator actually has it,
+and only then is it on. A one-shot enable would let someone lock themselves out
+of their own account with a mis-scanned code. The app renders its own QR from
+the secret rather than being handed a server-rendered SVG, which is a web
+answer to a native question.
+
+Deactivating signs out every device. A deactivated account is one sign-in
+refuses, so leaving live tokens behind would let the app keep watching on it
+until somebody noticed.
+
+**A bug the tests found.** `phone` is optional, and Laravel's validator omits
+an absent nullable key entirely — so an app sending only the fields it changed
+hit an undefined index. The website never triggers it because its form always
+posts the input. The same latent shape exists in `ProfileHubController` and was
+deliberately left alone: it cannot fire from a browser form, and this release
+is not the place to touch live profile code.
+
+**Verified.** 482 tests, 1717 assertions; the same two pre-existing
+`PricingPageCurrentPlanTest` failures. Additive — no webapp file modified.
+
 ### 1.8.28 — The app can create an account and recover one
 
 Gap 1 from [the coverage audit](docs/api/coverage.md), and the one that

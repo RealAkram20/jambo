@@ -1,6 +1,6 @@
 # API v1 coverage — what the app can do, and what it cannot
 
-**Updated:** 2026-09-08 (repo v1.8.28)
+**Updated:** 2026-09-08 (repo v1.8.29)
 **Purpose:** the API is the only connection between the webapp and the mobile
 app. Anything a viewer can do on jambofilms.com that has no endpoint here is a
 screen the app cannot build.
@@ -11,7 +11,7 @@ partner and Streamit template demo routes (`dashboard.*`, `backend.*`) are out
 of scope — the app is a viewer client, and ADR-0004's Play build is
 consumption-only.
 
-**Status today: 44 endpoints shipped, 7 capability areas still open.**
+**Status today: 54 endpoints shipped, 6 capability areas still open.**
 
 ---
 
@@ -43,6 +43,15 @@ consumption-only.
 | Who am I, plan, caps | `profile.membership` | `GET /me` | 1.8.23 |
 | App devices | — (new) | `GET /devices`, `DELETE /devices/{uuid}` | 1.8.23 |
 | Client config, server clock | — (new) | `GET /app/config` | 1.8.23 |
+| Register | `POST /register` | `POST /auth/register` | 1.8.28 |
+| Google sign-in | `auth.social` | `POST /auth/google` | 1.8.28 |
+| Forgot / reset password | `password.email`, `password.store` | `POST /auth/forgot-password`, `/auth/reset-password` | 1.8.28 |
+| Change password | `password.update` | `PUT /auth/password` | 1.8.28 |
+| Email verification | `verification.send` | `GET /auth/email`, `POST /auth/email/resend` | 1.8.28 |
+| View / edit profile | `profile.show`, `profile.update` | `GET/PATCH /profile` | 1.8.29 |
+| Avatar | `profile.avatar.*` | `POST/DELETE /profile/avatar` | 1.8.29 |
+| Two-factor management | `account.security`, `two-factor.*` | `GET /account/security`, `POST/DELETE /account/2fa`, `/account/2fa/confirm`, `/account/2fa/recovery-codes` | 1.8.29 |
+| Deactivate account | `account.deactivate` | `DELETE /account` | 1.8.29 |
 
 ---
 
@@ -62,24 +71,12 @@ CHANGELOG). Google verifies the ID token with Google and checks the audience.
 linking into the app, and Play Integrity has not been considered as the
 replacement for reCAPTCHA on the signup route.
 
-| Missing | Website route | Note |
-|---|---|---|
-| Register | `POST /register` | Carries a honeypot, optional reCAPTCHA, `SignupAttempt` logging, referral-cookie attribution, and a username that doubles as a referral code. **None of it ports to a native form unchanged — this needs decisions, not just code.** |
-| Forgot password | `POST /forgot-password` | Sends a reset link. The link lands on the website; the app can hand off to a browser. |
-| Reset password | `POST /reset-password` | Only needed if the app handles the deep link itself. |
-| Change password | `PUT /password` | Signed-in password change. |
-| Google / social sign-in | `auth.social` | Streamit ships Socialite. Needs a native Google flow and an ID-token exchange endpoint, not the web redirect. |
-| Email verification resend | `verification.send` | `MustVerifyEmail` is on the User model. |
+### 2. Profile and account — ✅ CLOSED in 1.8.29
 
-### 2. Profile and account — BLOCKING for a complete app
-
-| Missing | Website route |
-|---|---|
-| View profile | `profile.show` |
-| Edit profile | `profile.update` |
-| Avatar upload / remove | `profile.avatar.upload`, `profile.avatar.destroy` |
-| Security page (2FA enable/disable/recovery codes) | `account.security`, `two-factor.*` |
-| Deactivate account | `account.deactivate` |
+Shipped 2026-09-08. Profile read and edit (email changes cost the current
+password and clear verification), avatar upload and removal, the full
+two-factor lifecycle as three calls, and account deactivation which signs out
+every device.
 
 ### 3. Notifications — BLOCKING for push
 

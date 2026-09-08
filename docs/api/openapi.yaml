@@ -421,6 +421,237 @@ paths:
           description: UNAUTHENTICATED
           content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
 
+  /profile:
+    get:
+      tags: [Viewer]
+      summary: The profile screen
+      description: '`GET /me` stays small for launch; this is the editable surface.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          profile: { $ref: '#/components/schemas/Profile' }
+    patch:
+      tags: [Viewer]
+      summary: Edit the profile
+      description: |
+        Changing the account email requires `current_password` and clears the
+        verified flag. Email is the account's recovery anchor: with a stolen
+        token an attacker could swap it and then reset their way into a full
+        takeover.
+
+        Accounts created through Google have a random password, so those
+        viewers set one via password reset before they can change their email —
+        the same as on the website.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [first_name, last_name, username, email]
+              properties:
+                first_name: { type: string, maxLength: 100 }
+                last_name: { type: string, maxLength: 100 }
+                username: { type: string, minLength: 3, maxLength: 50 }
+                email: { type: string, format: email }
+                phone: { type: string, maxLength: 32, nullable: true }
+                current_password:
+                  type: string
+                  format: password
+                  description: Required only when the email is changing.
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          profile: { $ref: '#/components/schemas/Profile' }
+        '422':
+          description: VALIDATION_FAILED
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /profile/avatar:
+    post:
+      tags: [Viewer]
+      summary: Replace the profile photo
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [avatar]
+              properties:
+                avatar: { type: string, format: binary, description: 'jpeg, png, webp or gif, up to 2 MB.' }
+      responses:
+        '200':
+          description: Updated
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeOk' } } }
+        '422':
+          description: VALIDATION_FAILED
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+    delete:
+      tags: [Viewer]
+      summary: Remove the profile photo
+      responses:
+        '200':
+          description: Removed
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeOk' } } }
+
+  /account/security:
+    get:
+      tags: [Viewer]
+      summary: Two-factor state for this account
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data: { $ref: '#/components/schemas/SecurityState' }
+
+  /account/2fa:
+    post:
+      tags: [Viewer]
+      summary: Start two-factor setup
+      description: |
+        Mints a pending secret and recovery codes and returns them. Render the
+        QR in the app from `secret`.
+
+        **Two-factor is NOT on after this call.** It is on only once
+        /account/2fa/confirm succeeds — a one-shot enable would let someone
+        lock themselves out with a mis-scanned code.
+      responses:
+        '200':
+          description: Setup started
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          secret: { type: string }
+                          recovery_codes: { type: array, items: { type: string } }
+    delete:
+      tags: [Viewer]
+      summary: Turn two-factor off
+      description: Requires the password. Removing a second factor must cost more than holding an unlocked handset.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string, format: password }
+      responses:
+        '200':
+          description: Disabled
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeOk' } } }
+        '422':
+          description: VALIDATION_FAILED
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /account/2fa/confirm:
+    post:
+      tags: [Viewer]
+      summary: Finish two-factor setup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string, minLength: 6, maxLength: 6 }
+      responses:
+        '200':
+          description: Two-factor is on
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          recovery_codes: { type: array, items: { type: string } }
+        '422':
+          description: TWO_FACTOR_INVALID
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /account/2fa/recovery-codes:
+    post:
+      tags: [Viewer]
+      summary: Generate a fresh batch of recovery codes
+      description: The previous batch stops working immediately.
+      responses:
+        '200':
+          description: New codes
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          recovery_codes: { type: array, items: { type: string } }
+        '422':
+          description: VALIDATION_FAILED — two-factor is not on
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /account:
+    delete:
+      tags: [Viewer]
+      summary: Deactivate this account
+      description: |
+        Costs the password and an explicit confirmation. Signs out every
+        device: a deactivated account is one sign-in refuses, so leaving live
+        tokens would let the app keep watching until somebody noticed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password, confirm]
+              properties:
+                password: { type: string, format: password }
+                confirm: { type: boolean, description: Must be true. }
+      responses:
+        '200':
+          description: Deactivated
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeOk' } } }
+        '422':
+          description: VALIDATION_FAILED
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
   /devices:
     get:
       tags: [Devices]
@@ -1245,6 +1476,39 @@ components:
         name: { type: string, maxLength: 120 }
         model: { type: string, maxLength: 120 }
         app_version: { type: string, maxLength: 32 }
+
+    Profile:
+      type: object
+      properties:
+        id: { type: integer }
+        first_name: { type: string }
+        last_name: { type: string }
+        username:
+          type: string
+          description: Also the account's referral code and its profile URL.
+        email: { type: string }
+        phone: { type: string, nullable: true }
+        email_verified: { type: boolean }
+        avatar_url: { type: string, nullable: true }
+        joined_at: { type: string, format: date-time, nullable: true }
+
+    SecurityState:
+      type: object
+      properties:
+        two_factor:
+          type: object
+          properties:
+            enabled: { type: boolean }
+            pending:
+              type: boolean
+              description: A secret exists but no code has confirmed it yet.
+            secret:
+              type: string
+              nullable: true
+              description: Only while pending or enabled. Render the QR from this.
+            recovery_codes: { type: array, items: { type: string } }
+        google_enabled: { type: boolean, description: Whether this server has Google sign-in configured. }
+        email_verified: { type: boolean }
 
     Device:
       type: object

@@ -649,3 +649,29 @@ Integrity is the real answer if app signup is abused; that is its own decision.
   challenge implementation would let a 2FA account in through whichever path
   forgot it.
 
+### 2026-09-08 — Mobile app Phase 1h: profile and security
+
+**Status:** complete
+**Owns:** app/Http/Controllers/Api/V1/{Profile,AccountSecurity}Controller.php,
+tests/Feature/Api/V1/ProfileAndSecurityTest.php
+**Shares:** routes/api.php, docs/api/openapi.yaml, docs/api/coverage.md,
+CHANGELOG.md 1.8.29
+
+**What this is:** gap 2 of the coverage audit. Profile read/edit, avatar,
+two-factor lifecycle, deactivation. Additive — no webapp file modified.
+
+**Verified:** 482 tests, 1717 assertions; same 2 pre-existing failures.
+
+**Not verified:** avatar upload used Storage::fake, never a real disk; no
+Spatie MediaLibrary conversion ran.
+
+**A bug the tests found, and one deliberately left alone.** `phone` is
+nullable, and Laravel's validator omits an absent nullable key entirely, so an
+app sending only changed fields hit an undefined index. Fixed here with
+isset(). **The same shape exists in ProfileHubController::updateProfile and was
+NOT touched** — the web form always posts the input so it cannot fire, and Rio
+asked for care with live code. If that form ever becomes partial, fix it there.
+
+**For whoever is next:**
+- A test helper cannot sign in a user who already has 2FA enabled: login
+  correctly answers TWO_FACTOR_REQUIRED. Sign in FIRST, then enable.

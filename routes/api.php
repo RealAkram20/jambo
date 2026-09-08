@@ -3,9 +3,11 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\V1\AppConfigController;
+use App\Http\Controllers\Api\V1\AccountSecurityController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\EmailVerificationController;
 use App\Http\Controllers\Api\V1\PasswordController;
+use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\RegistrationController;
 use App\Http\Controllers\Api\V1\SocialAuthController;
 
@@ -81,5 +83,29 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('auth/email/resend', [EmailVerificationController::class, 'resend'])
             ->middleware('throttle:6,1')
             ->name('auth.email.resend');
+
+        // The profile screen. /me stays small for launch; this is the
+        // editable surface.
+        Route::get('profile', [ProfileController::class, 'show'])->name('profile.show');
+        Route::patch('profile', [ProfileController::class, 'update'])->name('profile.update');
+        Route::post('profile/avatar', [ProfileController::class, 'uploadAvatar'])->name('profile.avatar');
+        Route::delete('profile/avatar', [ProfileController::class, 'deleteAvatar'])->name('profile.avatar.destroy');
+
+        // Two-factor setup is three calls on purpose: start, confirm, and
+        // only then is it on. A one-shot enable would let someone lock
+        // themselves out with a mis-scanned code.
+        Route::get('account/security', [AccountSecurityController::class, 'show'])
+            ->name('account.security');
+        Route::post('account/2fa', [AccountSecurityController::class, 'enableTwoFactor'])
+            ->name('account.2fa.enable');
+        Route::post('account/2fa/confirm', [AccountSecurityController::class, 'confirmTwoFactor'])
+            ->name('account.2fa.confirm');
+        Route::delete('account/2fa', [AccountSecurityController::class, 'disableTwoFactor'])
+            ->name('account.2fa.disable');
+        Route::post('account/2fa/recovery-codes', [AccountSecurityController::class, 'regenerateRecoveryCodes'])
+            ->name('account.2fa.recovery-codes');
+
+        Route::delete('account', [AccountSecurityController::class, 'deactivate'])
+            ->name('account.deactivate');
     });
 });
