@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Streaming\app\Models\Device;
+use Modules\Streaming\app\Services\AccountDeviceRegistry;
 
 /**
  * The account's app installs: what is signed in, and booting one.
@@ -25,28 +26,19 @@ class DeviceController extends Controller
      * Revoked devices are excluded rather than shown greyed out: a booted
      * device is gone, and listing it invites someone to try to boot it twice.
      */
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, AccountDeviceRegistry $registry): JsonResponse
     {
         $current = Device::forToken($request->user()->currentAccessToken());
 
-        $devices = Device::query()
-            ->where('user_id', $request->user()->id)
-            ->active()
-            ->orderByDesc('last_seen_at')
-            ->get()
-            ->map(fn (Device $device) => [
-                'uuid' => $device->uuid,
-                'name' => $device->name,
-                'model' => $device->model,
-                'platform' => $device->platform,
-                'app_version' => $device->app_version,
-                'last_seen_at' => optional($device->last_seen_at)->toIso8601String(),
-                // So the app can label one row "This device" and think twice
-                // before offering to sign it out from its own list.
-                'is_current' => $current !== null && $current->getKey() === $device->getKey(),
-            ]);
+        // Browser sessions AND app installs. Either list alone is half the
+        // account: a viewer who hits their stream cap because of a laptop at
+        // home needs to free that slot from their phone.
+        $devices = $registry->all($request->user()->id, currentDevice: $current);
 
-        return ApiResponse::ok(['devices' => $devices]);
+        return ApiResponse::ok([
+            'devices' => $devices,
+            'counts_app_devices' => AccountDeviceRegistry::appDevicesCount(),
+        ]);
     }
 
     /**
@@ -57,23 +49,32 @@ class DeviceController extends Controller
      * else answers DEVICE_NOT_FOUND rather than a 403 — a 403 would confirm
      * that the uuid exists on some other account.
      */
-    public function destroy(Request $request, string $uuid): JsonResponse
+    public function destroy(Request $request, string $uuid, AccountDeviceRegistry $registry): JsonResponse
     {
+        $userId = $request->user()->id;
+
         $device = Device::query()
-            ->where('user_id', $request->user()->id)
+            ->where('user_id', $userId)
             ->where('uuid', $uuid)
             ->active()
             ->first();
 
-        if (! $device) {
-            return ApiResponse::error(
-                ApiErrorCode::DeviceNotFound,
-                'That device is not signed in to this account.',
-            );
+        if ($device) {
+            $device->revoke();
+
+            return ApiResponse::ok(null, 'Device signed out.');
         }
 
-        $device->revoke();
+        // Not an app install - it may be a browser session. Deleting the row
+        // is what the website's own picker does, and it is what frees a slot
+        // for a viewer stuck behind a laptop they are nowhere near.
+        if ($registry->revokeBrowserSession($userId, $uuid)) {
+            return ApiResponse::ok(null, 'That browser has been signed out.');
+        }
 
-        return ApiResponse::ok(null, 'Device signed out.');
+        return ApiResponse::error(
+            ApiErrorCode::DeviceNotFound,
+            'That device is not signed in to this account.',
+        );
     }
 }

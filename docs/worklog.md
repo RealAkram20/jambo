@@ -720,3 +720,35 @@ and the guest view counter.
 - Modules/Pages had NO api route mapping until today. If another module's
   routes/api.php seems to be ignored, check its RouteServiceProvider::map()
   actually calls mapApiRoutes() — several were scaffolded without it.
+### 2026-09-08 — Mobile app Phase 1j: one account, one device list
+
+**Status:** complete
+**Owns:** Modules/Streaming/app/Services/AccountDeviceRegistry.php,
+tests/Feature/Api/V1/AccountDevicesTest.php
+**Shares:**
+- Modules/Streaming/app/Http/Middleware/EnforceDeviceLimit.php — counts
+  through the registry instead of querying sessions inline. **Behaviour
+  unchanged while the setting is off, which is the default.**
+- Modules/Streaming/app/Http/Controllers/Api/V1/DeviceController.php
+- docs/api/openapi.yaml, docs/api/coverage.md, CHANGELOG.md 1.8.31
+
+**What this is:** gap 5. The device list is now the whole account.
+
+**⚠️ The cap change is BUILT BUT OFF.** `streams.count_app_devices` defaults
+to false. With it off, EnforceDeviceLimit counts exactly what it counted
+before — browser sessions — so the live site is unchanged. With it on, app
+installs count too, which is what the plan asks for and which would start
+sending viewers who have both a browser and the app to the picker.
+**Rio decides when to flip it.** Both states are asserted in
+AccountDevicesTest.
+
+**Contract change:** the device list's `uuid` is now `id`, and each row has a
+`kind` of app|browser. A session has an id where a device has a uuid, and one
+field is what lets DELETE /devices/{id} accept either. Nothing has shipped
+against the old shape.
+
+**Verified:** 508 tests, 1821 assertions; same 2 pre-existing failures.
+Homepage fingerprint identical.
+
+**Not verified:** no real browser session was booted from a real device; the
+sessions rows are seeded in tests.

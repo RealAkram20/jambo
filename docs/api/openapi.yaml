@@ -656,7 +656,13 @@ paths:
     get:
       tags: [Devices]
       summary: App installs signed into this account
-      description: Revoked devices are omitted. Exactly one row has `is_current` true.
+      description: |
+        Browser sessions AND app installs, most recent first. Either list
+        alone is half the account: a viewer who hits their stream cap because
+        of a laptop at home needs to free that slot from their phone.
+
+        Revoked devices are omitted, and a browser session idle past the
+        session lifetime is not listed.
       responses:
         '200':
           description: OK
@@ -672,6 +678,12 @@ paths:
                           devices:
                             type: array
                             items: { $ref: '#/components/schemas/Device' }
+                          counts_app_devices:
+                            type: boolean
+                            description: |
+                              Whether app installs currently count against the
+                              concurrent-device cap. Ships false; browser
+                              sessions always count.
 
   /devices/{uuid}:
     delete:
@@ -686,6 +698,7 @@ paths:
         - name: uuid
           in: path
           required: true
+          description: A device uuid or a browser session id — either is accepted.
           schema: { type: string, pattern: '^[A-Za-z0-9\-_]{8,64}$' }
       responses:
         '200':
@@ -1738,12 +1751,19 @@ components:
 
     Device:
       type: object
+      description: |
+        One thing signed into the account. `kind` says which: an app install or
+        a browser session. `id` is the device uuid for an app and the session
+        id for a browser — one field, because DELETE /devices/{id} takes
+        either.
       properties:
-        uuid: { type: string }
-        name: { type: string, nullable: true }
-        model: { type: string, nullable: true }
-        platform: { type: string, enum: [android, android_tv] }
-        app_version: { type: string, nullable: true }
+        id: { type: string }
+        kind: { type: string, enum: [app, browser] }
+        name: { type: string, nullable: true, description: 'For a browser, the parsed user agent.' }
+        model: { type: string, nullable: true, description: App installs only. }
+        platform: { type: string, nullable: true, enum: [android, android_tv, null] }
+        app_version: { type: string, nullable: true, description: App installs only. }
+        ip_address: { type: string, nullable: true, description: Browser sessions only. }
         last_seen_at: { type: string, format: date-time, nullable: true }
         is_current: { type: boolean }
 

@@ -2,6 +2,39 @@
 
 ## Jambo
 
+### 1.8.31 — One account, one device list
+
+Gap 5 from [the coverage audit](docs/api/coverage.md), and the problem it
+closes is concrete. A viewer hits their stream cap because a laptop at home is
+still signed in. They are holding their phone. Until now the app could list and
+boot app installs only, so there was nothing they could do from where they were
+standing.
+
+`GET /devices` now returns browser sessions beside app installs, and
+`DELETE /devices/{id}` accepts either — a device uuid or a session id. Booting
+a browser deletes its session row, which is exactly what the website's own
+picker does.
+
+**The cap change ships switched off.** `EnforceDeviceLimit` now counts through
+`AccountDeviceRegistry`, which can include app installs in the same cap the
+plan asks for (§4.2). But `streams.count_app_devices` defaults to false,
+because turning it on tightens the live site: anyone who has both a browser and
+the app would start meeting the device picker where they did not before. That
+is a product decision to make once the app has shipped and the numbers are
+visible, not something to switch on by deploying. The setting is read through a
+guarded helper that falls back to the current behaviour if the settings table
+ever misbehaves — playback must not break because a lookup did.
+
+One contract change worth naming: the device list's `uuid` field is now `id`,
+and every row carries a `kind` of `app` or `browser`. A session has an id where
+a device has a uuid, and one field is what lets `DELETE /devices/{id}` take
+either. Nothing has shipped against the old shape.
+
+**Verified.** 508 tests, 1821 assertions; the same two pre-existing
+`PricingPageCurrentPlanTest` failures. The homepage still diffs clean, and the
+default-off behaviour is asserted in both directions — with the setting off
+only browser sessions count, with it on both do.
+
 ### 1.8.30 — The rest of the catalogue, and the pages Play requires
 
 Gaps 6 and 7 from [the coverage audit](docs/api/coverage.md): search

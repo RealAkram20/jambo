@@ -252,8 +252,12 @@ class AuthAndDevicesTest extends TestCase
 
         $response = $this->withFreshToken($phone)->getJson('/api/v1/devices')->assertOk();
 
-        $devices = collect($response->json('data.devices'))->keyBy('uuid');
+        // Keyed on `id`, not `uuid`: the list carries browser sessions as well
+        // as app installs now, and a session has an id where a device has a
+        // uuid. One field covers both.
+        $devices = collect($response->json('data.devices'))->keyBy('id');
         $this->assertCount(2, $devices);
+        $this->assertSame('app', $devices['device-uuid-phone']['kind']);
         $this->assertTrue($devices['device-uuid-phone']['is_current']);
         $this->assertFalse($devices['device-uuid-tv']['is_current']);
     }

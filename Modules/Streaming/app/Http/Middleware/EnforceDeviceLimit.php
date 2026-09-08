@@ -5,6 +5,7 @@ namespace Modules\Streaming\app\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Modules\Streaming\app\Services\AccountDeviceRegistry;
 use Modules\Subscriptions\app\Models\UserSubscription;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -64,12 +65,16 @@ class EnforceDeviceLimit
             return $next($request);
         }
 
-        $cutoff = now()->subMinutes((int) config('session.lifetime', 120))->timestamp;
-
-        $activeSessionCount = DB::table('sessions')
-            ->where('user_id', $user->id)
-            ->where('last_activity', '>', $cutoff)
-            ->count();
+        // Counted through AccountDeviceRegistry so app installs can be
+        // included in the same cap as browser sessions - which is what the
+        // mobile plan asks for (§4.2).
+        //
+        // App devices are NOT counted unless `streams.count_app_devices` is
+        // switched on, and it ships off. Turning it on tightens the live site
+        // for anyone who has both a browser and the app: they would start
+        // meeting the picker where they did not before. That is a product
+        // decision, not a deploy.
+        $activeSessionCount = app(AccountDeviceRegistry::class)->countAgainstCap($user->id);
 
         if ($activeSessionCount > $cap) {
             // Stash the destination so the picker's Continue button can

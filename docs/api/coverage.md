@@ -1,6 +1,6 @@
 # API v1 coverage — what the app can do, and what it cannot
 
-**Updated:** 2026-09-08 (repo v1.8.30)
+**Updated:** 2026-09-08 (repo v1.8.31)
 **Purpose:** the API is the only connection between the webapp and the mobile
 app. Anything a viewer can do on jambofilms.com that has no endpoint here is a
 screen the app cannot build.
@@ -11,7 +11,7 @@ partner and Streamit template demo routes (`dashboard.*`, `backend.*`) are out
 of scope — the app is a viewer client, and ADR-0004's Play build is
 consumption-only.
 
-**Status today: 63 endpoints shipped, 4 capability areas still open.**
+**Status today: 63 endpoints shipped, 3 capability areas still open.**
 
 ---
 
@@ -109,21 +109,17 @@ ADR-0004 splits this by build variant. The `play` build shows status only; the
 | Poll order status | `payment.status` | `direct` only |
 | Billing history / invoice | `profile.billing`, `profile.invoice` | both |
 
-### 5. Concurrency across web and app
+### 5. Concurrency across web and app — ✅ CLOSED in 1.8.31
 
-The plan (§4.2) wants one cap over browser sessions *and* app devices. Today
-`GET /devices` lists app installs only, and an app viewer who hits the cap has
-no way to free a slot held by a browser.
+`GET /devices` lists browser sessions beside app installs and
+`DELETE /devices/{id}` boots either, so a viewer can free a slot held by a
+laptop from their phone. `EnforceDeviceLimit` counts through
+`AccountDeviceRegistry`.
 
-| Missing | Website route |
-|---|---|
-| List browser sessions | `profile.devices` |
-| Boot a browser session | `profile.devices.destroy`, `streams.boot` |
-| Sign out everywhere else | `profile.devices.logout-others` |
-| Reclaim a booted stream | `streams.reclaim` |
-
-`EnforceDeviceLimit` also still counts sessions only — the `devices` table
-exists but nothing counts it.
+⚠️ **One cap over both is built but switched OFF.**
+`streams.count_app_devices` defaults to false, because turning it on tightens
+the live site for anyone with both a browser and the app. **Rio's call, once
+the app has shipped.**
 
 ### 6. Catalogue completeness — ✅ MOSTLY CLOSED in 1.8.30
 
