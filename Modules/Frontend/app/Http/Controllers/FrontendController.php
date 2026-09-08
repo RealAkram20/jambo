@@ -20,6 +20,7 @@ use Modules\Content\app\Models\Review;
 use Modules\Payments\app\Models\PaymentOrder;
 use Modules\Subscriptions\app\Models\SubscriptionTier;
 use Modules\Subscriptions\app\Models\UserSubscription;
+use Modules\Frontend\app\Services\RailArchiveCatalog;
 use Modules\Frontend\app\Services\TopPicksRecommender;
 use Modules\Pages\app\Models\Page;
 use Illuminate\Http\JsonResponse;
@@ -1865,111 +1866,23 @@ class FrontendController extends Controller
      */
     public function railArchive(string $rail): View
     {
-        $defs = $this->railArchives();
-        abort_unless(array_key_exists($rail, $defs), 404);
-        $def = $defs[$rail];
+        // The rail definitions live in RailArchiveCatalog, which
+        // GET /api/v1/collections/{rail} calls too, so the app's "see all"
+        // and the website's cannot drift. See RailArchivePinTest.
+        $catalog = app(RailArchiveCatalog::class);
 
-        $pinned = isset($def['pinned']) ? ($def['pinned'])() : collect();
-        $pinnedIds = $pinned->pluck('id')
-            ->filter()
-            ->map(fn ($id) => (int) $id)
-            ->values()
-            ->all();
+        abort_unless($catalog->has($rail), 404);
 
-        $query = ($def['query'])();
-
-        // Pin the rail's own items first, in rail order. FIELD() returns
-        // 0 for ids not in the list, so "FIELD(id, …) = 0" sorts pinned
-        // rows (false → 0) ahead of everything else, and the second
-        // FIELD() preserves the recommender's ranking among them.
-        if ($pinnedIds) {
-            $list = implode(',', $pinnedIds);
-            $query->orderByRaw("FIELD(id, {$list}) = 0")
-                ->orderByRaw("FIELD(id, {$list})");
-        }
-
-        ($def['order'])($query);
-
-        $items = $query->paginate(24);
+        $items = $catalog->query($rail)->paginate(24);
 
         return view('frontend::Pages.MainPages.rail-archive', [
             'railKey' => $rail,
-            'title'   => $def['title'],
-            'type'    => $def['type'] ?? 'movie',
+            'title'   => $catalog->title($rail),
+            'type'    => $catalog->type($rail),
             'items'   => $items,
         ]);
     }
 
-    /**
-     * Registry of rail archives, keyed by URL slug (/collection/{rail}).
-     *
-     * Shape per entry:
-     *   title   — page heading; reuses the rail's own sectionTitle key
-     *             so the archive matches the shelf the user clicked.
-     *   type    — 'movie' | 'show'; picks detail route + fallback art.
-     *   pinned  — optional closure returning the rail's shelf items
-     *             (the SAME cached recommender call the homepage uses).
-     *   query   — closure returning the unordered base query.
-     *   order   — closure applying the rail's fallback ordering, applied
-     *             AFTER the pinned block so page 1 opens with the shelf.
-     */
-    private function railArchives(): array
-    {
-        $recommender = fn () => app(TopPicksRecommender::class);
-
-        return [
-            'top-picks' => [
-                'title'   => __('sectionTitle.top_picks'),
-                'pinned'  => function () use ($recommender) {
-                    $uid = auth()->id();
-                    return $uid
-                        ? $recommender()->forUser($uid)
-                        : $recommender()->forGuest();
-                },
-                'query'   => fn () => Movie::published()->with('genres'),
-                'order'   => fn ($q) => $q->orderByDesc('views_count')->orderByDesc('created_at'),
-            ],
-            'smart-shuffle' => [
-                'title'   => __('sectionTitle.smart_shuffle'),
-                'pinned'  => fn () => $recommender()->smartShuffle(auth()->id()),
-                'query'   => fn () => Movie::published()->with('genres'),
-                'order'   => fn ($q) => $q->orderByDesc('views_count')->orderByDesc('created_at'),
-            ],
-            'fresh-picks' => [
-                'title'   => __('sectionTitle.fresh_picks'),
-                'pinned'  => fn () => $recommender()->freshPicks(auth()->id()),
-                'query'   => fn () => Movie::published()->with('genres'),
-                'order'   => fn ($q) => $q->orderByDesc('created_at'),
-            ],
-            'popular-movies' => [
-                'title'   => __('sectionTitle.popular_movies'),
-                'query'   => fn () => Movie::published()->with('genres'),
-                'order'   => fn ($q) => $q->orderByDesc('views_count')->orderByDesc('created_at'),
-            ],
-            'only-on-streamit' => [
-                'title'   => __('sectionTitle.only_on_streamit'),
-                'query'   => fn () => Movie::published()->with('genres')->whereNotNull('tier_required'),
-                'order'   => fn ($q) => $q->orderByDesc('created_at'),
-            ],
-            'latest-movies' => [
-                'title'   => __('sectionTitle.latest_movies'),
-                'query'   => fn () => Movie::published()->with('genres'),
-                'order'   => fn ($q) => $q->orderByDesc('created_at'),
-            ],
-            'popular-series' => [
-                'title'   => __('sectionTitle.popular_show'),
-                'type'    => 'show',
-                'query'   => fn () => Show::published()->with('genres'),
-                'order'   => fn ($q) => $q->orderByDesc('views_count')->orderByDesc('created_at'),
-            ],
-            'latest-series' => [
-                'title'   => __('sectionTitle.latest_series'),
-                'type'    => 'show',
-                'query'   => fn () => Show::published()->with('genres'),
-                'order'   => fn ($q) => $q->orderByDesc('created_at'),
-            ],
-        ];
-    }
 
     /* ---------------------------------------------------------------
      | Taxonomy archives — /categories/{slug}, /geners/{slug} and

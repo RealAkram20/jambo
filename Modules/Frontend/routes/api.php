@@ -28,4 +28,11 @@ use Modules\Frontend\app\Http\Controllers\Api\V1\HomeController;
 
 Route::prefix('v1')->name('api.v1.')->middleware('api.viewer')->group(function () {
     Route::get('home', [HomeController::class, 'show'])->name('home');
+
+    // "See all" behind a home rail, from the same catalog the website's
+    // /collection/{rail} page uses.
+    Route::get('collections', [HomeController::class, 'collections'])->name('collections.index');
+    Route::get('collections/{rail}', [HomeController::class, 'collection'])
+        ->where('rail', '[a-z0-9\-]+')
+        ->name('collections.show');
 });

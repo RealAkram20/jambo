@@ -13,6 +13,7 @@ use Modules\Content\app\Http\Resources\ShowResource;
 use Modules\Content\app\Models\Category;
 use Modules\Content\app\Models\Genre;
 use Modules\Content\app\Models\Person;
+use Modules\Content\app\Models\Tag;
 use Modules\Content\app\Models\Vj;
 
 /**
@@ -146,7 +147,68 @@ class TaxonomyController extends Controller
         ]);
     }
 
+    // ── tags ─────────────────────────────────────────────────────────
+
+    public function tags(Request $request): JsonResponse
+    {
+        $tags = Tag::withCount(['movies', 'shows'])
+            ->orderByDesc('movies_count')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Tag $tag) => [
+                'slug' => $tag->slug,
+                'name' => $tag->name,
+                'movies_count' => $tag->movies_count,
+                'shows_count' => $tag->shows_count,
+            ]);
+
+        return ApiResponse::ok(['tags' => $tags]);
+    }
+
+    public function tag(Request $request, string $slug): JsonResponse
+    {
+        $tag = Tag::where('slug', $slug)->first();
+
+        return $this->detail($request, $tag, 'tag', fn () => [
+            'slug' => $tag->slug,
+            'name' => $tag->name,
+        ]);
+    }
+
     // ── cast and crew ────────────────────────────────────────────────
+
+    /**
+     * Everyone with something published — the "all personalities" grid.
+     *
+     * Ordered by how much of the catalogue they are in, which is what makes
+     * the grid useful rather than alphabetical.
+     */
+    public function people(Request $request): JsonResponse
+    {
+        $people = Person::query()
+            ->where(function ($q) {
+                $q->whereHas('movies', fn ($mq) => $mq->published())
+                  ->orWhereHas('shows', fn ($sq) => $sq->published());
+            })
+            ->withCount([
+                'movies as movies_count' => fn ($q) => $q->published(),
+                'shows as shows_count' => fn ($q) => $q->published(),
+            ])
+            ->orderByRaw('(movies_count + shows_count) DESC')
+            ->orderBy('id')
+            ->cursorPaginate(40);
+
+        return ApiResponse::ok([
+            'items' => $people->getCollection()->map(fn (Person $person) => [
+                'slug' => $person->slug,
+                'name' => $person->full_name,
+                'photo_url' => media_url($person->photo_url),
+                'movies_count' => $person->movies_count,
+                'shows_count' => $person->shows_count,
+            ])->values(),
+            'next_cursor' => $people->nextCursor()?->encode(),
+        ]);
+    }
 
     public function person(Request $request, string $slug): JsonResponse
     {

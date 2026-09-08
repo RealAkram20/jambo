@@ -1305,6 +1305,232 @@ paths:
                             items: { $ref: '#/components/schemas/HistoryEntry' }
                           next_cursor: { type: string, nullable: true }
 
+  /search/suggest:
+    get:
+      tags: [Catalogue]
+      summary: Type-ahead suggestions
+      description: |
+        Deliberately thinner and shorter than /search — five of each and only
+        the fields a dropdown row draws, because a viewer sends this on every
+        keystroke over a mobile connection. Fewer than two characters returns
+        an empty list rather than an error.
+      security: []
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          query: { type: string }
+                          suggestions: { type: array, items: { $ref: '#/components/schemas/Suggestion' } }
+
+  /tags:
+    get:
+      tags: [Catalogue]
+      summary: Every tag
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          tags: { type: array, items: { $ref: '#/components/schemas/GenreCard' } }
+
+  /tags/{slug}:
+    get:
+      tags: [Catalogue]
+      summary: One tag and its published titles
+      security: []
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data: { $ref: '#/components/schemas/TaxonomyPage' }
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /cast:
+    get:
+      tags: [Catalogue]
+      summary: Everyone with published work
+      description: Ordered by how much of the catalogue they appear in, which is what makes the grid useful.
+      security: []
+      parameters:
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          items: { type: array, items: { $ref: '#/components/schemas/PersonCard' } }
+                          next_cursor: { type: string, nullable: true }
+
+  /collections:
+    get:
+      tags: [Catalogue]
+      summary: Which "see all" collections exist
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          collections:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                key: { type: string }
+                                title: { type: string }
+                                type: { type: string, enum: [movie, show] }
+
+  /collections/{rail}:
+    get:
+      tags: [Catalogue]
+      summary: The full list behind a home rail
+      description: |
+        The same catalog the website's /collection/{rail} page uses, so the
+        app's "see all" and the site's cannot diverge.
+
+        Personalised rails (top-picks, smart-shuffle, fresh-picks) pin the
+        viewer's own recommendations to the front, so send a bearer token to
+        get a personal ordering.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - { name: rail, in: path, required: true, schema: { type: string } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: per_page, in: query, schema: { type: integer, default: 24, maximum: 60 } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          key: { type: string }
+                          title: { type: string }
+                          items:
+                            type: array
+                            items:
+                              oneOf:
+                                - $ref: '#/components/schemas/MovieCard'
+                                - $ref: '#/components/schemas/SeriesCard'
+                          next_cursor: { type: string, nullable: true }
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /pages:
+    get:
+      tags: [App]
+      summary: The CMS pages
+      description: |
+        About, FAQ, Privacy, Terms. Generic on purpose: adding a page in the
+        admin makes it available to the app with no release, and Google Play
+        requires a subscription app to show its terms and privacy policy.
+
+        Structural rows the website assembles into chrome (the footer, anything
+        flagged system) are excluded from this list but remain fetchable by
+        slug.
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          pages:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                slug: { type: string }
+                                title: { type: string }
+                                summary: { type: string, nullable: true }
+
+  /pages/{slug}:
+    get:
+      tags: [App]
+      summary: One CMS page
+      description: '`content` is admin-authored HTML, the same string the website renders.'
+      security: []
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          page:
+                            type: object
+                            properties:
+                              slug: { type: string }
+                              title: { type: string }
+                              content: { type: string, description: Admin-authored HTML. }
+                              summary: { type: string, nullable: true }
+                              image_url: { type: string }
+                              updated_at: { type: string, format: date-time, nullable: true }
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
   /playback/sessions:
     post:
       tags: [Playback]
@@ -1698,6 +1924,15 @@ components:
         username: { type: string }
         name: { type: string, description: 'Full name, falling back to the username.' }
 
+    Suggestion:
+      type: object
+      properties:
+        type: { type: string, enum: [movie, series] }
+        slug: { type: string }
+        title: { type: string }
+        year: { type: integer, nullable: true }
+        poster_url: { type: string }
+
     TaxonomyPage:
       type: object
       description: |
@@ -1709,6 +1944,7 @@ components:
         genre: { $ref: '#/components/schemas/GenreCard' }
         category: { $ref: '#/components/schemas/CategoryCard' }
         vj: { $ref: '#/components/schemas/VjDetail' }
+        tag: { $ref: '#/components/schemas/GenreCard' }
         person: { $ref: '#/components/schemas/PersonDetail' }
         movies: { type: array, items: { $ref: '#/components/schemas/MovieCard' } }
         series: { type: array, items: { $ref: '#/components/schemas/SeriesCard' } }

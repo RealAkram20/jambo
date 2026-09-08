@@ -1,6 +1,6 @@
 # API v1 coverage — what the app can do, and what it cannot
 
-**Updated:** 2026-09-08 (repo v1.8.29)
+**Updated:** 2026-09-08 (repo v1.8.30)
 **Purpose:** the API is the only connection between the webapp and the mobile
 app. Anything a viewer can do on jambofilms.com that has no endpoint here is a
 screen the app cannot build.
@@ -11,7 +11,7 @@ partner and Streamit template demo routes (`dashboard.*`, `backend.*`) are out
 of scope — the app is a viewer client, and ADR-0004's Play build is
 consumption-only.
 
-**Status today: 54 endpoints shipped, 6 capability areas still open.**
+**Status today: 63 endpoints shipped, 4 capability areas still open.**
 
 ---
 
@@ -52,6 +52,11 @@ consumption-only.
 | Avatar | `profile.avatar.*` | `POST/DELETE /profile/avatar` | 1.8.29 |
 | Two-factor management | `account.security`, `two-factor.*` | `GET /account/security`, `POST/DELETE /account/2fa`, `/account/2fa/confirm`, `/account/2fa/recovery-codes` | 1.8.29 |
 | Deactivate account | `account.deactivate` | `DELETE /account` | 1.8.29 |
+| Search suggestions | `frontend.search.suggest` | `GET /search/suggest` | 1.8.30 |
+| Tags | `frontend.tag`, `frontend.view-all-tags` | `GET /tags`, `/tags/{slug}` | 1.8.30 |
+| Cast grid | `frontend.cast_list`, `frontend.all_personality` | `GET /cast` | 1.8.30 |
+| Rail archives ("see all") | `frontend.rail_archive` | `GET /collections`, `/collections/{rail}` | 1.8.30 |
+| About / FAQ / Privacy / Terms | `frontend.about_us` etc. | `GET /pages`, `/pages/{slug}` | 1.8.30 |
 
 ---
 
@@ -120,30 +125,21 @@ no way to free a slot held by a browser.
 `EnforceDeviceLimit` also still counts sessions only — the `devices` table
 exists but nothing counts it.
 
-### 6. Catalogue completeness
+### 6. Catalogue completeness — ✅ MOSTLY CLOSED in 1.8.30
 
-Reachable on the website, not yet in the API.
+Shipped: search suggestions (and `/search` now matches the website's
+title-or-synopsis ranking), tags, the cast grid, and rail archives from a
+`RailArchiveCatalog` the website shares.
 
-| Missing | Website route |
-|---|---|
-| Search suggestions (type-ahead) | `frontend.search.suggest` |
-| Tag pages | `frontend.tag`, `frontend.view-all-tags` |
-| Rail archive ("see all" on a home rail) | `frontend.rail_archive` (`/collection/{rail}`) |
-| VJ's movies / series, and genre filters within a VJ | `frontend.vj_movie_detail`, `frontend.vj_series_detail`, `frontend.vj_*_genre` |
-| Cast list / all personalities | `frontend.cast_list`, `frontend.all_personality` |
-| Guest view counter | `streaming.guest-view` |
+**Still open here:** the VJ sub-pages (`vj-movie/{slug}`, `vj-series/{slug}`
+and their genre filters) and the guest view counter
+(`streaming.guest-view`). A VJ's titles are already on `GET /vjs/{slug}`;
+what is missing is the genre-filtered slice within one VJ.
 
-### 7. Static pages
+### 7. Static pages — ✅ CLOSED in 1.8.30
 
-An app with no About or Terms screen fails Play review for a subscription app.
-
-| Missing | Website route |
-|---|---|
-| About, FAQ, Privacy, Terms | `frontend.about_us`, `frontend.faq_page`, `frontend.privacy-policy`, `frontend.terms-and-policy` |
-| Contact form | `frontend.contact_us.submit` |
-
-Pages are CMS-backed (`Modules/Pages`), so one generic
-`GET /pages/{slug}` covers all of them.
+`GET /pages` and `GET /pages/{slug}`, CMS-backed, so a page added in the admin
+reaches the app with no release.
 
 ### 8. Referrals and wallet
 

@@ -116,29 +116,91 @@ class CatalogueController extends Controller
      * Two short queries rather than one union: the tables have different
      * shapes, the app renders them in separate sections anyway, and a union
      * would need a sort key neither table shares.
+     *
+     * Matches the website: title OR synopsis, ranked by how well the title
+     * matches, so searching "queen" puts a film called Queen above one that
+     * merely mentions a queen in its blurb.
      */
     public function search(Request $request): JsonResponse
     {
         $query = trim((string) $request->query('q', ''));
 
-        // Matching the website: under two characters returns an empty result
-        // rather than an error, so a viewer mid-typing sees nothing rather
-        // than a red message.
+        // Under two characters returns an empty result rather than an error,
+        // so a viewer mid-typing sees nothing rather than a red message.
         if (mb_strlen($query) < 2) {
             return ApiResponse::ok(['query' => $query, 'movies' => [], 'series' => []]);
         }
 
-        $like = '%' . $query . '%';
-
         return ApiResponse::ok([
             'query' => $query,
             'movies' => MovieResource::collection(
-                Movie::published()->where('title', 'like', $like)->limit(20)->get()
+                $this->matching(Movie::published(), $query)->limit(20)->get()
             )->toArray($request),
             'series' => ShowResource::collection(
-                Show::published()->where('title', 'like', $like)->limit(20)->get()
+                $this->matching(Show::published(), $query)->limit(20)->get()
             )->toArray($request),
         ]);
+    }
+
+    /**
+     * Type-ahead suggestions.
+     *
+     * Deliberately thinner and shorter than search(): five of each, and only
+     * the fields a dropdown row draws. A viewer types this on every keystroke
+     * over a mobile connection, so the response has to stay small.
+     */
+    public function suggest(Request $request): JsonResponse
+    {
+        $query = trim((string) $request->query('q', ''));
+
+        if (mb_strlen($query) < 2) {
+            return ApiResponse::ok(['query' => $query, 'suggestions' => []]);
+        }
+
+        $movies = $this->matching(Movie::published(), $query)
+            ->limit(5)->get(['id', 'title', 'slug', 'poster_url', 'year'])
+            ->map(fn (Movie $m) => [
+                'type' => 'movie',
+                'slug' => $m->slug,
+                'title' => $m->title,
+                'year' => $m->year,
+                'poster_url' => media_url($m->poster_url),
+            ]);
+
+        $series = $this->matching(Show::published(), $query)
+            ->limit(5)->get(['id', 'title', 'slug', 'poster_url', 'year'])
+            ->map(fn (Show $show) => [
+                'type' => 'series',
+                'slug' => $show->slug,
+                'title' => $show->title,
+                'year' => $show->year,
+                'poster_url' => media_url($show->poster_url),
+            ]);
+
+        return ApiResponse::ok([
+            'query' => $query,
+            'suggestions' => $movies->concat($series)->values(),
+        ]);
+    }
+
+    /**
+     * Title or synopsis, ranked by title match quality.
+     *
+     * The CASE ordering is the website's: an exact title first, then a title
+     * that starts with the term, then one that contains it, then everything
+     * that only matched on synopsis.
+     */
+    private function matching($query, string $term)
+    {
+        $like = '%' . $term . '%';
+
+        return $query
+            ->where(fn ($q) => $q->where('title', 'like', $like)->orWhere('synopsis', 'like', $like))
+            ->orderByRaw(
+                'CASE WHEN title = ? THEN 0 WHEN title LIKE ? THEN 1 WHEN title LIKE ? THEN 2 ELSE 3 END',
+                [$term, $term . '%', $like]
+            )
+            ->orderByDesc('created_at');
     }
 
     // ── internals ────────────────────────────────────────────────────

@@ -675,3 +675,48 @@ asked for care with live code. If that form ever becomes partial, fix it there.
 **For whoever is next:**
 - A test helper cannot sign in a user who already has 2FA enabled: login
   correctly answers TWO_FACTOR_REQUIRED. Sign in FIRST, then enable.
+### 2026-09-08 — Mobile app Phase 1i: catalogue completeness and CMS pages
+
+**Status:** complete
+**Owns:** Modules/Frontend/app/Services/RailArchiveCatalog.php,
+Modules/Pages/app/Http/Controllers/Api/V1/PageController.php,
+Modules/Pages/routes/api.php,
+Modules/Frontend/tests/Feature/RailArchivePinTest.php,
+tests/Feature/Api/V1/CatalogueExtrasTest.php
+**Shares:**
+- Modules/Frontend/app/Http/Controllers/FrontendController.php —
+  railArchives() extracted to the catalog; railArchive() now delegates
+- Modules/Pages/app/Providers/RouteServiceProvider.php — gained mapApiRoutes()
+- Modules/Content Catalogue/Taxonomy controllers + routes; Frontend HomeController
+- docs/api/openapi.yaml, docs/api/coverage.md, CHANGELOG.md 1.8.30
+
+**What this is:** gaps 6 and 7. Search suggest, tags, cast grid, rail
+archives, CMS pages.
+
+**A behaviour fix, not just an addition.** `/search` had been a plain title
+LIKE while the website searches title OR synopsis and ranks by title-match
+quality. The app would have put the wrong film first. Now identical.
+
+**🔴 A limitation found by the pin, and left as-is deliberately.** The three
+personalised rail archives (top-picks, smart-shuffle, fresh-picks) order with
+MySQL's `FIELD()`. SQLite has no equivalent, so **those rails have never been
+covered by the suite and cannot be while tests run on SQLite.** Production is
+MariaDB and they were verified rendering there. Rewriting to portable SQL
+would change a live ranking — a decision, not a cleanup. Recorded in
+RailArchiveCatalog, RailArchivePinTest and the API docs so nobody reads the
+coverage gap as an oversight.
+
+**Verified:** 501 tests, 1797 assertions; same 2 pre-existing failures.
+Homepage fingerprint still identical. /collection/latest-movies,
+/collection/top-picks and /about-us all render on real MariaDB.
+
+**Not verified:** the CMS page content is passed through as admin-authored
+HTML and was not rendered in any client.
+
+**Still open in gap 6:** VJ sub-pages (a genre-filtered slice within one VJ)
+and the guest view counter.
+
+**For whoever is next:**
+- Modules/Pages had NO api route mapping until today. If another module's
+  routes/api.php seems to be ignored, check its RouteServiceProvider::map()
+  actually calls mapApiRoutes() — several were scaffolded without it.

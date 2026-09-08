@@ -2,6 +2,49 @@
 
 ## Jambo
 
+### 1.8.30 — The rest of the catalogue, and the pages Play requires
+
+Gaps 6 and 7 from [the coverage audit](docs/api/coverage.md): search
+suggestions, tags, the cast grid, "see all" rail archives, and the CMS pages.
+
+**Search now matches the website.** The API had been doing a plain title LIKE
+while the site searched title *or* synopsis and ranked by how well the title
+matched — an exact title first, then one that starts with the term, then one
+that contains it, then synopsis-only matches. Searching "Queen" put the wrong
+film first in the app. Same ranking on both now, with a thinner
+`/search/suggest` for type-ahead, because a viewer sends that on every
+keystroke over a mobile connection.
+
+**"See all" comes from one catalog.** `FrontendController::railArchives()` — a
+private map of eight rails with their queries, orderings and pinned items —
+moved into `RailArchiveCatalog`, which the website's `/collection/{rail}` page
+and the new `GET /api/v1/collections/{rail}` both call. A second copy would
+have meant the app's "see all" quietly showing a different list than the
+site's. Pinned first, green after.
+
+**Something that pin turned up.** The three personalised rails order with
+MySQL's `FIELD()`, which MariaDB has and SQLite does not — so those rails
+cannot execute under the test suite and never have been covered. Production is
+MariaDB, so this is a testing limitation rather than a live defect, and it is
+now written down in the service, the test and the API docs rather than looking
+like an oversight. Rewriting to portable SQL would change a live ranking and is
+a decision, not a cleanup. The web archives were verified rendering against
+real MariaDB, `top-picks` included.
+
+**The CMS pages are one endpoint, not four.** About, FAQ, Privacy and Terms are
+rows an admin edits, so `GET /pages/{slug}` serves whatever exists and a new
+page needs no app release. That matters for more than tidiness: Google Play
+requires a subscription app to show its terms and privacy policy, and an app
+that hard-codes them drifts from the site the moment somebody edits one. The
+Pages module had web routes only and gained the API mapping every other module
+already had. Structural rows — the footer, anything flagged system — are chrome
+the website assembles, so they stay out of the index.
+
+**Verified.** 501 tests, 1797 assertions; the same two pre-existing
+`PricingPageCurrentPlanTest` failures. The homepage still diffs clean against
+its pre-refactor fingerprint, and `/collection/latest-movies`,
+`/collection/top-picks` and `/about-us` all render on real data.
+
 ### 1.8.29 — The profile and security screens
 
 Gap 2 from [the coverage audit](docs/api/coverage.md): view and edit a

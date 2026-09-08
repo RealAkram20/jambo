@@ -2,6 +2,7 @@
 
 namespace Modules\Frontend\app\Http\Controllers\Api\V1;
 
+use App\Http\Api\ApiErrorCode;
 use App\Http\Api\ApiResponse;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
@@ -11,6 +12,7 @@ use Modules\Content\app\Http\Resources\MovieResource;
 use Modules\Content\app\Http\Resources\ShowResource;
 use Modules\Content\app\Models\Show;
 use Modules\Frontend\app\Services\HomeRailsService;
+use Modules\Frontend\app\Services\RailArchiveCatalog;
 
 /**
  * The app's home screen.
@@ -61,6 +63,47 @@ class HomeController extends Controller
                 $this->personRail($data['favoritePersonalities'] ?? collect()),
             ])),
             'server_time' => now()->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * "See all" behind a home rail.
+     *
+     * Uses RailArchiveCatalog, which the website's /collection/{rail} page
+     * calls too, so the two lists cannot diverge. Paginated because an archive
+     * is the whole rail rather than its first ten.
+     *
+     * NOTE: the personalised rails (top-picks, smart-shuffle, fresh-picks)
+     * order with MySQL's FIELD(). That is fine on MariaDB in production and
+     * cannot execute on SQLite, which is why the suite covers the portable
+     * rails only.
+     */
+    public function collection(Request $request, string $rail, RailArchiveCatalog $catalog): JsonResponse
+    {
+        if (! $catalog->has($rail)) {
+            return ApiResponse::error(ApiErrorCode::NotFound, 'That collection does not exist.');
+        }
+
+        $perPage = max(1, min((int) $request->query('per_page', 24), 60));
+        $page = $catalog->query($rail)->cursorPaginate($perPage);
+
+        return ApiResponse::ok([
+            'key' => $rail,
+            'title' => $catalog->title($rail),
+            'items' => $this->cards($page->getCollection(), $request),
+            'next_cursor' => $page->nextCursor()?->encode(),
+        ]);
+    }
+
+    /** Which "see all" collections exist. */
+    public function collections(RailArchiveCatalog $catalog): JsonResponse
+    {
+        return ApiResponse::ok([
+            'collections' => collect($catalog->keys())->map(fn (string $key) => [
+                'key' => $key,
+                'title' => $catalog->title($key),
+                'type' => $catalog->type($key),
+            ])->values(),
         ]);
     }
 

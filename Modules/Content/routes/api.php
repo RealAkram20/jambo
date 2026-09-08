@@ -33,6 +33,10 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
     Route::get('search', [CatalogueController::class, 'search'])->name('search');
 
+    // Type-ahead. Thinner and shorter than search: a viewer sends this on
+    // every keystroke over a mobile connection.
+    Route::get('search/suggest', [CatalogueController::class, 'suggest'])->name('search.suggest');
+
     // The screens the home screen's genre, VJ and personality rails tap
     // through to. Public, like the website's archive pages.
     Route::get('genres', [TaxonomyController::class, 'genres'])->name('genres.index');
@@ -44,6 +48,10 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     Route::get('vjs', [TaxonomyController::class, 'vjs'])->name('vjs.index');
     Route::get('vjs/{slug}', [TaxonomyController::class, 'vj'])->name('vjs.show');
 
+    Route::get('tags', [TaxonomyController::class, 'tags'])->name('tags.index');
+    Route::get('tags/{slug}', [TaxonomyController::class, 'tag'])->name('tags.show');
+
+    Route::get('cast', [TaxonomyController::class, 'people'])->name('cast.index');
     Route::get('cast/{slug}', [TaxonomyController::class, 'person'])->name('cast.show');
 
     // Reviews and comments: reading is public, exactly as on the website,
