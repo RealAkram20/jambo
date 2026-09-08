@@ -30,8 +30,7 @@
         exit('Forbidden — open the file manager from the admin panel.');
     };
 
-    // storage/app/public/media -> project root (four levels up).
-    $root = dirname(__DIR__, 4);
+    $root = fm_guard_project_root();
 
     $appKey = fm_guard_app_key($root);
     if ($appKey === null || $appKey === '') {
@@ -62,6 +61,43 @@
         $deny(); // signature forged or app key rotated
     }
 })();
+
+/**
+ * Find the project root by looking for it, rather than counting directories.
+ *
+ * This used to be `dirname(__DIR__, 4)`, which is correct for the canonical
+ * location `storage/app/public/media` — and wrong the moment the gallery is
+ * reached through `public/storage`, which is three levels down, not four. That
+ * happens whenever `public/storage` is a real directory instead of a symlink,
+ * which is what `php artisan storage:link` leaves behind on a Windows box
+ * without symlink permission: the copy is served, `$root` climbs one level too
+ * far to the web root, no `.env` is found there, and the guard fails closed
+ * with "File manager unavailable." on a correctly configured install.
+ *
+ * Walking up for a marker is right whichever way the directory is wired, and
+ * on any host. The guard still fails closed if no root is found.
+ */
+function fm_guard_project_root(): string
+{
+    $dir = __DIR__;
+
+    for ($i = 0; $i < 8; $i++) {
+        if (is_file($dir . '/.env') || is_file($dir . '/artisan')) {
+            return $dir;
+        }
+
+        $parent = dirname($dir);
+        if ($parent === $dir) {
+            break; // reached the filesystem root
+        }
+
+        $dir = $parent;
+    }
+
+    // Nothing found. Returning the old guess keeps the failure identical to
+    // what it was rather than inventing a new one — and it still fails closed.
+    return dirname(__DIR__, 4);
+}
 
 /**
  * Read APP_KEY without booting the whole framework — the gallery fires many
