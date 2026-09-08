@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use App\Services\SocialAccountResolver;
 use Laravel\Socialite\Facades\Socialite;
 use Spatie\Permission\Models\Role;
 
@@ -49,31 +50,11 @@ class SocialAuthController extends Controller
                 ->withErrors(['email' => ucfirst($provider) . ' did not share an email. Please use email sign-in instead.']);
         }
 
-        $user = User::where('email', $email)->first();
-
-        if (!$user) {
-            $user = $this->createFromSocial($email, $social);
-        } elseif ($user->email_verified_at === null) {
-            // Match-by-email into a local account that never confirmed its
-            // email is the account-takeover risk. A squatter can register
-            // victim@gmail.com locally with a password THEY chose (email
-            // never verified, so the row just sits there); when the real
-            // owner later signs in with Google, we must not leave that
-            // attacker-set password working on the now-adopted account.
-            //
-            // Google's OAuth flow proves the mailbox belongs to whoever
-            // just authenticated, so we promote the row to verified — but
-            // we also overwrite the password with an unusable random value
-            // (exactly what createFromSocial() seeds) and rotate the
-            // remember token, severing any access the previous password
-            // holder had. The rightful owner uses Google from here, or the
-            // password-reset flow to set a new one they actually control.
-            $user->forceFill([
-                'email_verified_at' => now(),
-                'password'          => bcrypt(Str::random(40)),
-                'remember_token'    => Str::random(60),
-            ])->save();
-        }
+        // Who owns this address - including the account-takeover mitigation
+        // for a local row that never verified its email - is decided by
+        // SocialAccountResolver, which /api/v1/auth/google calls too. Security
+        // logic in two places is how it drifts. See SocialAuthPinTest.
+        $user = app(SocialAccountResolver::class)->resolve($email, $social->getName());
 
         if ($user->isDeactivated()) {
             return redirect()->route('login')->withErrors([
@@ -97,70 +78,4 @@ class SocialAuthController extends Controller
         return redirect()->intended('/');
     }
 
-    private function createFromSocial(string $email, $social): User
-    {
-        // Split the provider's display name into first/last where we
-        // can. Falls back to "Jambo user" if the provider only
-        // shipped an email.
-        [$first, $last] = $this->splitName((string) $social->getName());
-
-        $username = $this->uniqueUsername(
-            Str::slug(Str::before($email, '@'), '') ?: 'user'
-        );
-
-        $user = User::create([
-            'first_name' => $first ?: 'Jambo',
-            'last_name'  => $last ?: 'Viewer',
-            'username'   => $username,
-            'email'      => $email,
-            'password'   => bcrypt(Str::random(40)),  // unusable password
-        ]);
-
-        // forceFill, not create(): email_verified_at is deliberately absent
-        // from $fillable (mass-assignable self-verification would be a hole),
-        // so inside the create() payload it was silently dropped and every
-        // Google signup landed as "Pending".
-        $user->forceFill(['email_verified_at' => now()])->save();
-
-        if (Role::where('name', 'user')->exists()) {
-            $user->assignRole('user');
-        }
-
-        // Same signal the form-registration path sends. The Referrals
-        // listener rides on it to default the referral code and record
-        // a pending attribution from the ?ref= cookie; the stock
-        // verification-email listener no-ops because the account is
-        // created already verified.
-        event(new \Illuminate\Auth\Events\Registered($user));
-
-        return $user;
-    }
-
-    private function splitName(string $full): array
-    {
-        $parts = preg_split('/\s+/', trim($full), 2);
-        return [$parts[0] ?? '', $parts[1] ?? ''];
-    }
-
-    private function uniqueUsername(string $base): string
-    {
-        $base = substr($base, 0, 40) ?: 'user';
-
-        // The manual signup form runs the ReservedUsername rule; this
-        // auto-generated path must too, or admin@gmail.com signing in
-        // with Google would mint the username "admin" — a route
-        // collision (/{username} profile URLs) and an impersonation
-        // handle. Reserved bases get a numeric suffix immediately.
-        $reserved = in_array(strtolower($base), \App\Rules\ReservedUsername::RESERVED, true);
-
-        $candidate = $reserved ? $base . '1' : $base;
-        $n = $reserved ? 2 : 1;
-        // Free against BOTH columns — the username becomes this account's
-        // referral code, so squatting on someone's custom code would leave
-        // the new user without one.
-        while (User::where('username', $candidate)->orWhere('referral_code', $candidate)->exists()) {
-            $candidate = $base . $n++;
-        }
-        return $candidate;
-    }
 }

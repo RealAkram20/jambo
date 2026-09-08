@@ -4,6 +4,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\V1\AppConfigController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\EmailVerificationController;
+use App\Http\Controllers\Api\V1\PasswordController;
+use App\Http\Controllers\Api\V1\RegistrationController;
+use App\Http\Controllers\Api\V1\SocialAuthController;
 
 /*
 |--------------------------------------------------------------------------
@@ -42,10 +46,40 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('auth/login', [AuthController::class, 'login'])->name('auth.login');
         Route::post('auth/2fa/challenge', [AuthController::class, 'twoFactorChallenge'])
             ->name('auth.2fa.challenge');
+
+        // Sign-up. The website's honeypot and reCAPTCHA do not port to a
+        // native form (no DOM for a bot to fill, no browser token to
+        // produce), so this throttle plus the SignupAttempt log carry the
+        // weight instead. See RegistrationController.
+        Route::post('auth/register', [RegistrationController::class, 'store'])->name('auth.register');
+
+        // Google sign-in: the app sends an ID token from Google's own SDK
+        // rather than following the website's OAuth redirect.
+        Route::post('auth/google', [SocialAuthController::class, 'google'])->name('auth.google');
+
+        // Recovery. The reset LINK lands on the website; reset-password
+        // exists so the app can complete it in-app later with no server
+        // change.
+        Route::post('auth/forgot-password', [PasswordController::class, 'forgot'])
+            ->name('auth.forgot-password');
+        Route::post('auth/reset-password', [PasswordController::class, 'reset'])
+            ->name('auth.reset-password');
     });
 
     Route::middleware(['auth:sanctum', 'device.active'])->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
         Route::get('me', [AuthController::class, 'me'])->name('me');
+
+        // Changing a password signs out every OTHER device, which is the
+        // token equivalent of the website's Auth::logoutOtherDevices.
+        Route::put('auth/password', [PasswordController::class, 'change'])->name('auth.password');
+
+        Route::get('auth/email', [EmailVerificationController::class, 'status'])
+            ->name('auth.email.status');
+
+        // Sends mail, so it is throttled below the read endpoints.
+        Route::post('auth/email/resend', [EmailVerificationController::class, 'resend'])
+            ->middleware('throttle:6,1')
+            ->name('auth.email.resend');
     });
 });

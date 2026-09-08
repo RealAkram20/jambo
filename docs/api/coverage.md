@@ -1,6 +1,6 @@
 # API v1 coverage — what the app can do, and what it cannot
 
-**Updated:** 2026-09-08 (repo v1.8.27)
+**Updated:** 2026-09-08 (repo v1.8.28)
 **Purpose:** the API is the only connection between the webapp and the mobile
 app. Anything a viewer can do on jambofilms.com that has no endpoint here is a
 screen the app cannot build.
@@ -11,7 +11,7 @@ partner and Streamit template demo routes (`dashboard.*`, `backend.*`) are out
 of scope — the app is a viewer client, and ADR-0004's Play build is
 consumption-only.
 
-**Status today: 34 endpoints shipped, 8 capability areas still open.**
+**Status today: 44 endpoints shipped, 7 capability areas still open.**
 
 ---
 
@@ -50,11 +50,17 @@ consumption-only.
 
 Priority is *what stops the app being usable*, not what is hardest.
 
-### 1. Account creation and recovery — BLOCKING
+### 1. Account creation and recovery — ✅ CLOSED in 1.8.28
 
-Without these an app can only be used by someone who already has an account
-and remembers the password. On the Play build, where ADR-0004 forbids sending
-people to a payment page, it also means a new viewer cannot start at all.
+Shipped 2026-09-08. Register, Google sign-in, forgot/reset password, change
+password, and verification status and resend. Registration reuses the
+website's validation, default role, `Registered` event and `SignupAttempt`
+logging; the honeypot and reCAPTCHA deliberately do not port (see the
+CHANGELOG). Google verifies the ID token with Google and checks the audience.
+
+**Still open here:** the reset link lands on the website rather than deep-
+linking into the app, and Play Integrity has not been considered as the
+replacement for reCAPTCHA on the signup route.
 
 | Missing | Website route | Note |
 |---|---|---|

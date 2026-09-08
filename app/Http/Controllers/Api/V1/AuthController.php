@@ -6,10 +6,11 @@ use App\Http\Api\ApiErrorCode;
 use App\Http\Api\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\DeviceTokenIssuer;
+use App\Services\TwoFactorChallengeStore;
 use App\Services\TwoFactorAuthentication;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -36,9 +37,6 @@ use Modules\Streaming\app\Services\PlaybackAuthorizer;
  */
 class AuthController extends Controller
 {
-    /** How long the app has to answer a 2FA prompt before starting over. */
-    private const CHALLENGE_TTL_SECONDS = 300;
-
     private const MAX_LOGIN_ATTEMPTS = 5;
 
     public function login(Request $request, TwoFactorAuthentication $twoFactor): JsonResponse
@@ -46,7 +44,7 @@ class AuthController extends Controller
         $data = $request->validate([
             'email' => ['required', 'string', 'email', 'max:255'],
             'password' => ['required', 'string'],
-            ...self::deviceRules(),
+            ...DeviceTokenIssuer::deviceRules(),
         ]);
 
         $key = self::throttleKey($data['email'], $request->ip());
@@ -91,7 +89,7 @@ class AuthController extends Controller
             return ApiResponse::error(
                 ApiErrorCode::TwoFactorRequired,
                 'Enter the code from your authenticator app.',
-                extra: ['challenge_token' => $this->issueChallenge($user, $data['device'])],
+                extra: ['challenge_token' => app(TwoFactorChallengeStore::class)->issue($user, $data['device'])],
             );
         }
 
@@ -121,8 +119,8 @@ class AuthController extends Controller
             );
         }
 
-        $cacheKey = self::challengeKey($data['challenge_token']);
-        $payload = Cache::get($cacheKey);
+        $challenges = app(TwoFactorChallengeStore::class);
+        $payload = $challenges->peek($data['challenge_token']);
 
         if (! $payload) {
             return ApiResponse::error(
@@ -134,7 +132,7 @@ class AuthController extends Controller
         $user = User::find($payload['user_id']);
 
         if (! $user || $user->isDeactivated()) {
-            Cache::forget($cacheKey);
+            $challenges->forget($data['challenge_token']);
 
             return ApiResponse::error(
                 ApiErrorCode::AccountDeactivated,
@@ -156,7 +154,7 @@ class AuthController extends Controller
             );
         }
 
-        Cache::forget($cacheKey);
+        $challenges->forget($data['challenge_token']);
 
         return ApiResponse::ok(
             $this->issueToken($user, $payload['device']),
@@ -227,23 +225,6 @@ class AuthController extends Controller
 
     // ── internals ────────────────────────────────────────────────────
 
-    /**
-     * The device block every sign-in must carry. Without it we would issue a
-     * token that no device list can show and no picker can boot.
-     *
-     * @return array<string, array<int, mixed>>
-     */
-    private static function deviceRules(): array
-    {
-        return [
-            'device' => ['required', 'array'],
-            'device.uuid' => ['required', 'string', 'min:8', 'max:64'],
-            'device.platform' => ['required', 'string', 'in:' . implode(',', Device::PLATFORMS)],
-            'device.name' => ['nullable', 'string', 'max:120'],
-            'device.model' => ['nullable', 'string', 'max:120'],
-            'device.app_version' => ['nullable', 'string', 'max:32'],
-        ];
-    }
 
     /**
      * Shared with the browser login on purpose. Keying on email+ip rather
@@ -256,63 +237,17 @@ class AuthController extends Controller
         return Str::transliterate(Str::lower($email) . '|' . $ip);
     }
 
-    private static function challengeKey(string $token): string
-    {
-        return 'api.2fa.' . hash('sha256', $token);
-    }
-
-    /**
-     * @param  array<string, mixed>  $device
-     */
-    private function issueChallenge(User $user, array $device): string
-    {
-        $token = Str::random(64);
-
-        Cache::put(
-            self::challengeKey($token),
-            ['user_id' => $user->id, 'device' => $device],
-            self::CHALLENGE_TTL_SECONDS,
-        );
-
-        return $token;
-    }
-
     /**
      * Mint the access token and bind it to the device row.
+     *
+     * Delegated to DeviceTokenIssuer, which registration and Google sign-in
+     * call too — the device rules must not be written once per entry point.
      *
      * @param  array<string, mixed>  $device
      * @return array<string, mixed>
      */
     private function issueToken(User $user, array $device): array
     {
-        // Named for the install so `personal_access_tokens` is readable
-        // without a join, and abilities kept to `viewer`: this token is for
-        // watching. Anything that moves money or changes rates is not
-        // reachable with it even if a route forgets its own policy.
-        $newToken = $user->createToken('device:' . $device['uuid'], ['viewer']);
-
-        $row = Device::register(
-            user: $user,
-            uuid: $device['uuid'],
-            platform: $device['platform'],
-            name: $device['name'] ?? null,
-            model: $device['model'] ?? null,
-            appVersion: $device['app_version'] ?? null,
-            tokenId: $newToken->accessToken->getKey(),
-        );
-
-        return [
-            'token' => $newToken->plainTextToken,
-            'device' => [
-                'uuid' => $row->uuid,
-                'platform' => $row->platform,
-                'name' => $row->name,
-            ],
-            'user' => [
-                'id' => $user->id,
-                'username' => $user->username,
-                'email' => $user->email,
-            ],
-        ];
+        return app(DeviceTokenIssuer::class)->issue($user, $device);
     }
 }

@@ -153,6 +153,245 @@ paths:
           description: TWO_FACTOR_INVALID
           content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
 
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Create an account and sign in
+      description: |
+        Same validation, default role and Registered event as the website, so
+        an account created here is indistinguishable from one created in a
+        browser. The viewer is signed in immediately and a device row is
+        created, exactly as the web form logs you in.
+
+        The website's honeypot and reCAPTCHA do NOT apply: a native form has no
+        DOM for a bot to fill and no browser token to produce. The route's
+        throttle and the SignupAttempt log carry that weight instead.
+
+        The account is usable before the email is verified; show a banner, not
+        a wall, matching the site.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [first_name, last_name, username, email, password, password_confirmation, device]
+              properties:
+                first_name: { type: string, maxLength: 100 }
+                last_name: { type: string, maxLength: 100 }
+                username:
+                  type: string
+                  minLength: 3
+                  maxLength: 50
+                  pattern: '^[a-zA-Z0-9_.\-]+$'
+                  description: |
+                    Becomes the account's referral code and its profile URL
+                    (/{username}), so reserved words are refused.
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+                password_confirmation: { type: string, format: password }
+                device: { $ref: '#/components/schemas/DeviceRegistration' }
+      responses:
+        '201':
+          description: Account created and signed in
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        allOf:
+                          - $ref: '#/components/schemas/Session'
+                          - type: object
+                            properties:
+                              email_verified: { type: boolean }
+        '422':
+          description: VALIDATION_FAILED
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+        '429':
+          description: RATE_LIMITED
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /auth/google:
+    post:
+      tags: [Auth]
+      summary: Sign in with a Google ID token
+      description: |
+        The app obtains an ID token from Google's own sign-in SDK and sends it
+        here; the server verifies it with Google, checks the audience matches
+        this app's client id, and issues a Jambo device token.
+
+        The audience check is the point: a valid Google token issued to another
+        app is still a valid Google token.
+
+        Google being unreachable answers INVALID_CREDENTIALS rather than
+        allowing the sign-in. Two-factor still applies — Google proves the
+        mailbox, not possession of the authenticator.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id_token, device]
+              properties:
+                id_token: { type: string, description: The ID token from Google Sign-In. }
+                device: { $ref: '#/components/schemas/DeviceRegistration' }
+      responses:
+        '200':
+          description: Signed in
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data: { $ref: '#/components/schemas/Session' }
+        '401':
+          description: INVALID_CREDENTIALS — unverifiable token, wrong audience, or no proven email
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+        '403':
+          description: ACCOUNT_DEACTIVATED
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+        '422':
+          description: TWO_FACTOR_REQUIRED, with a challenge_token
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeError'
+                  - properties:
+                      challenge_token: { type: string }
+
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Request a password reset link
+      description: |
+        The response is identical whether or not the address has an account —
+        echoing the real status would turn this into an account-enumeration
+        oracle. The mail only goes out when the account is real. The link lands
+        on the website.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '200':
+          description: Always, whether or not the account exists
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeOk' } } }
+
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Complete a password reset
+      description: |
+        Signs out every device on the account. A reset is usually someone
+        recovering an account they believe was compromised, so leaving other
+        sessions alive would defeat it.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, email, password, password_confirmation]
+              properties:
+                token: { type: string, description: From the emailed link. }
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+                password_confirmation: { type: string, format: password }
+      responses:
+        '200':
+          description: Password reset
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeOk' } } }
+        '422':
+          description: VALIDATION_FAILED — expired or wrong token
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /auth/password:
+    put:
+      tags: [Auth]
+      summary: Change your password
+      description: |
+        Requires the current password: knowing it is what separates the account
+        owner from someone holding a stolen handset.
+
+        Signs out every OTHER device. The device making the change keeps
+        working, so the viewer is not thrown out of the app they are in.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, password, password_confirmation]
+              properties:
+                current_password: { type: string, format: password }
+                password: { type: string, format: password }
+                password_confirmation: { type: string, format: password }
+      responses:
+        '200':
+          description: Changed
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeOk' } } }
+        '422':
+          description: VALIDATION_FAILED
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /auth/email:
+    get:
+      tags: [Auth]
+      summary: Is this account's email verified
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          email: { type: string }
+                          verified: { type: boolean }
+
+  /auth/email/resend:
+    post:
+      tags: [Auth]
+      summary: Send the verification email again
+      description: |
+        Throttled below the read endpoints, because it sends mail. An
+        already-verified account answers success without sending anything, so a
+        retrying client cannot generate mail.
+      responses:
+        '200':
+          description: Sent, or already verified
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          verified: { type: boolean }
+        '429':
+          description: RATE_LIMITED
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
   /auth/logout:
     post:
       tags: [Auth]

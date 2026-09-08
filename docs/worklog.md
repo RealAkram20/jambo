@@ -604,3 +604,48 @@ rule.
   wrong there (fails closed on a guest) and no middleware at all is worse
   (silently null for a signed-in viewer). Three endpoints now depend on this.
 
+### 2026-09-08 — Mobile app Phase 1g: account creation and recovery
+
+**Status:** complete
+**Owns:** app/Services/{SocialAccountResolver,DeviceTokenIssuer,TwoFactorChallengeStore}.php,
+app/Http/Controllers/Api/V1/{Registration,Password,SocialAuth,EmailVerification}Controller.php,
+tests/Feature/Api/V1/AccountAuthTest.php, tests/Feature/Auth/SocialAuthPinTest.php
+**Shares:**
+- app/Http/Controllers/Auth/SocialAuthController.php — account resolution
+  extracted; 175 lines to 81. Redirect and session handling untouched
+- app/Http/Controllers/Api/V1/AuthController.php — uses the two new services
+  instead of its own private copies
+- routes/api.php, docs/api/openapi.yaml, CHANGELOG.md 1.8.28
+
+**What this is:** gap 1 of docs/api/coverage.md — register, Google, forgot,
+reset, change password, verification status and resend.
+
+**Verified:**
+- SocialAuthPinTest (6 tests) written and GREEN against the old controller
+  BEFORE the extraction, and green after. There were NO tests on that path
+  before today.
+- 468 tests, 1644 assertions; same 2 pre-existing failures.
+- Homepage structural fingerprint still identical to the pre-refactor
+  baseline; /login, /register, /forgot-password, /pricing all render 200.
+
+**Not verified:**
+- Google sign-in ran against Http::fake, never real Google. GOOGLE_CLIENT_ID is
+  not set locally. **Before release, confirm the Android client id the app
+  ships matches services.google.client_id, or every real sign-in fails the
+  audience check.**
+- No real mail sent; Notification::fake throughout.
+- The reset LINK still lands on the website. /auth/reset-password exists so the
+  app can complete it in-app later with no server change, but no deep link is
+  wired.
+
+**Deliberately not ported:** the honeypot (only works against a bot scraping a
+DOM) and reCAPTCHA v3 (a browser token an Android app cannot produce). Play
+Integrity is the real answer if app signup is abused; that is its own decision.
+
+**For whoever is next:**
+- Sanctum expiry is null here. ANY new token-issuing path must go through
+  DeviceTokenIssuer, or it leaves working credentials that nothing can revoke.
+- Both sign-in paths must reach the same TwoFactorChallengeStore. A second
+  challenge implementation would let a 2FA account in through whichever path
+  forgot it.
+

@@ -2,6 +2,65 @@
 
 ## Jambo
 
+### 1.8.28 — The app can create an account and recover one
+
+Gap 1 from [the coverage audit](docs/api/coverage.md), and the one that
+mattered most: until now the app only worked for someone who already had an
+account and remembered the password. On the consumption-only Play build, where
+ADR-0004 forbids sending people to a payment page, a new viewer could not start
+at all.
+
+Ten endpoints: register, Google sign-in, forgot password, reset password,
+change password, and email verification status and resend.
+
+**Registration is the website's rules, and says plainly what does not port.**
+Same validation, same default role, same `Registered` event, same
+`SignupAttempt` logging, so an account made in the app is indistinguishable
+from one made in a browser. But the website's honeypot is a hidden form field
+that only works because a bot is scraping a DOM, and reCAPTCHA v3 is a browser
+token an Android app cannot produce. Neither is faked here. The route's
+throttle — keyed on email plus IP, so carrier NAT does not make one bucket per
+cell tower — and the signup log carry that weight instead. If app signup is
+ever abused, Play Integrity is the answer, not a honeypot.
+
+**Google sign-in verifies the token rather than trusting it.** The website
+redirects through OAuth; a native app comes back holding an ID token, so the
+server checks it with Google and — the part that matters — checks the audience
+matches this app's client id. A valid Google token issued to somebody else's
+app is still a valid Google token. Google being unreachable answers "could not
+verify" rather than allowing the sign-in, because the destructive branch here
+is granting access.
+
+**One live-site extraction, and why it was worth it.** The social callback
+carries an account-takeover mitigation: someone can register victim@gmail.com
+locally with a password they chose and never verify it, and when the real owner
+later signs in with Google — which proves the mailbox — that squatter's
+password must stop working. Copying four lines of that into the API would have
+put security logic in two places. It moved into `SocialAccountResolver`
+instead, with a six-test pin written and green against the old controller
+first, and green after. There had been no tests on that path at all.
+
+Two smaller extractions keep the sign-in paths honest: `DeviceTokenIssuer` (one
+live token per install, superseded tokens deleted — Sanctum's expiry is null
+here, so anything left behind works forever) and `TwoFactorChallengeStore`,
+because Google proves the mailbox and not possession of the authenticator, so
+both sign-in paths must land on the same challenge.
+
+Resetting a password signs out every device; changing one signs out every
+*other* device, so the viewer is not thrown out of the app they are standing
+in.
+
+**Verified.** 468 tests, 1644 assertions; the same two pre-existing
+`PricingPageCurrentPlanTest` failures. The homepage still diffs clean against
+its pre-refactor fingerprint, and /login, /register, /forgot-password and
+/pricing all render.
+
+**Not verified.** Google sign-in was exercised against a faked HTTP client,
+never against real Google, and `GOOGLE_CLIENT_ID` is not set locally. Before
+release, confirm the Android client id the app ships matches
+`services.google.client_id` — every real sign-in fails the audience check
+otherwise.
+
 ### 1.8.27 — Reviews, comments, and an honest list of what the API still cannot do
 
 Reviews on movies and series, comments on episodes, and — because Rio asked
