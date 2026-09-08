@@ -2049,10 +2049,33 @@ components:
           properties:
             downloads: { type: boolean }
             in_app_subscribe: { type: boolean }
+            google_sign_in:
+              type: boolean
+              description: |
+                Whether this server has Google sign-in configured. The sign-in
+                screen needs it before anyone is authenticated, which is why it
+                is here rather than only in /account/security. False means hide
+                the button: `POST /auth/google` cannot succeed without it.
         support:
           type: object
           properties:
             site_url: { type: string }
+        branding:
+          type: object
+          description: |
+            The admin's own logo and preloader, so branding changes without a
+            new APK. Both URLs are absolute and carry a `?v=` fingerprint of
+            the file's modification time: the app caches them on disk and
+            reuses them offline, so a replaced image is simply a different URL
+            and is fetched exactly once. Null when the setting is unset and no
+            fallback resolves.
+
+            The launcher icon and the splash screen are deliberately not here.
+            Android reads both out of the APK before any JavaScript runs, so no
+            endpoint can change them.
+          properties:
+            logo_url: { type: string, nullable: true, description: 'Wordmark, as the website''s auth header shows it.' }
+            preloader_url: { type: string, nullable: true, description: 'The site''s loading animation. Usually an animated GIF.' }
 
     DeviceRegistration:
       type: object
