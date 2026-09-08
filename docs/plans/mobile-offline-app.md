@@ -512,8 +512,11 @@ Estimates are focused working days for one developer who knows this codebase.
   `SectionDataComposer::build()` (437 lines to 87) with `HomeRailsPinTest`
   green before and after, and `GET /home` calling it, so the app home is
   the website home by construction. Section headings resolve from the same
-  `sectionTitle` keys the blades use. **Still todo:** genre, category, VJ
-  and cast detail endpoints, watchlist, history, ratings and reviews.
+  `sectionTitle` keys the blades use.
+- `shipped 2026-09-08` — genre, category, VJ and cast archive screens, plus
+  watchlist (idempotent add/remove rather than the web's toggle),
+  continue-watching and history. Entirely additive; no webapp file touched.
+  **Still todo:** ratings, reviews, comments and notifications.
 - `shipped 2026-09-08` — `docs/api/openapi.yaml` plus `OpenApiSpecTest`,
   which fails when a route is undocumented, when the spec describes a
   route that does not exist, or when an error code is missing from its

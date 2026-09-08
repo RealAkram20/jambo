@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Content\app\Http\Controllers\Api\V1\CatalogueController;
+use Modules\Content\app\Http\Controllers\Api\V1\TaxonomyController;
 
 /*
 |--------------------------------------------------------------------------
@@ -29,4 +30,17 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         ->name('episodes.show');
 
     Route::get('search', [CatalogueController::class, 'search'])->name('search');
+
+    // The screens the home screen's genre, VJ and personality rails tap
+    // through to. Public, like the website's archive pages.
+    Route::get('genres', [TaxonomyController::class, 'genres'])->name('genres.index');
+    Route::get('genres/{slug}', [TaxonomyController::class, 'genre'])->name('genres.show');
+
+    Route::get('categories', [TaxonomyController::class, 'categories'])->name('categories.index');
+    Route::get('categories/{slug}', [TaxonomyController::class, 'category'])->name('categories.show');
+
+    Route::get('vjs', [TaxonomyController::class, 'vjs'])->name('vjs.index');
+    Route::get('vjs/{slug}', [TaxonomyController::class, 'vj'])->name('vjs.show');
+
+    Route::get('cast/{slug}', [TaxonomyController::class, 'person'])->name('cast.show');
 });

@@ -508,3 +508,56 @@ guest. **Any future public endpoint that personalises needs this middleware;
   show without an episode gives silently empty series rails and assertions
   that pass for the wrong reason. It cost two fixture bugs here.
 
+### 2026-09-08 — Mobile app Phase 1e: taxonomy pages and the watchlist
+
+**Status:** complete
+**Owns:** Modules/Content/app/Http/Controllers/Api/V1/TaxonomyController.php,
+Modules/Streaming/app/Http/Controllers/Api/V1/WatchlistController.php,
+tests/Feature/Api/V1/TaxonomyAndWatchlistTest.php
+**Shares:**
+- Modules/Content/routes/api.php, Modules/Streaming/routes/api.php — routes
+  appended to the existing v1 groups; nothing existing altered
+- docs/api/openapi.yaml — ten paths and five schemas
+- CHANGELOG.md 1.8.26
+
+**What this is:** genre / category / VJ / cast archive screens, and the
+watchlist, Continue Watching and history screens.
+
+**Entirely additive — no webapp file was modified.** Rio asked on 2026-09-08 to
+be careful with the live site. The four live-site refactors Phase 1 required
+(entitlement, heartbeat, stream source, home rails) are done and pinned; from
+here Phase 1 is new files only.
+
+**Verified:**
+- 430 tests, 1493 assertions. Same 2 pre-existing PricingPageCurrentPlanTest
+  failures.
+- The homepage was rendered again and its structural fingerprint diffed
+  against the pre-refactor render captured earlier: identical.
+- Real dev MySQL: 8 genres, 6 categories, 1 VJ; /genres/action gives 9 movies
+  and 1 series with no video_url in the body; /genres/not-a-real-genre is a
+  clean 404; watchlist add twice leaves ONE row; remove twice succeeds twice;
+  continue-watching and history both 200.
+
+**Not verified:**
+- No cast page was opened on real data (the smoke covered genres and VJs); the
+  person path is covered by tests only.
+- History pagination past the first cursor page was not exercised on real
+  data — the dev database has too little history.
+
+**Design notes worth keeping:**
+- POST/DELETE rather than the website's toggle. A toggle retried over a flaky
+  connection silently undoes itself; add and remove are safe to repeat. Both
+  paths write through WatchlistItem::addFor, so the clients cannot disagree.
+- Taxonomy `detail()` orders by QUALIFIED columns (movies.published_at,
+  shows.published_at). These are BelongsToMany, and an unqualified
+  published_at becomes ambiguous the moment a pivot gains that column — which
+  fails as a SQL error in production, not as a test failure.
+- A watchlist row whose title was deleted is dropped, not sent as null.
+
+**For whoever is next:**
+- `seed()` is taken by Laravel's TestCase. Naming a fixture helper that in a
+  feature test is a fatal error, not a warning. Cost one run here.
+- Four of the website's own AJAX routes share the /api/v1/watchlist and
+  /api/v1/continue-watching prefixes. They do not collide (different segment
+  counts and methods) but check `route:list` after adding anything there.
+

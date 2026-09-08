@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Modules\Streaming\app\Http\Controllers\Api\V1\DeviceController;
 use Modules\Streaming\app\Http\Controllers\Api\V1\PlaybackController;
+use Modules\Streaming\app\Http\Controllers\Api\V1\WatchlistController;
 
 /*
 |--------------------------------------------------------------------------
@@ -38,4 +39,18 @@ Route::prefix('v1')
             ->name('playback.sessions');
         Route::post('playback/heartbeat', [PlaybackController::class, 'heartbeat'])
             ->name('playback.heartbeat');
+
+        // The viewer's own lists. POST adds and DELETE removes rather than
+        // one toggle endpoint: a toggle retried over a flaky mobile
+        // connection silently undoes itself, while these are safe to repeat.
+        Route::get('watchlist', [WatchlistController::class, 'index'])->name('watchlist.index');
+        Route::post('watchlist', [WatchlistController::class, 'store'])->name('watchlist.store');
+        Route::delete('watchlist/{type}/{id}', [WatchlistController::class, 'destroy'])
+            ->where('type', 'movie|show|episode')
+            ->where('id', '[0-9]+')
+            ->name('watchlist.destroy');
+
+        Route::get('continue-watching', [WatchlistController::class, 'continueWatching'])
+            ->name('continue-watching');
+        Route::get('history', [WatchlistController::class, 'history'])->name('history');
     });

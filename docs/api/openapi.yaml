@@ -35,6 +35,7 @@ tags:
   - name: Devices
   - name: Catalogue
   - name: Playback
+  - name: Viewer
 
 security:
   - bearerAuth: []
@@ -399,6 +400,281 @@ paths:
                           movies: { type: array, items: { $ref: '#/components/schemas/MovieCard' } }
                           series: { type: array, items: { $ref: '#/components/schemas/SeriesCard' } }
 
+  /genres:
+    get:
+      tags: [Catalogue]
+      summary: Every genre, with how much published content each has
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          genres: { type: array, items: { $ref: '#/components/schemas/GenreCard' } }
+
+  /genres/{slug}:
+    get:
+      tags: [Catalogue]
+      summary: One genre and its published titles
+      security: []
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data: { $ref: '#/components/schemas/TaxonomyPage' }
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /categories:
+    get:
+      tags: [Catalogue]
+      summary: Every category
+      description: '`visible_home` marks the ones the admin put on the homepage.'
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          categories: { type: array, items: { $ref: '#/components/schemas/CategoryCard' } }
+
+  /categories/{slug}:
+    get:
+      tags: [Catalogue]
+      summary: One category and its published titles
+      security: []
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data: { $ref: '#/components/schemas/TaxonomyPage' }
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /vjs:
+    get:
+      tags: [Catalogue]
+      summary: VJs with published work
+      description: |
+        A VJ is the narrator who voices a title — Jambo's own concept, not part
+        of the Streamit template. VJs whose entire catalogue is still draft are
+        not listed.
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          vjs: { type: array, items: { $ref: '#/components/schemas/VjCard' } }
+
+  /vjs/{slug}:
+    get:
+      tags: [Catalogue]
+      summary: One VJ, their links and their titles
+      security: []
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data: { $ref: '#/components/schemas/TaxonomyPage' }
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /cast/{slug}:
+    get:
+      tags: [Catalogue]
+      summary: One cast member and their titles
+      security: []
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data: { $ref: '#/components/schemas/TaxonomyPage' }
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /watchlist:
+    get:
+      tags: [Viewer]
+      summary: The viewer's watchlist
+      description: Rows whose title has since been deleted are dropped rather than returned as nulls.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items:
+                              oneOf:
+                                - $ref: '#/components/schemas/MovieCard'
+                                - $ref: '#/components/schemas/SeriesCard'
+                                - $ref: '#/components/schemas/Episode'
+    post:
+      tags: [Viewer]
+      summary: Add a title to the watchlist
+      description: |
+        Idempotent — adding something already on the list succeeds and changes
+        nothing, so a retry after a dropped connection is safe. This is
+        deliberately not the website's toggle endpoint: a retried toggle
+        silently undoes itself.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, id]
+              properties:
+                type: { type: string, enum: [movie, show, episode] }
+                id: { type: integer }
+      responses:
+        '200':
+          description: On the list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          in_list: { type: boolean }
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /watchlist/{type}/{id}:
+    delete:
+      tags: [Viewer]
+      summary: Remove a title from the watchlist
+      description: Idempotent — removing something that is not on the list is a success, not a 404.
+      parameters:
+        - { name: type, in: path, required: true, schema: { type: string, enum: [movie, show, episode] } }
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Not on the list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          in_list: { type: boolean }
+
+  /continue-watching:
+    get:
+      tags: [Viewer]
+      summary: Continue Watching as its own screen
+      description: |
+        The same cards the home screen's `continue_watching` rail carries, from
+        the same service, so the two cannot disagree about where the viewer
+        stopped. Finished titles are excluded; see /history for those.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items: { $ref: '#/components/schemas/ContinueWatchingCard' }
+
+  /history:
+    get:
+      tags: [Viewer]
+      summary: Everything watched, newest first
+      description: A record rather than a to-do list, so unlike Continue Watching it keeps finished titles.
+      parameters:
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items: { $ref: '#/components/schemas/HistoryEntry' }
+                          next_cursor: { type: string, nullable: true }
+
   /playback/sessions:
     post:
       tags: [Playback]
@@ -703,6 +979,66 @@ components:
           properties:
             type: { type: string, enum: [movie, show] }
             id: { type: integer }
+
+    TaxonomyPage:
+      type: object
+      description: |
+        An archive screen. The subject is under its own key - `genre`,
+        `category`, `vj` or `person` - and its titles come back as two lists
+        rather than one merged one, because the app renders them as separate
+        rails and the two tables share no sort key.
+      properties:
+        genre: { $ref: '#/components/schemas/GenreCard' }
+        category: { $ref: '#/components/schemas/CategoryCard' }
+        vj: { $ref: '#/components/schemas/VjDetail' }
+        person: { $ref: '#/components/schemas/PersonDetail' }
+        movies: { type: array, items: { $ref: '#/components/schemas/MovieCard' } }
+        series: { type: array, items: { $ref: '#/components/schemas/SeriesCard' } }
+
+    CategoryCard:
+      type: object
+      properties:
+        slug: { type: string }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        cover_url: { type: string }
+        visible_home: { type: boolean, description: Whether the admin put this category on the homepage. }
+
+    VjDetail:
+      allOf:
+        - $ref: '#/components/schemas/VjCard'
+        - type: object
+          properties:
+            description: { type: string, nullable: true }
+            links:
+              type: object
+              description: Only the platforms this VJ actually has. Absent keys mean no account.
+              properties:
+                youtube: { type: string }
+                tiktok: { type: string }
+                facebook: { type: string }
+                instagram: { type: string }
+                website: { type: string }
+
+    PersonDetail:
+      allOf:
+        - $ref: '#/components/schemas/PersonCard'
+        - type: object
+          properties:
+            bio: { type: string, nullable: true }
+            known_for: { type: string, nullable: true }
+
+    HistoryEntry:
+      type: object
+      properties:
+        item:
+          oneOf:
+            - $ref: '#/components/schemas/MovieCard'
+            - $ref: '#/components/schemas/Episode'
+        position_seconds: { type: integer }
+        progress_percent: { type: integer }
+        completed: { type: boolean }
+        watched_at: { type: string, format: date-time, nullable: true }
 
     GenreCard:
       type: object

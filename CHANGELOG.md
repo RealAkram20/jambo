@@ -2,6 +2,55 @@
 
 ## Jambo
 
+### 1.8.26 — Taxonomy pages and the watchlist, for the app
+
+The screens the home rails tap through to, and the list the detail page's main
+CTA writes to. Phase 1 of [the mobile plan](docs/plans/mobile-offline-app.md).
+
+**Nothing in the website changed.** This release adds two controllers, ten
+routes and their tests. No existing file was modified other than the two module
+`routes/api.php` files the new routes were appended to, the API spec and the
+docs. The four live-site refactors Phase 1 needed are all behind us.
+
+**One controller for four taxonomies.** Genres, categories, VJs and cast are
+the same shape — a named thing with `movies()` and `shows()` — so they share
+`TaxonomyController` rather than being four near-identical files that each need
+fixing the next time the published-only rule changes. Only published titles are
+listed, which is not a detail: an archive page is the easiest place in a
+codebase to leak a draft, because the relation is the obvious query and the
+scope is the easy thing to forget. There is a test per taxonomy that says so.
+
+VJs are the one that is Jambo's own rather than the template's, and the list
+excludes any VJ whose entire catalogue is still draft — otherwise the app would
+show a VJ whose page is empty when you open it.
+
+**The watchlist is add and remove, not toggle.** The website toggles through
+one endpoint, which is right for a heart icon on a desktop. Over a mobile
+connection a toggle is a coin flip: a request that times out and gets retried
+silently undoes the first one. So the app gets `POST` to add and `DELETE` to
+remove, both idempotent — adding something already listed succeeds and changes
+nothing, and removing something absent is a success rather than a 404, because
+the viewer's intent is satisfied either way. Both write through the same
+`WatchlistItem::addFor` the website uses, so the two clients cannot disagree
+about what is on a list.
+
+Continue Watching gets its own screen, served from the same `HomeRailsService`
+the home rail uses, so the two can never disagree about where someone stopped.
+History is separate and keeps finished titles, because it is a record rather
+than a to-do list.
+
+A watchlist row whose title has since been deleted or unpublished is dropped
+rather than returned as a null card — the app should not have to defend against
+holes in a list.
+
+**Verified.** 430 tests, 1493 assertions; the same two pre-existing
+`PricingPageCurrentPlanTest` failures. On the real dev database: 8 genres, 6
+categories and 1 VJ listed; the Action genre page returns 9 movies and 1 series
+with no video URL in the body; an unknown slug is a clean 404; and adding the
+same title twice leaves exactly one row while removing it twice succeeds twice.
+The homepage was rendered again and diffed against the pre-refactor
+fingerprint — identical.
+
 ### 1.8.25 — The app's home screen is the website's home screen
 
 `GET /api/v1/home`, and the refactor that makes it honest.
