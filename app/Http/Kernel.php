@@ -112,5 +112,9 @@ class Kernel extends HttpKernel
         // Rejects an API request whose app install has been booted, and
         // keeps last_seen_at fresh for the device list. API only.
         'device.active' => \Modules\Streaming\app\Http\Middleware\EnsureDeviceIsActive::class,
+        // Optional auth for PUBLIC api routes that personalise: resolves a
+        // bearer token when one is sent, never refuses a request without
+        // one. Anything that must have a viewer uses auth:sanctum instead.
+        'api.viewer' => \App\Http\Middleware\IdentifyApiViewer::class,
     ];
 }

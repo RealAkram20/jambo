@@ -507,9 +507,13 @@ Estimates are focused working days for one developer who knows this codebase.
 - `shipped 2026-09-08` — catalogue (movies, series, episodes, search,
   cursor-paginated, allow-listed resources) and playback (sessions,
   heartbeat) on the 1.8.22 services. `StreamSourceResolver` extracted so
-  the API does not re-derive the rendition choice. **Still todo:**
-  `HomeRailsService` and the `GET /home` rails, genres, categories, VJ
-  hubs, watchlist, continue-watching, ratings and reviews.
+  the API does not re-derive the rendition choice.
+- `shipped 2026-09-08` — `HomeRailsService` extracted from
+  `SectionDataComposer::build()` (437 lines to 87) with `HomeRailsPinTest`
+  green before and after, and `GET /home` calling it, so the app home is
+  the website home by construction. Section headings resolve from the same
+  `sectionTitle` keys the blades use. **Still todo:** genre, category, VJ
+  and cast detail endpoints, watchlist, history, ratings and reviews.
 - `shipped 2026-09-08` — `docs/api/openapi.yaml` plus `OpenApiSpecTest`,
   which fails when a route is undocumented, when the spec describes a
   route that does not exist, or when an error code is missing from its

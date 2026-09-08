@@ -2,6 +2,61 @@
 
 ## Jambo
 
+### 1.8.25 — The app's home screen is the website's home screen
+
+`GET /api/v1/home`, and the refactor that makes it honest.
+
+**One homepage, two renderers.** `SectionDataComposer::build()` moved into
+[HomeRailsService](Modules/Frontend/app/Services/HomeRailsService.php), which
+the view composer and the API both call. The plan asked for this specifically:
+the app's home should *be* the website's home by construction, not by
+imitation. A second implementation would have drifted the first time an admin
+dragged a category into a new position. Even the section headings come from
+the same `sectionTitle` translation keys the blades render, so a wording change
+reaches both at once.
+
+The composer went from 437 lines to 87. What stayed is what is genuinely about
+rendering a page: memoising per request, and the per-user watchlist index.
+
+**A pin was written first, again.** The contract is not `build()` — that is the
+method that moved. The contract is the set of variables the composer shares,
+because every section blade reads them by name: a missing key renders an empty
+rail, and a changed type is a 500 on the homepage. `HomeRailsPinTest` lists all
+25, was green before the extraction, and is green after.
+
+**The response is a list, not an object.** `rails` is ordered, each entry
+carrying a `key`, a translated `title`, a `kind` and its items. The app renders
+by `kind`, so a rail added server-side needs no app release, and category
+shelves come through as `category:<slug>` in the admin's own drag order. Empty
+rails are dropped — a heading over nothing is a screen of empty space on a
+phone.
+
+**Continue Watching says what to resume.** The website's card encodes that in a
+URL, which a native player cannot follow, so each card now carries `resume`
+(type and id) alongside `remove`. They are deliberately different for a series:
+resume the *episode*, remove the *show*. Removing a single episode would let
+the show re-surface on the next render, because the rail dedupes by show.
+
+**A bug this found.** `/api/v1/home` is public, so `auth:sanctum` does not run
+on it — and nothing else resolves a bearer token. Every `auth()->id()` deep
+inside the rails and the recommender therefore read null even when the app sent
+a perfectly valid token, and a signed-in viewer would have silently received
+the guest home screen: no Continue Watching, no personalisation, and no error
+anywhere to notice. Public endpoints that personalise now run `api.viewer`,
+which resolves a token when one is sent and lets the request through when it is
+not. It was caught by a test asserting Continue Watching appears.
+
+**Verified.** 414 tests, 1407 assertions; the same two pre-existing
+`PricingPageCurrentPlanTest` failures. Against the real dev database: the
+website homepage still renders at the same size it did before the refactor, and
+`/api/v1/home` returns six hero items and thirteen rails to a guest with no
+empty rail and no video URL anywhere in the body. Signed in, Continue Watching
+appears with the right title, the right resume target and the right position.
+
+**Not verified.** The dev database has no upcoming titles and no visible-home
+category with published content, so the `upcoming` and `category:*` rails were
+exercised by tests but not seen on real data.
+
 ### 1.8.24 — The app can browse and watch, gated by the website's own rules
 
 The endpoints the app lists titles with and plays them through, plus the

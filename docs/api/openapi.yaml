@@ -224,6 +224,38 @@ paths:
           description: DEVICE_NOT_FOUND
           content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
 
+  /home:
+    get:
+      tags: [Catalogue]
+      summary: The home screen
+      description: |
+        Calls the same HomeRailsService the website's view composer calls, so
+        the rails, their order and the rules that pick them are the website's.
+        Section headings come from the same `sectionTitle` translation keys the
+        blades render.
+
+        Public, but personalising: send a bearer token and Continue Watching
+        appears and the personalised rails become personal. Without one the
+        response is the guest home screen rather than an error.
+
+        `rails` is an ordered list, not a fixed object, so a rail added
+        server-side needs no app release. Empty rails are omitted entirely.
+        Render by `kind`, not by `key`.
+      security:
+        - {}
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Home'
+
   /movies:
     get:
       tags: [Catalogue]
@@ -601,6 +633,104 @@ components:
               nullable: true
               description: null means the plan sets no cap. Render "unlimited", not "none".
         server_time: { type: string, format: date-time }
+
+    Home:
+      type: object
+      properties:
+        hero:
+          type: array
+          description: Curated at /admin/featured, falling back to an automatic mix. Movies and series interleaved.
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/MovieCard'
+              - $ref: '#/components/schemas/SeriesCard'
+        rails:
+          type: array
+          items: { $ref: '#/components/schemas/Rail' }
+        server_time: { type: string, format: date-time }
+
+    Rail:
+      type: object
+      properties:
+        key:
+          type: string
+          description: |
+            Stable identifier. Category shelves are `category:<slug>`, so this
+            set is open-ended - never switch on it exhaustively.
+          example: top_movies
+        title:
+          type: string
+          description: Already translated, and the same string the website renders.
+        kind:
+          type: string
+          description: Which card component to render. Treat an unknown kind as a rail to skip.
+          enum: [titles, progress, genres, vjs, people]
+        items:
+          type: array
+          description: Shape depends on `kind`. Never empty - an empty rail is omitted.
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/MovieCard'
+              - $ref: '#/components/schemas/SeriesCard'
+              - $ref: '#/components/schemas/ContinueWatchingCard'
+              - $ref: '#/components/schemas/GenreCard'
+              - $ref: '#/components/schemas/VjCard'
+              - $ref: '#/components/schemas/PersonCard'
+
+    ContinueWatchingCard:
+      type: object
+      description: kind = progress.
+      properties:
+        title: { type: string }
+        subtitle: { type: string, description: 'For a series, S01E02 and the episode title.' }
+        image_url: { type: string }
+        progress_percent: { type: integer }
+        minutes_left: { type: integer }
+        position_seconds: { type: integer }
+        resume:
+          type: object
+          description: |
+            What to play. For a series this is the EPISODE, not the show -
+            deliberately different from `remove` below.
+          properties:
+            type: { type: string, enum: [movie, episode] }
+            id: { type: integer }
+        remove:
+          type: object
+          description: |
+            What to forget. For a series this is the SHOW: the rail dedupes by
+            show, so removing one episode would let the card re-surface.
+          properties:
+            type: { type: string, enum: [movie, show] }
+            id: { type: integer }
+
+    GenreCard:
+      type: object
+      description: kind = genres.
+      properties:
+        slug: { type: string }
+        name: { type: string }
+        colour: { type: string, nullable: true }
+        movies_count: { type: integer, nullable: true }
+        shows_count: { type: integer, nullable: true }
+
+    VjCard:
+      type: object
+      description: kind = vjs.
+      properties:
+        slug: { type: string }
+        name: { type: string }
+        image_url: { type: string, description: Falls back through the VJ's most recent published title. }
+        movies_count: { type: integer, nullable: true }
+        shows_count: { type: integer, nullable: true }
+
+    PersonCard:
+      type: object
+      description: kind = people.
+      properties:
+        slug: { type: string }
+        name: { type: string }
+        image_url: { type: string }
 
     MovieCard:
       type: object

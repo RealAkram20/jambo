@@ -436,3 +436,75 @@ worth watching for a fourth.
 - Symfony's YAML parser rejects an unquoted comma inside an inline `{ }` map.
   Quote any description containing one, or the whole spec fails to parse.
 
+### 2026-09-08 — Mobile app Phase 1d: HomeRailsService and GET /api/v1/home
+
+**Status:** complete
+**Owns:** Modules/Frontend/app/Services/HomeRailsService.php,
+Modules/Frontend/app/Http/Controllers/Api/V1/HomeController.php,
+Modules/Frontend/tests/Feature/HomeRailsPinTest.php,
+tests/Feature/Api/V1/HomeTest.php,
+app/Http/Middleware/IdentifyApiViewer.php
+**Shares:**
+- Modules/Frontend/app/View/Composers/SectionDataComposer.php — build() and
+  its six private helpers moved out; 437 lines to 87. compose() and
+  buildPerUser() unchanged in behaviour
+- Modules/Frontend/routes/api.php — scaffold stub replaced with the home route
+- app/Http/Kernel.php — one added alias, `api.viewer`
+- docs/api/openapi.yaml — /home path plus five card schemas
+- CHANGELOG.md 1.8.25
+
+**What this is:** the last live-site refactor in Phase 1. The composer and the
+API now call one service, so the app home and the website home cannot drift.
+
+**Verified:**
+- HomeRailsPinTest (10 tests, 25 shared keys) written and GREEN against the
+  old code before the extraction; green unchanged after.
+- 414 tests, 1407 assertions. Same 2 pre-existing PricingPageCurrentPlanTest
+  failures, nothing else.
+- Real dev MySQL: the website homepage renders 200 at 317,818 bytes (317,842
+  before the refactor — the difference is randomised rails, not lost markup).
+  /api/v1/home gives a guest 6 hero items and 13 rails, no empty rail, no
+  video_url anywhere in the body, and no continue_watching. Signed in, the
+  card resolves to `resume movie#13 at 420s (8%, 83 min left)`.
+
+**Not verified:**
+- The dev database has no upcoming titles and no visible-home category with
+  published content, so `upcoming` and `category:*` rails were covered by
+  tests but never seen on real data.
+- The homepage was checked by status code and byte count, not by eye. The
+  rails are randomised per request, so a pixel comparison would not have been
+  conclusive anyway, but nobody has LOOKED at the page since the refactor.
+
+**🔴 A silent personalisation bug, found by a test.** /api/v1/home is public,
+so `auth:sanctum` never runs and nothing resolves the bearer token. Every
+`auth()->id()` inside HomeRailsService and TopPicksRecommender read null even
+with a valid token, so a signed-in app would have received the guest home
+screen — no Continue Watching, no personalisation, no error to notice. Fixed
+with `api.viewer` (IdentifyApiViewer), which calls Auth::shouldUse('sanctum')
+so the existing auth()->id() calls read the token and still answer null for a
+guest. **Any future public endpoint that personalises needs this middleware;
+`auth:sanctum` is wrong there because it fails closed on a guest.**
+
+**Deliberately not built:**
+- The `watchLink` on continue-watching cards is still a web route. The API
+  ignores it and sends `resume` instead. Not removed, because the blades read
+  it.
+- No caching added. The expensive parts are already cached inside
+  TopPicksRecommender on per-date keys, which is the right granularity; the
+  rails as a whole are per-viewer and must not go in a shared cache.
+- Genres, categories, VJ and cast *detail* endpoints. The home rails carry
+  their cards, but tapping one has nowhere to go yet.
+
+**For whoever is next:**
+- HomeRailsService::forWeb() is per-viewer: topPicks, upcomingMovies,
+  recommendedMovies, freshMovies and continueWatching all read auth()->id().
+  Never put its whole result in a cross-request cache.
+- SectionDataComposer memoises in private STATICS. In tests they survive
+  between test methods in the same process; HomeRailsPinTest resets them by
+  reflection in setUp and tearDown. Any new test touching the composer must
+  do the same or it reads the previous test's catalogue.
+- Show::published() requires at least one published episode — a series with
+  no watchable episode is a dead end and is kept off public rails. Seeding a
+  show without an episode gives silently empty series rails and assertions
+  that pass for the wrong reason. It cost two fixture bugs here.
+
