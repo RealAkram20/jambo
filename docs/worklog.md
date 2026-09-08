@@ -752,3 +752,42 @@ Homepage fingerprint identical.
 
 **Not verified:** no real browser session was booted from a real device; the
 sessions rows are seeded in tests.
+
+### 2026-09-08 — Mobile app Phase 1k: notifications and the FCM registry
+
+**Status:** complete (server side only)
+**Owns:** Modules/Notifications/app/Http/Controllers/Api/V1/NotificationController.php,
+Modules/Notifications/routes/api.php,
+Modules/Streaming/database/migrations/*_add_push_token_to_devices_table.php,
+tests/Feature/Api/V1/NotificationsAndPushTest.php
+**Shares:** Modules/Streaming/app/Models/Device.php - fcm_token/push_enabled
+columns, registerPushToken(), forgetPushToken(), pushable() scope, and
+revoke() now clears the token; docs/api/*, CHANGELOG.md 1.8.32
+
+**What this is:** gap 3, server side. The polled list (the fallback that makes
+push safe) and the token registry.
+
+**Why the token lives on the devices row.** The push standard's rule 1 wants a
+registry that is per user, per install, idempotent, and deleted on sign-out.
+devices is already one row per (account, install) and every session-ending
+path already goes through revoke(). Putting the token anywhere else would mean
+remembering to clear it in three places.
+
+**Verified:** 522 tests, 1889 assertions; same 2 pre-existing failures.
+Asserted specifically: logout clears the token, being booted clears it, a
+token can belong to only one install, and pushable() is what a sender queries.
+
+**NOT verified, and nobody should read this as "push works":**
+- **No sender exists.** This is registration and the fallback list only.
+- Nothing has been delivered to a real device. The standard's checklist -
+  backgrounded, killed (adb shell am kill, never force-stop), locked,
+  Android 13+ notification permission, Android 14+ full-screen intent, and the
+  fallback poll with push disabled entirely - is Phase 2 work with a handset.
+- The second-press-in-the-same-process case is not covered either.
+
+**For whoever builds the sender:**
+- Query Device::pushable(). It is the only definition of "reachable".
+- Batch receipts come back BY INDEX. Build the parallel token list as the
+  envelopes are built, or a mismatch deletes the wrong viewer's token.
+- Never put viewer identity in the payload; a lock screen is readable by
+  whoever holds the phone.

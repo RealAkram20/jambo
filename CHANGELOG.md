@@ -2,6 +2,54 @@
 
 ## Jambo
 
+### 1.8.32 — Notifications, and a push registry that clears itself
+
+Gap 3 from [the coverage audit](docs/api/coverage.md): the notification list,
+its preferences, and the FCM token registry the app registers against.
+
+**The list is the point, not the push.** Push is an accelerator, never the
+transport — an OEM battery manager kills the process, a token goes stale, a
+handset sits offline for a day. So everything a push would say is readable from
+`GET /notifications`, and the app has to be usable with push switched off
+entirely. That is rule 3 of the house push standard, and it decides whether a
+missed notification is an inconvenience or a lost viewer.
+
+**The FCM token lives on the device row, and that is the whole design.** The
+standard's first rule is a registry that is per user, per install, idempotent,
+and *deleted on sign-out* — because a shared handset that keeps the previous
+account's token delivers their notifications, on the lock screen, to whoever is
+holding the phone. `devices` is already exactly one row per (account, install),
+and every path that ends a session — logout, being booted from another device,
+a password reset — already runs through `Device::revoke()`. Hanging the token
+there means all of them clear it without anyone having to remember to. There is
+a test for each.
+
+A token can also belong to only one install: registering one already held
+elsewhere moves it. Android reissues the same token to a reinstall, and two
+rows holding it would mean one push delivered twice and a delivery receipt that
+cannot be matched back to a handset.
+
+Registration logs *before* its guards, deliberately. "The app never registered"
+and "it registered and there was no device row" otherwise leave identical
+evidence — nothing — and need completely different fixes. That is the most
+expensive lesson in the standard: KangaruRide dispatched thirty-eight job
+offers to nobody because a token table was empty and no code was documented as
+having anything to say about it. The log records the device uuid, whether a row
+existed, and the last eight characters of the token — never the whole thing,
+which is a credential for reaching a handset.
+
+`push_subscriptions` is untouched. That table is web-push shaped and belongs to
+the browser.
+
+**Verified.** 522 tests, 1889 assertions; the same two pre-existing
+`PricingPageCurrentPlanTest` failures.
+
+**Not verified, and it matters.** Nothing has been sent to a real device. No
+sender exists yet — this is the registry and the fallback list, not delivery.
+The standard's device checklist (backgrounded, killed, locked, Android 13+
+permission, Android 14+ full-screen intent, and the fallback poll alone) is
+Phase 2 work with a real handset, and none of it can be claimed from here.
+
 ### 1.8.31 — One account, one device list
 
 Gap 5 from [the coverage audit](docs/api/coverage.md), and the problem it

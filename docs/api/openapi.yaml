@@ -1189,6 +1189,167 @@ paths:
           description: NOT_FOUND
           content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
 
+  /notifications:
+    get:
+      tags: [Viewer]
+      summary: The viewer's notifications
+      description: |
+        **This is the fallback that makes push safe.** Push is an accelerator,
+        never the transport — an OEM battery manager kills processes, tokens go
+        stale, handsets sit offline for a day. Everything a push says is
+        readable here, and the app must be usable with push switched off
+        entirely.
+
+        Carries `unread_count`, so a badge costs one request rather than two.
+      parameters:
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          unread_count: { type: integer }
+                          items: { type: array, items: { $ref: '#/components/schemas/Notification' } }
+                          next_cursor: { type: string, nullable: true }
+    delete:
+      tags: [Viewer]
+      summary: Clear every notification
+      responses:
+        '200':
+          description: Cleared
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeOk' } } }
+
+  /notifications/read-all:
+    post:
+      tags: [Viewer]
+      summary: Mark everything read
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeOk' } } }
+
+  /notifications/{id}/read:
+    post:
+      tags: [Viewer]
+      summary: Mark one read
+      description: Idempotent — an already-read notification is a success.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeOk' } } }
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /notifications/{id}:
+    delete:
+      tags: [Viewer]
+      summary: Delete one
+      description: Idempotent — deleting one already gone is a success, so a retry cannot fail.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeOk' } } }
+
+  /notifications/preferences:
+    get:
+      tags: [Viewer]
+      summary: Per-category notification preferences
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          preferences: { type: array, items: { $ref: '#/components/schemas/NotificationPreference' } }
+    put:
+      tags: [Viewer]
+      summary: Set preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [preferences]
+              properties:
+                preferences:
+                  type: array
+                  items: { $ref: '#/components/schemas/NotificationPreference' }
+      responses:
+        '200':
+          description: Saved, and the full set returned
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeOk' } } }
+
+  /notifications/push-token:
+    post:
+      tags: [Viewer]
+      summary: Register this install's FCM token
+      description: |
+        The token is stored against the device row, which means **signing out
+        deletes it** — a shared handset must never keep the previous account's
+        token and deliver their notifications to whoever is holding the phone.
+        Booting the device from elsewhere clears it too.
+
+        A token can belong to only one install: registering one already held
+        elsewhere moves it. Android reissues the same token to a reinstall, and
+        two rows holding it would mean one push delivered twice.
+
+        `push_enabled` is this handset's own switch, separate from the
+        per-category preferences.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string, maxLength: 512 }
+                push_enabled: { type: boolean, nullable: true }
+      responses:
+        '200':
+          description: Registered
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          registered: { type: boolean }
+                          push_enabled: { type: boolean }
+        '404':
+          description: DEVICE_NOT_FOUND — this session has no device row to attach a token to
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+    delete:
+      tags: [Viewer]
+      summary: Stop pushing to this install
+      description: Signing out does this too. This is for the viewer who wants the app but not the notifications.
+      responses:
+        '200':
+          description: Unregistered
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeOk' } } }
+
   /watchlist:
     get:
       tags: [Viewer]
@@ -1935,6 +2096,26 @@ components:
         - type: object
           properties:
             replies: { type: array, items: { $ref: '#/components/schemas/Comment' } }
+
+    Notification:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        message: { type: string }
+        icon: { type: string }
+        image_url: { type: string, nullable: true }
+        action_url: { type: string, nullable: true }
+        read: { type: boolean }
+        created_at: { type: string, format: date-time, nullable: true }
+
+    NotificationPreference:
+      type: object
+      properties:
+        key: { type: string, maxLength: 100 }
+        in_app: { type: boolean }
+        email: { type: boolean }
+        push: { type: boolean }
 
     Author:
       type: object

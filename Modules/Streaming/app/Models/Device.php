@@ -46,11 +46,14 @@ class Device extends Model
         'last_seen_at',
         'revoked_at',
         'personal_access_token_id',
+        'fcm_token',
+        'push_enabled',
     ];
 
     protected $casts = [
         'last_seen_at' => 'datetime',
         'revoked_at' => 'datetime',
+        'push_enabled' => 'bool',
     ];
 
     public function user(): BelongsTo
@@ -128,6 +131,37 @@ class Device extends Model
     }
 
     /**
+     * Record the FCM token this install currently holds.
+     *
+     * Idempotent on the token, and it also steals the token from any other
+     * row that claims it: Android reissues a token to a *reinstall*, and two
+     * rows holding the same token means one push delivered twice and a
+     * receipt that cannot be matched back to an install.
+     */
+    public function registerPushToken(string $token): void
+    {
+        static::query()
+            ->where('fcm_token', $token)
+            ->whereKeyNot($this->getKey())
+            ->update(['fcm_token' => null]);
+
+        $this->forceFill(['fcm_token' => $token])->save();
+    }
+
+    public function forgetPushToken(): void
+    {
+        $this->forceFill(['fcm_token' => null])->save();
+    }
+
+    /** Installs that can actually be pushed to for this account. */
+    public function scopePushable($q)
+    {
+        return $q->whereNull('revoked_at')
+            ->where('push_enabled', true)
+            ->whereNotNull('fcm_token');
+    }
+
+    /**
      * Boot this device: delete its token and stamp it revoked.
      *
      * Order matters. The token goes first, so a request already in flight
@@ -140,9 +174,15 @@ class Device extends Model
             PersonalAccessToken::whereKey($this->personal_access_token_id)->delete();
         }
 
+        // The push token goes with the session. A shared handset that keeps
+        // the previous account's token delivers their notifications, with
+        // whatever is in them, to whoever is holding the phone. This is the
+        // first rule in the push standard and the reason the token lives on
+        // this row: every path that ends a session already comes through here.
         $this->forceFill([
             'revoked_at' => now(),
             'personal_access_token_id' => null,
+            'fcm_token' => null,
         ])->save();
 
         // Whatever it was playing stops counting against the cap, and the

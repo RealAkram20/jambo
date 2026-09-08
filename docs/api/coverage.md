@@ -1,6 +1,6 @@
 # API v1 coverage — what the app can do, and what it cannot
 
-**Updated:** 2026-09-08 (repo v1.8.31)
+**Updated:** 2026-09-08 (repo v1.8.32)
 **Purpose:** the API is the only connection between the webapp and the mobile
 app. Anything a viewer can do on jambofilms.com that has no endpoint here is a
 screen the app cannot build.
@@ -11,7 +11,7 @@ partner and Streamit template demo routes (`dashboard.*`, `backend.*`) are out
 of scope — the app is a viewer client, and ADR-0004's Play build is
 consumption-only.
 
-**Status today: 63 endpoints shipped, 3 capability areas still open.**
+**Status today: 72 endpoints shipped, 2 capability areas still open.**
 
 ---
 
@@ -83,18 +83,20 @@ password and clear verification), avatar upload and removal, the full
 two-factor lifecycle as three calls, and account deactivation which signs out
 every device.
 
-### 3. Notifications — BLOCKING for push
+### 3. Notifications — CLOSED in 1.8.32 (server side)
 
-Push is the whole reason an OTT app gets reopened. The `background-push`
-standard applies here.
+`GET /notifications` with cursor paging and an unread count, mark-read /
+read-all, delete / delete-all, per-category preferences, and FCM token
+register / unregister.
 
-| Missing | Website route |
-|---|---|
-| List notifications | `notifications.index` |
-| Mark read / mark all read | `notifications.read`, `notifications.mark-all-read` |
-| Delete / delete all | `notifications.destroy`, `notifications.destroy-all` |
-| Preferences | `profile.notifications.prefs` |
-| Push subscribe / unsubscribe | `notifications.push.subscribe` / `unsubscribe` — **web-push shaped; the app needs FCM tokens instead** |
+The token is stored on the `devices` row, so **signing out, being booted, or a
+password reset all clear it** — the shared-handset rule from the push standard.
+
+**Delivery does not exist yet.** This is the registry and the polled fallback,
+not a sender. Nothing has been pushed to a real device, and the standard's
+device checklist (backgrounded, killed, locked, Android 13+ permission,
+Android 14+ full-screen intent, fallback poll alone) is Phase 2 work with a
+handset in hand.
 
 ### 4. Subscription and billing
 
