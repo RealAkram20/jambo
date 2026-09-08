@@ -1,0 +1,26 @@
+{
+  "$generated": {
+    "at": "2026-09-08T20:45:10.321Z",
+    "base": "http://localhost/Jambo"
+  },
+  "assets": {
+    "logo": {
+      "file": "mobile/assets/branding/logo.png",
+      "url": "http://localhost/Jambo/storage/gallery/Jambo-films-full-logo.png",
+      "bytes": 57599,
+      "from": "admin setting `logo`, via branded_logo()"
+    },
+    "favicon": {
+      "file": "mobile/assets/branding/favicon.png",
+      "url": "http://localhost/Jambo/storage/gallery/Jambo-films-favicon.png",
+      "bytes": 19770,
+      "from": "admin setting `favicon`, via branding_asset()"
+    },
+    "preloader": {
+      "file": "mobile/assets/branding/preloader.gif",
+      "url": "http://localhost/Jambo/storage/gallery/Jambo-films-logo-final.gif",
+      "bytes": 5196049,
+      "from": "admin setting `preloader`, via branding_asset()"
+    }
+  }
+}
