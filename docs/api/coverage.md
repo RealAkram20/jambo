@@ -11,7 +11,7 @@ partner and Streamit template demo routes (`dashboard.*`, `backend.*`) are out
 of scope — the app is a viewer client, and ADR-0004's Play build is
 consumption-only.
 
-**Status today: 79 endpoints shipped. All eight audited capability areas are
+**Status today: 75 endpoints shipped (counted from the router on the `api.v1.` route name; an earlier figure of 85 came from a grep whose unescaped dot also matched `api/v1/` and swept in the website's own AJAX routes). All eight audited capability areas are
 addressed; what remains is named below and is deliberate, not forgotten.**
 
 ---

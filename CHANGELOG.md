@@ -4,7 +4,7 @@
 
 ### 1.8.34 — The review pass: four defects the suite could not see
 
-Rio asked to look at what had just been finished. So every one of the 85
+Rio asked to look at what had just been finished. So every one of the 75
 endpoints was walked against the real dev database rather than the test
 suite, and the diff was read for the sharp edges. Four defects came out, and
 the pattern behind all four is the same: each was invisible to a suite that
