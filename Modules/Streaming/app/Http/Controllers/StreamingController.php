@@ -13,6 +13,7 @@ use Modules\Content\app\Models\Movie;
 use Modules\Content\app\Models\Show;
 use Modules\Streaming\app\Http\Middleware\EnsureVisitorId;
 use Modules\Streaming\app\Models\ActiveStream;
+use Modules\Streaming\app\Services\PlaybackBeatRecorder;
 use Modules\Streaming\app\Models\WatchHistoryItem;
 use Modules\Subscriptions\app\Models\SubscriptionTier;
 use Modules\Subscriptions\app\Models\UserSubscription;
@@ -276,7 +277,7 @@ class StreamingController extends Controller
      * arbitrary models. Duration is optional — early heartbeats fire
      * before metadata has loaded.
      */
-    public function heartbeat(Request $request): JsonResponse
+    public function heartbeat(Request $request, PlaybackBeatRecorder $recorder): JsonResponse
     {
         $data = $request->validate([
             'payable_type' => 'required|in:movie,episode',
@@ -294,35 +295,30 @@ class StreamingController extends Controller
             return response()->json(['ok' => false, 'error' => 'not found'], 404);
         }
 
-        $userId = $request->user()->id;
-        $sessionId = $request->session()->getId();
+        // The beat itself - resume position, the live session row and the
+        // accrual event - lives in PlaybackBeatRecorder, so /api/v1 can send
+        // the same beat from a device that has no Laravel session. What stays
+        // here is the browser-specific half.
+        $outcome = $recorder->record(
+            userId: $request->user()->id,
+            content: $model,
+            position: (int) $data['position'],
+            duration: isset($data['duration']) ? (int) $data['duration'] : null,
+            sessionKey: $request->session()->getId(),
+            ip: $request->ip(),
+        );
 
-        // Kicked-device check: look up THIS session's active_streams
-        // row for this title. Because active_streams is keyed on
-        // (user, session, content) a second device playing the same
-        // title cannot steal this row — each device has its own. If
-        // the picker set terminated_at on this (user, session), the
-        // row here carries the flag and we short-circuit with 409 so
-        // the player overlays the "signed out" screen.
-        $existingActive = ActiveStream::query()
-            ->where('user_id', $userId)
-            ->where('session_id', $sessionId)
-            ->where('watchable_type', $model->getMorphClass())
-            ->where('watchable_id', $model->getKey())
-            ->first();
-
-        if ($existingActive && $existingActive->terminated_at !== null) {
-            // Full session kill: logging the user out on this browser so
-            // a new tab / page navigation / stream-URL refresh can't
-            // keep them watching even if the overlay is closed. The
-            // response's Set-Cookie clears their session cookie on the
-            // way out; any subsequent request lands in the guest path
-            // and bounces through login.
+        if ($outcome->terminated) {
+            // Full session kill: log the user out on this browser so a new
+            // tab, a page navigation or a refreshed stream URL cannot keep
+            // them watching even if they close the overlay. The response's
+            // Set-Cookie clears the session cookie on the way out, and any
+            // later request lands in the guest path.
             //
-            // We still return 409 with terminated:true so the player JS
-            // can raise the overlay BEFORE the browser realises the
-            // session is dead — otherwise the kicked user just sees a
-            // random "Unauthenticated" redirect with no context.
+            // We still answer 409 with terminated:true so the player JS can
+            // raise the overlay BEFORE the browser notices the session is
+            // dead - otherwise the kicked viewer just gets an unexplained
+            // "Unauthenticated" redirect.
             auth()->guard('web')->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
@@ -336,35 +332,10 @@ class StreamingController extends Controller
             ], 409);
         }
 
-        // watch_history continues to own resume position + view count
-        // (keyed per (user, title) — session-agnostic). active_streams
-        // owns the live session signal (keyed per (user, session,
-        // title)) that the cap + picker + kick flow depend on.
-        $row = WatchHistoryItem::record(
-            userId: $userId,
-            item: $model,
-            position: (int) $data['position'],
-            duration: isset($data['duration']) ? (int) $data['duration'] : null,
-            sessionId: $sessionId,
-        );
-
-        ActiveStream::markBeat($userId, $sessionId, $model);
-
-        // Monetization accrual (and any future analytics) hang off this
-        // event rather than this controller — the listener is fully
-        // exception-guarded so playback can never break on accrual bugs.
-        event(new \Modules\Streaming\app\Events\PlaybackBeat(
-            userId: $userId,
-            item: $model,
-            position: (int) $data['position'],
-            sessionId: $sessionId,
-            ip: $request->ip(),
-        ));
-
         return response()->json([
             'ok' => true,
-            'position' => $row->position_seconds,
-            'completed' => $row->completed,
+            'position' => $outcome->position,
+            'completed' => $outcome->completed,
         ]);
     }
 

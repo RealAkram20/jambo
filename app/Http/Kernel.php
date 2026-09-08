@@ -73,7 +73,15 @@ class Kernel extends HttpKernel
         'api' => [
             // \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             \Illuminate\Routing\Middleware\ThrottleRequests::class.':api',
-            'localization',
+            // NOTE: 'localization' used to sit here. The middleware class was
+            // deleted in 9c8c192 (the i18n/RTL removal) but the alias and this
+            // reference were left behind, so EVERY api/* request threw
+            // BindingResolutionException. Nothing caught it because the site's
+            // own JSON endpoints (watchlist, heartbeat, player-data) are
+            // registered in routes/web.php and run in the `web` group; the
+            // module api.php files were unused scaffold. Found 2026-09-08 when
+            // /api/v1 got its first real route. Removed, not restored: there
+            // is no i18n in this application any more.
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ],
     ];
@@ -86,7 +94,6 @@ class Kernel extends HttpKernel
      * @var array<string, class-string|string>
      */
     protected $middlewareAliases = [
-        'localization' => \App\Http\Middleware\localization::class,
         'auth' => \App\Http\Middleware\Authenticate::class,
         'auth.basic' => \Illuminate\Auth\Middleware\AuthenticateWithBasicAuth::class,
         'auth.session' => \Illuminate\Session\Middleware\AuthenticateSession::class,
@@ -102,5 +109,8 @@ class Kernel extends HttpKernel
         'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
         'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
         'tier_gate' => \Modules\Streaming\app\Http\Middleware\TierGate::class,
+        // Rejects an API request whose app install has been booted, and
+        // keeps last_seen_at fresh for the device list. API only.
+        'device.active' => \Modules\Streaming\app\Http\Middleware\EnsureDeviceIsActive::class,
     ];
 }

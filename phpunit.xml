@@ -7,6 +7,12 @@
     <testsuites>
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
+            <!-- Modules/*/tests/Unit was missing until 2026-09-08, so the ten
+                 CdnUrlResolver tests - which cover the Bunny token-signing
+                 path every stream URL goes through - had never run in a normal
+                 suite. They passed when pointed at directly; nothing pointed
+                 at them. Feature was already globbed below; this is the pair. -->
+            <directory>Modules/*/tests/Unit</directory>
         </testsuite>
         <testsuite name="Feature">
             <directory>tests/Feature</directory>

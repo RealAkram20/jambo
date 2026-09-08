@@ -11,6 +11,8 @@ use Modules\Content\app\Models\Tag;
 use Modules\Content\app\Models\Person;
 use Modules\Content\app\Models\Vj;
 use Modules\Streaming\app\Models\WatchHistoryItem;
+use Modules\Streaming\app\Playback\PlaybackDenial;
+use Modules\Streaming\app\Services\PlaybackAuthorizer;
 use Modules\Streaming\app\Models\WatchlistItem;
 use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Comment;
@@ -957,119 +959,61 @@ class FrontendController extends Controller
     }
 
     /**
-     * Mirrors the server-side TierGate check so the detail page can
-     * decide whether to play inline (allowed) or redirect to pricing.
-     * The middleware is still the source of truth — this is just a
-     * read-only gate for rendering the right button/state.
+     * May the current viewer play this title?
+     *
+     * The rules used to be spelled out here, as a second copy of TierGate's.
+     * They now live in PlaybackAuthorizer, which the middleware and /api/v1
+     * call too, so a page's button state can no longer disagree with what
+     * the player actually does.
+     *
+     * No session key is passed: this answers "is the viewer entitled", not
+     * "may they start another stream". The cap is a separate question with
+     * its own method, because a page renders the Play button before it knows
+     * whether the viewer is about to press it.
      */
     private function userCanWatch(Movie|Episode $content): bool
     {
-        // Site-wide "require sign-up to watch" switch (admin setting).
-        // When ON, guests can't play anything — free or premium — and
-        // get bounced to login by the callers' !canWatch branch.
-        // Browsing and detail pages stay open either way.
-        if (!auth()->check() && setting('require_signup_to_watch')) {
-            return false;
-        }
-
-        $requiredSlug = $content->tier_required ?? null;
-
-        // Episodes usually don't carry their own tier — the admin Shows form
-        // sets "Premium" on the parent series, not per episode. Fall back to
-        // the show's tier so a premium series isn't handed out free just
-        // because the episode row left tier_required null.
-        if ($content instanceof Episode && !$requiredSlug) {
-            $requiredSlug = ($content->season?->show ?? $content->show)?->tier_required;
-        }
-
-        if (!$requiredSlug) {
-            return true;
-        }
-
-        $user = auth()->user();
-        if (!$user) {
-            return false;
-        }
-
-        // Admins bypass all tier gating — they're the ones curating the
-        // content and need to be able to verify playback regardless of
-        // what subscription they happen to have.
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-
-        $requiredTier = SubscriptionTier::where('slug', $requiredSlug)->first();
-        if (!$requiredTier) {
-            return true;
-        }
-
-        $sub = UserSubscription::with('tier')
-            ->where('user_id', $user->id)
-            ->current()
-            ->orderByDesc('ends_at')
-            ->first();
-
-        $userLevel = $sub?->tier?->access_level ?? SubscriptionTier::ACCESS_FREE;
-
-        return $userLevel >= $requiredTier->access_level;
+        return $this->authorizer()->authorize($content, auth()->user())->allowed;
     }
 
     /**
      * Publish/release gate shared by the JSON player-data and watchlist
-     * playback endpoints, mirroring the HTML watch pages. A movie must be
-     * publicly visible; an episode must itself be released AND belong to a
-     * publicly-visible show (an episode of a draft/unreleased series is not
-     * reachable). Admins bypass so they can preview scheduled content.
+     * playback endpoints, mirroring the HTML watch pages. Delegates to
+     * PlaybackAuthorizer::isReleased() so this and the stream-source
+     * endpoint cannot disagree about what "released" means.
      */
     private function contentReleased(Movie|Episode $content): bool
     {
-        if (auth()->user()?->hasRole('admin')) {
-            return true;
-        }
-
-        if ($content instanceof Movie) {
-            return $content->isPubliclyVisible();
-        }
-
-        $show = $content->season?->show ?? $content->show;
-
-        return $content->isPubliclyVisible() && $show && $show->isPubliclyVisible();
+        return $this->authorizer()->isReleased($content, auth()->user());
     }
 
     /**
-     * True when starting to play premium-gated `$content` on this
-     * device would exceed the user's tier's max_concurrent_streams.
-     * Free/ungated content and admins bypass; free-tier users bypass
-     * too (they can't play premium content at all, so tier_gate blocks
-     * them earlier with a 403).
+     * True when starting to play `$content` on this device would exceed the
+     * viewer's tier's max_concurrent_streams.
      *
-     * Only counts OTHER devices' active streams — the current session
-     * doesn't count against itself.
+     * Delegates to PlaybackAuthorizer. The copy that lived here read
+     * $content->tier_required directly, with no fallback to the parent show,
+     * so an episode of a Premium series - the normal shape, because the Shows
+     * form sets the plan on the series - skipped the cap on this page while
+     * TierGate applied it to the stream URL. The viewer got a player that
+     * silently refused to load instead of the device picker. The shared rule
+     * fixes that: it refuses the same people, it just tells them why.
      */
     private function concurrencyExceeded(Movie|Episode $content): bool
     {
-        if (!$content->tier_required) {
-            return false;
-        }
+        return $this->authorizer()
+            ->authorize($content, auth()->user(), session()->getId())
+            ->is(PlaybackDenial::StreamLimit);
+    }
 
-        $user = auth()->user();
-        if (!$user || $user->hasRole('admin')) {
-            return false;
-        }
-
-        $activeSub = UserSubscription::with('tier')
-            ->where('user_id', $user->id)
-            ->current()
-            ->orderByDesc('ends_at')
-            ->first();
-
-        $cap = $activeSub?->tier?->max_concurrent_streams;
-        if ($cap === null || $cap <= 0) {
-            return false;
-        }
-
-        $others = \Modules\Streaming\app\Models\ActiveStream::activeCount($user->id, session()->getId());
-        return $others >= $cap;
+    /**
+     * The shared entitlement rules. Resolved per call rather than injected:
+     * the service is stateless, and this controller has no constructor to add
+     * one to without touching every route that reaches it.
+     */
+    private function authorizer(): PlaybackAuthorizer
+    {
+        return app(PlaybackAuthorizer::class);
     }
 
     public function tvshow_detail(?string $slug = null)

@@ -1,0 +1,745 @@
+openapi: 3.0.3
+
+# The contract the Jambo mobile and TV app is written against.
+#
+# Hand-maintained, and kept honest by tests/Feature/Api/V1/OpenApiSpecTest.php,
+# which fails when a route exists that this file does not describe. That test is
+# the reason to edit this file in the same commit as an endpoint, not later:
+# drift between a shipped APK and a live server cannot be hot-fixed the way a
+# web page can.
+#
+# Two rules that apply everywhere and are not repeated per endpoint:
+#   * Every response uses the envelope in components/schemas/Envelope*.
+#   * Clients branch on `code`, never on `message`. Message text is reworded;
+#     codes are a contract and only change with a new API version.
+
+info:
+  title: Jambo API
+  version: 1.0.0
+  description: |
+    Catalogue, authentication, devices and playback for the Jambo Android and
+    Android TV app. Introduced 2026-09-08 alongside
+    `docs/plans/mobile-offline-app.md`.
+
+    Download and offline endpoints are Phase 3 and are not described here yet.
+
+servers:
+  - url: https://jambofilms.com/api/v1
+    description: production
+  - url: http://localhost:8090/api/v1
+    description: local
+
+tags:
+  - name: App
+  - name: Auth
+  - name: Devices
+  - name: Catalogue
+  - name: Playback
+
+security:
+  - bearerAuth: []
+
+paths:
+  /app/config:
+    get:
+      tags: [App]
+      summary: Client configuration and the server clock
+      description: |
+        Called unauthenticated on launch. `server_time` is the anchor the app
+        uses for offline licence checks (ADR-0003): a wall clock earlier than
+        the last known server time is treated as rollback.
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/AppConfig'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Sign in and receive a device-bound token
+      description: |
+        Shares the website login's throttle bucket, keyed on email plus IP.
+        When the account has two-factor enabled this returns 422
+        `TWO_FACTOR_REQUIRED` with a `challenge_token`; no token is issued and
+        no device row is created until the challenge is answered.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, device]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+                device: { $ref: '#/components/schemas/DeviceRegistration' }
+      responses:
+        '200':
+          description: Signed in
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Session'
+        '401':
+          description: INVALID_CREDENTIALS
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+        '403':
+          description: ACCOUNT_DEACTIVATED
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+        '422':
+          description: VALIDATION_FAILED, or TWO_FACTOR_REQUIRED with a challenge_token
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeError'
+                  - properties:
+                      challenge_token:
+                        type: string
+                        description: Present only for TWO_FACTOR_REQUIRED. Not an access token.
+        '429':
+          description: RATE_LIMITED
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /auth/2fa/challenge:
+    post:
+      tags: [Auth]
+      summary: Complete a two-factor sign-in
+      description: |
+        Send either `code` (TOTP) or `recovery_code`. A wrong code does not
+        consume the challenge, so a typo does not send the viewer back to the
+        password screen; the challenge still expires on its own after 5 minutes.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challenge_token]
+              properties:
+                challenge_token: { type: string }
+                code: { type: string, description: Six-digit TOTP }
+                recovery_code: { type: string }
+      responses:
+        '200':
+          description: Signed in
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Session'
+        '401':
+          description: TWO_FACTOR_CHALLENGE_EXPIRED
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+        '422':
+          description: TWO_FACTOR_INVALID
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Sign out this device only
+      description: Deletes the calling token and marks its device revoked. Other devices are untouched.
+      responses:
+        '200':
+          description: Signed out
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeOk' } } }
+
+  /me:
+    get:
+      tags: [Auth]
+      summary: The signed-in viewer, their plan and their caps
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Me'
+        '401':
+          description: UNAUTHENTICATED
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /devices:
+    get:
+      tags: [Devices]
+      summary: App installs signed into this account
+      description: Revoked devices are omitted. Exactly one row has `is_current` true.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          devices:
+                            type: array
+                            items: { $ref: '#/components/schemas/Device' }
+
+  /devices/{uuid}:
+    delete:
+      tags: [Devices]
+      summary: Sign a device out
+      description: |
+        Deletes that device's token and stops whatever it was playing counting
+        against the concurrent-stream cap. A uuid on another account answers
+        DEVICE_NOT_FOUND rather than 403, so the endpoint cannot be used to
+        discover that a device exists elsewhere.
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[A-Za-z0-9\-_]{8,64}$' }
+      responses:
+        '200':
+          description: Device signed out
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeOk' } } }
+        '404':
+          description: DEVICE_NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /movies:
+    get:
+      tags: [Catalogue]
+      summary: Published movies, newest first
+      security: []
+      parameters:
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: per_page, in: query, schema: { type: integer, default: 24, maximum: 60 } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/MovieList'
+
+  /movies/{slug}:
+    get:
+      tags: [Catalogue]
+      summary: One movie
+      description: |
+        Reachable for published and upcoming titles. `is_released` says whether
+        it can be watched yet, which is not the same as whether this viewer may
+        watch it — that is answered by POST /playback/sessions.
+      security: []
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          movie: { $ref: '#/components/schemas/MovieDetail' }
+                          is_released: { type: boolean }
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /series:
+    get:
+      tags: [Catalogue]
+      summary: Published series, newest first
+      security: []
+      parameters:
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: per_page, in: query, schema: { type: integer, default: 24, maximum: 60 } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/SeriesList'
+
+  /series/{slug}:
+    get:
+      tags: [Catalogue]
+      summary: One series with its seasons and episodes
+      security: []
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          series: { $ref: '#/components/schemas/SeriesDetail' }
+                          is_released: { type: boolean }
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /episodes/{id}:
+    get:
+      tags: [Catalogue]
+      summary: One episode and the series it belongs to
+      security: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          episode: { $ref: '#/components/schemas/Episode' }
+                          series: { $ref: '#/components/schemas/SeriesCard' }
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /search:
+    get:
+      tags: [Catalogue]
+      summary: Search movies and series by title
+      description: Fewer than two characters returns empty lists rather than an error.
+      security: []
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          query: { type: string }
+                          movies: { type: array, items: { $ref: '#/components/schemas/MovieCard' } }
+                          series: { type: array, items: { $ref: '#/components/schemas/SeriesCard' } }
+
+  /playback/sessions:
+    post:
+      tags: [Playback]
+      summary: Authorize playback and get a URL
+      description: |
+        Runs the same entitlement rules as the website (PlaybackAuthorizer):
+        release state, the site-wide sign-up switch, the plan level with an
+        episode inheriting its series' plan, the admin bypass, and the
+        concurrent-stream cap keyed on this device's uuid.
+
+        `source` is `file` for titles Jambo hosts and `embed` for YouTube-backed
+        ones, which cannot be downloaded and must be opened in an embed.
+
+        A `low` request for a title with no data-saver rendition is refused
+        rather than silently served at full size.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, id]
+              properties:
+                type: { type: string, enum: [movie, episode] }
+                id: { type: integer }
+                quality: { type: string, enum: [default, low], default: default }
+      responses:
+        '200':
+          description: Authorized
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/PlaybackSession'
+        '401':
+          description: UNAUTHENTICATED or LOGIN_REQUIRED
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+        '403':
+          description: SUBSCRIPTION_REQUIRED or UPGRADE_REQUIRED, with `required_tier`
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeError'
+                  - properties:
+                      required_tier: { $ref: '#/components/schemas/Tier' }
+        '404':
+          description: NOT_FOUND, or CONTENT_UNAVAILABLE for an unreleased title or a missing rendition
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+        '409':
+          description: STREAM_LIMIT — entitled, but already watching on as many devices as the plan allows
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+  /playback/heartbeat:
+    post:
+      tags: [Playback]
+      summary: Report playback position
+      description: |
+        Send every `heartbeat_seconds` while playing. Records the resume
+        position, refreshes the live-stream signal the cap reads, and raises the
+        event partner earnings accrue from — the same recorder the website uses.
+
+        A 409 means this device was booted from the account mid-stream: stop
+        playing and sign out.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, id, position]
+              properties:
+                type: { type: string, enum: [movie, episode] }
+                id: { type: integer }
+                position: { type: integer, minimum: 0, description: Seconds into the title }
+                duration: { type: integer, minimum: 1, description: 'Player-reported runtime, when known' }
+      responses:
+        '200':
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EnvelopeOk'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          position: { type: integer }
+                          completed: { type: boolean }
+        '409':
+          description: DEVICE_REVOKED — this device was signed out mid-stream
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnvelopeError' } } }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: A Sanctum personal access token from /auth/login, bound to one device.
+
+  schemas:
+    EnvelopeOk:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean, enum: [true] }
+        message: { type: string }
+        data: { type: object }
+
+    EnvelopeError:
+      type: object
+      required: [success, code, message, errors]
+      properties:
+        success: { type: boolean, enum: [false] }
+        code:
+          type: string
+          description: Branch on this, never on `message`.
+          enum:
+            - UNAUTHENTICATED
+            - INVALID_CREDENTIALS
+            - ACCOUNT_DEACTIVATED
+            - TWO_FACTOR_REQUIRED
+            - TWO_FACTOR_INVALID
+            - TWO_FACTOR_CHALLENGE_EXPIRED
+            - DEVICE_REVOKED
+            - DEVICE_NOT_FOUND
+            - LOGIN_REQUIRED
+            - SUBSCRIPTION_REQUIRED
+            - UPGRADE_REQUIRED
+            - STREAM_LIMIT
+            - CONTENT_UNAVAILABLE
+            - VALIDATION_FAILED
+            - NOT_FOUND
+            - FORBIDDEN
+            - RATE_LIMITED
+            - APP_UPDATE_REQUIRED
+            - SERVER_ERROR
+        message: { type: string }
+        errors:
+          type: object
+          description: Field-keyed validation messages; empty object when not a validation failure.
+
+    AppConfig:
+      type: object
+      properties:
+        min_app_version: { type: string, example: '1.0.0' }
+        server_time: { type: string, format: date-time }
+        features:
+          type: object
+          properties:
+            downloads: { type: boolean }
+            in_app_subscribe: { type: boolean }
+        support:
+          type: object
+          properties:
+            site_url: { type: string }
+
+    DeviceRegistration:
+      type: object
+      required: [uuid, platform]
+      description: Generated by the app at first launch. The uuid is also this device's streaming session key.
+      properties:
+        uuid: { type: string, minLength: 8, maxLength: 64 }
+        platform: { type: string, enum: [android, android_tv] }
+        name: { type: string, maxLength: 120 }
+        model: { type: string, maxLength: 120 }
+        app_version: { type: string, maxLength: 32 }
+
+    Device:
+      type: object
+      properties:
+        uuid: { type: string }
+        name: { type: string, nullable: true }
+        model: { type: string, nullable: true }
+        platform: { type: string, enum: [android, android_tv] }
+        app_version: { type: string, nullable: true }
+        last_seen_at: { type: string, format: date-time, nullable: true }
+        is_current: { type: boolean }
+
+    Session:
+      type: object
+      properties:
+        token: { type: string, description: Bearer token. Store securely; it does not expire on a timer. }
+        device:
+          type: object
+          properties:
+            uuid: { type: string }
+            platform: { type: string }
+            name: { type: string, nullable: true }
+        user:
+          type: object
+          properties:
+            id: { type: integer }
+            username: { type: string }
+            email: { type: string }
+
+    Tier:
+      type: object
+      properties:
+        name: { type: string }
+        slug: { type: string }
+        access_level: { type: integer }
+
+    Me:
+      type: object
+      properties:
+        user:
+          type: object
+          properties:
+            id: { type: integer }
+            first_name: { type: string }
+            last_name: { type: string }
+            username: { type: string }
+            email: { type: string }
+            is_admin: { type: boolean }
+        subscription:
+          type: object
+          nullable: true
+          properties:
+            tier: { $ref: '#/components/schemas/Tier' }
+            starts_at: { type: string, format: date-time, nullable: true }
+            ends_at: { type: string, format: date-time, nullable: true }
+        limits:
+          type: object
+          properties:
+            max_concurrent_streams:
+              type: integer
+              nullable: true
+              description: null means the plan sets no cap. Render "unlimited", not "none".
+        server_time: { type: string, format: date-time }
+
+    MovieCard:
+      type: object
+      description: |
+        No video URL appears in any catalogue response. A playable URL comes
+        only from POST /playback/sessions, after the entitlement check.
+      properties:
+        type: { type: string, enum: [movie] }
+        id: { type: integer }
+        slug: { type: string }
+        title: { type: string }
+        year: { type: integer, nullable: true }
+        runtime_minutes: { type: integer, nullable: true }
+        rating: { type: number, nullable: true }
+        poster_url: { type: string }
+        tier_required:
+          type: string
+          nullable: true
+          description: Plan slug this title needs, or null for free. Draw the lock badge from this.
+
+    MovieDetail:
+      allOf:
+        - $ref: '#/components/schemas/MovieCard'
+        - type: object
+          properties:
+            synopsis: { type: string, nullable: true }
+            backdrop_url: { type: string }
+            trailer_url: { type: string, nullable: true }
+            published_at: { type: string, format: date-time, nullable: true }
+            views_count: { type: integer }
+            genres: { type: array, items: { $ref: '#/components/schemas/Taxonomy' } }
+            categories: { type: array, items: { $ref: '#/components/schemas/Taxonomy' } }
+            cast: { type: array, items: { $ref: '#/components/schemas/Person' } }
+
+    SeriesCard:
+      type: object
+      properties:
+        type: { type: string, enum: [series] }
+        id: { type: integer }
+        slug: { type: string }
+        title: { type: string }
+        year: { type: integer, nullable: true }
+        rating: { type: number, nullable: true }
+        poster_url: { type: string }
+        tier_required:
+          type: string
+          nullable: true
+          description: What this series' episodes inherit when they carry no plan of their own.
+
+    SeriesDetail:
+      allOf:
+        - $ref: '#/components/schemas/SeriesCard'
+        - type: object
+          properties:
+            synopsis: { type: string, nullable: true }
+            backdrop_url: { type: string }
+            trailer_url: { type: string, nullable: true }
+            published_at: { type: string, format: date-time, nullable: true }
+            views_count: { type: integer }
+            genres: { type: array, items: { $ref: '#/components/schemas/Taxonomy' } }
+            categories: { type: array, items: { $ref: '#/components/schemas/Taxonomy' } }
+            cast: { type: array, items: { $ref: '#/components/schemas/Person' } }
+            seasons: { type: array, items: { $ref: '#/components/schemas/Season' } }
+
+    Season:
+      type: object
+      properties:
+        id: { type: integer }
+        number: { type: integer }
+        title: { type: string, nullable: true }
+        synopsis: { type: string, nullable: true }
+        poster_url: { type: string }
+        episodes: { type: array, items: { $ref: '#/components/schemas/Episode' } }
+
+    Episode:
+      type: object
+      properties:
+        type: { type: string, enum: [episode] }
+        id: { type: integer }
+        season_id: { type: integer }
+        number: { type: integer }
+        title: { type: string }
+        synopsis: { type: string, nullable: true }
+        runtime_minutes: { type: integer, nullable: true }
+        still_url: { type: string }
+        published_at: { type: string, format: date-time, nullable: true }
+        tier_required:
+          type: string
+          nullable: true
+          description: |
+            The episode's OWN plan, usually null because the admin sets it on
+            the series. Do NOT read null here as "free".
+        effective_tier_required:
+          type: string
+          nullable: true
+          description: The plan that actually governs playback, series inheritance applied. Draw the lock from this.
+
+    Taxonomy:
+      type: object
+      properties:
+        slug: { type: string }
+        name: { type: string }
+
+    Person:
+      type: object
+      properties:
+        slug: { type: string }
+        name: { type: string }
+        photo_url: { type: string }
+
+    MovieList:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/MovieCard' } }
+        next_cursor: { type: string, nullable: true, description: null at the end of the list. }
+        per_page: { type: integer }
+
+    SeriesList:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/SeriesCard' } }
+        next_cursor: { type: string, nullable: true }
+        per_page: { type: integer }
+
+    PlaybackSession:
+      type: object
+      properties:
+        source: { type: string, enum: [file, embed] }
+        url:
+          type: string
+          description: |
+            Present when source is `file`. A token-signed CDN URL with a limited
+            life. Hand it straight to the player; do not log it or put it in a
+            WebView.
+        embed_url: { type: string, description: Present when source is `embed`. }
+        quality: { type: string, enum: [default, low] }
+        available_qualities: { type: array, items: { type: string, enum: [default, low] } }
+        resume_position: { type: integer, description: Seconds. 0 for a title already finished. }
+        runtime_minutes: { type: integer, nullable: true }
+        heartbeat_seconds:
+          type: integer
+          description: How often to call /playback/heartbeat. Server-controlled so it can be retuned without a Play release.

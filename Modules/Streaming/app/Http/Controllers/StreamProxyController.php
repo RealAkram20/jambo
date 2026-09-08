@@ -7,7 +7,8 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Movie;
-use Modules\Streaming\app\Services\CdnUrlResolver;
+use Modules\Streaming\app\Services\PlaybackAuthorizer;
+use Modules\Streaming\app\Services\StreamSourceResolver;
 
 /**
  * Session-gated 302 redirect to the original video URL (Dropbox /
@@ -29,8 +30,10 @@ use Modules\Streaming\app\Services\CdnUrlResolver;
  */
 class StreamProxyController extends Controller
 {
-    public function __construct(private readonly CdnUrlResolver $cdn)
-    {
+    public function __construct(
+        private readonly StreamSourceResolver $source,
+        private readonly PlaybackAuthorizer $authorizer,
+    ) {
     }
 
     public function passthroughMovie(Request $request, Movie $movie): RedirectResponse
@@ -102,62 +105,39 @@ class StreamProxyController extends Controller
     }
 
     /**
-     * Get the raw video URL directly from the model, bypassing
-     * streamSource() which would return our own passthrough route
-     * (infinite redirect loop).
+     * The URL to 302 to, or null when this title has no file at that quality.
      *
-     * $quality: 'default' reads video_url (falling back to dropbox_path);
-     * 'low' reads video_url_low — used by the Data Saver path.
+     * Reads the model directly rather than going through streamSource(), which
+     * would return this controller's own route and loop forever.
+     *
+     * The rendition choice, the historic dropbox_path fallback and the CDN
+     * rewrite all live in StreamSourceResolver now, because /api/v1 needs the
+     * same answer and asking twice is how the entitlement rules ended up in
+     * three places. This controller stays the single auth chokepoint; the
+     * resolver is the single origin-routing one.
      */
     private function getRawUrl(Movie|Episode $model, string $quality = 'default'): ?string
     {
         // Publish/release gate. TierGate covers tier_required, but nothing
         // stopped a guessed slug from streaming a draft or a scheduled-but-
-        // unreleased title straight from the origin. Mirror the HTML watch
-        // page: you can't stream what isn't publicly visible yet. Admins are
-        // exempt (they verify playback), matching userCanWatch()'s bypass.
+        // unreleased title straight from the origin.
         abort_unless($this->streamable($model), 404);
 
-        if ($quality === 'low') {
-            $url = $model->video_url_low ?? null;
-        } else {
-            $url = $model->video_url ?? null;
-
-            if (!$url && !empty($model->dropbox_path)) {
-                $url = $model->dropbox_path;
-            }
-        }
-
-        if (!$url) return null;
-
-        // Per-provider URL resolution lives in CdnUrlResolver:
-        // Dropbox links get raw=1 normalization (iOS refuses to play
-        // Content-Disposition: attachment), Backblaze links are
-        // rewritten to the Bunny pull zone and token-signed. This
-        // controller stays the single auth/tier chokepoint; the
-        // resolver is the single origin-routing chokepoint.
-        return $this->cdn->resolve($url);
+        return $this->source->resolve($model, $quality);
     }
 
     /**
-     * Is this title streamable to the public right now? A movie must be
-     * publicly visible; an episode must itself be released AND belong to a
-     * publicly-visible show (an episode of a draft/unreleased series is not
-     * reachable, mirroring the episode watch page). Admins bypass so they
-     * can verify playback of scheduled content, exactly as userCanWatch does.
+     * Is this title streamable to the public right now?
+     *
+     * Delegates to PlaybackAuthorizer::isReleased(), which is the same call
+     * the watch pages make. TierGate covers tier_required on the way in, but
+     * nothing stopped a guessed slug from streaming a draft or a scheduled-
+     * but-unreleased title straight from the origin, so this stays a
+     * separate 404 rather than being folded into the tier decision: an
+     * unreleased title must not advertise its plan.
      */
     private function streamable(Movie|Episode $model): bool
     {
-        if (auth()->user()?->hasRole('admin')) {
-            return true;
-        }
-
-        if ($model instanceof Movie) {
-            return $model->isPubliclyVisible();
-        }
-
-        $show = $model->show;
-
-        return $model->isPubliclyVisible() && $show && $show->isPubliclyVisible();
+        return $this->authorizer->isReleased($model, auth()->user());
     }
 }

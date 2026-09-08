@@ -2,10 +2,16 @@
 
 namespace App\Exceptions;
 
+use App\Http\Api\ApiErrorCode;
+use App\Http\Api\ApiResponse;
 use App\Models\SignupAttempt;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Session\TokenMismatchException;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -28,6 +34,53 @@ class Handler extends ExceptionHandler
     {
         $this->reportable(function (Throwable $e) {
             //
+        });
+
+        // ── /api/v1 answers in one envelope, always ──────────────────
+        //
+        // Scoped to `api/*` on purpose. The website's own AJAX endpoints also
+        // live under /api/v1/ for historical reasons (watchlist, heartbeat,
+        // player-data) but they are session routes returning their own JSON
+        // shapes, and the frontend JS reads those shapes. Rewriting them here
+        // would break the live site, so every handler below checks that the
+        // request is actually a token request before it touches the response.
+        //
+        // Without these, a validation failure reaches the app as Laravel's
+        // default {"message":..., "errors":...} and a missing token as a
+        // redirect to /login, neither of which the app can read.
+
+        $this->renderable(function (ValidationException $e, $request) {
+            if (! $this->isTokenApiRequest($request)) {
+                return null;
+            }
+
+            return ApiResponse::error(
+                ApiErrorCode::ValidationFailed,
+                $e->getMessage(),
+                $e->errors(),
+            );
+        });
+
+        $this->renderable(function (AuthenticationException $e, $request) {
+            if (! $this->isTokenApiRequest($request)) {
+                return null;
+            }
+
+            return ApiResponse::error(
+                ApiErrorCode::Unauthenticated,
+                'Sign in to continue.',
+            );
+        });
+
+        $this->renderable(function (NotFoundHttpException|ModelNotFoundException $e, $request) {
+            if (! $this->isTokenApiRequest($request)) {
+                return null;
+            }
+
+            return ApiResponse::error(
+                ApiErrorCode::NotFound,
+                'Not found.',
+            );
         });
 
         // CSRF / 419 on the public signup form. Real users hit this
@@ -68,5 +121,20 @@ class Handler extends ExceptionHandler
             // Don't return a custom response — let Laravel's default
             // 429 surface so the throttle behaviour is unchanged.
         });
+    }
+
+    /**
+     * Is this a request to the token API, as opposed to one of the website's
+     * own session-authenticated JSON endpoints that happen to sit under the
+     * same /api/v1 prefix?
+     *
+     * The distinguishing mark is the absence of a web session: the app sends
+     * a bearer token and no cookie. Checked this way rather than by route
+     * name so a new endpoint gets the envelope without having to remember to
+     * opt in.
+     */
+    private function isTokenApiRequest($request): bool
+    {
+        return $request->is('api/*') && ! $request->hasSession();
     }
 }

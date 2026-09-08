@@ -1,19 +1,32 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Modules\Content\app\Http\Controllers\Api\V1\CatalogueController;
 
 /*
-    |--------------------------------------------------------------------------
-    | API Routes
-    |--------------------------------------------------------------------------
-    |
-    | Here is where you can register API routes for your application. These
-    | routes are loaded by the RouteServiceProvider within a group which
-    | is assigned the "api" middleware group. Enjoy building your API!
-    |
+|--------------------------------------------------------------------------
+| Content API routes
+|--------------------------------------------------------------------------
+|
+| Browsing for the mobile and TV app. Public, like the website's own
+| catalogue pages: the gate is on playback, not on looking. The resources
+| behind these are allow-listed, so no video URL can leave through a listing.
+|
+| The scaffold stub that returned $request->user() from /api/v1/content was
+| removed on 2026-09-08.
+|
 */
 
-Route::middleware(['auth:sanctum'])->prefix('v1')->name('api.')->group(function () {
-    Route::get('content', fn (Request $request) => $request->user())->name('content');
+Route::prefix('v1')->name('api.v1.')->group(function () {
+    Route::get('movies', [CatalogueController::class, 'movies'])->name('movies.index');
+    Route::get('movies/{slug}', [CatalogueController::class, 'movie'])->name('movies.show');
+
+    Route::get('series', [CatalogueController::class, 'series'])->name('series.index');
+    Route::get('series/{slug}', [CatalogueController::class, 'show'])->name('series.show');
+
+    Route::get('episodes/{id}', [CatalogueController::class, 'episode'])
+        ->where('id', '[0-9]+')
+        ->name('episodes.show');
+
+    Route::get('search', [CatalogueController::class, 'search'])->name('search');
 });

@@ -6,27 +6,36 @@ use Closure;
 use Illuminate\Http\Request;
 use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Movie;
-use Modules\Streaming\app\Models\ActiveStream;
-use Modules\Subscriptions\app\Models\SubscriptionTier;
-use Modules\Subscriptions\app\Models\UserSubscription;
+use Modules\Streaming\app\Playback\PlaybackDenial;
+use Modules\Streaming\app\Services\PlaybackAuthorizer;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Gate watch routes by subscription access_level.
+ * Gate watch routes on the viewer's entitlement.
  *
- * Reads the content's `tier_required` (a tier slug, or null = free) from
- * whichever route-bound Movie/Episode is present, resolves it to the
- * tier's numeric access_level, and checks that against the user's current
- * active UserSubscription.
+ * The rules themselves — the "require sign-up to watch" switch, the tier
+ * slug and the episode's fallback to its series, the admin bypass, the
+ * access-level comparison and the concurrent-stream cap — used to live in
+ * this file, in a second copy inside FrontendController, and in fragments
+ * elsewhere. They now live in PlaybackAuthorizer, which /api/v1 calls too.
+ * This middleware's remaining job is to turn one decision into the right
+ * HTTP response, and those responses are unchanged:
  *
- * Behaviour:
- *   - tier_required is null                → allow (free content)
- *   - user has no active sub                → 403 with "subscription required"
- *   - user's tier.access_level >= required  → allow
- *   - otherwise                             → 403 with "upgrade required"
+ *   login needed → 401 JSON, or a guest redirect to /login with intended set
+ *   wrong plan   → 403 carrying the tier's name
+ *   at the cap   → the device picker, with the target URL stashed for its
+ *                  "Continue watching" button
+ *
+ * It deliberately does not ask isReleased(); it never did. Publish state is
+ * enforced by StreamProxyController and the watch pages, which 404 rather
+ * than 403 so an unreleased title does not advertise its tier.
  */
 class TierGate
 {
+    public function __construct(private readonly PlaybackAuthorizer $authorizer)
+    {
+    }
+
     public function handle(Request $request, Closure $next): Response
     {
         $content = $this->resolveContent($request);
@@ -34,92 +43,32 @@ class TierGate
             abort(404);
         }
 
-        // Site-wide "require sign-up to watch" switch (admin setting).
-        // Checked before the free-content allow below so guests can't
-        // reach the bare player or /watch/src stream URLs directly
-        // while the switch is ON. Mirrored in FrontendController::
-        // userCanWatch() for the rich watch pages / button states.
-        if (!$request->user() && setting('require_signup_to_watch')) {
+        $decision = $this->authorizer->authorize(
+            $content,
+            $request->user(),
+            $request->session()->getId(),
+        );
+
+        if ($decision->allowed) {
+            return $next($request);
+        }
+
+        if ($decision->is(PlaybackDenial::LoginRequired)) {
             return $request->expectsJson()
                 ? response()->json(['error' => 'unauthenticated'], 401)
                 : redirect()->guest(route('login'));
         }
 
-        $requiredSlug = $content->tier_required ?? null;
-
-        // Episodes inherit their series' tier when they don't carry one of
-        // their own. The admin Shows form (and the bulk plan action) set
-        // "Premium" on the parent series, so most episode rows leave
-        // tier_required null — and reading the episode alone treated every
-        // one of them as free. FrontendController::userCanWatch() already
-        // did this fallback, so the rich /watch page correctly refused
-        // while /player/episode/{id} and /watch/src/episode/{id} — the
-        // routes this middleware guards — streamed the same file for free.
-        // Same lookup as userCanWatch() so the two can't drift apart.
-        if ($content instanceof Episode && !$requiredSlug) {
-            $requiredSlug = ($content->season?->show ?? $content->show)?->tier_required;
+        if ($decision->needsBetterPlan()) {
+            abort(403, $decision->message());
         }
 
-        if (!$requiredSlug) {
-            return $next($request);
-        }
+        // Over the cap. Stash the URL they were trying to reach so the
+        // picker can render a "Continue watching X" button once they
+        // disconnect another device; read back via redirect()->intended().
+        $request->session()->put('url.intended', $request->fullUrl());
 
-        $requiredTier = SubscriptionTier::where('slug', $requiredSlug)->first();
-        if (!$requiredTier) {
-            // Misconfigured tier slug on the content — treat as free rather
-            // than locking users out of content we can't gate correctly.
-            return $next($request);
-        }
-
-        // Guests can freely browse the app (marketing flow) and watch
-        // any free/ungated content. The `!$requiredSlug` branch above
-        // handles the free case already, so if we're here the content
-        // is premium. Send the guest to /login with intended() set so
-        // they return to this same URL after authenticating.
-        $user = $request->user();
-        if (!$user) {
-            return $request->expectsJson()
-                ? response()->json(['error' => 'unauthenticated'], 401)
-                : redirect()->guest(route('login'));
-        }
-
-        // Admins always pass — they curate the catalog and need to
-        // verify playback of every tier without juggling test subs.
-        if (method_exists($user, 'hasRole') && $user->hasRole('admin')) {
-            return $next($request);
-        }
-
-        $activeSub = UserSubscription::with('tier')
-            ->where('user_id', $user->id)
-            ->current()
-            ->orderByDesc('ends_at')
-            ->first();
-
-        $userLevel = $activeSub?->tier?->access_level ?? SubscriptionTier::ACCESS_FREE;
-
-        if ($userLevel < $requiredTier->access_level) {
-            abort(403, "This requires a {$requiredTier->name} subscription.");
-        }
-
-        // Concurrency gate — premium-gated content only. The user's
-        // own tier (activeSub->tier) sets the cap; if it's null the
-        // tier has no cap and we skip. We count OTHER devices so the
-        // current session still plays (no self-kick).
-        $cap = $activeSub?->tier?->max_concurrent_streams;
-        if ($cap !== null && $cap > 0) {
-            $currentSession = $request->session()->getId();
-            $otherActive    = ActiveStream::activeCount($user->id, $currentSession);
-            if ($otherActive >= $cap) {
-                // Stash the URL they were trying to reach so the picker
-                // can render a "Continue watching X" button after the
-                // user disconnects one of their other devices. Reads
-                // back via redirect()->intended() in StreamingController.
-                $request->session()->put('url.intended', $request->fullUrl());
-                return redirect()->route('streams.limit');
-            }
-        }
-
-        return $next($request);
+        return redirect()->route('streams.limit');
     }
 
     private function resolveContent(Request $request): Movie|Episode|null

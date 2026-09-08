@@ -7,6 +7,7 @@ use Modules\Content\app\Models\Episode;
 use Modules\Content\app\Models\Movie;
 use Modules\Content\app\Models\Season;
 use Modules\Content\app\Models\Show;
+use Modules\Subscriptions\app\Models\SubscriptionTier;
 use Tests\TestCase;
 
 /**
@@ -26,6 +27,33 @@ class WatchPagePreviewBotTest extends TestCase
     use RefreshDatabase;
 
     private const FB_UA = ['User-Agent' => 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'];
+
+    /**
+     * The "premium" tier these fixtures reference must actually exist.
+     *
+     * It did not, and the tests still passed, because the old
+     * FrontendController::userCanWatch() refused guests one branch BEFORE it
+     * looked the tier slug up - so an unresolvable slug read as "gated" on
+     * this page while TierGate read the same slug as free and streamed it.
+     * PlaybackAuthorizer settled that split in TierGate's favour, which is
+     * what makes seeding this row necessary: with the tier present these
+     * tests now exercise real premium gating instead of a missing row.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        SubscriptionTier::create([
+            'name' => 'Premium',
+            'slug' => 'premium',
+            'price' => 30000,
+            'currency' => 'UGX',
+            'billing_period' => SubscriptionTier::PERIOD_MONTHLY,
+            'access_level' => SubscriptionTier::ACCESS_PREMIUM,
+            'is_active' => true,
+            'sort_order' => 2,
+        ]);
+    }
 
     private function premiumMovie(): Movie
     {

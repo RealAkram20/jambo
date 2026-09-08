@@ -2,6 +2,224 @@
 
 ## Jambo
 
+### 1.8.24 — The app can browse and watch, gated by the website's own rules
+
+The endpoints the app lists titles with and plays them through, plus the
+contract it is written against. Phase 1 of
+[the mobile plan](docs/plans/mobile-offline-app.md).
+
+**Nothing in these endpoints decides anything.** `POST /playback/sessions`
+asks `PlaybackAuthorizer` the question `TierGate` asks for the website, and
+`StreamSourceResolver` the question `StreamProxyController` asks;
+`POST /playback/heartbeat` calls the same `PlaybackBeatRecorder` the web
+heartbeat calls. An app viewer and a browser viewer are gated by one
+implementation, so they cannot drift — which is the whole reason 1.8.22 went
+first.
+
+`StreamSourceResolver` is new for the same reason. Choosing between
+`video_url` and `video_url_low`, falling back to the historic `dropbox_path`,
+and handing the result to `CdnUrlResolver` were locked inside a private method
+on `StreamProxyController`. The API needs the same answer — it cannot follow
+the website's 302, it asks for the URL and gives it to a native player — so
+the choice was extracted rather than written a second time.
+
+**Nothing that could become a file URL leaves through a listing.** Every
+catalogue response goes through an allow-listed resource. `video_url`,
+`video_url_low` and `dropbox_path` sit on these models, and one of them in a
+movie listing would hand the file to anyone, signed in or not — which is
+precisely what the offline design exists to prevent. There are tests that
+assert the string does not appear in the response body at all.
+
+**One detail the app would otherwise get wrong.** An episode's own
+`tier_required` is almost always null, because the admin Shows form puts the
+plan on the series. A client reading that null as "free" would draw an
+unlocked badge on premium content — the same mistake the server made until
+1.8.22. So every episode publishes `effective_tier_required` beside it, with
+the inheritance already resolved, and that is the field to draw a lock from.
+
+Listings are cursor-paginated: a catalogue grows at the front, and offset
+pages silently skip and repeat rows as someone scrolls, which on a phone reads
+as "the app lost my place". A Data Saver request for a title with no low
+rendition is refused rather than quietly served at full size — spending
+someone's bundle without telling them is the one thing Data Saver exists to
+prevent.
+
+**The contract is written down.** `docs/api/openapi.yaml` describes every app
+endpoint, and `OpenApiSpecTest` fails if a route exists that the spec does not
+describe, if the spec describes a route that does not exist, or if an error
+code can be returned that the spec's enum omits. A hand-written spec rots the
+first time someone forgets it, and here the client is generated from this file
+and ships inside an APK that cannot be hot-fixed.
+
+**Ten tests had never run.** `phpunit.xml` globbed `Modules/*/tests/Feature`
+but not `Modules/*/tests/Unit`, so `CdnUrlResolverTest` — which covers the
+Bunny token-signing every stream URL passes through — was silently skipped on
+every run since it was written. It passes when pointed at directly. The
+directory is now in the suite, which is why the count jumped by more than the
+new tests.
+
+**Verified.** 394 tests, 1260 assertions; the same two
+`PricingPageCurrentPlanTest` failures as before, both pre-existing. Then
+driven against the real dev MySQL: browse movies with a cursor, open a detail
+page, search, 404 on a bad slug, get refused as a guest, sign in, get refused
+with `SUBSCRIPTION_REQUIRED`, take the matching plan, play, beat at 90
+seconds, and see the next session resume at 90 — with `active_streams` keyed
+on the device uuid, which is what makes an app install count against the
+concurrent-stream cap through the existing picker and boot flow.
+
+**Not verified.** The dev database's seeded titles carry placeholder paths
+(`/jambo/movies/x.mp4`) rather than real Backblaze URLs, and the local
+`BUNNY_TOKEN_KEY` is empty, so the smoke run could not confirm that a real
+title comes back token-signed. `CdnUrlResolverTest` covers that path and now
+actually runs, but whether Bunny Token Authentication is switched on for the
+zone is still open question 9 and still needs one look at the dashboard.
+
+**Not built yet.** Home rails (they need `SectionDataComposer` split into a
+shared service, which is a live-site refactor of its own), genres, categories,
+VJ pages, watchlist, continue-watching, ratings and reviews. Downloads are
+Phase 3.
+
+### 1.8.23 — The app can sign in, and every API route worked for the first time
+
+Phase 1 of [the mobile plan](docs/plans/mobile-offline-app.md) continues: the
+token layer the app signs in with, and the device list that lets an account
+see and sign out a phone or a TV box.
+
+**Every `/api/*` route on this site was returning a 500, and had been since
+April.** The `api` middleware group referenced a `localization` middleware
+that commit `9c8c192` — the i18n/RTL removal — deleted. The alias and the
+group entry were left behind, so any request under `/api/` threw
+`BindingResolutionException` before it reached a controller. Nothing caught
+it for five months because nothing used those routes: the site's own JSON
+endpoints (watchlist, heartbeat, player-data) are declared in
+`routes/web.php` and run in the `web` group despite their `/api/v1/` paths,
+and every module's `routes/api.php` held only unused scaffold. The first real
+API route found it immediately. The reference is removed rather than the
+middleware restored — this application has no i18n any more.
+
+**Signing in.** `POST /api/v1/auth/login` uses the website's rules rather than
+a second set of them: the account is looked up on a lowered email, compared
+with `Hash::check`, refused if deactivated, and sent to two-factor when the
+account has it. It shares the browser login's throttle bucket, so an attacker
+cannot get five attempts at the web form and five more at the API. That
+bucket is keyed on email *plus* IP, deliberately: East African carriers put
+thousands of handsets behind one CGNAT address, and a per-IP limit would
+throttle a whole cell tower because one person mistyped a password.
+
+Two-factor is two calls instead of a redirect. Login answers
+`TWO_FACTOR_REQUIRED` with a short-lived challenge token that is not an access
+token and can do nothing else; the code goes back to
+`POST /api/v1/auth/2fa/challenge`, which issues the real token. A wrong code
+does not burn the challenge, because a typo should not send someone back to
+the password screen.
+
+**Devices.** Every sign-in must name the install it is for, and gets a token
+bound to a row in the new `devices` table. `GET /api/v1/devices` lists them
+and marks which one is asking; `DELETE /api/v1/devices/{uuid}` boots one,
+which deletes its token and stops whatever it was playing counting against
+the concurrent-stream cap. That last part works because a device's uuid is
+the same "client session key" `active_streams` already stores for browser
+sessions — an app device drops into the existing cap and picker without new
+machinery.
+
+Two details worth naming. Signing in again on the same handset replaces its
+token instead of adding one; without that, tokens never expire here by config
+and a reinstall cycle would quietly leave working credentials that no device
+list shows and nobody can revoke. And a device belonging to another account
+answers `DEVICE_NOT_FOUND` rather than 403, because a 403 would confirm the
+uuid exists somewhere.
+
+**One envelope.** Every `/api/v1` response is
+`{success, message, data}` or `{success, code, message, errors}`, with `code`
+from a single `ApiErrorCode` enum. Clients branch on the code and never on the
+message, because message text gets reworded and an APK cannot be hot-fixed.
+The exception handler renders validation, authentication and 404 failures into
+that shape — scoped to token requests only, so the website's own `/api/v1/`
+AJAX endpoints keep the shapes their JavaScript already reads.
+
+**Verified.** 360 tests (20 new for auth and devices, 3 pinning the error-code
+contract); the same two `PricingPageCurrentPlanTest` failures as before, both
+pre-existing and unrelated. The whole flow was then driven against the real
+dev MySQL — sign in on a phone, sign in on a TV, list both, boot the TV from
+the phone, confirm the TV's token is dead and the phone's is not, sign out —
+and behaved exactly as designed.
+
+**A trap found while testing, recorded because it will recur.** Laravel's
+`AuthManager` is a container singleton and `RequestGuard` caches the user it
+resolved, so inside one test every later request reuses the first resolution
+and a *deleted* token keeps working. Every revocation assertion here would
+have passed no matter how broken revocation was. The tests call
+`$this->app['auth']->forgetGuards()` before any request that must be
+unauthenticated; production is unaffected, since each request is its own
+process.
+
+**Not built yet.** `POST /api/v1/auth/register` — mobile sign-up needs
+decisions the web form answers with a honeypot, reCAPTCHA, `SignupAttempt`
+logging and referral attribution, none of which port over unchanged, and a
+half-ported version is worse than none. Catalogue, playback and download
+endpoints are the next slices; the services they need already exist.
+
+### 1.8.22 — One entitlement rule, so the app can share it
+
+Groundwork for the mobile app. Nothing a viewer sees is meant to change;
+this is Phase 1 of [the mobile, TV and offline plan](docs/plans/mobile-offline-app.md),
+whose ADRs Rio accepted on 2026-09-08.
+
+**Why now.** The app feeds off this webapp, so it needs an API, and the API
+needs to answer "may this person watch this?" The rules for that were written
+out three times: in `TierGate`, in `FrontendController` (as `userCanWatch()`,
+`concurrencyExceeded()` and `contentReleased()`), and in
+`StreamProxyController::streamable()`. `TierGate`'s own comment said the
+copies must not "drift apart". They had. Adding a fourth copy for the app was
+not an option, so the rules moved into
+[PlaybackAuthorizer](Modules/Streaming/app/Services/PlaybackAuthorizer.php)
+and everything else now calls it. The heartbeat got the same treatment in
+[PlaybackBeatRecorder](Modules/Streaming/app/Services/PlaybackBeatRecorder.php),
+because the app has to send beats without a Laravel session or a CSRF token.
+
+That took 95 lines of duplicated logic out of `FrontendController`.
+
+**Two places the copies disagreed, and which one won.**
+
+A `tier_required` slug that matches no plan row is a data error, and both
+copies carried a comment saying it should be treated as free. Only `TierGate`
+actually did; `userCanWatch()` refused guests one branch before it looked the
+slug up, so a mis-slugged title bounced a guest off the watch page while the
+player and the stream URL served them the film. `TierGate` wins, because it is
+the security boundary and it was already handing over the bytes — this closes
+a contradiction rather than opening anything. No title in the database
+currently has a slug like that, so the change has nothing to act on today.
+
+The concurrency cap now applies to episodes that inherit their plan from the
+series. `concurrencyExceeded()` read the episode's own `tier_required` with no
+fallback to the show — and that column is normally empty, because the Shows
+form puts the plan on the series. So the cap was skipped on `/watch` and
+`/episode` for nearly every episode. It was not a hole: `TierGate` still
+applied it to `/watch/src/`, which meant a viewer over their limit got a
+player that silently refused to load instead of the device picker. The same
+people are refused as before. They are now told why.
+
+**The decision is now a value, not a boolean.** `PlaybackDecision` carries a
+reason from `PlaybackDenial`, whose cases are the error codes the app will
+branch on: `LOGIN_REQUIRED`, `SUBSCRIPTION_REQUIRED`, `UPGRADE_REQUIRED`,
+`STREAM_LIMIT`, `CONTENT_UNAVAILABLE`. The web still renders "no plan" and
+"plan too low" as one 403 with the same sentence it used before, because that
+is what is live. The split exists so the app can offer someone with no plan a
+"Subscribe" screen and someone on Basic an "Upgrade" one.
+
+**Verified.** 337 tests pass; the two that fail
+(`PricingPageCurrentPlanTest`) failed the same way before any of this and are
+about a pricing-page badge. 16 of those tests are a pin written *before* the
+extraction, asserting the HTTP behaviour of the player, the watch page and the
+stream URL, and they pass unchanged after it. The homepage, `/movie`,
+`/series` and `/pricing` were rendered against the real dev database through
+the refactored path and returned 200; a `day-pass` title correctly sent a
+guest to login from both the watch page and the player.
+
+**Not verified.** The heartbeat and the device-picker kick were exercised by
+their existing tests, not by a real browser session. No API endpoint exists
+yet — that is the next commit, and no route in this change is new.
+
 ### 1.8.21 — Featured on the house shell, and the big banners auto-rotate
 
 Two things from Rio: the Featured screen should look like the rest of the

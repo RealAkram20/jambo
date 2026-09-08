@@ -168,3 +168,271 @@ status pills. Use `bg-info-subtle` for informational badges there.
 **Tool note:** `D:\OS	ools\cdp-shots.mjs` now logs the return value of an
 injected `js` step, which is how the rotation was actually confirmed rather
 than assumed.
+
+### 2026-09-08 — Mobile app Phase 1: PlaybackAuthorizer + PlaybackBeatRecorder
+
+**Status:** complete (services + refactor; no API routes yet)
+**Owns:** Modules/Streaming/app/Services/PlaybackAuthorizer.php,
+Modules/Streaming/app/Services/PlaybackBeatRecorder.php,
+Modules/Streaming/app/Playback/{PlaybackDecision,PlaybackDenial,BeatOutcome}.php,
+Modules/Streaming/tests/Feature/PlaybackAuthorizationPinTest.php,
+Modules/Streaming/tests/Feature/PlaybackAuthorizerTest.php
+**Shares:**
+- Modules/Streaming/app/Http/Middleware/TierGate.php - body replaced by one
+  authorize() call; the three HTTP responses are unchanged
+- Modules/Frontend/app/Http/Controllers/FrontendController.php - userCanWatch(),
+  concurrencyExceeded() and contentReleased() are now delegates; all 8 call
+  sites and both signatures unchanged. -95 lines, +39
+- Modules/Streaming/app/Http/Controllers/StreamProxyController.php -
+  streamable() delegates to isReleased(); authorizer added to the constructor
+- Modules/Streaming/app/Http/Controllers/StreamingController.php - heartbeat()
+  keeps its validation and its browser-specific logout, and hands the rest to
+  the recorder. Response bodies identical
+- Modules/Frontend/tests/Feature/WatchPagePreviewBotTest.php - setUp() now
+  seeds the "premium" tier its fixtures already referenced. No assertion
+  changed; see R1 below for why it was needed
+- CHANGELOG.md 1.8.22; docs/adr/0002,0003,0004 Proposed -> Accepted
+- docs/plans/mobile-offline-app.md - Phase 0/1 status lines
+
+**What this is:** Phase 1 of the mobile app plan. Rio accepted ADR-0002/3/4
+unamended and chose to start with the API rather than the app shell, because
+the app feeds off the live webapp and has nothing to talk to otherwise. This
+commit is the part the API cannot be built without: one entitlement service
+and one heartbeat service, extracted from three hand-kept copies.
+
+**Verified:**
+- 337 tests, 963 assertions. 2 failures, both pre-existing: run the suite on a
+  stash of Modules/ and PricingPageCurrentPlanTest fails identically. They are
+  about a "Current Plan" badge on /pricing and are unrelated.
+- PlaybackAuthorizationPinTest (16 tests) was written and run GREEN against
+  the old code before the extraction, and passes unchanged after it. It pins
+  the player, the watch page and the stream URL through HTTP, which is what a
+  viewer actually experiences. Run three times to rule out fixture flake.
+- Rendered against the real dev MySQL through the HTTP kernel: /, /movie,
+  /series, /pricing all 200 through the refactored path; a day-pass movie 302s
+  a guest to /login from both /watch/{slug} and /player/movie/{slug}.
+- R1 blast radius measured on real data: 0 movies and 0 shows carry a
+  tier_required slug that matches no subscription_tiers row.
+
+**Not verified:**
+- No browser session. The heartbeat, the device-picker boot and the kicked-
+  device overlay are covered by DeviceLimitTest, not by a real player.
+- Production data was not checked for orphan tier slugs; the 0/0 count above
+  is the dev database.
+- Laravel Pint is NOT clean on this repo (14 issues across 18 files, mostly in
+  files this change never touched). It is not a gate here, so the new files
+  follow the surrounding house style (`!$x`, not Pint's `! $x`) rather than
+  Pint's preset. Do not run `pint` repo-wide without deciding that separately.
+
+**Two deliberate reconciliations.** Where the copies disagreed the extraction
+had to pick, and it picked TierGate both times, because TierGate is the
+security boundary and was already serving the bytes:
+- **R1 - unknown tier slug.** TierGate treated a slug matching no tier row as
+  free and streamed it; userCanWatch() refused guests one branch earlier, so
+  the watch page and the player disagreed. Now uniformly free. This is why
+  WatchPagePreviewBotTest needed its tier seeded: it was passing on the
+  accident, not on premium gating. Reverse in PlaybackAuthorizer::authorize()
+  (marked R1) if the ruling should instead be fail-closed.
+- **R2 - cap on inherited episode plans.** concurrencyExceeded() read the
+  episode's own tier_required with no fallback to the show, so the cap was
+  skipped for nearly every episode. TierGate still capped /watch/src/, so an
+  over-cap viewer got a player that silently would not load. Same people
+  refused; they now reach the device picker instead.
+
+**Deliberately not built:**
+- No /api/v1 routes, no Sanctum device tokens, no `devices` table. Next in
+  Phase 1, and the services here are shaped for them: authorize() already
+  takes a client session key rather than a Laravel session id, so an app
+  device UUID drops straight into the cap, the picker and the boot flow.
+- PlaybackDecision carries SUBSCRIPTION_REQUIRED and UPGRADE_REQUIRED as
+  separate codes, but the web still renders both as one 403 with the sentence
+  it had before. The split is for the app's screens; do not "fix" the web to
+  use it without deciding that is a change worth making.
+- No OpenAPI spec yet; it belongs with the first real endpoint.
+
+**For whoever is next:**
+- The site is LIVE. Anything touching this path needs the pin test green
+  before and after, not just after.
+- Local MySQL was down at the start of this session; XAMPP's mariadb was
+  started by hand (`/d/xampp/mysql/bin/mysqld.exe --defaults-file=...
+  --standalone`) and left running. `php artisan serve` on 8090 accepted TCP
+  but never logged a request while the DB was down - the hang was PDO, not
+  the server. Booting the HTTP kernel from a script and dispatching
+  Request::create() is faster than curl for checking a route anyway, and it
+  works with no networking at all.
+- MovieFactory rolls `published_at` from its own random published/draft
+  decision. Overriding only `status` leaves the date null about half the time
+  and isPubliclyVisible() then fails at random. Set both in fixtures.
+
+### 2026-09-08 — Mobile app Phase 1b: API v1 foundation, auth and devices
+
+**Status:** complete
+**Owns:** app/Http/Api/{ApiErrorCode,ApiResponse}.php,
+app/Http/Controllers/Api/V1/{AuthController,AppConfigController}.php,
+Modules/Streaming/app/Models/Device.php,
+Modules/Streaming/app/Http/Controllers/Api/V1/DeviceController.php,
+Modules/Streaming/app/Http/Middleware/EnsureDeviceIsActive.php,
+Modules/Streaming/database/migrations/2026_09_08_120000_create_devices_table.php,
+tests/Feature/Api/V1/{AuthAndDevicesTest,ApiErrorCodeTest}.php
+**Shares:**
+- app/Http/Kernel.php — removed the dead `localization` middleware from the
+  `api` group and its alias (see below); added the `device.active` alias
+- routes/api.php — /v1 group added below the existing /user stub
+- Modules/Streaming/routes/api.php — scaffold stub replaced with device routes
+- app/Providers/RouteServiceProvider.php — added the `auth` rate limiter
+- app/Exceptions/Handler.php — three renderable() callbacks, all guarded to
+  token API requests only
+- CHANGELOG.md 1.8.23
+
+**What this is:** the app's front door. Sign-in issuing a per-device Sanctum
+token, the two-call two-factor flow, sign-out, /me, the device list and boot,
+and /app/config. The envelope and the single ApiErrorCode enum every later
+endpoint will use.
+
+**🔴 Found and fixed: every `/api/*` route on this site 500'd, and had since
+April.** The `api` middleware group referenced `'localization'`, whose class
+was deleted in `9c8c192` (i18n/RTL removal) while the alias and the group
+entry stayed. Any request under /api/ threw BindingResolutionException before
+reaching a controller. It went unnoticed for five months because nothing used
+those routes — the site's own JSON endpoints live in routes/web.php and run in
+the `web` group despite their /api/v1/ paths, and every module routes/api.php
+held unused scaffold. Removed rather than restored; there is no i18n here now.
+**If anything ever reported "the API is broken", this was why.**
+
+**Verified:**
+- 360 tests, 1131 assertions. Same 2 pre-existing PricingPageCurrentPlanTest
+  failures as before this session; nothing else fails.
+- Driven end to end against the real dev MySQL through the HTTP kernel:
+  app/config public, /me 401 without a token, wrong password
+  INVALID_CREDENTIALS, sign in on a phone, sign in on a TV, list both with the
+  caller marked is_current, boot the TV from the phone, TV token then 401 and
+  phone token still 200, second boot DEVICE_NOT_FOUND, sign out then 401.
+  Script cleans up after itself.
+
+**Not verified:**
+- No real handset or emulator; there is no app yet.
+- 2FA was exercised with a generated TOTP in tests, not with a real
+  authenticator app.
+- The `auth` rate limiter's second (per-ip, 60/min) layer is not covered by a
+  test; only the per-email+ip layer is.
+- Nothing was run against production.
+
+**🔴 A test trap, and it would have hidden a real bug.** Laravel's AuthManager
+is a container singleton and RequestGuard caches the user it resolved, so
+within a single test every later request reuses the first resolution — a
+DELETED token keeps authenticating. Every revocation assertion in
+AuthAndDevicesTest passed at first for that reason alone, and would have
+passed however broken revocation was. `$this->app['auth']->forgetGuards()`
+before any request that must be unauthenticated is what makes those tests
+honest; the helper is `withFreshToken()`. Production is unaffected because
+each request is its own process — verified, not assumed.
+
+**Deliberately not built:**
+- `POST auth/register`. The web form carries a honeypot, optional reCAPTCHA,
+  SignupAttempt logging, referral-cookie attribution and a username that
+  doubles as a referral code. None of that ports to a native form unchanged,
+  and a half-ported signup is worse than sending people to the website. Own
+  slice, own decisions.
+- `auth/google` and `auth/forgot-password` — same reason, smaller.
+- Device-code sign-in for TV (RFC 8628). Phase 1 item, but it needs a `/tv`
+  page on the site; grouped with the TV work.
+- No OpenAPI spec yet. It should land with the catalogue endpoints, where the
+  response shapes get big enough that hand-written client types would drift.
+- Nothing counts app devices against `EnforceDeviceLimit` yet. The plan wants
+  web sessions plus app devices under one cap; the `devices` table now makes
+  that possible but the middleware still counts sessions only.
+
+**For whoever is next:**
+- A device's `uuid` IS the client session key. Write it as `session_id` on
+  active_streams for app playback and the existing cap, picker and boot flow
+  work with no new code. That is why booting a device calls
+  `ActiveStream::terminateSession($userId, $device->uuid)`.
+- The exception handler's API rendering is scoped by
+  `$request->is('api/*') && ! $request->hasSession()`. The site's own AJAX
+  endpoints share the /api/v1/ prefix but have sessions, and their JS reads
+  their existing JSON shapes. Do not widen that guard.
+- Sanctum tokens do not expire (`config/sanctum.php` expiration => null). Any
+  new token-issuing path must delete the one it supersedes.
+- Bootstrapping the app in a standalone script: bind a request instance before
+  `$kernel->bootstrap()` or the url generator throws. Script:
+  scratchpad/api_smoke.php in this session's temp dir; worth recreating.
+
+### 2026-09-08 — Mobile app Phase 1c: catalogue and playback endpoints
+
+**Status:** complete
+**Owns:** Modules/Streaming/app/Services/StreamSourceResolver.php,
+Modules/Streaming/app/Http/Controllers/Api/V1/PlaybackController.php,
+Modules/Content/app/Http/Controllers/Api/V1/CatalogueController.php,
+Modules/Content/app/Http/Resources/{Movie,Show,Season,Episode}Resource.php,
+docs/api/openapi.yaml,
+tests/Feature/Api/V1/{CatalogueAndPlaybackTest,OpenApiSpecTest}.php
+**Shares:**
+- Modules/Streaming/app/Http/Controllers/StreamProxyController.php —
+  getRawUrl() now delegates to StreamSourceResolver; the release check and the
+  404 stay put. Behaviour unchanged, pins still green
+- Modules/Content/routes/api.php, Modules/Streaming/routes/api.php
+- phpunit.xml — added Modules/*/tests/Unit to the Unit suite
+- CHANGELOG.md 1.8.24
+
+**What this is:** browsing and watching from the app. Neither controller holds
+an entitlement rule; both call the services extracted in 1.8.22.
+
+**🔴 Ten tests had never run.** phpunit.xml globbed `Modules/*/tests/Feature`
+but not `Modules/*/tests/Unit`, so `Modules/Streaming/tests/Unit/CdnUrlResolverTest`
+— ten tests over the Bunny token-signing that every stream URL goes through —
+was silently skipped on every suite run since it was written. It passes when
+pointed at directly. Directory added. **If you add a module Unit test, it now
+runs; before today it did not.**
+
+**A third thing nearly got copied.** StreamProxyController::getRawUrl() held
+the rendition choice, the dropbox_path fallback and the CDN call in a private
+method. The API needs the same answer and would have been a second copy, so it
+came out as StreamSourceResolver first. Same pattern as the entitlement rules;
+worth watching for a fourth.
+
+**Verified:**
+- 394 tests, 1260 assertions. Same 2 pre-existing PricingPageCurrentPlanTest
+  failures; nothing else fails. The count jumped by more than the 24 new tests
+  because of the phpunit.xml fix above.
+- The pinning tests from 1.8.22 still pass after StreamProxyController was
+  re-pointed, which is what says the web stream path did not move.
+- Driven against the real dev MySQL through the HTTP kernel: movies list with
+  a working cursor, detail page, series, search, 404 on a bad slug; playback
+  refused for a guest (401), refused with SUBSCRIPTION_REQUIRED once signed in
+  with no plan, allowed on the matching plan, heartbeat at 90s, next session
+  resumes at 90, and active_streams keyed on 'smoke2-device-0001' — the device
+  uuid, which is what makes the existing cap and picker work for app installs.
+
+**Not verified:**
+- **Token signing was NOT confirmed end to end.** The dev seed gives titles
+  placeholder paths like `/jambo/movies/x.mp4`, which no CDN zone claims, so
+  the resolver passes them through untouched; and the local BUNNY_TOKEN_KEY is
+  empty. The unit tests cover the signing logic and now actually run, but a
+  real signed URL from real data has not been seen. Open question 9 (is Bunny
+  Token Authentication ON?) is still one dashboard look, and it gates Phase 3.
+- No YouTube-sourced title was exercised; the embed branch is covered by
+  reading, not running.
+- Search is a LIKE over title only. It is not the website's search and does not
+  pretend to be.
+
+**Deliberately not built:**
+- `GET /home`. It needs SectionDataComposer::build() split into a HomeRailsService
+  the composer and the API share, so the app home is the website home by
+  construction rather than by imitation. That is a live-site refactor with the
+  same risk profile as the entitlement one and deserves its own slice with its
+  own pinning tests — not a tail-end addition to this one.
+- Genres, categories, VJ hubs, cast pages, watchlist, continue-watching,
+  ratings, reviews, comments, notifications. All straightforward reads; none
+  blocking the app shell.
+- Nothing counts app devices against EnforceDeviceLimit yet (still session-only).
+
+**For whoever is next:**
+- EpisodeResource asks PlaybackAuthorizer for the inherited tier per episode.
+  Eager-load `season.show` or a season of 20 episodes is 20 queries. The series
+  endpoint already does; anything new that returns episodes must too.
+- Add an endpoint and OpenApiSpecTest fails until docs/api/openapi.yaml
+  describes it. That is deliberate. Website AJAX routes that share the /api/v1
+  prefix are listed in the test's WEBSITE_AJAX_ROUTES and excluded.
+- Symfony's YAML parser rejects an unquoted comma inside an inline `{ }` map.
+  Quote any description containing one, or the whole spec fails to parse.
+

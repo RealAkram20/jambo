@@ -7,6 +7,7 @@ use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvi
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 
 class RouteServiceProvider extends ServiceProvider
 {
@@ -27,6 +28,23 @@ class RouteServiceProvider extends ServiceProvider
     {
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+        });
+
+        // Sign-in and the two-factor challenge. Keyed on email+ip, not ip
+        // alone: East African carriers put thousands of handsets behind one
+        // CGNAT address, so a per-ip bucket would throttle a whole cell
+        // tower the moment one person fat-fingered a password. Mirrors the
+        // key the browser login already uses, so the two front doors share
+        // one budget rather than offering five attempts each.
+        RateLimiter::for('auth', function (Request $request) {
+            $identifier = Str::lower((string) $request->input('email', $request->input('challenge_token', '')));
+
+            return [
+                Limit::perMinute(10)->by($identifier . '|' . $request->ip()),
+                // A loose second layer, so one address cannot walk a list of
+                // addresses through the first limit unimpeded.
+                Limit::perMinute(60)->by($request->ip()),
+            ];
         });
 
         $this->routes(function () {
