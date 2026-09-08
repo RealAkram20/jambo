@@ -1,0 +1,9 @@
+# The repository root .editorconfig is Laravel's: 4-space indent, which is
+# right for PHP and wrong for this app. Prettier reads .editorconfig when a
+# setting is not in .prettierrc, so without this file the app formats to the
+# webapp's PHP conventions and diverges from every other Expo app in the
+# estate. Kept in step with .prettierrc.
+
+[*.{ts,tsx,js,jsx,json}]
+indent_size = 2
+indent_style = space

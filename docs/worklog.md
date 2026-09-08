@@ -864,3 +864,342 @@ were confirmed on MariaDB only.
 - Any endpoint that promises a neutral answer (forgot-password, register
   collision messages) must swallow downstream failures, or the failure itself
   becomes the oracle.
+
+### 2026-09-08 — Mobile app Phase 2a: the shell, the tokens and the front door
+
+**Status:** in progress
+**Owns:** design/export-tokens.mjs, design/tokens.json, the whole of mobile/
+(package.json, app.json, eas.json, tsconfig.json, index.ts, App.tsx,
+metro.config.js, eslint.config.js, jest.setup.ts, scripts/,
+src/{api,auth,device,navigation,ui,screens,config}/)
+**Shares:**
+- .gitignore — exact edit: one appended block ignoring mobile/node_modules,
+  mobile/android, mobile/ios, mobile/.expo and mobile/dist. `/node_modules` in
+  this file is root-anchored, so without it the app's node_modules commits.
+- CHANGELOG.md — a new `## Jambo App` section with its own version line.
+  **version.txt is deliberately NOT bumped** (see below).
+
+**What this is:** the first slice of Phase 2 — the Expo app bootstrapped in
+`mobile/`, the Streamit design tokens exported from the rendered site, the
+typed API client, the device identity every request carries, and the sign-in
+path. Five real screens: launch/min-version gate, sign in, two-factor, account,
+devices.
+
+**No PHP is touched in this slice, and the API needs nothing new for it.**
+Checked before starting rather than assumed: `POST /auth/login` already takes
+the `device` object, and `/app/config`, `/me`, `/devices` all exist in
+docs/api/openapi.yaml at v1.8.34.
+
+**version.txt is not bumped, on purpose.** It is the input to
+`UpdateManager`'s `version_compare` against the update manifest
+(Modules/SystemUpdate/app/Services/UpdateManager.php:45). Bumping it for a
+change that ships no PHP would advertise a webapp update containing nothing.
+The app carries its own version in mobile/app.json, starting at 0.1.0.
+
+**Decisions made at bootstrap, each permanent enough to name:**
+- `react-native-tvos@0.86.2-0` is the RN core from day one (matches Kangaru's
+  RN 0.86.2 / Expo SDK 57 exactly). ADR-0002 wants one codebase for phone and
+  TV; swapping the core RN package in Phase 4, after every native dependency
+  is pinned, is the expensive version of this decision. It builds an ordinary
+  phone APK when EXPO_TV is unset.
+- applicationId `com.jambofilms.app` for both ADR-0004 variants — Rio's call,
+  2026-09-08. Consequence accepted: the Play build and the direct APK are
+  signed with different keys, so switching channel needs an uninstall. The
+  website's install page must say so.
+- Launcher label "Jambo" (fits under an icon); the Play listing title can be
+  "Jambo Films" at Phase 5, where listing copy is decided anyway.
+- Generated types, hand-written client. `openapi-typescript` emits
+  src/api/schema.d.ts from docs/api/openapi.yaml; the client is Kangaru's,
+  extended with the X-Device-Id header. A generated client would be worse at
+  the envelope, the 401 hook and the device header than the one that exists.
+
+**Deliberately not built in this slice** (named so nobody rebuilds them badly):
+- Home, rails, hero and poster cards — slice 2b, where the token file gets its
+  real test.
+- Any player, and no Kotlin at all: `expo-jambo-media` is not created here.
+- Everything in Phase 3 (downloads, licences, vault, offline home).
+- TV beyond installing the tvos core and config plugin: no leanback manifest,
+  no banner, no focus ring, no EXPO_TV profile, no device-code sign-in.
+- Register, Google sign-in, forgot/reset password, email verification — all
+  exist in the API; Google needs google-services.json, a SHA-1 and EAS
+  credentials, which is Rio's accounts, not code.
+- Push: the token registry exists but docs/api/coverage.md records that there
+  is no sender, so registering a token would produce nothing.
+- The `direct` subscribe flow (PesaPal). The variant flag ships; the flow does
+  not.
+- iOS. ADR-0002: a slot, not a build.
+
+**Verified (2026-09-08, on an Android emulator, API 36):**
+- `BUILD SUCCESSFUL in 12m 55s`. **The `react-native-tvos` fork builds an
+  ordinary phone APK on Expo SDK 57**, which is the ADR-0002 bet and it holds.
+  It needed one override — `@react-native/jest-preset` pinned to 0.86.2 —
+  because jest-expo wants 0.86.3 and the fork is built on 0.86.2.
+- `Android Bundled 25487ms index.ts (1737 modules)`. The sign-in screen renders
+  in the site's colours: `#000000` ground, the translucent charcoal card at
+  12px, labelled fields on the resting hairline, the primary pill. Sign in is
+  correctly disabled while the fields are empty.
+- A real request to `https://jambofilms.com/api/v1/auth/login` left the handset,
+  was refused, and the refusal rendered in the site's own alert colours. The
+  whole pipe works: device id resolved, header attached, envelope parsed, code
+  branched, banner drawn.
+- 19 tests, typecheck, lint, `api:check` and `tokens:check` all green.
+- **Both guards proved by mutation and restored.** Making `clearSession()`
+  delete the device id fails two tests; removing the `X-Device-Id` line fails
+  three. The first mutation also caught a defect in the test itself — see the
+  CHANGELOG note about the constant uuid mock.
+- The token export was run four times against the live site as its probes were
+  corrected; the final run captures 47 tokens with no missed probes.
+
+**Corrected later the same session — the two claims below were true when first
+written and are not any more.** A real sign-in did succeed once the API was
+served locally, and all five screens have now rendered with real data:
+Account shows Premium Monthly, a formatted renewal date and the 4-device cap
+from `limits`; Devices lists the emulator as "This device · In use" alongside a
+second install, with a working boot button. The update gate was exercised for
+real too — the server's `min_app_version` is `1.0.0`, so a `0.1.0` build was
+refused with "You have 0.1.0. Jambo needs 1.0.0 or later." The app version was
+raised to 1.0.0 as a result: the server already declares that as the floor, so
+that, not an arbitrary 0.x, is the app's first version.
+
+**Not verified, and the reason:**
+- 🔴 **No sign-in has succeeded against production, and cannot yet.**
+  `https://jambofilms.com/api/v1/app/config` returns **404**: Phase 1 is on
+  `feat/api-v1-mobile-app` and is not deployed. The phase exit — a real
+  subscriber, on production — is blocked on a deploy, not on app code.
+- 🔴 **When it is deployed, every authenticated call will 401 unless the
+  docroot points at `public/`.** The root `.htaccess` — the front controller
+  used when the site is served from a subdirectory — has no `Authorization`
+  pass-through, while `public/.htaccess` does. Since the root one handles the
+  rewrite, the bearer token never reaches PHP. Proved with curl on the same
+  token: `/me` answers **200 through `php artisan serve`** and **401 through
+  Apache at `localhost/Jambo/`**. Not changed here — it is a live-site file and
+  Rio's call. Whoever deploys must check how the VPS vhost is rooted first.
+- Nothing has run on a real handset — emulator only. No Tecno-class device and
+  no 10" tablet has been seen, so the phone/tablet layout claim in the phase
+  exit is untested.
+- No EAS build has been run. `eas init` and `eas build` touch Rio's Expo
+  account and generate an upload keystore on Expo's servers; that waits for
+  him to say go.
+- Sentry is wired and inert: no DSN, and the connector in this session is not
+  authorised, so nothing has been sent or seen.
+
+**For whoever is next:**
+- **Port 8081 on this machine is taken by the `Precious` project's dev server**,
+  which answers Metro's own status endpoint with an HTML page. Expo prints
+  "Waiting on http://localhost:8081" and looks healthy while the dev client
+  fails with "Failed to open app". Start Metro on another port
+  (`npx expo start --dev-client --port 8092`) and `adb reverse tcp:8092 tcp:8092`.
+  This is the same class of problem as [[jambo-local-render]]'s port 8000 clash.
+- XAMPP MySQL would not start when asked, so the local API could not be brought
+  up as the alternative to a deploy. Not investigated further.
+- Prettier reads the repository root `.editorconfig`, which is Laravel's
+  4-space PHP style. `mobile/.prettierrc` and `mobile/.editorconfig` exist to
+  stop the app formatting itself to the webapp's conventions.
+- Generated files are in `mobile/.prettierignore` for a reason: formatting
+  `src/api/schema.d.ts` or `src/ui/tokens.json` puts them out of step with
+  their generators and turns `npm run check` red for no change in meaning.
+- `adb shell` paths need `MSYS_NO_PATHCONV=1` in Git Bash, or `/sdcard/x.png`
+  becomes `C:/Program Files/Git/sdcard/x.png`.
+- The OpenAPI spec declares `required` only on its envelopes, so every payload
+  field generates as optional. `required()` in `src/api/errors.ts` handles the
+  two that are load-bearing. Adding `required` arrays to the spec would be a
+  real improvement and is a docs-only change — but it asserts server behaviour
+  that should be checked endpoint by endpoint first.
+- **A throwaway local account was left in place, deliberately:**
+  `app-slice-check@jambo.local` (user 47, password `AppSliceCheck2026`,
+  Premium Monthly to 2026-10-08). Local database only. It is kept rather than
+  deleted because slice 2b needs a signed-in viewer on the first run; delete it
+  when the app can create its own account, or sooner if this database is ever
+  used for anything but development.
+- **`public/storage` on this machine is a real directory, not a symlink** —
+  what `artisan storage:link` leaves on Windows without symlink permission. It
+  broke the admin file manager: `fm-guard.php` computed the project root as
+  `dirname(__DIR__, 4)`, correct only from `storage/app/public/media`, so from
+  the served copy it climbed to the web root, found no `.env`, and failed
+  closed with "File manager unavailable." on a correct install. The guard now
+  walks up for `.env`/`artisan` instead of counting levels. The environment
+  fix — replacing the copy with a junction — is still outstanding and needs a
+  command this session was not permitted to run.
+
+### 2026-09-08 — Phase 2a addendum: the app wears the admin's branding
+
+**Status:** complete
+**Owns:** design/export-branding.mjs, design/build-app-icons.php, design/branding.json,
+mobile/assets/branding/{logo.png,favicon.png,preloader.gif},
+mobile/assets/{icon.png,adaptive-icon.png}, mobile/src/ui/branding.ts
+**Shares:** mobile/app.config.ts (icon, adaptiveIcon, splash plugin),
+mobile/src/ui/components.tsx (Loading renders the preloader), 
+mobile/src/screens/SignInScreen.tsx (wordmark above the card)
+
+**What this is:** Rio's instruction — the app uses the logo, favicon and
+preloader uploaded and set in the admin, not invented placeholders, and the
+wiring should allow changing them dynamically later.
+
+**Where they come from.** `design/export-branding.mjs` reads the three admin
+settings off a *running* site by scraping the markup that renders them — the
+auth header's brand image, the favicon `<link>`, and the loader component's
+`<img alt="loader">`. Same reasoning as the token export: no database
+credentials, works against any environment by `--base`, and it picks up the
+template fallback when a setting is empty, which is genuinely what a viewer
+sees. Provenance lands in `design/branding.json`.
+
+**What is dynamic and what cannot be.** `src/ui/branding.ts` prefers a URL
+from `GET /app/config` and falls back to the bundled file, so the in-app logo
+and loading animation are already server-driven the day the API carries them.
+The launcher icon and the native splash are **not** and cannot be: Android
+reads both out of the APK before any JavaScript runs. Written down in the
+config and in branding.ts so nobody tries.
+
+**The one server-side change still needed**, and it is small and additive:
+`GET /app/config` should return `branding: { logo_url, preloader_url }` from
+the same `branding_asset()` / `branded_logo()` helpers the site uses. That is
+one resource, one spec entry and one OpenApiSpecTest update. Not done here —
+Phase 2 was scoped to touch no PHP, and this needs Rio's nod first. The app
+consumes it already, so the switch-on is server-only.
+
+**Icons.** `design/build-app-icons.php` builds `icon.png` (opaque, on the
+site's black) and `adaptive-icon.png` (transparent, inset to 55%) from the
+favicon. Two Android rules the source does not meet: a transparent legacy icon
+is composited by the launcher against anything it likes, and an adaptive icon
+is masked to an OEM-chosen shape where only the centre ~66% survives — the
+mark fills ~80% of the favicon, so pointing Expo straight at it clips the J on
+any round mask. GD rather than an npm image library, because this repo already
+runs PHP with GD.
+
+**Verified:** typecheck, lint and 19 tests green; `expo config` resolves icon,
+adaptiveIcon and the splash plugin with no deprecation warnings; the exported
+logo and favicon were opened and are the real Jambo marks.
+
+**Not verified at the time of writing:** nothing rendered yet — `expo-image`
+and `expo-splash-screen` are native modules, so the installed dev client
+cannot load them and a full rebuild was required.
+
+**Deliberately not done:**
+- The 192px favicon is upscaled ~5x to 1024. Rio's call, 2026-09-08: fine for
+  development and the preview APK, replace with a 1024px master before the
+  Play listing. The script prints that warning on every run.
+- The preloader is a 5.2 MB GIF and is bundled whole. It is what the admin
+  uploaded and Rio asked for it; worth compressing before release, and worth
+  serving from `/app/config` instead so it is not in the APK at all.
+- Production's branding differs from local — the live favicon points at
+  `/storage/gallery/site/Jambo-films-logo.png`, which is none of the three set
+  locally. The app ships local branding by Rio's choice; re-export against
+  production before release.
+
+**Amended after Rio's offline point — the design changed because of it.** The
+first cut rendered branding straight from the remote URL and leaned on
+`expo-image`'s disk cache. Rio pointed out that offline viewing is the whole
+point of this app, and that cache is an evictable LRU: the OS clears it when
+storage gets tight, which on a handset holding a few downloaded films is not
+rare. A viewer days into an offline trip would open a de-branded app with no
+network to fix it. Branding is now genuinely downloaded and owned —
+`src/ui/brandingStore.ts` writes to `Paths.document`, the directory Expo
+documents as safe from system deletion, and the UI reads `file://` only. The
+network appears in `syncBranding()` alone, which runs on the launch path and
+is allowed to fail.
+
+Change detection is the `?v=<mtime>` fingerprint the API now puts on each URL:
+a replaced logo is a different URL, so it downloads once and never again. No
+polling and no version protocol. Downloads are staged in the cache directory
+and moved into place, because Expo documents that on Android a failed download
+leaves a partial file at the destination — writing straight over the live logo
+would replace it with a truncated image.
+
+**The PHP change, made deliberately and named.** `AppConfigController` now
+returns `branding: { logo_url, preloader_url }`, absolute and fingerprinted,
+resolved by locating the setting's file under `public/` rather than trusting
+the stored path — the file manager records the URL as the *browser* saw it, so
+on a subdirectory install the setting carries that install's prefix, which is
+wrong for a handset and wrong for `artisan serve`. Phase 2 was scoped to touch
+no PHP; Rio asked twice for dynamic branding, which cannot work without it.
+
+**Verified on the emulator, 2026-09-09:**
+- The wordmark renders above the sign-in card, from the downloaded file, as the
+  website's auth header shows it.
+- `run-as` confirms both files in app-private storage at the exact source byte
+  counts: logo 57,599 and preloader 5,196,049.
+- 🟢 **The offline case, which is the one that matters.** Airplane mode on,
+  API confirmed unreachable from the device, app force-stopped and relaunched:
+  still fully branded from the local copy.
+- 542 PHP tests pass; the 2 failures are the pre-existing
+  PricingPageCurrentPlanTest pair, unchanged.
+- App side: typecheck, lint, 19 tests, api:check and tokens:check all green.
+
+**Still not verified:** a branding *change* has not been round-tripped — no
+asset has been replaced in the admin and re-downloaded on the device. The
+fingerprint logic is reasoned and unit-untested. Worth doing before release.
+
+### 2026-09-09 — Phase 2a: the sign-in screen rebuilt to Rio's design
+
+**Status:** in progress
+**Owns:** mobile/src/ui/AuthBackground.tsx, mobile/src/ui/authComponents.tsx,
+mobile/src/screens/{SignInScreen,ForgotPasswordScreen,RegisterScreen}.tsx
+**Shares:** mobile/src/ui/theme.ts (an `auth` token block and a `greeting`
+type style), mobile/src/ui/fonts.ts (Roboto 900), mobile/src/auth/AuthProvider.tsx
+(`remember` on signIn, `register`), mobile/src/navigation/{types,RootNavigator}.tsx
+(two routes), mobile/src/api/endpoints.ts (forgotPassword, register),
+app/Http/Controllers/Api/V1/AppConfigController.php + docs/api/openapi.yaml
+(`features.google_sign_in`)
+
+**What this is:** Rio supplied a mockup for the sign-in screen and asked for it
+built identically, with Google shown only when it is actually available.
+
+**Four things in the mockup the API cannot honour, raised rather than
+silently resolved** (the `screen` skill is explicit that a mockup does not
+outrank the rules, and that neither quietly dropping an element nor building a
+dead one is acceptable):
+
+- 🔴 **Apple sign-in does not exist.** No endpoint, no config, nothing in the
+  spec — `grep -i apple` over the API and the spec returns nothing. The button
+  is omitted. A control that can only fail is the one thing the rules forbid
+  outright, and on Android it would also need a web OAuth flow and an Apple
+  developer account that ADR-0002 does not contemplate.
+- **Google is conditional, not absent.** `POST /auth/google` exists but
+  `services.google.client_id` is unset, so the server cannot complete it.
+  `GET /app/config` now carries `features.google_sign_in`, and the block —
+  divider and button — renders only when it is true. It is currently false, so
+  the screen ships without it. The flag is on `/app/config` rather than
+  `/account/security` because the sign-in screen needs it *before* anyone is
+  authenticated.
+- **"Remember me" was going to be decorative** — the app's token has no timer
+  expiry, so the session always persisted regardless. It is now real: unchecked
+  means the session is held in memory only and never written to the keystore,
+  so a viewer on a shared handset is signed out when the app is killed.
+- **"Forgot password?" and "Create one" needed somewhere to go.** Both
+  endpoints existed and neither screen did. Rather than link to nothing or drop
+  the links from the design, both screens were built against the real
+  endpoints. Forgot-password deliberately shows the same confirmation whatever
+  the server says, because the endpoint is written not to reveal whether an
+  address has an account and branching in the client would give that away
+  instead.
+
+**A trap worth keeping, and this is the second time it has cost a rebuild:**
+🔴 **`expo prebuild` without `--clean` leaves a native project that is
+inconsistent with app.config and with newly added native modules.** First
+occurrence: after adding expo-image and expo-splash-screen, autolinking listed
+both and the build succeeded, but the installed APK still reported
+`versionName=0.1.0` and the app threw *Cannot find native module 'ExpoImage'*.
+Second: after adding expo-linear-gradient, a plain `prebuild` produced an APK
+where `expo.modules.image.ExpoImageViewWrapper` could not be constructed at
+all — `InvocationTargetException` — even though expo-image had worked minutes
+earlier. Both were fixed by `expo prebuild --clean`. **After adding or removing
+any native module, or changing a native field in app.config.ts, run
+`--clean`.** `android/` is gitignored, so it costs a rebuild and nothing else.
+
+**Rotation, found by Rio asking what happens when the screen turns.** It was
+bad, and worth writing down because it would have been just as bad on the
+tablet the phase exit names. The auth card had no width cap, so in landscape it
+stretched to the full 2856px: inputs a single line across the screen, and the
+Sign in button pushed off the bottom because the card grew sideways while the
+viewport lost height. The button was not reachable.
+
+Fixed with one token — `auth.cardMaxWidth` (440) — applied to the card and the
+footer on all three auth screens, plus `alignItems: 'center'` on the scroll
+container so the capped card centres instead of sitting against the left edge.
+A form is read and filled in a column; the column's width should not change
+because the device turned. The same cap is what makes a 10" tablet correct
+without a second layout.
+
+**Verified by rotating the emulator**, not by reasoning: landscape now centres,
+keeps the portrait proportions, and scrolls to the button and the footer;
+portrait is unchanged. Auto-rotate was restored afterwards.

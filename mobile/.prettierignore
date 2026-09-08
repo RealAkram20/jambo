@@ -1,0 +1,9 @@
+# Generated files. Formatting them puts them out of step with their generator,
+# and `npm run api:check` / `npm run tokens:check` compare against generator
+# output byte for byte — so a prettier pass over these turns a passing check
+# into a failing one for no change in meaning.
+src/api/schema.d.ts
+src/ui/tokens.json
+node_modules/
+.expo/
+android/

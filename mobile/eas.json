@@ -1,0 +1,64 @@
+{
+  "cli": {
+    "version": ">= 21.1.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "http://10.0.2.2:8090/api/v1",
+        "EXPO_PUBLIC_JAMBO_VARIANT": "direct"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "autoIncrement": true,
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://jambofilms.com/api/v1",
+        "EXPO_PUBLIC_JAMBO_VARIANT": "direct"
+      }
+    },
+    "preview-play": {
+      "distribution": "internal",
+      "autoIncrement": true,
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://jambofilms.com/api/v1",
+        "EXPO_PUBLIC_JAMBO_VARIANT": "play"
+      }
+    },
+    "production-direct": {
+      "autoIncrement": true,
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://jambofilms.com/api/v1",
+        "EXPO_PUBLIC_JAMBO_VARIANT": "direct"
+      }
+    },
+    "production-play": {
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://jambofilms.com/api/v1",
+        "EXPO_PUBLIC_JAMBO_VARIANT": "play"
+      }
+    }
+  },
+  "submit": {
+    "production-play": {}
+  }
+}

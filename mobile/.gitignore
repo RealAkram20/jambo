@@ -1,0 +1,29 @@
+# The app's own ignores, kept here rather than in the repository root.
+#
+# The root .gitignore anchors `/node_modules` to the repository root, so it
+# does not cover this directory. Keeping the app's ignores local means the
+# webapp's ignore file does not have to grow a mobile section, and the two
+# stay independent — which is the same reason `mobile/` is inert to the VPS
+# deploy (ADR-0002).
+
+node_modules/
+.expo/
+dist/
+web-build/
+
+# expo prebuild output. This project stays managed (continuous native
+# generation): app.json is the single source of native config, and the Kotlin
+# module in mobile/modules/ autolinks without a committed native project.
+# A committed android/ would become a second, silently diverging source.
+/android
+/ios
+
+*.log
+npm-debug.*
+.DS_Store
+
+# Signing material and service accounts never belong in git, on any branch.
+*.jks
+*.keystore
+google-services.json
+credentials.json

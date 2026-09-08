@@ -1,5 +1,91 @@
 # Release Notes
 
+This file now covers two things that ship separately. **Jambo** is the webapp
+and its version is `version.txt`, which the in-app updater compares against an
+update manifest. **Jambo App** is the Android app in `mobile/`, versioned in
+its own `app.config.ts`. An app release does not bump `version.txt`: doing so
+would advertise a webapp update containing no webapp change.
+
+## Jambo App
+
+### 1.0.0 — The shell, the tokens and the front door
+
+The first slice of Phase 2 of `docs/plans/mobile-offline-app.md`. An Expo app
+exists in `mobile/`, it identifies itself to the API, and a subscriber can sign
+in on it and see their plan and their devices. No PHP was touched.
+
+**The design is exported from the running site, not copied from the SCSS.**
+`design/export-tokens.mjs` drives headless Edge over the DevTools protocol,
+loads four public pages at a 390×844 phone viewport, and reads computed styles
+off real elements. It writes `design/tokens.json` — 47 tokens, each one
+carrying the exact selector and property it came from — and
+`mobile/src/ui/tokens.json`, which the app imports. The Streamit bundle ships
+four skins and Jambo runs one of them, so reading `_variables.scss` would have
+been right about a quarter of the time with no way to tell which quarter.
+
+Three values in the plan's own table turned out to be wrong, which is the
+argument for the script in one paragraph. **The background is `#000000`, not
+`#0b0d17`** — that colour is the PWA manifest's `background_color` and nothing
+renders it. `--bs-success` is `#27ae60`, not `#14e788`. And **`--bs-danger` is
+`#545e75`, a slate blue**: whoever themed this build overrode Bootstrap's red,
+so the conventionally-named token would have produced error messages in a
+colour that reads as ordinary text. The app's error colours come from
+`.jambo-auth-alert` instead — the styles the website actually shows somebody
+whose password is wrong — captured by injecting the element, because a cleanly
+loaded page has no error on it to read.
+
+**Two capture bugs were found and fixed before the values were trusted**, both
+of the kind that produce a plausible wrong answer. The sign-in page autofocuses
+its email input, so the first run recorded the *focused* border — the primary
+blue — as the resting one; every quiet outline in the app would have been
+bright blue. And because that field carries `transition: border-color 0.15s`,
+blurring and reading in the same tick still returns the focused colour: the
+probe has to wait for the transition to settle. Resting and focused states are
+now captured separately and both match the CSS by inspection.
+
+**Every request carries `X-Device-Id`, and the client refuses to send one
+without it.** The uuid is minted on first launch and kept in the platform
+keystore under its own key, deliberately away from the session: a device id
+cleared on sign-out would file a fresh row in `devices` on every login, fill
+the viewer's device list with handsets they cannot recognise, and stop
+`active_streams` recognising the same phone as the same phone — so the
+concurrent-stream cap would silently stop counting it. There is a test for
+that, and it was checked by mutation: making `clearSession()` delete the key
+must fail it.
+
+That mutation also exposed a weakness in the test itself. `randomUUID` was
+mocked to a constant, so a regenerated id was indistinguishable from a
+surviving one and the test stayed green while the thing it names was broken.
+The mock now returns a different value on every call.
+
+**Types are generated from the contract; the client is not.**
+`openapi-typescript` emits `src/api/schema.d.ts` from `docs/api/openapi.yaml`,
+and `npm run api:check` regenerates and fails on any drift — the app-side
+counterpart of `OpenApiSpecTest`. The client itself is written, because it has
+to do things a generated one does badly: hold the envelope, own two headers no
+caller may override, and keep the whole refusal body. That last one is not
+theoretical — `POST /auth/login` answers two-factor as a **422** with the
+`challenge_token` at the root of the *error* envelope, so a client that keeps
+only code, message and field errors throws away the next step of a successful
+sign-in.
+
+**Screens: sign in, two-factor, account, devices, and an update gate.** They
+branch on `code` and never on message text. Sign-out clears the local session
+whether or not the server can be reached, because a viewer tapping Sign out on
+a phone with no signal is signed out of that phone. A 401 from anywhere clears
+the session, which is what happens when somebody boots this handset from the
+website's device list.
+
+**One deliberate departure from the site, and it is invisible.** The site's
+form field is 44dp and its button 46dp; Android's touch-target minimum is 48.
+Controls are *drawn* at the site's height and given a touch target padded out
+to 48, so the design is unchanged and the target is reachable.
+
+Not built, and named rather than missed: register, Google sign-in, forgot
+password, push (the API has the token registry but no sender), the `direct`
+build's PesaPal checkout, anything in Phase 3, and TV beyond installing
+`react-native-tvos` and its config plugin so the door stays open.
+
 ## Jambo
 
 ### 1.8.34 — The review pass: four defects the suite could not see
