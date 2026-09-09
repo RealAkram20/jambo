@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { colors, fonts, typography } from '../ui/theme';
 import { Loading } from '../ui/components';
 import { AccountScreen } from '../screens/AccountScreen';
+import { ProfileMenuScreen } from '../screens/ProfileMenuScreen';
 import { DevicesScreen } from '../screens/DevicesScreen';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
@@ -14,9 +15,14 @@ import { UpdateRequiredScreen } from '../screens/UpdateRequiredScreen';
 import { ContinueWatchingScreen } from '../screens/ContinueWatchingScreen';
 import { HistoryScreen } from '../screens/HistoryScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
+import { CollectionScreen } from '../screens/CollectionScreen';
 import { PlansScreen } from '../screens/PlansScreen';
+import { ProfileEditScreen } from '../screens/ProfileEditScreen';
+import { ReferralsScreen } from '../screens/ReferralsScreen';
+import { WalletScreen } from '../screens/WalletScreen';
 import { SearchScreen } from '../screens/SearchScreen';
 import { SecurityScreen } from '../screens/SecurityScreen';
+import { StreamingPreferencesScreen } from '../screens/StreamingPreferencesScreen';
 import { TaxonomyScreen } from '../screens/TaxonomyScreen';
 import { TitleDetailScreen } from '../screens/TitleDetailScreen';
 import { TabNavigator } from './TabNavigator';
@@ -145,6 +151,49 @@ export function RootNavigator() {
             options={{ title: 'Security' }}
           />
           <AppStack.Screen name="Plans" component={PlansScreen} options={{ title: 'Plans' }} />
+          <AppStack.Screen
+            name="StreamingPreferences"
+            component={StreamingPreferencesScreen}
+            // "Streaming" rather than "Streaming preferences": the header has
+            // one line at a phone width and the longer title truncates on a
+            // Tecno-class screen, which is the device this is for.
+            options={{ title: 'Streaming' }}
+          />
+          <AppStack.Screen
+            name="Collection"
+            component={CollectionScreen}
+            // The rail's own heading, so "View all" lands on a screen titled
+            // the same thing the viewer just tapped under.
+            options={({ route }) => ({ title: route.params.title })}
+          />
+          <AppStack.Screen
+            name="ProfileEdit"
+            component={ProfileEditScreen}
+            options={{ title: 'Your details' }}
+          />
+          <AppStack.Screen
+            name="Referrals"
+            component={ReferralsScreen}
+            options={{ title: 'Refer and Earn' }}
+          />
+          <AppStack.Screen name="Wallet" component={WalletScreen} options={{ title: 'Wallet' }} />
+
+          {/*
+            The profile menu. A screen of its own, by Rio's correction on
+            2026-09-09 — it was first built as a drawer sliding in over the
+            home screen and that was wrong: there is nothing behind it worth
+            seeing through to.
+
+            `presentation: 'modal'` because the mockup closes with an X rather
+            than a back arrow, and a modal is the shape that gesture belongs
+            to. Its own header is hidden: the screen draws the Jambo wordmark
+            and that X itself, which is what the mockup shows.
+          */}
+          <AppStack.Screen
+            name="ProfileMenu"
+            component={ProfileMenuScreen}
+            options={{ headerShown: false, presentation: 'modal' }}
+          />
         </AppStack.Navigator>
       ) : (
         <AuthStack.Navigator screenOptions={screenOptions}>

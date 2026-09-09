@@ -95,6 +95,41 @@ export function renderableRails(rails: Rail[] | undefined): Rail[] {
   );
 }
 
+/**
+ * The archive behind a rail, when there is one.
+ *
+ * **The two key spaces do not match, and the difference is not cosmetic.**
+ * Home rails are underscored (`latest_movies`); `GET /collections` is
+ * hyphenated (`latest-movies`). Six of the rails convert by swapping the
+ * separator, one has a name no rule derives — the rail `exclusives` is the
+ * collection `only-on-streamit`, which is Streamit's own wording surviving in
+ * one place and Jambo's in the other — and three rails have no archive at all
+ * (`top_movies`, `top_series`, `international_series`). One collection,
+ * `popular-series`, has no rail.
+ *
+ * So this converts, and the *caller* checks the answer against the list the
+ * server actually publishes before offering a link. That is why
+ * `collectionKeyFor` is not allowed to be the whole story: a rail whose
+ * derived key is not in `GET /collections` gets no "View all" rather than a
+ * link to a 404, and a collection added on the server lights its rail's link
+ * up with no app release.
+ *
+ * Category shelves are not handled here. They arrive as `category:<slug>` and
+ * already have a real archive screen — the taxonomy page — so the home screen
+ * routes them there instead.
+ */
+const COLLECTION_KEY_EXCEPTIONS: Readonly<Record<string, string>> = {
+  exclusives: 'only-on-streamit',
+};
+
+export function collectionKeyFor(railKey: string | undefined): string | null {
+  if (railKey === undefined || railKey === '') return null;
+  // Category shelves have their own screen; they are not collections.
+  if (railKey.startsWith('category:')) return null;
+
+  return COLLECTION_KEY_EXCEPTIONS[railKey] ?? railKey.replaceAll('_', '-');
+}
+
 /** Narrowing helpers. The rail's `kind` is what says which shape `items` holds. */
 export function asTitleCards(rail: Rail): TitleCard[] {
   return (rail.items ?? []) as TitleCard[];

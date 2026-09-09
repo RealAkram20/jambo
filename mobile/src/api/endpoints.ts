@@ -23,6 +23,9 @@ export type Session = components['schemas']['Session'];
 export type Me = components['schemas']['Me'];
 export type Device = components['schemas']['Device'];
 export type Profile = components['schemas']['Profile'];
+export type ReferralDashboard = components['schemas']['ReferralDashboard'];
+export type Wallet = components['schemas']['Wallet'];
+export type StreamingPreferences = components['schemas']['StreamingPreferences'];
 
 /**
  * Every call this slice makes, in one place and typed from the spec.
@@ -278,6 +281,54 @@ export class JamboApi {
   }
 
   /**
+   * Which "see all" archives the server publishes.
+   *
+   * Fetched rather than assumed, and that is the point: the home screen offers
+   * a rail's "View all" only when the key it derived is in this list, so a
+   * rail with no archive gets no link instead of a link to a 404, and a
+   * collection added server-side lights up its rail with no app release.
+   * See `collectionKeyFor` for why the two key spaces need converting at all.
+   */
+  async collections(): Promise<{ key: string; title: string; type: string }[]> {
+    const { data } = await this.client.request<{
+      collections?: { key?: string; title?: string; type?: string }[];
+    }>('/collections');
+
+    return (data.collections ?? [])
+      .filter((c): c is { key: string; title: string; type: string } => typeof c.key === 'string')
+      .map((c) => ({ key: c.key, title: c.title ?? '', type: c.type ?? '' }));
+  }
+
+  /**
+   * One archive: the whole rail rather than its first ten.
+   *
+   * **Offset paging, not a cursor, and that is the server's decision rather
+   * than an oversight.** The endpoint's own note records why: the pinned rails
+   * order with a raw `FIELD()` clause a cursor cannot be built from, and the
+   * plain ones order on `created_at`, which seeded and bulk-imported titles
+   * share to the second — a cursor on it skipped every tied row and page two
+   * of latest-movies came back empty on real data. The website pages these by
+   * offset too.
+   */
+  async collection(
+    key: string,
+    page?: number,
+  ): Promise<{ title: string; items: TitleCard[]; nextPage: number | null }> {
+    const query = page === undefined ? '' : `?page=${page}`;
+    const { data } = await this.client.request<{
+      title?: string;
+      items?: TitleCard[];
+      next_page?: number | null;
+    }>(`/collections/${encodeURIComponent(key)}${query}`);
+
+    return {
+      title: data.title ?? '',
+      items: data.items ?? [],
+      nextPage: data.next_page ?? null,
+    };
+  }
+
+  /**
    * A genre, category, VJ or cast archive.
    *
    * All four answer with the same shape — the entity, then its movies and its
@@ -439,6 +490,106 @@ export class JamboApi {
     const { data } = await this.client.request<{ profile: Profile }>('/profile');
 
     return data.profile;
+  }
+
+  /**
+   * Save the viewer's own details.
+   *
+   * **Not a partial update.** `PATCH /profile` requires `first_name`,
+   * `last_name`, `username` and `email` together, so the caller sends all four
+   * whichever one changed — sending only the edited field would blank the
+   * rest.
+   *
+   * `phone` is nullable and `null` is how "no phone" is said. An empty string
+   * would be stored as a phone number zero characters long.
+   */
+  async updateProfile(input: {
+    first_name: string;
+    last_name: string;
+    username: string;
+    email: string;
+    phone: string | null;
+  }): Promise<Profile> {
+    const { data } = await this.client.request<Profile>('/profile', {
+      method: 'PATCH',
+      body: input,
+    });
+
+    return data;
+  }
+
+  /**
+   * Refer and earn: the code, the link, and what it has produced.
+   *
+   * **This endpoint 404s when the referral programme is switched off** — with
+   * one exception the spec is explicit about, and it is not a quirk to route
+   * around: a viewer who already has wallet history still gets their
+   * dashboard, because money someone earned must not become unreachable
+   * because an admin changed a setting. A caller must therefore treat a 404 as
+   * "the programme is off for you", not as an error worth showing.
+   *
+   * Whether to offer the screen at all is a separate question and is answered
+   * before the fact by `features.referrals` on `/app/config`, which is what
+   * the profile drawer reads. This call is for the screen itself.
+   */
+  async referrals(): Promise<ReferralDashboard> {
+    const { data } = await this.client.request<ReferralDashboard>('/referrals');
+
+    return data;
+  }
+
+  /**
+   * The wallet: balance, the withdrawal floor, and the ledger.
+   *
+   * **Never gated on the referral programme**, and the website says why in a
+   * comment on the same row of its own sidebar: this is the money page. A
+   * viewer whose earnings predate the programme being switched off still
+   * reaches their balance here.
+   *
+   * `balance`, `min_withdrawal` and every entry's `amount` are strings on the
+   * wire, and they must stay strings all the way to the screen. Parsing them
+   * to a JavaScript number is how money loses its last cent to binary
+   * floating point, and this is somebody's actual balance.
+   */
+  async wallet(cursor?: string): Promise<Wallet> {
+    const { data } = await this.client.request<Wallet>('/wallet', { query: { cursor } });
+
+    return data;
+  }
+
+  /**
+   * How this viewer wants their video delivered.
+   *
+   * Always a complete set — the server fills every key in from its own
+   * defaults — so nothing here is optional in practice and no screen has to
+   * branch on a missing preference.
+   */
+  async preferences(): Promise<StreamingPreferences> {
+    const { data } = await this.client.request<{ preferences: StreamingPreferences }>(
+      '/account/preferences',
+    );
+
+    return data.preferences;
+  }
+
+  /**
+   * Change some of them, and get the whole set back.
+   *
+   * **Send only what moved.** The endpoint is a PATCH for a reason: a client
+   * that resends every field and forgets one silently resets it, which is how
+   * a viewer's data saver turns itself off when they toggle autoplay. The
+   * response is the complete set, so a caller replaces its state with the
+   * answer rather than merging its own guess into it.
+   */
+  async updatePreferences(
+    changes: Partial<StreamingPreferences>,
+  ): Promise<StreamingPreferences> {
+    const { data } = await this.client.request<{ preferences: StreamingPreferences }>(
+      '/account/preferences',
+      { method: 'PATCH', body: changes },
+    );
+
+    return data.preferences;
   }
 }
 

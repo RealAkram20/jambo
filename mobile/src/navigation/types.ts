@@ -1,4 +1,5 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 /**
@@ -29,8 +30,16 @@ export type TabParams = {
 };
 
 export type AppStackParams = {
-  /** The tab navigator, as one screen in the stack above it. */
-  Tabs: undefined;
+  /**
+   * The tab navigator, as one screen in the stack above it.
+   *
+   * Typed with its nested params rather than `undefined` so a screen in the
+   * stack can select a specific tab — `navigate('Tabs', { screen: 'Watchlist' })`.
+   * The profile drawer needs exactly that: its Watchlist row is the bottom
+   * bar's Watchlist, and sending a viewer to the Home tab instead would be a
+   * menu that lies about where it goes.
+   */
+  Tabs: NavigatorScreenParams<TabParams> | undefined;
   /**
    * A movie or series page. `type` decides which endpoint answers; the screen
    * itself is one component, because the website's two pages are the same page
@@ -51,6 +60,34 @@ export type AppStackParams = {
   Notifications: undefined;
   Security: undefined;
   Plans: undefined;
+  /**
+   * How this viewer wants their video delivered — quality, autoplay, and
+   * Wi-Fi-only downloads. Kept on the account rather than the handset, so the
+   * same answers hold on a second phone and on the television in Phase 4.
+   */
+  StreamingPreferences: undefined;
+
+  /**
+   * A whole home rail, the website's "View all".
+   *
+   * `rail` is the COLLECTION key, not the rail key — the two key spaces
+   * differ (underscored vs hyphenated, plus one pair no rule derives), and
+   * `collectionKeyFor` converts. Passing a rail key here would 404.
+   */
+  Collection: { rail: string; title: string };
+  ProfileEdit: undefined;
+  Referrals: undefined;
+  Wallet: undefined;
+  /**
+   * The profile drawer: the website's profile-hub sidebar, as a panel that
+   * slides in over the current screen.
+   *
+   * A route rather than an overlay, and the reasons are all things an overlay
+   * would have had to reinvent: the Android back button dismisses it, its
+   * position in the navigation state is how it knows which row to light up,
+   * and it reaches `navigate` without being threaded through every screen.
+   */
+  ProfileMenu: undefined;
 };
 
 export type AuthScreenProps<T extends keyof AuthStackParams> = NativeStackScreenProps<

@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
@@ -11,6 +11,7 @@ import {
   asTitleCards,
   asVjCards,
   cardKey,
+  collectionKeyFor,
   isNumberedRail,
   renderableRails,
   type Rail as RailData,
@@ -63,7 +64,10 @@ export function HomeScreen() {
   const header = (
     <AppHeader
       onSearch={() => navigation.navigate('Search')}
-      onAccount={() => navigation.navigate('Account')}
+      // The account icon opens the profile drawer, which is the website's
+      // own profile-hub sidebar. The Account screen is still a route and the
+      // drawer's identity block is what reaches it.
+      onAccount={() => navigation.navigate('ProfileMenu')}
     />
   );
 
@@ -71,6 +75,31 @@ export function HomeScreen() {
     queryKey: ['home'],
     queryFn: () => api.home(),
   });
+
+  /*
+   * Which rails have an archive to link to.
+   *
+   * Asked of the server rather than hardcoded. The rail and collection key
+   * spaces do not line up (see `collectionKeyFor`), three rails have no
+   * archive at all, and one collection has no rail — so the only honest test
+   * of "is there a View all here" is whether the derived key is in the list
+   * the server publishes. A collection added server-side then lights up its
+   * rail with no app release, and a rail without one shows no link rather
+   * than a link to a 404.
+   *
+   * It is allowed to fail: `?? []` means a dropped request costs the "View
+   * all" links and nothing else, rather than taking the home screen with it.
+   */
+  const { data: collections } = useQuery({
+    queryKey: ['collections'],
+    queryFn: () => api.collections(),
+    staleTime: 60 * 60 * 1000,
+  });
+
+  const archives = useMemo(
+    () => new Set((collections ?? []).map((c) => c.key)),
+    [collections],
+  );
 
   if (isPending) {
     return (
@@ -131,6 +160,7 @@ export function HomeScreen() {
               onOpenTaxonomy={(kind, slug, name) =>
                 navigation.navigate('Taxonomy', { kind, slug, name })
               }
+              onSeeAll={seeAllFor(rail, archives, navigation)}
             />
           ))}
         </View>
@@ -152,11 +182,14 @@ function RailFor({
   metrics,
   onOpenTitle,
   onOpenTaxonomy,
+  onSeeAll,
 }: {
   rail: RailData;
   metrics: RailMetrics;
   onOpenTitle: (item: TitleCard) => void;
   onOpenTaxonomy: (kind: 'genre' | 'vj' | 'cast', slug: string, name: string) => void;
+  /** Undefined for a rail with no archive — the Rail then draws no link. */
+  onSeeAll: (() => void) | undefined;
 }) {
   const title = rail.title ?? '';
   const inset = metrics.inset;
@@ -172,6 +205,7 @@ function RailFor({
           data={items}
           itemWidth={metrics.slideWidth}
           inset={inset}
+          onSeeAll={onSeeAll}
           keyExtractor={cardKey}
           renderItem={({ item, index }) => (
             <CardSlot metrics={metrics}>
@@ -319,6 +353,46 @@ function RailFor({
       // heading over an empty row.
       return null;
   }
+}
+
+/**
+ * Where a rail's "View all" goes, or nothing at all.
+ *
+ * Three outcomes, and the third is the one that matters:
+ *
+ *  - a **category shelf** (`category:<slug>`) goes to its taxonomy archive,
+ *    which is a better screen than a generic collection and already exists;
+ *  - a rail whose derived collection key is one the **server publishes** goes
+ *    to that collection;
+ *  - anything else gets **no link**.
+ *
+ * That last case is not a fallback, it is the point. Three home rails —
+ * `top_movies`, `top_series`, `international_series` — have no archive on the
+ * server, and offering "View all" on them would be a control whose only
+ * outcome is a 404. The check is against the live list rather than a
+ * hardcoded one, so the answer stays right when the server changes.
+ */
+function seeAllFor(
+  rail: RailData,
+  archives: ReadonlySet<string>,
+  navigation: NativeStackNavigationProp<AppStackParams>,
+): (() => void) | undefined {
+  const key = rail.key;
+  const title = rail.title ?? '';
+
+  if (key === undefined) return undefined;
+
+  if (key.startsWith('category:')) {
+    const slug = key.slice('category:'.length);
+    return slug === ''
+      ? undefined
+      : () => navigation.navigate('Taxonomy', { kind: 'category', slug, name: title });
+  }
+
+  const collection = collectionKeyFor(key);
+  if (collection === null || !archives.has(collection)) return undefined;
+
+  return () => navigation.navigate('Collection', { rail: collection, title });
 }
 
 /**
