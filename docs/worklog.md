@@ -1576,13 +1576,20 @@ theirs is in any of my commits, and their `StreamingPreferences` and
 `ProfileMenu` routes were preserved when I took the window on the navigation
 files.
 
-🔴 **Their `/app/config` 500ed on a literal 0x07 byte** — `` inside
-`Modules\Referralspp\...` written through a string interpreter, which is
-the trap already in this machine's memory as "quoted heredocs mangle PHP
-namespaces". It broke the app's first call and therefore the whole launch.
-Found by curl, diagnosed with `grep -rlP '' --include=*.php`, reported
-rather than edited under them, and fixed by them. **Write PHP with the Write
-tool, not through a shell or Python string.**
+🔴 **Their `/app/config` 500ed on a literal 0x07 byte.** The \a in
+`use Modules\Referrals\app\Services\ReferralSettings;` was written through a
+string interpreter, which reads \a as BEL - so the line became
+`Modules\Referrals` + 0x07 + `pp\Services\...` and PHP reported
+`ParseError: syntax error, unexpected character 0x07`. It broke the app's
+first call and therefore every launch. Found by curl, located with
+`grep -rlP '\x07' --include=*.php` (that file was the only hit in the repo),
+reported rather than edited under them, and fixed by them.
+
+This is the trap already in this machine's memory as "quoted heredocs mangle
+PHP namespaces", now in a second interpreter - theirs was Python, the original
+was bash. **Write PHP with the Write tool and run it by path.** This paragraph
+was itself mangled twice while being written, because it contains the very
+escape it describes; it took a quoted heredoc plus raw strings to survive.
 
 **Still not built:** the player, two-factor enrolment, password change,
 subscribe, notification deep links, avatar upload, and notification
