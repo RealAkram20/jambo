@@ -1271,4 +1271,91 @@ added.
 - Guest browsing. The app stays sign-in-first; raised with Rio as a fork rather
   than decided quietly.
 
-**For whoever is next:** see the closing notes at the end of this entry.
+**Verified on an Android emulator (API 35, 1280x2856 @ 480dpi), against
+`php artisan serve --port=8095` — rendered, not reasoned:**
+- Home: hero, Continue Watching, two numbered Top 10 rails, ten poster rails,
+  genres, VJs and personalities. Movies and Series grids. The Watchlist empty
+  state. The website's four-tab bar, Home filled and white, the rest dimmed.
+- **Portrait and landscape.** At 952x427 the rails reflow to 7.5 cards rather
+  than stretching. That needed a real fix, not just a check: the site's
+  breakpoint ladder is width-only, and on its own it hands a landscape phone
+  the tablet layout — four cards 189dp wide and 265dp tall on a screen 390dp
+  tall, so one rail plus a heading plus the tab bar is the entire viewport.
+  A poster is now capped against the viewport *height* as well, and the rail
+  adds whole cards until it fits. Same failure as slice 2a's auth card,
+  different shape.
+- Detail pages with the real catalogue, search, taxonomy archives.
+- **Register and Forgot Password rendered for the first time.** Both were
+  built and typechecked in slice 2a and had never been on a screen.
+- 40 app tests, typecheck, lint, api:check and tokens:check green. 542 PHP
+  tests pass with the same two pre-existing PricingPageCurrentPlanTest
+  failures — no regression, and no PHP was changed.
+
+🔴 **The sign-in form could not be typed into, and that was shipped state.**
+Rio hit it first ("on the signin screen i can not enter anything") and it
+reproduced from a clean launch every time. `AuthField` drew its focus glow by
+adding `elevation` to the View *containing* the TextInput; adding elevation on
+Android makes the platform rebuild that view, which destroyed the focused
+input inside it. The keyboard opened, focus was gone in the same frame, one
+character sometimes landed in the race and then nothing.
+
+It predates this slice — slice 2a's successful sign-in was against the plain
+form, before the glassy rebuild on 2026-09-09 introduced `AuthField`, and text
+entry was never exercised on the new one. The glow now lives on a sibling
+layer with constant elevation and only `shadowColor` toggling, so focus
+rebuilds nothing. **The guard is a source test on purpose:** the failure is
+native view recycling that Jest's host tree does not reproduce, so a render
+test passes with the bug present. It was proved by reintroducing the bug and
+watching it fail, and the mutation was restored.
+
+**Two contract faults found against real data:**
+- 🔴 The catalogue API returns `media_url()`, which emits app-absolute paths
+  with no host. Checked against production: the live site serves
+  `/storage/gallery/...` for exactly these, so **no catalogue image would have
+  rendered in the app**, invisible locally because the dev seed is absolute
+  picsum URLs. Fixed client-side in `src/ui/media.ts`, which also routes
+  through the site's own `/img` proxy — the API hands out originals at upload
+  size while the website's own cards ask for 640px WebP.
+- `rating` is a content certification (G, PG, NC-17), not a number. The spec
+  typed it `number`, which would have drawn "NC-17" stars. Spec corrected,
+  types regenerated, `OpenApiSpecTest` still green.
+
+**Not verified, and why:**
+- Nothing has run on a real handset. Emulator only, so the phase exit's
+  "Tecno-class phone and a 10" tablet" is still untested.
+- Nothing against production: `jambofilms.com/api/v1` still 404s.
+- No EAS build. `eas init` / `eas build` are Rio's account.
+- The `imageUrl` helper's proxy path is now exercised locally, but never
+  against production's own `/img` route.
+
+**Still to build in this slice** (named, not missed):
+- Continue Watching and History as their own screens (the rail exists).
+- Profile and settings beyond Account and Devices: profile edit, security,
+  notification preferences, plans, referrals and wallet, all read-only.
+- Notifications, and the header bell that would open them.
+
+**For whoever is next:**
+- **`php artisan serve` is single-threaded.** Fifteen posters requested at
+  once queue behind each other and time out, and the home screen renders as
+  grey cards. It is not an app bug. Warm Glide's cache at the widths
+  `src/ui/media.ts` asks for — `tools/dev-catalogue/README.md` has the loop —
+  and the same screen goes from 12fps to 60.
+- **Port 8092 had a Metro from the previous session still running**, serving
+  this project without the `EXPO_PUBLIC_API_BASE_URL` this one needs. That
+  variable is inlined at bundle time, so a stale Metro silently points the app
+  at production. Check `Get-CimInstance Win32_Process` before assuming a
+  listening port is yours.
+- The dev-client launch URL scheme is `jambo://`, not `jambofilms://`
+  (`app.config.ts` sets `scheme: 'jambo'`); the applicationId is
+  `com.jambofilms.app` and the two are easy to confuse.
+- `adb shell input text` mangles long strings on this emulator even when the
+  field is healthy. `uiautomator dump` is the reliable way to read what
+  actually landed, and it is how the focus bug was diagnosed.
+- The Expo dev-client performance overlay was left on by an earlier session
+  and shows in screenshots. It is the dev client, not the app.
+- `tools/dev-catalogue/` re-dresses the local database with the real
+  catalogue. It downloads ~31MB into `public/storage`, which is git-ignored.
+  Local database only.
+- The throwaway account `app-slice-check@jambo.local` / `AppSliceCheck2026` is
+  still in place and still needed. It now also has two seeded watch-history
+  rows so Continue Watching has something to render.
