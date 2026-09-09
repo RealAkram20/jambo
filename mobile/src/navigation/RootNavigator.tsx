@@ -11,7 +11,12 @@ import { RegisterScreen } from '../screens/RegisterScreen';
 import { SignInScreen } from '../screens/SignInScreen';
 import { TwoFactorScreen } from '../screens/TwoFactorScreen';
 import { UpdateRequiredScreen } from '../screens/UpdateRequiredScreen';
+import { ContinueWatchingScreen } from '../screens/ContinueWatchingScreen';
+import { HistoryScreen } from '../screens/HistoryScreen';
+import { NotificationsScreen } from '../screens/NotificationsScreen';
+import { PlansScreen } from '../screens/PlansScreen';
 import { SearchScreen } from '../screens/SearchScreen';
+import { SecurityScreen } from '../screens/SecurityScreen';
 import { TaxonomyScreen } from '../screens/TaxonomyScreen';
 import { TitleDetailScreen } from '../screens/TitleDetailScreen';
 import { TabNavigator } from './TabNavigator';
@@ -119,6 +124,27 @@ export function RootNavigator() {
             component={DevicesScreen}
             options={{ title: 'Devices' }}
           />
+          <AppStack.Screen
+            name="ContinueWatching"
+            component={ContinueWatchingScreen}
+            options={{ title: 'Continue Watching' }}
+          />
+          <AppStack.Screen
+            name="History"
+            component={HistoryScreen}
+            options={{ title: 'History' }}
+          />
+          <AppStack.Screen
+            name="Notifications"
+            component={NotificationsScreen}
+            options={{ title: 'Notifications' }}
+          />
+          <AppStack.Screen
+            name="Security"
+            component={SecurityScreen}
+            options={{ title: 'Security' }}
+          />
+          <AppStack.Screen name="Plans" component={PlansScreen} options={{ title: 'Plans' }} />
         </AppStack.Navigator>
       ) : (
         <AuthStack.Navigator screenOptions={screenOptions}>

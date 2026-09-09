@@ -1,10 +1,16 @@
 import type { ApiClient } from './client';
 import type {
+  ContinueWatchingCard,
+  HistoryEntry,
   Home,
   MovieDetail,
   MovieList,
+  Notification,
+  Plan,
+  SecurityState,
   SeriesDetail,
   SeriesList,
+  Subscription,
   TitleCard,
   TitleDetail,
 } from './catalogue';
@@ -325,11 +331,114 @@ export class JamboApi {
     return { movies: data.movies ?? [], series: data.series ?? [] };
   }
 
+  /**
+   * Continue Watching as its own screen, rather than as a home rail.
+   *
+   * Same cards the rail carries. Not paginated by the contract — the row is
+   * capped server-side (`WatchHistoryItem` keeps only the most recent N
+   * titles, because viewers bail during end credits and in-progress rows would
+   * otherwise pile up forever), so there is nothing to page through.
+   */
+  async continueWatching(): Promise<ContinueWatchingCard[]> {
+    const { data } = await this.client.request<{ items?: ContinueWatchingCard[] }>(
+      '/continue-watching',
+    );
+    return data.items ?? [];
+  }
+
+  /**
+   * Everything watched, newest first.
+   *
+   * A record rather than a to-do list: unlike Continue Watching it keeps
+   * finished titles, which is why it is a separate screen and not a "see all"
+   * on the rail.
+   */
+  async history(cursor?: string): Promise<{ items: HistoryEntry[]; nextCursor: string | null }> {
+    const { data } = await this.client.request<{
+      items?: HistoryEntry[];
+      next_cursor?: string | null;
+    }>(cursor === undefined ? '/history' : `/history?cursor=${encodeURIComponent(cursor)}`);
+
+    return { items: data.items ?? [], nextCursor: data.next_cursor ?? null };
+  }
+
+  /** The viewer's notifications, newest first, with the unread count. */
+  async notifications(): Promise<{ items: Notification[]; unread: number }> {
+    const { data } = await this.client.request<{
+      items?: Notification[];
+      unread_count?: number;
+    }>('/notifications');
+
+    return { items: data.items ?? [], unread: data.unread_count ?? 0 };
+  }
+
+  /** Mark everything read. One call rather than one per row. */
+  async markNotificationsRead(): Promise<void> {
+    await this.client.request<null>('/notifications/read-all', { method: 'POST' });
+  }
+
+  /**
+   * The plans, and this viewer's subscription.
+   *
+   * Read-only on both build variants for now. ADR-0004 forbids the Play build
+   * from showing anything that leads to a payment, and the `direct` build's
+   * PesaPal flow does not exist server-side yet — so a Subscribe button would
+   * be a policy risk on one variant and a dead control on the other.
+   */
+  async subscription(): Promise<{ subscription: Subscription | null; plans: Plan[] }> {
+    const { data } = await this.client.request<{
+      subscription?: Subscription | null;
+      plans?: Plan[];
+    }>('/subscription');
+
+    return { subscription: data.subscription ?? null, plans: data.plans ?? [] };
+  }
+
+  /** Two-factor state, whether Google is linked, and whether the email is verified. */
+  async security(): Promise<{
+    twoFactor: NonNullable<SecurityState['two_factor']> | null;
+    emailVerified: boolean;
+    googleEnabled: boolean;
+  }> {
+    const { data } = await this.client.request<SecurityState>('/account/security');
+
+    return {
+      twoFactor: data.two_factor ?? null,
+      emailVerified: data.email_verified ?? false,
+      googleEnabled: data.google_enabled ?? false,
+    };
+  }
+
+  /** Send the verification email again. */
+  async resendVerificationEmail(): Promise<void> {
+    await this.client.request<null>('/auth/email/resend', { method: 'POST' });
+  }
+
   /** Sign one device out. Takes a device uuid or a browser session id. */
   async revokeDevice(id: string): Promise<void> {
     await this.client.request<null>(`/devices/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     });
+  }
+
+  /**
+   * The profile screen's own payload: the editable fields, the avatar, and
+   * whether the email is verified.
+   *
+   * Separate from `me()` on purpose, and the server says why in as many words:
+   * `/me` answers "who am I and what can I watch" on every launch and stays
+   * small for that reason. This is the heavier one, fetched by the screens that
+   * actually show a face.
+   *
+   * `avatar_url` is genuinely nullable — most accounts have never uploaded one
+   * — so it is returned as `null` rather than defaulted to a placeholder image.
+   * A caller that draws something in its place must draw something it derived,
+   * such as initials, never a stock photograph of a stranger.
+   */
+  async profile(): Promise<Profile> {
+    const { data } = await this.client.request<{ profile: Profile }>('/profile');
+
+    return data.profile;
   }
 }
 

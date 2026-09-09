@@ -23,6 +23,16 @@ import { Focusable } from './Focusable';
  * Native has no equivalent for. The gradient alone carries the readability,
  * which is what the blend mode was there to support, so the effect is
  * reproduced and the technique is not.
+ *
+ * **Without `onPress` the card is not interactive at all** — not focusable, no
+ * press target, no focus ring. That is not a detail: a Continue Watching card
+ * has exactly one real action, resume, and resume needs the player. It cannot
+ * fall back to opening the title's page either, because
+ * `ContinueWatchingCard` carries `resume: {type, id}` and no slug, and
+ * `/movies/{id}` is a 404 — the detail endpoint is slug-only. So until the
+ * player exists there is no honest action, and a focusable card that does
+ * nothing when pressed is the thing the screen rules forbid. Adding `slug` to
+ * the resource is a one-line server change and is named in the worklog.
  */
 export type ProgressItem = ContinueWatchingCard;
 
@@ -44,6 +54,7 @@ export function ProgressCard({
   const title = item.title ?? 'Untitled';
   const percent = clampPercent(item.progress_percent);
   const minutesLeft = item.minutes_left;
+  const interactive = onPress !== undefined;
 
   /*
    * The accessible name carries what the card shows, in one utterance: what it
@@ -59,17 +70,8 @@ export function ProgressCard({
     .filter((part): part is string => typeof part === 'string' && part !== '')
     .join(', ');
 
-  return (
-    <View style={styles.block}>
-      <Focusable
-        accessibilityLabel={spoken}
-        accessibilityHint="Resumes playback"
-        ringRadius={watching.radius}
-        hasTVPreferredFocus={hasTVPreferredFocus}
-        onPress={onPress}
-        style={{ width, height }}
-      >
-        <View style={[styles.frame, { width, height, borderRadius: watching.radius }]}>
+  const face = (
+    <View style={[styles.frame, { width, height, borderRadius: watching.radius }]}>
           <ExpoImage
             source={imageUrl(item.image_url, width)}
             style={StyleSheet.absoluteFill}
@@ -100,7 +102,9 @@ export function ProgressCard({
               <Text numberOfLines={1} style={styles.title}>
                 {title}
               </Text>
-              <Play size={16} color={colors.onPrimary} weight="fill" />
+              {/* The play mark is a promise. It appears only when pressing the
+                  card actually does something. */}
+              {interactive ? <Play size={16} color={colors.onPrimary} weight="fill" /> : null}
             </View>
 
             {item.subtitle !== undefined && item.subtitle !== '' ? (
@@ -118,8 +122,29 @@ export function ProgressCard({
               <View style={[styles.bar, { width: `${percent}%` }]} />
             </View>
           </View>
+    </View>
+  );
+
+  return (
+    <View style={styles.block}>
+      {interactive ? (
+        <Focusable
+          accessibilityLabel={spoken}
+          accessibilityHint="Resumes playback"
+          ringRadius={watching.radius}
+          hasTVPreferredFocus={hasTVPreferredFocus}
+          onPress={onPress}
+          style={{ width, height }}
+        >
+          {face}
+        </Focusable>
+      ) : (
+        // Announced, but not offered. A screen reader should still be able to
+        // read what is in the row; nothing here claims to be pressable.
+        <View accessible accessibilityLabel={spoken} style={{ width, height }}>
+          {face}
         </View>
-      </Focusable>
+      )}
 
       {/*
         Remove is its own focusable sibling, not a child of the card. Nested

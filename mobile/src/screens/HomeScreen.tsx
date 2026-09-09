@@ -213,27 +213,27 @@ function RailFor({
           renderItem={({ item }) => (
             <CardSlot metrics={metrics}>
               {/*
-                Resuming needs the player, which this slice does not have, so
-                the card opens the title's page — the same destination the
-                poster cards use. It is not a dead control and it is not a
-                promise the app cannot keep.
+                No `onPress`, so the card is not interactive at all.
 
-                The remove button is deliberately absent: the website's card
-                has one, but the DELETE behind it is
+                Its one real action is resume, and resume needs the player. It
+                cannot fall back to opening the title's page either:
+                `ContinueWatchingCard` carries `resume: {type, id}` and no
+                slug, and the detail endpoint is slug-only — `/movies/1` is a
+                404, checked against the running API. An earlier cut of this
+                passed the id through `onOpenTitle`, which returns early
+                without a slug, so every tap silently did nothing. That is the
+                dead control the rules forbid, and it is why `ProgressCard`
+                now renders a plain announced View when it has no action.
+
+                The remove button is absent for a different reason: the
+                website's card has one, but the DELETE behind it is
                 `['web', 'Authenticate']` in Frontend's web routes, so a
-                bearer token cannot call it. Named in the worklog rather than
-                shipped as a button that always fails.
+                bearer token cannot call it.
               */}
               <ProgressCard
                 item={item}
                 width={metrics.stillWidth}
                 height={metrics.stillHeight}
-                onPress={() => {
-                  const resume = item.resume;
-                  if (resume?.type === 'movie' && typeof resume.id === 'number') {
-                    onOpenTitle({ type: 'movie', id: resume.id, title: item.title ?? '' });
-                  }
-                }}
               />
             </CardSlot>
           )}

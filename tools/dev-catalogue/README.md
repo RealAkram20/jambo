@@ -67,6 +67,29 @@ PY
   contract for machines, rather than from the rendered markup, which changes
   whenever a blade is restyled.
 
+## The test account
+
+Rio's, named on 2026-09-09: **`testuser@jambo.test` / `Jambo@2026`**, on the
+highest tier so nothing in the catalogue is out of reach. One named account
+with a known password beats a fresh throwaway per session — every worklog
+entry after this can say "signed in as the test user" and mean the same thing.
+
+```bash
+php artisan tinker --execute="require 'tools/dev-catalogue/6-test-user.php';"
+php artisan tinker --execute="require 'tools/dev-catalogue/7-test-user-history.php';"
+```
+
+The second step leaves three titles part-watched, one of them finished, so
+Continue Watching and History have real state — and differ, which is the
+whole reason they are two screens.
+
+⚠️ **Android autofill will fight you.** Tapping the email field on the sign-in
+screen can trigger a saved credential from an earlier session and quietly
+replace what you typed; that is how a scripted sign-in ended up authenticated
+as `admin@demo.com` while the script had typed the test address. Read the
+field back with `uiautomator dump` before submitting, and check the resulting
+account rather than assuming.
+
 ## What it does not import
 
 Trailers, cast photographs, episode stills and season structure. The seeded

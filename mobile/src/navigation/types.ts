@@ -46,6 +46,11 @@ export type AppStackParams = {
   Search: undefined;
   Account: undefined;
   Devices: undefined;
+  ContinueWatching: undefined;
+  History: undefined;
+  Notifications: undefined;
+  Security: undefined;
+  Plans: undefined;
 };
 
 export type AuthScreenProps<T extends keyof AuthStackParams> = NativeStackScreenProps<

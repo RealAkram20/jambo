@@ -157,8 +157,36 @@ export function AccountScreen({ navigation }: AppScreenProps<'Account'>) {
         <Caption>Plans and payments are managed on the Jambo website.</Caption>
       </View>
 
+      {/*
+        The account hub. These are the website's own profile-hub tabs, minus
+        the ones this app cannot honour yet: Downloads is Phase 3, and there is
+        no viewer-facing way to rate a title anywhere in this API, so a
+        Ratings row would open an empty screen with no explanation.
+      */}
       <View style={styles.section}>
-        <Button label="Devices" tone="quiet" onPress={() => navigation.navigate('Devices')} />
+        <Heading>Your viewing</Heading>
+        <View style={styles.links}>
+          <Button
+            label="Continue Watching"
+            tone="quiet"
+            onPress={() => navigation.navigate('ContinueWatching')}
+          />
+          <Button label="History" tone="quiet" onPress={() => navigation.navigate('History')} />
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Heading>Settings</Heading>
+        <View style={styles.links}>
+          <Button
+            label="Notifications"
+            tone="quiet"
+            onPress={() => navigation.navigate('Notifications')}
+          />
+          <Button label="Security" tone="quiet" onPress={() => navigation.navigate('Security')} />
+          <Button label="Plans" tone="quiet" onPress={() => navigation.navigate('Plans')} />
+          <Button label="Devices" tone="quiet" onPress={() => navigation.navigate('Devices')} />
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -173,6 +201,9 @@ export function AccountScreen({ navigation }: AppScreenProps<'Account'>) {
 }
 
 const styles = StyleSheet.create({
+  // A column of destinations. Gap rather than margins on each button, so a
+  // row added or removed does not leave a double space behind it.
+  links: { gap: spacing.md, marginTop: spacing.md },
   section: { marginTop: spacing.xl },
   footer: { marginTop: spacing.xxl, alignItems: 'center' },
   row: {

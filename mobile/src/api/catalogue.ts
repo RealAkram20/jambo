@@ -31,6 +31,11 @@ export type Season = components['schemas']['Season'];
 export type Episode = components['schemas']['Episode'];
 export type Taxonomy = components['schemas']['Taxonomy'];
 export type Person = components['schemas']['Person'];
+export type HistoryEntry = components['schemas']['HistoryEntry'];
+export type Notification = components['schemas']['Notification'];
+export type Plan = components['schemas']['Plan'];
+export type Subscription = components['schemas']['Subscription'];
+export type SecurityState = components['schemas']['SecurityState'];
 
 /** Either detail shape. The screens share everything except the episode list. */
 export type TitleDetail = MovieDetail | SeriesDetail;

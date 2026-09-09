@@ -1356,6 +1356,99 @@ watching it fail, and the mutation was restored.
 - `tools/dev-catalogue/` re-dresses the local database with the real
   catalogue. It downloads ~31MB into `public/storage`, which is git-ignored.
   Local database only.
-- The throwaway account `app-slice-check@jambo.local` / `AppSliceCheck2026` is
-  still in place and still needed. It now also has two seeded watch-history
-  rows so Continue Watching has something to render.
+- **The test account is `testuser@jambo.test` / `Jambo@2026`**, named by Rio on
+  2026-09-09 and created by `tools/dev-catalogue/6-test-user.php` on the
+  highest tier, with three seeded watch-history rows (one finished) so
+  Continue Watching and History have real and *different* state. Use this one.
+  `app-slice-check@jambo.local` from slice 2a is still in the database and is
+  now redundant — left rather than deleted, because dropping a user with watch
+  history is a destructive change nobody asked for. Say the word and it goes.
+- ⚠️ **Android autofill will silently replace what you type into the sign-in
+  email field.** A scripted sign-in that typed the test address ended up
+  authenticated as `admin@demo.com`, because tapping the field triggered a
+  credential saved during an earlier session and the account screen then
+  showed a different person entirely. It looked like an app bug and was not.
+  Read the field back with `uiautomator dump` before submitting, and check
+  which account you actually got.
+- The Expo dev-client **performance overlay** was left on by an earlier
+  session. Turn it off from the Tools bubble → "Toggle performance monitor";
+  it is the dev client and never appears in a release build.
+
+### Added after the first close — the account, viewing and settings screens
+
+Built after Rio asked for the rest of §6.2: Continue Watching and History as
+their own screens, Notifications, Security, Plans, and the Account screen
+extended into the profile hub the website has (identity, subscription, then
+Your viewing and Settings). All rendered against the real catalogue.
+
+**Three more gaps found by building against the real contract, each named
+rather than papered over:**
+
+- 🔴 **A Continue Watching card has no honest action in this slice, so it is
+  not interactive at all.** Resume needs the player. It cannot fall back to
+  opening the title's page either: `ContinueWatchingCard` carries
+  `resume: {type, id}` and no `slug`, and the detail endpoint is slug-only —
+  `/movies/1` returns 404, checked against the running API. The first cut
+  passed the id through the navigation helper, which returns early without a
+  slug, so **every tap silently did nothing**. `ProgressCard` now renders a
+  plain announced View when it has no action, and hides the play mark with
+  it. **Adding `slug` to the resource is a one-line server change** and would
+  make the card openable.
+- **A History row can be an episode, not only a movie.** The contract says
+  `item` is `MovieCard | Episode`, and an Episode has `still_url`, no
+  `poster_url` and no slug. Rendering every row as a movie would have shown a
+  blank poster and a link to nowhere; episode rows now show their still and
+  are not pressable.
+- `SecurityState` is the whole `{two_factor, google_enabled, email_verified}`
+  envelope, not the two-factor block. The first cut typed it as the block and
+  read `enabled` off the wrong level.
+
+**Deliberately not built, with the reason in each file:**
+- **Two-factor enrolment.** The endpoints exist, but enrolment is a flow —
+  secret, authenticator, confirm, then recovery codes shown exactly once. A
+  switch that turns 2FA on and never shows the recovery codes locks people out
+  of their own accounts. Status is shown; the flow earns its own slice.
+- **Changing a password**, for the same reason: it is a form with its own
+  validation and its own "this signs you out everywhere" question.
+- **Subscribe.** ADR-0004 forbids it on the Play build, and the `direct`
+  build's PesaPal checkout does not exist server-side. Two independent
+  reasons, either sufficient.
+- **Notification `action_url` as a link.** It is a website URL and the app has
+  no map from site URLs to its own screens. A deep-link resolver is its own
+  work; guessing would send viewers to the wrong screen or out to a browser.
+- **Notification preferences.** `/notifications/preferences` returns an empty
+  array on this database, so there is nothing to render and no way to tell a
+  real empty from a broken one without a server-side default set.
+
+### 2026-09-09 — The profile drawer (session jambo-42)
+
+**Status:** in progress
+**Owns:** mobile/src/ui/ProfileDrawer.tsx (new),
+mobile/src/ui/ProfileDrawer.test.tsx (new)
+**Shares — exact edits, nothing else in these files:**
+- `mobile/src/ui/theme.ts` — one appended `drawer` token block. No existing
+  value changed.
+- `mobile/src/api/endpoints.ts` — one appended `profile()` method on the client
+  class. `GET /profile` is already in the OpenAPI spec and the `Profile` type is
+  already generated; only the call was missing.
+- `mobile/src/navigation/types.ts` — one line: `ProfileMenu: undefined` in
+  `AppStackParams`.
+- `mobile/src/navigation/RootNavigator.tsx` — one `AppStack.Screen` for
+  `ProfileMenu`, presented as a transparent modal.
+- `mobile/src/screens/HomeScreen.tsx` — one line: the header's `onAccount`
+  navigates to `ProfileMenu` instead of `Account`.
+
+**NOT touched:** `mobile/src/screens/AccountScreen.tsx`. Session jambo-fb has it
+open and uncommitted. The drawer is a new surface beside it, not a replacement
+for it, and the Account screen keeps its own route.
+
+**What this is:** Rio gave a mockup (2026-09-09) of a slide-in profile menu —
+avatar, name, handle, tier pill, then Watchlist / Profile / Security / Devices /
+Notifications / Membership / Wallet / Refer & Earn, and Sign Out under an
+ACCOUNT heading. It opens from the header's account icon. Rio said the pages
+behind the new rows follow later, so this slice is the drawer only.
+
+**The mockup is magenta and the brand is not.** Rio asked for the layout with
+Jambo's colours, so the active row's gradient is `auth.buttonFrom` →
+`auth.buttonTo` (the site's own blue), not the mockup's crimson.
+
