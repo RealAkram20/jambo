@@ -11,6 +11,9 @@ import { RegisterScreen } from '../screens/RegisterScreen';
 import { SignInScreen } from '../screens/SignInScreen';
 import { TwoFactorScreen } from '../screens/TwoFactorScreen';
 import { UpdateRequiredScreen } from '../screens/UpdateRequiredScreen';
+import { SearchScreen } from '../screens/SearchScreen';
+import { TaxonomyScreen } from '../screens/TaxonomyScreen';
+import { TitleDetailScreen } from '../screens/TitleDetailScreen';
 import { TabNavigator } from './TabNavigator';
 import type { AppStackParams, AuthStackParams } from './types';
 
@@ -82,6 +85,29 @@ export function RootNavigator() {
             name="Tabs"
             component={TabNavigator}
             options={{ headerShown: false }}
+          />
+          <AppStack.Screen
+            name="Title"
+            component={TitleDetailScreen}
+            // The backdrop runs under the status bar, so the header floats over
+            // it rather than sitting on a bar of its own. `title` comes from the
+            // route so the back affordance names what you are leaving.
+            options={({ route }) => ({
+              headerTransparent: true,
+              headerTitle: '',
+              headerBackButtonDisplayMode: 'minimal',
+              title: route.params.title ?? '',
+            })}
+          />
+          <AppStack.Screen
+            name="Taxonomy"
+            component={TaxonomyScreen}
+            options={({ route }) => ({ title: route.params.name })}
+          />
+          <AppStack.Screen
+            name="Search"
+            component={SearchScreen}
+            options={{ title: 'Search' }}
           />
           <AppStack.Screen
             name="Account"

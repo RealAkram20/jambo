@@ -31,6 +31,19 @@ export type TabParams = {
 export type AppStackParams = {
   /** The tab navigator, as one screen in the stack above it. */
   Tabs: undefined;
+  /**
+   * A movie or series page. `type` decides which endpoint answers; the screen
+   * itself is one component, because the website's two pages are the same page
+   * with an episode list added.
+   */
+  Title: { type: 'movie' | 'series'; slug: string; title?: string };
+  /**
+   * A genre, category, VJ or cast archive. One route rather than four, for the
+   * same reason: the website's archive pages differ by their heading and their
+   * source, not by their layout.
+   */
+  Taxonomy: { kind: 'genre' | 'category' | 'vj' | 'cast'; slug: string; name: string };
+  Search: undefined;
   Account: undefined;
   Devices: undefined;
 };

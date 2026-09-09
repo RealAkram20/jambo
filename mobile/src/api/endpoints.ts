@@ -1,5 +1,13 @@
 import type { ApiClient } from './client';
-import type { Home, MovieList, SeriesList, TitleCard } from './catalogue';
+import type {
+  Home,
+  MovieDetail,
+  MovieList,
+  SeriesDetail,
+  SeriesList,
+  TitleCard,
+  TitleDetail,
+} from './catalogue';
 import { required } from './errors';
 import type { components } from './schema';
 import { deviceRegistration } from '../device/deviceId';
@@ -213,6 +221,108 @@ export class JamboApi {
       { method: 'DELETE' },
     );
     return data.in_list ?? false;
+  }
+
+  /**
+   * One movie.
+   *
+   * `is_released` says whether the title can be watched yet, which is NOT the
+   * same as whether this viewer may watch it — that question is answered by
+   * POST /playback/sessions after the entitlement check, and the detail screen
+   * must not try to answer it from `tier_required` alone.
+   */
+  async movie(slug: string): Promise<{ movie: MovieDetail; isReleased: boolean }> {
+    const { data } = await this.client.request<{
+      movie?: MovieDetail;
+      is_released?: boolean;
+    }>(`/movies/${encodeURIComponent(slug)}`);
+
+    return { movie: required(data.movie, 'the movie'), isReleased: data.is_released ?? false };
+  }
+
+  /** One series, with its seasons and their episodes. */
+  async seriesDetail(slug: string): Promise<{ series: SeriesDetail; isReleased: boolean }> {
+    const { data } = await this.client.request<{
+      series?: SeriesDetail;
+      is_released?: boolean;
+    }>(`/series/${encodeURIComponent(slug)}`);
+
+    return { series: required(data.series, 'the series'), isReleased: data.is_released ?? false };
+  }
+
+  /**
+   * A movie or a series, whichever this is, in one shape.
+   *
+   * The detail screen is one component because the website's two pages are one
+   * page with an episode list added, so it wants one call and one return type
+   * rather than a union it has to narrow on every field. `seasonsOf()` is what
+   * asks the only question that actually differs.
+   */
+  async titleDetail(
+    type: 'movie' | 'series',
+    slug: string,
+  ): Promise<{ detail: TitleDetail; isReleased: boolean }> {
+    if (type === 'movie') {
+      const { movie, isReleased } = await this.movie(slug);
+      return { detail: movie, isReleased };
+    }
+
+    const { series, isReleased } = await this.seriesDetail(slug);
+    return { detail: series, isReleased };
+  }
+
+  /**
+   * A genre, category, VJ or cast archive.
+   *
+   * All four answer with the same shape — the entity, then its movies and its
+   * series — which is why the app has one archive screen rather than four. The
+   * path segment is the only thing that differs, and it is chosen from a fixed
+   * map rather than interpolated, so a `kind` the server does not have cannot
+   * be built into a URL.
+   */
+  async taxonomy(
+    kind: 'genre' | 'category' | 'vj' | 'cast',
+    slug: string,
+  ): Promise<{ movies: TitleCard[]; series: TitleCard[]; description: string | null }> {
+    const path = { genre: 'genres', category: 'categories', vj: 'vjs', cast: 'cast' }[kind];
+
+    const { data } = await this.client.request<{
+      movies?: TitleCard[];
+      series?: TitleCard[];
+      genre?: { description?: string | null };
+      category?: { description?: string | null };
+      vj?: { description?: string | null };
+      person?: { bio?: string | null };
+    }>(`/${path}/${encodeURIComponent(slug)}`);
+
+    const blurb =
+      data.genre?.description ??
+      data.category?.description ??
+      data.vj?.description ??
+      data.person?.bio ??
+      null;
+
+    return {
+      movies: data.movies ?? [],
+      series: data.series ?? [],
+      description: typeof blurb === 'string' && blurb !== '' ? blurb : null,
+    };
+  }
+
+  /**
+   * Search movies and series by title.
+   *
+   * Fewer than two characters comes back empty rather than as an error, which
+   * is why the screen can call this on every keystroke behind a debounce
+   * without special-casing the first letter.
+   */
+  async search(query: string): Promise<{ movies: TitleCard[]; series: TitleCard[] }> {
+    const { data } = await this.client.request<{
+      movies?: TitleCard[];
+      series?: TitleCard[];
+    }>(`/search?q=${encodeURIComponent(query)}`);
+
+    return { movies: data.movies ?? [], series: data.series ?? [] };
   }
 
   /** Sign one device out. Takes a device uuid or a browser session id. */

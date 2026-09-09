@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 
 import { api } from '../api/jambo';
 import {
@@ -16,9 +16,12 @@ import {
   type Rail as RailData,
   type TitleCard,
 } from '../api/catalogue';
+import type { AppStackParams } from '../navigation/types';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, rail as railTheme, spacing } from '../ui/theme';
 import { useRailMetrics, type RailMetrics } from '../ui/metrics';
 import { ErrorState, Loading } from '../ui/components';
+import { AppHeader } from '../ui/AppHeader';
 import { Hero } from '../ui/rails/Hero';
 import { PosterCard } from '../ui/rails/PosterCard';
 import { ProgressCard } from '../ui/rails/ProgressCard';
@@ -43,17 +46,45 @@ import { GenreCard, PersonCard, VjCard } from '../ui/rails/TaxonomyCards';
  */
 export function HomeScreen() {
   const metrics = useRailMetrics();
+  const navigation = useNavigation<NativeStackNavigationProp<AppStackParams>>();
+
+  const openTitle = useCallback(
+    (item: TitleCard) => {
+      if (item.slug === undefined) return;
+      navigation.navigate('Title', {
+        type: item.type === 'series' ? 'series' : 'movie',
+        slug: item.slug,
+        ...(item.title === undefined ? {} : { title: item.title }),
+      });
+    },
+    [navigation],
+  );
+
+  const header = (
+    <AppHeader
+      onSearch={() => navigation.navigate('Search')}
+      onAccount={() => navigation.navigate('Account')}
+    />
+  );
 
   const { data, isPending, isError, error, refetch, isRefetching } = useQuery({
     queryKey: ['home'],
     queryFn: () => api.home(),
   });
 
-  if (isPending) return <Loading label="Loading Jambo" />;
+  if (isPending) {
+    return (
+      <View style={styles.screen}>
+        {header}
+        <Loading label="Loading Jambo" />
+      </View>
+    );
+  }
 
   if (isError) {
     return (
-      <SafeAreaView style={styles.screen} edges={['top']}>
+      <View style={styles.screen}>
+        {header}
         <ErrorState
           message={
             error instanceof Error && error.message !== ''
@@ -64,7 +95,7 @@ export function HomeScreen() {
             void refetch();
           }}
         />
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -72,7 +103,8 @@ export function HomeScreen() {
   const hero = data.hero ?? [];
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
+    <View style={styles.screen}>
+      {header}
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -87,15 +119,23 @@ export function HomeScreen() {
           />
         }
       >
-        <Hero items={hero as TitleCard[]} width={metrics.width} onPress={() => {}} />
+        <Hero items={hero as TitleCard[]} width={metrics.width} onPress={openTitle} />
 
         <View style={styles.rails}>
           {rails.map((rail) => (
-            <RailFor key={rail.key ?? rail.title} rail={rail} metrics={metrics} />
+            <RailFor
+              key={rail.key ?? rail.title}
+              rail={rail}
+              metrics={metrics}
+              onOpenTitle={openTitle}
+              onOpenTaxonomy={(kind, slug, name) =>
+                navigation.navigate('Taxonomy', { kind, slug, name })
+              }
+            />
           ))}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -107,15 +147,19 @@ export function HomeScreen() {
  * that is not one of the two ranked shelves falls through to the ordinary
  * poster card, including keys that do not exist yet.
  */
-function RailFor({ rail, metrics }: { rail: RailData; metrics: RailMetrics }) {
+function RailFor({
+  rail,
+  metrics,
+  onOpenTitle,
+  onOpenTaxonomy,
+}: {
+  rail: RailData;
+  metrics: RailMetrics;
+  onOpenTitle: (item: TitleCard) => void;
+  onOpenTaxonomy: (kind: 'genre' | 'vj' | 'cast', slug: string, name: string) => void;
+}) {
   const title = rail.title ?? '';
   const inset = metrics.inset;
-
-  const openTitle = useCallback(() => {
-    // Slice 2b builds the detail screens after Home; until then a card is
-    // focusable and pressable but goes nowhere. Deliberately a no-op rather
-    // than a navigation to a screen that does not exist.
-  }, []);
 
   switch (rail.kind) {
     case 'titles': {
@@ -137,14 +181,14 @@ function RailFor({ rail, metrics }: { rail: RailData; metrics: RailMetrics }) {
                   rank={index + 1}
                   width={metrics.posterWidth}
                   height={metrics.posterHeight}
-                  onPress={openTitle}
+                  onPress={() => onOpenTitle(item)}
                 />
               ) : (
                 <PosterCard
                   item={item}
                   width={metrics.posterWidth}
                   height={metrics.posterHeight}
-                  onPress={openTitle}
+                  onPress={() => onOpenTitle(item)}
                 />
               )}
             </CardSlot>
@@ -168,11 +212,28 @@ function RailFor({ rail, metrics }: { rail: RailData; metrics: RailMetrics }) {
           }
           renderItem={({ item }) => (
             <CardSlot metrics={metrics}>
+              {/*
+                Resuming needs the player, which this slice does not have, so
+                the card opens the title's page — the same destination the
+                poster cards use. It is not a dead control and it is not a
+                promise the app cannot keep.
+
+                The remove button is deliberately absent: the website's card
+                has one, but the DELETE behind it is
+                `['web', 'Authenticate']` in Frontend's web routes, so a
+                bearer token cannot call it. Named in the worklog rather than
+                shipped as a button that always fails.
+              */}
               <ProgressCard
                 item={item}
                 width={metrics.stillWidth}
                 height={metrics.stillHeight}
-                onPress={openTitle}
+                onPress={() => {
+                  const resume = item.resume;
+                  if (resume?.type === 'movie' && typeof resume.id === 'number') {
+                    onOpenTitle({ type: 'movie', id: resume.id, title: item.title ?? '' });
+                  }
+                }}
               />
             </CardSlot>
           )}
@@ -193,6 +254,11 @@ function RailFor({ rail, metrics }: { rail: RailData; metrics: RailMetrics }) {
                 item={item}
                 width={metrics.stillWidth}
                 height={metrics.posterHeight}
+                onPress={
+                  item.slug === undefined
+                    ? undefined
+                    : () => onOpenTaxonomy('genre', item.slug as string, item.name ?? '')
+                }
               />
             </CardSlot>
           )}
@@ -209,7 +275,15 @@ function RailFor({ rail, metrics }: { rail: RailData; metrics: RailMetrics }) {
           keyExtractor={(item, index) => item.slug ?? String(index)}
           renderItem={({ item }) => (
             <CardSlot metrics={metrics}>
-              <VjCard item={item} width={metrics.stillWidth} />
+              <VjCard
+                item={item}
+                width={metrics.stillWidth}
+                onPress={
+                  item.slug === undefined
+                    ? undefined
+                    : () => onOpenTaxonomy('vj', item.slug as string, item.name ?? '')
+                }
+              />
             </CardSlot>
           )}
         />
@@ -225,7 +299,15 @@ function RailFor({ rail, metrics }: { rail: RailData; metrics: RailMetrics }) {
           keyExtractor={(item, index) => item.slug ?? String(index)}
           renderItem={({ item }) => (
             <CardSlot metrics={metrics}>
-              <PersonCard item={item} width={metrics.posterWidth} />
+              <PersonCard
+                item={item}
+                width={metrics.posterWidth}
+                onPress={
+                  item.slug === undefined
+                    ? undefined
+                    : () => onOpenTaxonomy('cast', item.slug as string, item.name ?? '')
+                }
+              />
             </CardSlot>
           )}
         />

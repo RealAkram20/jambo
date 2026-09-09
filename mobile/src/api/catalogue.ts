@@ -25,6 +25,20 @@ export type VjCard = components['schemas']['VjCard'];
 export type PersonCard = components['schemas']['PersonCard'];
 export type MovieList = components['schemas']['MovieList'];
 export type SeriesList = components['schemas']['SeriesList'];
+export type MovieDetail = components['schemas']['MovieDetail'];
+export type SeriesDetail = components['schemas']['SeriesDetail'];
+export type Season = components['schemas']['Season'];
+export type Episode = components['schemas']['Episode'];
+export type Taxonomy = components['schemas']['Taxonomy'];
+export type Person = components['schemas']['Person'];
+
+/** Either detail shape. The screens share everything except the episode list. */
+export type TitleDetail = MovieDetail | SeriesDetail;
+
+/** Seasons exist only on a series, and only when the server sent them. */
+export function seasonsOf(detail: TitleDetail): Season[] {
+  return (detail as SeriesDetail).seasons ?? [];
+}
 
 /**
  * Which rails draw a numbered Top 10 card.
