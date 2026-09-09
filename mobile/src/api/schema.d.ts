@@ -920,6 +920,89 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/account/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * How this viewer wants their video delivered
+         * @description Always a complete set. A viewer who has never opened the screen gets
+         *     the defaults rather than nulls, so no client branches on a missing key.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EnvelopeOk"] & {
+                            data?: {
+                                preferences?: components["schemas"]["StreamingPreferences"];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change some streaming preferences
+         * @description PATCH, not PUT: send only the setting that moved. A client that resent
+         *     the whole set and forgot a field would silently reset it to the
+         *     default, which is how a viewer's data saver turns itself off when they
+         *     toggle something unrelated.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        video_quality?: "auto" | "high" | "data_saver";
+                        autoplay_next?: boolean;
+                        wifi_only_downloads?: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description Saved. Returns the complete set, not just what changed. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EnvelopeOk"] & {
+                            data?: {
+                                preferences?: components["schemas"]["StreamingPreferences"];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/account/security": {
         parameters: {
             query?: never;
@@ -3868,6 +3951,13 @@ export interface components {
                  *     the button: `POST /auth/google` cannot succeed without it.
                  */
                 google_sign_in?: boolean;
+                /**
+                 * @description Whether the referral program is switched on. The website's
+                 *     profile sidebar hides its "Refer & Earn" tab on the same
+                 *     condition, and the app's profile drawer is that sidebar.
+                 *     False means omit the row: the page behind it is disabled.
+                 */
+                referrals?: boolean;
             };
             support?: {
                 site_url?: string;
@@ -3912,6 +4002,35 @@ export interface components {
             avatar_url?: string | null;
             /** Format: date-time */
             joined_at?: string | null;
+        };
+        /**
+         * @description Kept with the account, not the handset, so the same choices hold on a
+         *     second phone and on the television in Phase 4.
+         */
+        StreamingPreferences: {
+            /**
+             * @description Jambo has exactly two renditions — `video_url` and `video_url_low`,
+             *     which `/playback/sessions` selects with `quality: default|low`. So
+             *     these three values are two files plus the choice to pick between
+             *     them automatically, NOT a resolution ladder. `high` always asks for
+             *     `default`; `data_saver` always asks for `low`; `auto` lets the
+             *     client decide, which today means the connection it is on.
+             * @enum {string}
+             */
+            video_quality?: "auto" | "high" | "data_saver";
+            /**
+             * @description Roll into the next episode. The website's player already has this
+             *     switch; until now it was per-session and forgotten on reload.
+             */
+            autoplay_next?: boolean;
+            /**
+             * @description Hold downloads until the device is on Wi-Fi. Stored now so Phase 3
+             *     inherits the viewer's answer, but a client MUST NOT show this
+             *     control while `features.downloads` is false — a switch governing a
+             *     feature that does not exist is a setting that appears to do
+             *     nothing.
+             */
+            wifi_only_downloads?: boolean;
         };
         SecurityState: {
             two_factor?: {

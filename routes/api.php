@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\EmailVerificationController;
 use App\Http\Controllers\Api\V1\PasswordController;
 use App\Http\Controllers\Api\V1\ProfileController;
+use App\Http\Controllers\Api\V1\StreamingPreferencesController;
 use App\Http\Controllers\Api\V1\RegistrationController;
 use App\Http\Controllers\Api\V1\SocialAuthController;
 
@@ -107,5 +108,17 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
         Route::delete('account', [AccountSecurityController::class, 'deactivate'])
             ->name('account.deactivate');
+
+        // How this viewer wants their video delivered. On the account rather
+        // than on the handset, by Rio's ruling of 2026-09-09: the same choices
+        // have to hold on a second phone and on the television in Phase 4.
+        //
+        // PATCH rather than PUT because a screen of switches sends the one
+        // that moved; see the controller for why that distinction protects a
+        // setting the client forgot to resend.
+        Route::get('account/preferences', [StreamingPreferencesController::class, 'show'])
+            ->name('account.preferences.show');
+        Route::patch('account/preferences', [StreamingPreferencesController::class, 'update'])
+            ->name('account.preferences.update');
     });
 });

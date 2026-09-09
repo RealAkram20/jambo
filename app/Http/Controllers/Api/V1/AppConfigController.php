@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Api\ApiResponse;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Modules\Referrals\app\Services\ReferralSettings;
 
 /**
  * What the app needs to know before it knows who is using it.
@@ -43,6 +44,13 @@ class AppConfigController extends Controller
                 // Google button on a server with no client id is a button that
                 // can only fail, and the viewer has no way to know why.
                 'google_sign_in' => (bool) config('services.google.client_id'),
+                // Whether the referral program is switched on. The website's
+                // own profile sidebar hides its "Refer & Earn" tab on exactly
+                // this condition (`_sidebar.blade.php`), and the app's profile
+                // drawer is that sidebar — so without this flag the app would
+                // have had to guess, and would offer a viewer a page that the
+                // admin has turned off.
+                'referrals' => ReferralSettings::active(),
             ],
             'support' => [
                 'site_url' => config('app.url'),

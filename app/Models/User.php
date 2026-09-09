@@ -77,6 +77,10 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
         'two_factor_confirmed_at' => 'datetime',
         'deactivated_at'          => 'datetime',
         'password'                => 'hashed',
+        // How this viewer wants their video delivered. Null until they have
+        // opened the screen; StreamingPreferencesController fills the shape in
+        // from its own defaults so no caller ever sees a partial set.
+        'streaming_preferences'   => 'array',
     ];
 
     /**

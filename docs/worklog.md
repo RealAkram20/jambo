@@ -1594,3 +1594,67 @@ escape it describes; it took a quoted heredoc plus raw strings to survive.
 **Still not built:** the player, two-factor enrolment, password change,
 subscribe, notification deep links, avatar upload, and notification
 preferences. Each is named with its reason in the file that would have held it.
+
+**Rio corrected the shape mid-build: "this is not a drawer it's a screen of
+it's own."** It had been a panel sliding in from the left over the home screen
+behind a scrim. It is now a full screen presented as a modal, and the
+correction deleted more code than it added — no scrim, no panel width, no
+translateX, no `Animated`, no `BackHandler` interception, no
+`accessibilityViewIsModal`. The navigator does all of that for a screen. The
+file moved from `ui/ProfileDrawer.tsx` to `screens/ProfileMenuScreen.tsx` and
+the token block from `drawer` to `profileMenu`.
+
+**Then "please loop yourself until we get the exact design",** which is what
+the rest of this entry is: rendered on the emulator, compared against the
+mockup, changed, rendered again.
+
+**What the loop actually caught, none of which a test would have:**
+- 🔴 **The active-row highlight could never fire.** The menu is opened from the
+  home header, so the route underneath is always the Home tab, which is in no
+  row's map — the gradient, the filled icon and the heavier label were code
+  that ran never. It is now driven by `openedRow()`, a module-level store,
+  *because component state was not enough*: picking a row dismisses the menu,
+  so `useState` was gone by the next open. Proved by seeding the store, seeing
+  the pill render, and restoring.
+- **The unread pill was blue on blue.** `badgeBg` is `activeFrom` and the
+  active row's fill is a gradient starting at `activeFrom`, so on the lit row
+  the count was a shape you had to look for. It now inverts to white with the
+  row's blue as its text.
+- **The avatar was a third too small.** Measured against the phone frame in
+  Rio's mockup the circle is about a fifth of the screen's width; at 68 it was
+  nearer an eighth and the identity block read as another list row. Now 84.
+
+**Verified by rendering, on an Android emulator (API 35, 1280x2856 @ 480dpi),
+against `php artisan serve` on 8095 and the real local catalogue:**
+- The menu with all nine rows live, real name, `@handle` and the real plan
+  name on the tier pill.
+- The **99+ badge**, which needed 120 seeded unread rows to exist at all —
+  `tools/dev-catalogue/8-test-user-notifications.php`, added for this.
+- The active row rendering as the mockup's filled pill, in Jambo blue.
+- The Streaming preferences screen, and a **round trip proved end to end**:
+  tapping "Data saver" on the handset wrote
+  `{"video_quality":"data_saver",...}` to the `streaming_preferences` column,
+  read back out of the database rather than from the screen's own state.
+- The Downloads section correctly absent, because `features.downloads` is
+  false on this server.
+
+**Three rows shipped dimmed and are now live.** Profile, Wallet and Refer &
+Earn were rendered with a "Soon" tag while jambo-fb built their screens in
+parallel; they point at `ProfileEdit`, `Wallet` and `Referrals` as of
+`331b7ff`. **The identity block goes to `Account`, not to `ProfileEdit`, and
+that is deliberate** — Account is the hub holding the subscription, Continue
+Watching and History, and this menu is now the app's only navigation, so
+pointing the block at the editor would leave Continue Watching unreachable.
+
+**For whoever is next:**
+- **`adb shell input tap` on the header account icon is unreliable while the
+  home list is still settling posters.** It is not an app bug — the dev server
+  is single-threaded, the list re-renders, and the tap lands mid-frame.
+  `scratchpad/openmenu.sh` retries until `uiautomator dump` actually shows
+  "Your account", and that is the only way scripted navigation was reliable.
+- **A back press on Home exits the app.** Picking a row dismisses the menu, so
+  the stack is one deep again; a scripted sequence that presses back twice
+  ends up on the Android launcher and the next twenty taps do nothing.
+- The 120 seeded notifications are local only and re-running the script
+  replaces its own rows rather than adding to them. Pass `0` to clear them.
+

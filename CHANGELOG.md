@@ -88,6 +88,55 @@ build's PesaPal checkout, anything in Phase 3, and TV beyond installing
 
 ## Jambo
 
+### 1.8.35 - Streaming preferences, and the flag the app was guessing
+
+Two additions to `/api/v1`, both asked for by Rio while the mobile profile
+drawer was being built: "let the api expose them all as they are needed", and
+then "all can edit and update their streaming preferences".
+
+**`GET` and `PATCH /account/preferences`, with a `streaming_preferences` JSON
+column on `users`.** Video quality, autoplay-next and Wi-Fi-only downloads.
+The design decision worth recording is that these live on the **account**, not
+on the device. Rio was explicit about it, and it is what makes the same
+answers hold on a second handset and, in Phase 4, on the television - a
+data-saver choice made on a phone is worthless if the TV has never heard of
+it.
+
+**`video_quality` is `auto | high | data_saver`, and that is deliberately not
+a resolution ladder.** Jambo has exactly two renditions, `video_url` and
+`video_url_low`, and `/playback/sessions` selects between them with
+`quality: default|low`. A menu offering 4K / 1080p / 720p / 480p would be four
+labels over two files, three of them false. `high` asks for the default
+rendition, `data_saver` for the low one, `auto` lets the client decide from
+the connection it is on. Anyone wanting a third label should ship a third
+rendition first.
+
+**Subtitles were considered and left out.** There is no subtitle or caption
+track anywhere in the Streaming or Content modules. A preference for something
+the player cannot deliver is worse than its absence, because the viewer
+believes they turned it on.
+
+The defaults are `auto` and Wi-Fi-only downloads on, chosen for somebody on
+MTN data who has never opened the screen rather than for somebody at a desk.
+`PATCH` rather than `PUT` so a screen of switches can send only the one that
+moved: a client that resent the whole set and forgot a field would silently
+reset it, which is how a data saver turns itself off when a viewer toggles
+autoplay. Ten feature tests, and the two load-bearing guards - a partial patch
+leaving the rest alone, and an unrecognised stored quality falling back rather
+than reaching the player - were each proved by mutation and restored.
+
+**`features.referrals` on `/app/config`.** The website's profile sidebar hides
+its Refer & Earn tab when `ReferralSettings::active()` is false; the app had
+no way to know that and would have offered viewers a page the admin had
+switched off. Same source of truth, now exposed.
+
+A note for whoever edits PHP next. `AppConfigController` shipped broken for
+part of that session: a Python heredoc turned the `\a` of
+`Modules\Referrals\app\...` into a literal BEL byte, so the file was a
+ParseError and `/app/config` - the first call the app makes on launch - 500d.
+`grep -rlP '\x07' --include=*.php` finds that class of fault. Write PHP with a
+file-writing tool, never through a shell or Python string.
+
 ### 1.8.34 — The review pass: four defects the suite could not see
 
 Rio asked to look at what had just been finished. So every one of the 75

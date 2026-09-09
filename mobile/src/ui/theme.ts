@@ -374,3 +374,70 @@ export const MIN_TOUCH_TARGET = 48;
 export function touchPadding(height: number): number {
   return Math.max(0, Math.ceil((MIN_TOUCH_TARGET - height) / 2));
 }
+
+/**
+ * The profile menu — the screen behind the header's account icon.
+ *
+ * From Rio's mockup of 2026-09-09, re-coloured. The mockup is crimson: its
+ * selected row is a magenta gradient and its tier pill is pink. Jambo is
+ * `#1a98ff`, so every one of those surfaces is expressed here in terms of the
+ * brand instead, and the two values that carry the accent are `auth.buttonFrom`
+ * and `auth.buttonTo` — the *same* gradient the sign-in button already draws,
+ * not a second blue that happens to look similar. The menu therefore cannot
+ * drift away from the button, because there is only one pair of values.
+ *
+ * **It is a screen, not a drawer**, by Rio's correction on the same day. The
+ * background is opaque and fills the display; there is no panel width, no
+ * scrim and no slide, because there is nothing behind it to see through to.
+ */
+export const profileMenu = {
+  /** The reading column, capped so a 10" tablet gets a menu rather than a
+   *  wall of 22dp icons on one side of a very wide row. Same reasoning as
+   *  `auth.cardMaxWidth`. */
+  maxWidth: 520,
+
+  /** The screen's own ground. Deliberately not `colors.background`: the site's
+   *  pure black is right behind poster artwork and too hard behind a column of
+   *  small text, which is all this screen is. */
+  background: '#0B0F17',
+
+  /** A row: 52 drawn, which clears the 48 platform minimum on its own. */
+  rowHeight: 52,
+  rowRadius: 12,
+  rowGap: 2,
+  iconSize: 22,
+  /** The chevron is a hint, not a control, so it sits below the label. */
+  chevronSize: 16,
+  chevronColor: 'rgba(255, 255, 255, 0.35)',
+
+  /** The row a viewer is already on. The gradient is the sign-in button's. */
+  activeFrom: auth.buttonFrom,
+  activeTo: auth.buttonTo,
+
+  /**
+   * The identity block's avatar, and the pencil that will edit it.
+   *
+   * 84 rather than the 68 this was first built at. Measured off Rio's mockup
+   * against the phone frame in it, the circle is about a fifth of the screen's
+   * width; at 68 on a 427dp-wide handset it was nearer an eighth, and the
+   * block read as a list row rather than as the thing the screen is about.
+   */
+  avatarSize: 84,
+  avatarRing: 'rgba(255, 255, 255, 0.12)',
+  editBadgeSize: 24,
+
+  /** The tier pill. Blue-tinted, with the site's own gold crown on it, so both
+   *  brand marks survive the recolour from the mockup's pink. */
+  tierBg: 'rgba(26, 152, 255, 0.16)',
+  tierBorder: 'rgba(26, 152, 255, 0.45)',
+  tierText: '#8FCBFF',
+
+  /** The unread count on the Notifications row. */
+  badgeBg: auth.buttonFrom,
+  badgeText: '#ffffff',
+  badgeSize: 20,
+
+  /** "ACCOUNT" above the sign-out row. */
+  sectionSize: 11,
+  sectionTracking: 1.4,
+} as const;
