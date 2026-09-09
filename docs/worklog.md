@@ -1452,3 +1452,138 @@ behind the new rows follow later, so this slice is the drawer only.
 Jambo's colours, so the active row's gradient is `auth.buttonFrom` →
 `auth.buttonTo` (the site's own blue), not the mockup's crimson.
 
+
+**Scope grew twice mid-session, both times from Rio, and the record matters
+because the second reversed the first.** He asked for streaming preferences —
+"for the mobile it should be watching not editing so all can edit and update
+their streaming preferences", then "so the app is a pure streaming
+experience". I read that as a cut and asked whether Profile editing, Wallet
+and Refer & Earn should leave the app; he chose to drop them, and I told
+jambo-fb to stop building all three. He then corrected the reading: "the thing
+i am fighting is we don't want the admin level on the mobile app. profile
+editing, referrals and wallet are all needed." **Pure streaming means no ADMIN
+surface, not less viewer account management.** All three rows are back and
+jambo-fb resumed. The question was mine and it was framed wrong; noting it so
+the next session does not re-derive the same false choice.
+
+**Owns, final:** mobile/src/ui/ProfileDrawer.tsx, mobile/src/ui/profileMenu.ts,
+mobile/src/ui/profileMenu.test.ts,
+mobile/src/screens/StreamingPreferencesScreen.tsx,
+app/Http/Controllers/Api/V1/StreamingPreferencesController.php,
+database/migrations/2026_09_09_120000_add_streaming_preferences_to_users_table.php,
+tests/Feature/Api/V1/StreamingPreferencesTest.php
+**Shares:** theme.ts (appended `drawer` block), endpoints.ts (appended
+`profile`, `referrals`, `wallet`, `preferences`, `updatePreferences`),
+types.ts + RootNavigator.tsx (`ProfileMenu`, `StreamingPreferences`, `Tabs`
+retyped with nested params), HomeScreen.tsx (one line), User.php (one cast),
+routes/api.php (two routes), AppConfigController.php (`features.referrals`),
+docs/api/openapi.yaml.
+
+**The API grew, because Rio said "let the api expose them all as they are
+needed":**
+- `features.referrals` on `/app/config`, wired to the same
+  `ReferralSettings::active()` the website's own sidebar gates its Refer &
+  Earn tab on. Without it the app had to guess, and would have offered a page
+  the admin had switched off.
+- `GET`/`PATCH /account/preferences` with a `streaming_preferences` JSON
+  column on users. **On the account, not the handset** — that was Rio's
+  explicit ask and it is what makes Phase 4's television inherit the same
+  answers.
+- Client methods for `/profile`, `/referrals` and `/wallet`, which were
+  already specced and had no caller.
+
+**`video_quality` is `auto | high | data_saver` and that is not a resolution
+ladder.** Jambo has exactly two renditions and `/playback/sessions` picks
+between them with `quality: default|low`. A menu reading 4K / 1080p / 720p /
+480p would be three labels for two files. `high` means default, `data_saver`
+means low, `auto` means the client chooses from the connection. Anyone adding
+a resolution label here should add a rendition first.
+
+**Subtitles were considered and deliberately left out.** There is no subtitle
+or caption track anywhere in Streaming or Content, and a preference for
+something the player cannot deliver makes a viewer believe they turned
+something on.
+
+**Verified:**
+- 10 PHP feature tests on the preferences endpoint, 42 assertions, green.
+  **Two guards proved by mutation and both restored:** replacing the merge
+  with `array_merge(self::DEFAULTS, $data)` failed the partial-PATCH test, and
+  deleting the unknown-quality fallback failed its own. A third mutation on
+  the app side — letting a zero unread count draw a badge — failed two of the
+  drawer's tests.
+- `OpenApiSpecTest` green, which is what proves the new endpoint is documented
+  and that the spec still documents nothing that does not exist.
+- 15 app tests on the drawer's pure helpers; 65 app tests overall, typecheck
+  and lint clean on every file this session owns.
+- `/app/config` called directly, not just through its test, and it returns
+  `{"downloads":false,"in_app_subscribe":false,"google_sign_in":false,"referrals":false}`.
+
+🔴 **I shipped a broken `/app/config` for part of this session and jambo-fb
+caught it.** A Python heredoc turned the `\a` of `Modules\Referrals\app\...`
+into a literal BEL byte (0x07), so the file was a ParseError and the first
+call the app makes on launch 500d. This is the *same trap already recorded
+machine-wide as "quoted heredocs mangle PHP namespaces"* — I hit it through
+Python rather than bash and did not connect the two. `grep -rlP '\x07'
+--include=*.php` finds it and now returns nothing. **Write PHP with the Write
+tool. Never through a shell or Python string.**
+
+**Deliberately not built:**
+- **The Profile, Wallet and Refer & Earn screens.** jambo-fb owns them and is
+  building them now. The drawer's three rows render dimmed with a "Soon" tag
+  rather than being hidden or left pressable-but-dead — hiding them makes the
+  menu disagree with the website, and a dead row makes a viewer think the app
+  is broken. Each becomes live with one line in `ProfileDrawer.tsx`.
+- **The pencil on the avatar is decoration**, marked `pointerEvents="none"`.
+  The whole identity block is the press target and goes where the pencil
+  would. It becomes real with the avatar upload endpoint, which exists.
+- **A Wi-Fi-only downloads switch is stored but not shown** unless
+  `features.downloads` is true. Downloads are Phase 3; a switch governing a
+  feature that does not exist appears to do nothing.
+
+### Added after the second close — rail archives, and the account screens
+
+**"View all" on the home rails.** 🔴 The rail and collection key spaces do not
+match: `GET /home` is underscored, `GET /collections` is hyphenated, six
+convert by swapping the separator, **one pair no rule derives** — the rail
+`exclusives` is the collection `only-on-streamit` — three rails have no
+archive at all (`top_movies`, `top_series`, `international_series`) and one
+collection has no rail. Using a rail key as a collection key 404s.
+
+`collectionKeyFor` converts and the home screen checks the result against the
+list the server publishes before drawing a link, so a rail without an archive
+gets no link rather than a link to a 404, and a collection added server-side
+lights up its rail with no app release. Verified on the emulator: "Movies to
+Watch" and "Best in Series This Week" have no link, "Top Picks for You" and
+"AI Smart Shuffle" do. Category shelves route to their taxonomy archive
+instead. Ten unit tests pin the mapping.
+
+**ProfileEdit, Wallet and Refer & Earn**, after Rio clarified that "a pure
+streaming experience" means no *admin* surface in the app, not no viewer
+account management. Money is a string from the wire to the Text node — no
+total, no sum, no "X more to withdraw", because each is arithmetic on
+somebody's balance. Referrals treats a 404 as "off for you" with no Try again
+button, and is gated on `features.referrals` rather than on the 404.
+
+**AccountScreen was handed to jambo-42** on Rio's instruction, mid-session:
+they are building a full-screen profile drawer and introducing more screens,
+so the app has one account navigation rather than two. The three hub links
+added to reach the new screens were reverted; those screens are reached from
+the drawer.
+
+**Working alongside another session.** jambo-42 held theme.ts, schema.d.ts,
+ProfileDrawer, AppHeader and the streaming-preferences backend. Nothing of
+theirs is in any of my commits, and their `StreamingPreferences` and
+`ProfileMenu` routes were preserved when I took the window on the navigation
+files.
+
+🔴 **Their `/app/config` 500ed on a literal 0x07 byte** — `` inside
+`Modules\Referralspp\...` written through a string interpreter, which is
+the trap already in this machine's memory as "quoted heredocs mangle PHP
+namespaces". It broke the app's first call and therefore the whole launch.
+Found by curl, diagnosed with `grep -rlP '' --include=*.php`, reported
+rather than edited under them, and fixed by them. **Write PHP with the Write
+tool, not through a shell or Python string.**
+
+**Still not built:** the player, two-factor enrolment, password change,
+subscribe, notification deep links, avatar upload, and notification
+preferences. Each is named with its reason in the file that would have held it.
