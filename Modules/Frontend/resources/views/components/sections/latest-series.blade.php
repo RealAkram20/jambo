@@ -1,8 +1,15 @@
-<section class="recommended-block section-top-spacing section-wraper">
+{{-- Latest Series — the newest published shows.
+
+     The app has carried this rail since the API shipped; the website had no
+     partial for it, so `best-in-tv` was the nearest thing and it draws
+     `$topShows`, which is the weekly Top 10 rather than the newest. This is
+     `latest-movies` with the show collection and the show fallback art, so the
+     two shelves are the same object at the same size. --}}
+<div class="latest-block section-wraper">
     <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
-        <h4 class="main-title text-capitalize mb-0">{{ $sectionHeading ?? __('frontendform.international_shows') }}</h4>
+        <h4 class="main-title text-capitalize mb-0 fw-medium">{{ $sectionHeading ?? __('sectionTitle.latest_series') }}</h4>
         @if (isset($viewAllBtn))
-            <a href="{{ route('frontend.series') }}" class="text-primary iq-view-all text-decoration-none">{{ __('streamButtons.view_all') }}</a>
+            <a href="{{ route('frontend.series') }}" class="text-primary iq-view-all text-decoration-none flex-none">{{ __('streamButtons.view_all') }}</a>
         @endif
     </div>
     <div class="card-style-slider">
@@ -10,7 +17,7 @@
             data-mobile-sm="3.5" data-autoplay="false" data-loop="true" data-navigation="true" data-pagination="true">
             <ul class="p-0 swiper-wrapper m-0 list-inline">
                 @include('frontend::components.partials.section-cards', [
-                    'items' => $internationalShows ?? collect(),
+                    'items' => $latestShows ?? collect(),
                     'isShow' => true,
                     'fallbackImg' => 'media/vikings-portrait.webp',
                 ])
@@ -21,4 +28,4 @@
             </div>
         </div>
     </div>
-</section>
+</div>

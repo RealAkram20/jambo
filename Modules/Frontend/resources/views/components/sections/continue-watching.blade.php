@@ -8,7 +8,7 @@
 @if ($items->count())
     <section class="continue-watching-block home-continue-watch {{ $sectionPaddingClass ? 'section-padding-top' : '' }}">
         <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
-            <h4 class="main-title text-capitalize mb-0 fw-medium">{{ __('sectionTitle.continue_watching') }}</h4>
+            <h4 class="main-title text-capitalize mb-0 fw-medium">{{ $sectionHeading ?? __('sectionTitle.continue_watching') }}</h4>
         </div>
         {{-- data-loop="false" on purpose: in loop mode Swiper clones and
              re-centers slides so the "most recent" item wouldn't be the

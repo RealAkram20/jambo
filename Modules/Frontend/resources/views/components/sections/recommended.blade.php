@@ -2,7 +2,7 @@
     $downloadUpcoming   = $downloadUpcoming   ?? false;
     $restrictedUpcoming = $restrictedUpcoming ?? false;
     $relatedUpcoming    = $relatedUpcoming    ?? false;
-    $recommended        = $recommended        ?? __('sectionTitle.recommended_tv_show');
+    $recommended        = $recommended        ?? $sectionHeading ?? __('sectionTitle.recommended_tv_show');
     $viewAllBtn         = $viewAllBtn         ?? false;
 
     // Pick which collection to display based on the caller's mode flags.

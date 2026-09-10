@@ -28,17 +28,24 @@ class SectionDataComposer
     private static ?array $cache = null;
     private static ?array $perUserCache = null;
 
-    public function __construct(private readonly HomeRailsService $rails)
+    /**
+     * The shared collections, built once per request.
+     *
+     * The home page's section renderer needs to ask what a section would
+     * contain before deciding to draw it, and it must ask the same memoised
+     * copy every partial then reads — asking HomeRailsService again would run
+     * the whole homepage's queries a second time.
+     *
+     * @return array<string, mixed>
+     */
+    public static function shared(): array
     {
+        return self::$cache ??= app(HomeRailsService::class)->forWeb();
     }
 
     public function compose(View $view): void
     {
-        if (self::$cache === null) {
-            self::$cache = $this->rails->forWeb();
-        }
-
-        foreach (self::$cache as $key => $value) {
+        foreach (self::shared() as $key => $value) {
             $view->with($key, $value);
         }
 

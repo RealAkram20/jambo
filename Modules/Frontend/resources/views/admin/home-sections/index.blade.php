@@ -2,22 +2,19 @@
 
 @section('content')
 {{--
-    Home Sections: the order the app's home screen renders its shelves in.
+    Home Sections: the order the home page renders its shelves in, on the
+    website and in the app, from one list.
 
-    Deliberately built on the same shell as the Featured screen — the same
-    card, the same table classes, the same drag handle, the same status line
-    and the same reorder request. An admin screen that invents its own layout
-    costs more to learn than it gains in polish, and this is the fourth drag
-    list in the product: it must behave like the other three.
+    Built on the same shell as the Featured screen — the same card, table
+    classes, drag handle, status line and reorder request. This is the fourth
+    drag list in the product; it must behave like the other three.
 
-    Honest by design: a switched-off section is listed and labelled, not
-    hidden. Hiding it would leave nobody able to work out why a shelf stopped
-    appearing on the app. The technical key is on the row for the same
-    reason — it is what support and the API both talk in.
+    Honest by design: a switched-off section is listed and dimmed, not hidden.
+    Hiding it would leave nobody able to work out why a shelf stopped
+    appearing. The technical key is on the row for the same reason — it is
+    what support and the API both talk in.
 
-    Scope: the APP's home screen. The website's homepage sections are a
-    different, non-matching vocabulary in Streamit template Blade and are
-    deliberately untouched — see docs/plans/homepage-section-arrangement.md.
+    No prose. Every word on this screen carries a fact the controls do not.
 --}}
 <style>
     /* Craft inside the house shell. Every colour is a Bootstrap theme
@@ -45,14 +42,23 @@
         font-family: var(--bs-font-monospace, monospace);
         font-size: 0.74rem;
         color: rgba(var(--bs-body-color-rgb), 0.6);
+        /* The admin table capitalises its cells. This one is a literal
+           identifier the API and the app key on — `top_movies`, not
+           `Top_movies` — so a support engineer reading it off the screen must
+           read what is actually stored. */
+        text-transform: none !important;
     }
 
-    .jhs-note { font-size: 0.76rem; color: rgba(var(--bs-body-color-rgb), 0.68); }
+    /* Same reason: a sentence should not be Title Cased Like A Heading. */
+    .jhs-note { font-size: 0.76rem; color: rgba(var(--bs-body-color-rgb), 0.68); text-transform: none !important; }
 
-    /* A hidden row reads as hidden at a glance, and still says so in words
-       and with an icon — never by colour alone. */
+    /* A hidden row reads as hidden at a glance, and says so in a word as
+       well — never by colour alone. */
     .jhs-row--off .jhs-name,
     .jhs-row--off .jhs-rank { opacity: 0.55; }
+
+    .jhs-off-flag { font-size: 0.74rem; letter-spacing: 0.04em; text-transform: uppercase; color: rgba(var(--bs-body-color-rgb), 0.6); }
+    .jhs-row:not(.jhs-row--off) .jhs-off-flag { display: none; }
 
     /* The saved row lights briefly, then settles — the reorder confirms
        itself where it happened rather than only in the header. */
@@ -90,13 +96,6 @@
                 </div>
 
                 <div class="card-body">
-                    <p class="jhs-note mb-4" style="max-width: 62ch;">
-                        Drag a row to move that shelf up or down the app's home screen. The switch takes a
-                        shelf off the home screen without deleting anything, so you can put it back later.
-                        Changes are live the next time the app loads its home screen &mdash; there is nothing
-                        to publish.
-                    </p>
-
                     <div class="table-view table-space">
                         {{-- data-ordering/paging off: rows follow `position` and are
                              rearranged by drag — the table must not re-sort them or
@@ -108,8 +107,7 @@
                                     <th></th>
                                     <th>#</th>
                                     <th>Section</th>
-                                    <th>On the app</th>
-                                    <th>Status</th>
+                                    <th>Website &amp; app</th>
                                 </tr>
                             </thead>
                             <tbody id="hsSortBody">
@@ -132,42 +130,36 @@
                                             <code class="jhs-key">{{ $section->key }}</code>
                                             @if ($isCategoryGroup)
                                                 <span class="jhs-note d-block mt-1">
-                                                    All category shelves move together. Their order among
-                                                    themselves is set on the Categories screen.
+                                                    Order within the block is set on the Categories screen.
                                                 </span>
                                             @endif
                                         </td>
                                         <td>
-                                            <div class="form-check form-switch mb-0">
-                                                <input class="form-check-input" type="checkbox"
-                                                       role="switch"
-                                                       id="hsToggle{{ $section->id }}"
-                                                       data-toggle-url="{{ route('admin.home-sections.toggle', $section) }}"
-                                                       {{ $section->enabled ? 'checked' : '' }}>
-                                                <label class="form-check-label jhs-note" for="hsToggle{{ $section->id }}">
-                                                    Show &ldquo;{{ $sectionName }}&rdquo; on the app
-                                                </label>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div class="form-check form-switch mb-0">
+                                                    <input class="form-check-input" type="checkbox"
+                                                           role="switch"
+                                                           id="hsToggle{{ $section->id }}"
+                                                           aria-label="Show {{ $sectionName }}"
+                                                           data-toggle-url="{{ route('admin.home-sections.toggle', $section) }}"
+                                                           {{ $section->enabled ? 'checked' : '' }}>
+                                                </div>
+                                                {{-- Only the off state needs a word. "On" is what the
+                                                     switch already says. --}}
+                                                <span class="jhs-off-flag" data-state>Hidden</span>
                                             </div>
-                                        </td>
-                                        <td>
-                                            {{-- Status carries an icon and words, never colour alone. --}}
-                                            <span class="badge {{ $section->enabled ? 'bg-success' : 'bg-secondary' }}" data-state>
-                                                <i class="ph {{ $section->enabled ? 'ph-eye' : 'ph-eye-slash' }}"
-                                                   aria-hidden="true"></i>
-                                                {{ $section->enabled ? 'Showing' : 'Hidden' }}
-                                            </span>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5">
+                                        <td colspan="4">
                                             <div class="jhs-empty-state text-center">
                                                 <i class="ph ph-rows" aria-hidden="true"></i>
                                                 <p class="mt-2 mb-1" style="font-weight:500;">No sections listed</p>
                                                 <p class="text-muted mb-0" style="font-size:13px;">
-                                                    The app is using the order built into the software. Reload this
-                                                    page; if it stays empty, the home_sections table has not been
-                                                    set up on this server.
+                                                    The home page is using the order built into the software.
+                                                    Reload; if it stays empty, the home_sections table has not
+                                                    been set up on this server.
                                                 </p>
                                             </div>
                                         </td>
@@ -255,11 +247,9 @@
         Array.prototype.forEach.call(tbody.querySelectorAll('input[data-toggle-url]'), function (input) {
             input.addEventListener('change', function () {
                 var row = input.closest('tr');
-                var badge = row ? row.querySelector('[data-state]') : null;
                 var wanted = input.checked;
 
                 input.disabled = true;
-                status(wanted ? 'Showing this section…' : 'Hiding this section…', 'ok');
 
                 fetch(input.getAttribute('data-toggle-url'), {
                     method: 'PATCH',
@@ -278,16 +268,7 @@
                     var on = !!data.enabled;
                     input.checked = on;
                     if (row) row.classList.toggle('jhs-row--off', !on);
-                    if (badge) {
-                        badge.className = 'badge ' + (on ? 'bg-success' : 'bg-secondary');
-                        badge.innerHTML = '';
-                        var icon = document.createElement('i');
-                        icon.className = 'ph ' + (on ? 'ph-eye' : 'ph-eye-slash');
-                        icon.setAttribute('aria-hidden', 'true');
-                        badge.appendChild(icon);
-                        badge.appendChild(document.createTextNode(' ' + (on ? 'Showing' : 'Hidden')));
-                    }
-                    status(on ? 'Section is showing on the app' : 'Section is hidden from the app', 'ok');
+                    status(on ? 'Section is showing' : 'Section is hidden', 'ok');
                 }).catch(function () {
                     // Nothing was saved, so the switch must go back to what
                     // is actually stored rather than lying about it.

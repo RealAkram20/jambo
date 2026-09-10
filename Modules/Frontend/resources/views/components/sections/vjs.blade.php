@@ -7,7 +7,7 @@
 --}}
 <div class="movie-geners-block section-wraper">
     <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
-        <h4 class="main-title text-capitalize mb-0 fw-medium">{{ __('streamTag.vjs') ?? 'VJs' }}</h4>
+        <h4 class="main-title text-capitalize mb-0 fw-medium">{{ $sectionHeading ?? __('streamTag.vjs') ?? 'VJs' }}</h4>
         <a href="{{ route('frontend.movie') }}" class="text-primary iq-view-all text-decoration-none flex-none">{{ __('streamButtons.view_all') }}</a>
     </div>
     <div class="card-style-slider">

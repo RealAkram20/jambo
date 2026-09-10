@@ -62,57 +62,19 @@
     </div>
 </div>
 
-{{-- No overflow-hidden wrapper here: card-hover on .iq-card extends
-     ~1.25em outside each card and ~5em below via the ::after pseudo,
-     so clipping cuts off the Play Now / wishlist reveal on the
-     leftmost column and the bottom row. Horizontal page overflow is
-     handled at the body level in custom.css. Same pattern as
-     /movie, /series, /upcoming, /genres/*. --}}
-<div class="container-fluid">
-    @include('frontend::components.sections.continue-watching', ['value' => '6', 'sectionPaddingClass' => true])
-    {{-- Smart Shuffle promoted to second position (was bottom of
-         page) so the personalised half-familiar / half-discovery
-         shelf is visible above the fold for returning users.
-         Continue Watching → Smart Shuffle → Top 10 is the new
-         attention sequence. --}}
-    @include('frontend::components.sections.recommended', [
-        'recommended' => __('sectionTitle.smart_shuffle'), 'viewAllBtn' => true,
-        'viewAllRoute' => route('frontend.rail_archive', 'smart-shuffle'),
-    ])
-    @include('frontend::components.sections.top-ten-block')
-    @include('frontend::components.sections.top-ten-tvshow')
-    {{-- Admin-curated category shelves (visible_home toggle on the
-         category admin page). One rail per category, View All goes to
-         the category's own /categories/{slug} page. --}}
-    @include('frontend::components.sections.category-rails')
-    @include('frontend::components.sections.vjs')
-    @include('frontend::components.sections.only-on-streamit')
-    {{-- Random category shelf — replaced "Fresh Picks Just For You"
-         (redundant next to Top 10 Movies). Slots 0-2 rotate through
-         admin categories not pinned to the homepage. --}}
-    @include('frontend::components.sections.random-category-rail', ['slot' => 0])
-    @include('frontend::components.sections.upcomming', ['viewAllBtn' => true])
-</div>
+{{-- The shelves are no longer listed here.
 
-@include('frontend::components.sections.verticle-slider')
+     Their order, which of them show, and what each is called are one row per
+     section in `home_sections`, dragged on /admin/home-sections, and the same
+     rows order `GET /api/v1/home`. Editing this file to move a shelf would
+     put the website back out of step with the app, which is the state this
+     replaced. Move it on the screen instead.
 
-<div class="container-fluid">
-    @include('frontend::components.sections.Your-Favourite-Personality')
-    {{-- Random category shelf — replaced "Popular Movies". --}}
-    @include('frontend::components.sections.random-category-rail', ['slot' => 1])
-</div>
-
-@include('frontend::components.sections.tab-slider')
-
-<div class="container-fluid">
-    @include('frontend::components.sections.geners')
-
-    {{-- Smart Shuffle moved up to right after Continue Watching;
-         see the higher block in this file. --}}
-
-    {{-- Random category shelf — replaced "Top Picks for You". --}}
-    @include('frontend::components.sections.random-category-rail', ['slot' => 2])
-</div>
+     `upcomingItems` is the one collection the route action holds rather than
+     HomeRailsService, so it is handed over explicitly. --}}
+@include('frontend::components.sections.arranged', [
+    'sectionData' => ['upcomingItems' => $upcomingItems ?? collect()],
+])
 
 {{-- Mobile Footer --}}
 @include('frontend::components.widgets.mobile-footer')

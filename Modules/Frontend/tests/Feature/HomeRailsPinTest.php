@@ -43,7 +43,7 @@ class HomeRailsPinTest extends TestCase
         'heroMovies', 'heroItems', 'verticalFeatured', 'tabSeries',
         'exclusiveMovies', 'topPicks', 'homeGenres', 'homeVjs',
         'favoritePersonalities', 'continueWatching',
-        'homeCategories', 'randomHomeCategories',
+        'homeCategories',
         'userWatchlistIndex',
     ];
 
@@ -132,7 +132,7 @@ class HomeRailsPinTest extends TestCase
 
         $shared = $this->compose();
 
-        $slugs = $shared['homeCategories']->concat($shared['randomHomeCategories'])->pluck('slug');
+        $slugs = $shared['homeCategories']->pluck('slug');
         $this->assertNotContains('nothing-in-here', $slugs->all());
     }
 

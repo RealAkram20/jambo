@@ -1,7 +1,20 @@
 # Rearranging the homepage sections
 
-**Status:** proposed, not started. Written 2026-09-09 at Rio's request, for a
-different session to build.
+**Status: DONE, both stages. Kept for its findings, not as a work item.**
+Stage 1 shipped as 1.8.36 on 2026-09-09. Stage 2 shipped as 1.8.38 on
+2026-09-10 — see `docs/adr/0007-one-home-arrangement-for-both-surfaces.md`.
+
+> 🔴 **§3's estimate was wrong, and that is the most useful thing in this
+> file.** It calls the two surfaces' vocabularies "structural, not cosmetic"
+> and defers the website behind an ADR. The website in fact already had a
+> partial for almost every rail it was not drawing, each reading a collection
+> `HomeRailsService::forWeb()` already returned, each simply never included;
+> and the three `random-category-rail` slots were stand-ins for exactly those
+> missing rails rather than a rival vocabulary. The mismatch was a subset, not
+> a structure. **Read the second surface's files before sizing work against
+> it** — that is now a rule in `~/.claude/skills/engineering-standards/SKILL.md`.
+
+Written 2026-09-09 at Rio's request, for a different session to build.
 
 > "we are planing to build the drag feature where we rearrange the sections on
 > the homepage like we switch homepage elements and we arange them accordingly

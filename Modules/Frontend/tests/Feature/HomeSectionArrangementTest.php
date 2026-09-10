@@ -35,10 +35,14 @@ use Tests\TestCase;
  *      its row exists must never vanish, or a deploy order silently loses a
  *      section from the home screen and nobody gets an error.
  *
- * Scope guard: this is the APP's home screen only. Nothing under mobile/ is
- * involved — the app already renders whatever ordered list it is given — and
- * the website's own homepage is a different, non-matching vocabulary that
- * stage 2 reconciles behind an ADR.
+ * Since ADR-0007 the same rows govern the WEBSITE's home page, so a fifth
+ * property joins them: **both surfaces obey one list.** The way this feature
+ * fails is not an exception, it is one surface quietly drifting from the
+ * other, which is the state it was built to end. The website tests at the
+ * bottom are that guard.
+ *
+ * Nothing under mobile/ is involved. The app already renders whatever ordered
+ * list it is given.
  */
 class HomeSectionArrangementTest extends TestCase
 {
@@ -385,6 +389,108 @@ class HomeSectionArrangementTest extends TestCase
     // ── fixtures ─────────────────────────────────────────────────────
 
     /** @return array<int, string> */
+    /**
+     * Property 5, and the one that keeps the two surfaces from drifting again.
+     *
+     * A section is one row in DEFAULTS and one in WEB_VIEWS. If a key reaches
+     * only one of them, one surface can render it and the other cannot, and
+     * nothing anywhere would say so — which is the exact shape of the bug this
+     * feature replaced, when the website drew twelve shelves and the app drew
+     * eighteen under partly different names.
+     */
+    public function test_every_section_is_drawable_on_both_surfaces(): void
+    {
+        $this->assertSame(
+            array_keys(HomeSection::DEFAULTS),
+            array_keys(HomeSection::WEB_VIEWS),
+            'Every section needs a heading key AND a website partial, in the same order.'
+        );
+
+        foreach (HomeSection::WEB_VIEWS as $key => $spec) {
+            $view = 'frontend::components.sections.'.$spec['view'];
+
+            $this->assertTrue(
+                view()->exists($view),
+                "Section {$key} maps to {$view}, which does not exist.",
+            );
+        }
+    }
+
+    /**
+     * The drag is the website's order too.
+     *
+     * Proved by moving a shelf rather than by reading today's order: the
+     * assertion is that swapping two rows swaps the two headings on the page,
+     * so it cannot pass against a page that happens to be hard-coded that way.
+     */
+    public function test_a_dragged_order_is_the_order_the_website_renders(): void
+    {
+        $this->seedCatalogue();
+
+        $before = $this->headingPositions();
+        $this->assertLessThan(
+            $before['popular'],
+            $before['latest'],
+            'Precondition: Latest Movies sits above Popular Movies in the seeded order.',
+        );
+
+        $latest = HomeSection::where('key', 'latest_movies')->firstOrFail();
+        $popular = HomeSection::where('key', 'popular_movies')->firstOrFail();
+        [$latest->position, $popular->position] = [$popular->position, $latest->position];
+        $latest->save();
+        $popular->save();
+
+        $after = $this->headingPositions();
+        $this->assertLessThan(
+            $after['latest'],
+            $after['popular'],
+            'Dragging Popular Movies above Latest Movies must move it on the website.',
+        );
+    }
+
+    /** A section switched off leaves the website as well as the app. */
+    public function test_a_disabled_section_does_not_reach_the_website(): void
+    {
+        $this->seedCatalogue();
+
+        $this->get('/')->assertOk()->assertSee(__('sectionTitle.popular_movies'), false);
+
+        HomeSection::where('key', 'popular_movies')->update(['enabled' => false]);
+
+        $this->get('/')->assertOk()->assertDontSee(__('sectionTitle.popular_movies'), false);
+    }
+
+    /** An admin's label renames the heading on the website, not just in the app. */
+    public function test_an_admin_label_renames_the_website_heading(): void
+    {
+        $this->seedCatalogue();
+
+        HomeSection::where('key', 'popular_movies')->update(['label' => 'Uganda Loves These']);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('Uganda Loves These', false)
+            ->assertDontSee(__('sectionTitle.popular_movies'), false);
+    }
+
+    /**
+     * Where two headings sit on the rendered home page.
+     *
+     * @return array{latest: int, popular: int}
+     */
+    private function headingPositions(): array
+    {
+        $html = $this->get('/')->assertOk()->getContent();
+
+        $latest = strpos($html, __('sectionTitle.latest_movies'));
+        $popular = strpos($html, __('sectionTitle.popular_movies'));
+
+        $this->assertIsInt($latest, 'Latest Movies did not render at all.');
+        $this->assertIsInt($popular, 'Popular Movies did not render at all.');
+
+        return ['latest' => $latest, 'popular' => $popular];
+    }
+
     private function railKeys(?string $token = null): array
     {
         $request = $token ? $this->withFreshToken($token) : $this;

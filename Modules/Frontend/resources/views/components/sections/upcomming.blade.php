@@ -19,7 +19,7 @@
     }
 
     $t = __('sectionTitle.upcoming_title');
-    $upcTitle = $t === 'sectionTitle.upcoming_title' ? 'Upcoming' : $t;
+    $upcTitle = $sectionHeading ?? ($t === 'sectionTitle.upcoming_title' ? 'Upcoming' : $t);
 @endphp
 
 <div class="streamit-block section-wraper">

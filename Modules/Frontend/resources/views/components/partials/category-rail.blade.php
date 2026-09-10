@@ -1,8 +1,6 @@
 {{-- One category shelf. Expects `$cat` — a Category carrying a
      `railItems` collection (published movies + series merged, items
-     tagged `_isShow` for per-card routing). Shared by the pinned
-     homepage rails (category-rails) and the random replacement rails
-     (random-category-rail). Cards can't use section-cards here
+     tagged `_isShow` for per-card routing). Cards can't use section-cards here
      because that partial assumes one content type per rail; this
      mirrors its card args. --}}
 <div class="category-rail-block section-wraper">

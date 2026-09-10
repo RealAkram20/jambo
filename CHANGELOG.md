@@ -8,6 +8,49 @@ would advertise a webapp update containing no webapp change.
 
 ## Jambo App
 
+### Unreleased — One cast page, and round avatars on both surfaces
+
+Two instructions from Rio, an hour apart, and the second reverses part of what
+the first slice had just matched.
+
+**`/all-personality` is gone; `/cast-list` is the survivor.** *"i have noticed
+the /all-personality should be /cast-list so we can remove the
+/all-personality for casts … on both App and mobile"*. He was right and the
+controller showed why: `cast_list()` and `all_personality()` ran the SAME query
+byte for byte and differed only in which view they rendered — one card per row
+against three. `/cast-list` survives because it is the page the product already
+navigates to: the site's own sidebar links to it and marks it active, while the
+other was reachable from a single "View All" on the home rail. The route, the
+controller action and the duplicate view are deleted, the rail links to
+`/cast-list`, and the app's screen is renamed with it and **re-measured**,
+because the two pages showed the same people in different grids.
+
+`all-personality` stays in the reserved-username list. Freeing a reserved name
+is the one-way door: somebody takes it, the route comes back, and the route
+shadows their profile.
+
+**The home rail's people are round, smaller and four across, on both
+surfaces.** *"make the people's cards like this and smaller on home for both
+webapp and mobile"*. The website changed first and the app's numbers were then
+read back off it, so the two cannot drift: an 89.5 slide holding a 75.5 circle,
+the name at 12px, `data-mobile="4"`.
+
+🔴 **Scoping that shape took two attempts, and a probe caught the first
+one.** `cards/personality-card.blade.php` is included FIVE times — this rail
+plus the cast and crew rows on the movie and TV detail pages — so the override
+was written against `.favourite-person-block` to avoid touching the partial.
+The detail pages wrap their rows in that same class. A probe of a movie page
+read `border-radius: 50%` where nothing should have changed, and the rule is
+now scoped to a `--home` modifier added for it. **The detail pages still draw
+the rounded 1/1.3 portrait**, which is what "on home" means.
+
+The radius carries `!important` on one line, and only that line: the card wears
+Bootstrap's `rounded-3`, every Bootstrap utility ships `!important`, and a
+plain declaration loses however specific the selector is.
+
+**The cast list page keeps its rectangle** for the same reason — `/cast-list`
+is not home. Its card is the site's 1/1.3 portrait, three across.
+
 ### Unreleased — The VJs and Personality rails, at the website's design
 
 Rio, over a screenshot of the two: *"fix these sections"*. Both were drawn at
@@ -1546,6 +1589,74 @@ build's PesaPal checkout, anything in Phase 3, and TV beyond installing
 `react-native-tvos` and its config plugin so the door stays open.
 
 ## Jambo
+
+### 1.8.38 — Home Sections governs the website, not only the app
+
+Rio: *"i feel it's off [...] it's not meant for the mobile app but for the
+whole system. [...] having things half done for the seck of doing is as good as
+useless."*
+
+`/admin/home-sections` shipped in 1.8.36 and worked, on one surface. An admin
+dragged a row, the app's home screen changed, and jambofilms.com carried on
+drawing a different home page — twelve of the eighteen sections, in a different
+order, with three rotating category shelves standing in for rails that had been
+retired. Nothing on the screen said so.
+
+**The website's home page no longer lists its shelves.** `ott-page.blade.php`
+was fifteen hard-coded `@include`s; it is now one, and order, visibility and
+heading for both surfaces are the `home_sections` rows. Moving a shelf by
+editing that Blade is now a regression, and the file says so.
+
+**The plan's estimate was wrong, and reading the code is what showed it.**
+`docs/plans/homepage-section-arrangement.md` §3 called the two surfaces'
+vocabularies structurally mismatched and deferred the reconciliation behind an
+ADR. The website in fact already had a partial for almost every rail it was not
+drawing — `top-pict`, `latest-movies`, `fresh-picks-just-for-you`,
+`Popular-movies`, `best-of-international-shows` — each reading a collection
+`HomeRailsService::forWeb()` already returned, each simply never included. Only
+Latest Series had no partial, and it is `latest-movies` with the show
+collection. The three `random-category-rail` slots were not a rival vocabulary
+either: their own comment says they replaced Top Picks, Popular Movies and
+Fresh Picks, which are exactly the rails that came back. They are gone and the
+category shelves are one movable block, which is what `/api/v1/home` already
+sent.
+
+**So the home page now draws six shelves it was missing** and the category
+rails sit together. Every one of them is one click away from being switched off
+on the screen, which is the point of the screen. See ADR-0007.
+
+**An admin's label now renames the heading on the website too.** Each section
+partial takes `$sectionHeading` and falls back to the translation key it always
+used, so every other page that includes them is unchanged.
+
+**A section with nothing in it is dropped**, which is the rule `/api/v1/home`
+already followed. A heading over nothing is worse than no heading.
+
+**The screen itself lost its prose and its duplicate.** A paragraph explaining
+that dragging a row moves it, above a list of draggable rows; and a status
+badge repeating what the switch beside it already said. Both gone. The column
+is now headed "Website & app", which carries the fact the paragraph was
+carrying. The technical key had also been title-cased by the table theme —
+`Top_movies` for `top_movies` — which is a literal identifier the app keys on
+and now renders as stored.
+
+**A cap of four category shelves is gone with the layout that needed it.**
+`HomeRailsService` handed the page one "fixed" category plus three more,
+because the old page had one fixed slot and three rotating ones. With the
+shelves collapsed into one movable block that split described nothing, and the
+cap was quietly overruling the admin: six categories were marked Visible Home
+on the dev box and only four reached the page. It cost nothing to remove — the
+cap was applied to the result, so the query had already read them all. Six
+categories now produce six shelves, on the website and in `/api/v1/home` alike.
+
+🔴 **The number of home category shelves is now the admin's**, set by the
+Visible Home toggle and bounded by nothing in code. Before flagging a large
+number, read the note now in `HomeRailsService`: each shelf eager-loads every
+published title in its category to keep twelve, and bounding that properly
+needs a window function rather than a `take()`.
+
+**Not changed: the API payload.** No rail key added, renamed or reordered. No
+file under `mobile/` touched.
 
 ### 1.8.37 — The billing page has been throwing a 500 since it was written
 

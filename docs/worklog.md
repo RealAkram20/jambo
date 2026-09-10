@@ -6232,3 +6232,205 @@ is `/all-personality`, which has no app screen and no endpoint, so `seeAllFor`
 answers undefined and no control is drawn — a control that leads nowhere is
 worse than a heading without one. It is the shape `GenresScreen` already has,
 plus one endpoint.
+
+### 2026-09-10 — one home arrangement, governing the website as well as the app
+
+**Status:** in progress
+**Owns:**
+- `Modules/Frontend/app/Models/HomeSection.php` — the `WEB_VIEWS` map and `webPlan()`
+- `Modules/Frontend/resources/views/components/sections/arranged.blade.php` (new)
+- `Modules/Frontend/resources/views/components/sections/latest-series.blade.php` (new)
+- `docs/adr/0007-one-home-arrangement-for-both-surfaces.md` (new)
+
+**Shares — minimal diffs, each named:**
+- `Modules/Frontend/resources/views/Pages/MainPages/ott-page.blade.php` — the
+  section block between the hero and the mobile footer becomes one include.
+- The home section partials — the `<h4>` heading line only, so an admin's
+  label reaches the website the way it already reaches the app.
+- `Modules/Frontend/resources/views/components/sections/category-rails.blade.php`
+  — renders the whole Visible Home pool rather than the first shelf.
+- `Modules/Frontend/app/View/Composers/SectionDataComposer.php` — one public
+  accessor for the cache it already builds.
+- `Modules/Frontend/resources/views/admin/home-sections/index.blade.php`
+- `CHANGELOG.md`, `docs/worklog.md`
+
+**Not touching:** anything under `mobile/`, `Modules/Content`, or the API
+controllers. Another session holds `mobile/src/api/*` and
+`Modules/Content/.../TaxonomyController.php`.
+
+**Status: complete, shipped as 1.8.38.**
+
+**What was built.** The website's home page renders from `home_sections`, the
+same rows that order `/api/v1/home`. `HomeSection::WEB_VIEWS` maps each section
+to its partial, its collection, and whether it is full-width;
+`HomeSection::webPlan()` turns the stored rows into runs of includes, grouped
+so the page container opens once per run and a full-width banner breaks the
+run; `components/sections/arranged.blade.php` renders that.
+`ott-page.blade.php` is one include. Every section partial takes
+`$sectionHeading`. ADR-0007 has the decision and why the plan's estimate was
+wrong.
+
+**Verified, by rendering and by mutation.**
+- `http://127.0.0.1:8090/` as a guest: thirteen headings in exactly the stored
+  order, both daily banners present, Continue Watching and Upcoming correctly
+  absent because both collections are empty for a guest here.
+- Disabling `top_movies` removed it from the page. Renaming `popular_movies` to
+  "Uganda Loves These" and moving it to position 0 did both. **The table was
+  restored to its original 18 rows and order.**
+- `/admin/home-sections` rendered as an admin and screenshotted: 18 rows, four
+  columns, no blurb, no duplicate badge.
+- Four new tests in `HomeSectionArrangementTest`. Two mutants — dropping the
+  `enabled` filter, and ignoring the label — each failed their own test and
+  nothing else. Both restored; `grep MUTANT` is clean.
+- Full suite: **705 passing, 2 failing.** The two are
+  `PricingPageCurrentPlanTest`, "free user sees current plan on the free tier"
+  and "subscribed user does not see current plan on the free tier". **They fail
+  identically on a stashed clean tree, so they pre-date this work.**
+
+**Not verified.**
+- **A real-pointer drag.** The reorder endpoint is tested directly and the
+  SortableJS wiring is unchanged from 1.8.19, but nobody has dragged a row.
+- **The admin screen's icons.** The screenshot was taken from a saved file over
+  `file://`, so the Phosphor font did not resolve and every icon, including the
+  sidebar's, drew as an empty box. Almost certainly a capture artefact, not a
+  defect — but it is unproven, and the drag handle is an icon.
+- **Production.** Nothing was deployed. The homepage composition change is
+  visible to viewers on the next deploy.
+- **Category shelves on a populated catalogue.** This machine has no Visible
+  Home category with published content, so `homeCategories` is empty and the
+  block was correctly skipped rather than correctly drawn. The suite covers it;
+  the render did not.
+
+**Deliberately not built.**
+- **No app change, and nothing under `mobile/` touched.** The app already
+  renders whatever ordered list it is given.
+- **No rail key added, renamed or reordered.** `DEFAULTS` is byte-identical.
+- **`FrontendController::ott()` still computes `$featuredMovies`,
+  `$latestMovies` and `$popularShows` that `SectionDataComposer` then
+  overwrites.** Three wasted queries on every home page. Found while doing
+  this, left alone: restructuring a route action inside a feature slice is the
+  failure mode, not the fix. It is a five-line commit for whoever takes it.
+- **No second control for category order.** It is on the Categories screen and
+  two controls for one order is how two orders start disagreeing.
+
+**Gotcha, and it cost the other session a warning.** I ran `git stash
+--include-untracked` to check whether the pricing failures pre-dated me, on a
+tree jambo-6b had eleven uncommitted files in. It popped cleanly and all eleven
+were verified back, but **do not stash a shared tree** — use a worktree.
+
+**For whoever is next.** Adding a home section is two rows in one class:
+`HomeSection::DEFAULTS` for the heading key, `HomeSection::WEB_VIEWS` for the
+partial. A test asserts the two key sets match in the same order, so forgetting
+one fails rather than silently missing a surface.
+
+**Addendum, same session — the deploy-readiness pass, and it found something.**
+
+Rio asked whether this is ready for the live server and reminded that hardcoded
+work is not wanted. Two things changed as a result.
+
+1. **The four-category cap is gone.** `HomeRailsService` returned
+   `homeCategories` (1) and `randomHomeCategories` (3) because the page had a
+   fixed slot and three rotating ones. Collapsing the block into one movable
+   section left that split describing nothing, and the cap was overruling the
+   admin — six categories flagged Visible Home on this box, four on the page.
+   It was applied to the result, not the query, so it saved nothing and only
+   hid rows. One collection now, at every call site: the service, the API
+   controller, the blade, and `HomeRailsPinTest`. Verified: six flagged
+   produces six shelves on both surfaces, four before.
+2. **The number of home category shelves is now unbounded in code**, and the
+   real cost is written beside it. `shapeCategoryRails` eager-loads every
+   published title in each Visible Home category to keep twelve. Bounding that
+   per parent needs a window function or a query per category — Eloquent cannot
+   express it in a `with()` closure. **Do that before the list grows.** Not
+   done here: it is a service-level change and this was a feature slice.
+
+**Two items left the "Not verified" list above.**
+
+- **A real pointer drag is verified, and not by us.** Somebody reordered the
+  rows in a browser at 20:26 UTC: all eighteen positions written in one
+  request, both daily banners moved into the middle of the page. The rendered
+  home page matched exactly. **That arrangement is still in the local table and
+  was deliberately left there** — it is somebody's, not a fixture.
+- **The category block is verified with content**, which the earlier render
+  could not do because this box had no Visible Home category.
+
+**Full suite after the change: 705 passing, 2 failing**, the same
+`PricingPageCurrentPlanTest` pair, red since `e981b71` on 2026-07-18 and
+reproduced by seven sessions.
+
+**Deploy note.** No new migration — `home_sections` shipped in 1.8.36 and the
+daily-banner placement in 1.8.37. But `random-category-rail.blade.php` is
+DELETED, and a stale compiled view still calls it at runtime, so
+`php artisan view:clear` before `view:cache` is not optional on this deploy.
+The runbook already does both in that order at `docs/deploy/hostinger-vps.md`
+§2.5. Follow it rather than a partial pull.
+
+**The tree is shared again.** jambo-6b's `/cast-list` rename and round-avatar
+work is uncommitted in `Your-Favourite-Personality.blade.php` alongside mine.
+They preserved the `$sectionHeading ?? …` line. Do not push the tree as a
+whole without their sign-off.
+
+### 2026-09-10 — `/cast-list` replaces `/all-personality`, and the people go round (jambo-6b)
+
+**Status:** complete
+**Owns:** `mobile/src/screens/CastListScreen.tsx` (renamed from
+`PersonalitiesScreen.tsx`), `public/frontend/css/jambo-header.css` (one added
+block), `Modules/Frontend/routes/web.php`, `app/Rules/ReservedUsername.php`.
+
+**Shares — named, and one of them is jambo-9c's:**
+- `Modules/Frontend/resources/views/components/sections/Your-Favourite-Personality.blade.php`
+  — the `View All` href, the slider's `data-mobile`, and one added wrapper
+  class. **jambo-9c's `$sectionHeading ?? …` line is in this file and rode
+  along in my commit**; they were told so it is not committed twice.
+- `Modules/Frontend/app/Http/Controllers/FrontendController.php` — the deleted
+  `all_personality()` and a docblock on `cast_list()`.
+- `mobile/src/ui/theme.ts`, `TaxonomyCards.tsx`, `HomeScreen.tsx`,
+  `endpoints.ts`, `navigation/types.ts`, `RootNavigator.tsx`.
+- `docs/frontend-guide.md`, `docs/api/coverage.md`.
+
+**What this is:** Rio spotted that `/all-personality` duplicated `/cast-list`,
+then asked for the home rail's people to be round, smaller and four across on
+both surfaces.
+
+**Verified by measuring both surfaces, not by looking at them:**
+
+| | Site | App | Delta |
+|---|---|---|---|
+| Home avatar | 75.5 x 75.5, radius 50%, 4 per view | 84.7 x 85, circle, 4 per view + a fifth peeking | 2.5% of viewport width |
+| Home name | 12px | 12px, wrapping to two lines exactly as the site does | — |
+| Cast list card | 97.98 x 127.38, aspect 1/1.3, radius 8, **3 per row** | 0.7694 against 0.7693, 3 per row | 0.01% |
+| Detail-page cast row | 105.33 x 136.92, radius **8px** — unchanged | n/a | — |
+
+- `/cast-list` returns 200, `/all-personality` returns 404, and the rail's
+  `View All` href now reads `/cast-list` — all three read back from the server
+  rather than assumed.
+
+**🔴 Three faults, two of them mine and caught by measuring:**
+
+1. **The CSS override was not scoped.** `.favourite-person-block` is worn by
+   the home rail AND four cast rows on the detail pages. Probing a movie page
+   showed it had gone round too. Fixed with a `--home` modifier class.
+2. **`border-radius: 50%` silently lost** to Bootstrap's `rounded-3`, which
+   ships `!important`. The square applied and the circle did not, which reads
+   as "the rule did not load" rather than "the rule was outranked".
+3. **A probe keyed on `.movie-geners-block` matched two different sections.**
+   Genres and VJs share that class, so `querySelector` returned whichever the
+   admin's arrangement ordered first — and jambo-9c had just made that order
+   admin-controlled. The re-probe reads each section by its heading. My earlier
+   VJs numbers were re-checked against it and were correct.
+
+**Not verified:** the cast list's second page. The dev database holds 20 people
+and the endpoint pages at 40, so `onEndReached` has never fired. Nothing on a
+tablet or the TV build.
+
+**Deliberately not changed:** the movie and TV detail pages' cast and crew
+rows. Rio said "on home", and a rounded rectangle there against a circle on the
+home rail is a real inconsistency — it is his call, not mine to widen, and it
+is one selector if he wants it.
+
+**Coordination.** jambo-9c held `Modules/Frontend` for the home-section
+arrangement throughout. They stashed the shared tree once, which briefly took
+this work out of it; it popped cleanly and all eleven files were verified
+present by grepping for eight distinct markers before committing. Their
+`randomHomeCategories` removal was checked against my rail-key test and does
+not touch it.

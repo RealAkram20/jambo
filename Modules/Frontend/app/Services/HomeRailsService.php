@@ -169,18 +169,33 @@ class HomeRailsService
 
             'continueWatching' => $this->continueWatchingForUser(),
 
-            // Fixed category shelf — the first Visible Home category by
-            // sort_order (empty categories are dropped so a freshly
-            // toggled category never shows a blank rail).
-            'homeCategories' => $categoryShelves->take(1),
-
-            // The next category shelves — fill the slots left by the
-            // retired algorithmic rails (Top Picks / Popular Movies /
-            // Fresh Picks) with the 2nd, 3rd and 4th categories in admin
-            // sort_order (shuffle removed 2026-07-19: the admin drag
-            // order is the page order). slice(1) guarantees they never
-            // duplicate the fixed shelf above.
-            'randomHomeCategories' => $categoryShelves->slice(1)->take(3)->values(),
+            // EVERY Visible Home category, in admin sort_order. Empty ones are
+            // already dropped, so a freshly toggled category never shows a
+            // blank rail.
+            //
+            // This used to arrive split in two — one "fixed" shelf plus three
+            // more — because the page had a fixed slot and three rotating
+            // ones. It has neither since 1.8.38: the shelves are one movable
+            // block on /admin/home-sections. The split outlived its layout and
+            // the cap of four with it, and the cap was silently overruling the
+            // admin: six categories were marked Visible Home on the dev box
+            // and two of them never reached the page.
+            //
+            // Removing it costs nothing at the database. The cap was applied
+            // to the RESULT — the query above already read every Visible Home
+            // category either way — so it only ever hid rows an admin had
+            // asked to show.
+            //
+            // 🔴 The number of shelves is now the admin's, set by the Visible
+            // Home toggle on the Categories screen and bounded by nothing in
+            // code. That is correct for honesty and it is the right place for
+            // the decision, but note what one shelf costs before flagging
+            // thirty: `shapeCategoryRails` eager-loads every published movie
+            // and show in each category to then keep twelve. Bounding that
+            // needs a per-parent limit, which Eloquent cannot express in a
+            // `with()` closure — a window function or one query per category.
+            // Do that before this list grows, not after.
+            'homeCategories' => $categoryShelves,
         ];
     }
 

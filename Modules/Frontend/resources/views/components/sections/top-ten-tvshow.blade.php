@@ -1,6 +1,6 @@
 <div class="top-ten-block">
     <div class="d-flex align-items-center justify-content-between px-1 mb-2 pb-1 mb-md-4 pb-md-0">
-        <h4 class="main-title text-capitalize mb-0">{{ __('sectionTitle.top_10_tvshow_to_watch') }}</h4>
+        <h4 class="main-title text-capitalize mb-0">{{ $sectionHeading ?? __('sectionTitle.top_10_tvshow_to_watch') }}</h4>
     </div>
     <div class="card-style-slider">
         <div class="position-relative swiper swiper-card iq-top-ten-block-slider" data-slide="8" data-laptop="8"

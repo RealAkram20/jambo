@@ -117,6 +117,72 @@ class HomeSection extends Model
         'top_series_today' => 'sectionTitle.top_series_today',
     ];
 
+    /**
+     * How the WEBSITE draws each section.
+     *
+     * The app is handed an ordered list of rails and draws them itself; the
+     * website is Blade, so the arrangement has to name a partial. This is that
+     * mapping, and it sits beside DEFAULTS on purpose — **a section is one row
+     * in two constants in one class, and nowhere else.** `HomeSectionCatalogTest`
+     * asserts the two key sets are identical, so a section added to one and
+     * forgotten in the other fails rather than silently missing a surface.
+     *
+     *   view    the partial under `frontend::components.sections`
+     *   data    the shared collection(s) the partial reads. An empty one drops
+     *           the section, which is the rule `/api/v1/home` already follows:
+     *           a heading over nothing is worse than no heading.
+     *   with    extra parameters the partial expects
+     *   routes  parameters that are a URL, resolved at render (a const cannot
+     *           call route())
+     *   bleed   true for a full-width section that must sit OUTSIDE the
+     *           container, which is how the two daily banners are drawn
+     *
+     * @var array<string, array<string, mixed>>
+     */
+    public const WEB_VIEWS = [
+        'continue_watching' => [
+            'view' => 'continue-watching',
+            'data' => 'continueWatching',
+            'with' => ['value' => '6', 'sectionPaddingClass' => true],
+        ],
+        'top_movies' => ['view' => 'top-ten-block', 'data' => 'topMovies'],
+        'top_series' => ['view' => 'top-ten-tvshow', 'data' => 'topShows'],
+        'top_picks' => ['view' => 'top-pict', 'data' => 'topPicks'],
+        'smart_shuffle' => [
+            'view' => 'recommended',
+            'data' => 'recommendedMovies',
+            'with' => ['viewAllBtn' => true],
+            'routes' => ['viewAllRoute' => ['frontend.rail_archive', 'smart-shuffle']],
+        ],
+        'latest_movies' => ['view' => 'latest-movies', 'data' => 'latestMovies', 'with' => ['viewAllBtn' => true]],
+        'latest_series' => ['view' => 'latest-series', 'data' => 'latestShows', 'with' => ['viewAllBtn' => true]],
+        'fresh_picks' => ['view' => 'fresh-picks-just-for-you', 'data' => 'freshMovies'],
+        'exclusives' => ['view' => 'only-on-streamit', 'data' => 'exclusiveMovies'],
+        'popular_movies' => ['view' => 'Popular-movies', 'data' => 'popularMovies', 'with' => ['viewAllBtn' => true]],
+        'international_series' => [
+            'view' => 'best-of-international-shows',
+            'data' => 'internationalShows',
+            'with' => ['viewAllBtn' => true],
+        ],
+        // `upcomingItems` is not in HomeRailsService::forWeb() — the route
+        // action passes it, so the home page hands it to the renderer as
+        // extra data. See ott-page.blade.php.
+        'upcoming' => ['view' => 'upcomming', 'data' => 'upcomingItems', 'with' => ['viewAllBtn' => true]],
+        'top_movies_today' => ['view' => 'verticle-slider', 'data' => 'verticalFeatured', 'bleed' => true],
+        // Every Visible Home category shelf, as one block. The website used to
+        // scatter three of them at fixed slots standing in for rails that had
+        // been retired; those rails are back, so the stand-ins are gone and
+        // the block moves as one row, matching what `/api/v1/home` sends.
+        self::CATEGORY_GROUP => [
+            'view' => 'category-rails',
+            'data' => 'homeCategories',
+        ],
+        'genres' => ['view' => 'geners', 'data' => 'homeGenres'],
+        'vjs' => ['view' => 'vjs', 'data' => 'homeVjs'],
+        'personalities' => ['view' => 'Your-Favourite-Personality', 'data' => 'favoritePersonalities'],
+        'top_series_today' => ['view' => 'tab-slider', 'data' => 'tabSeries', 'bleed' => true],
+    ];
+
     protected $fillable = ['key', 'label', 'position', 'enabled'];
 
     protected $casts = [
@@ -258,6 +324,117 @@ class HomeSection extends Model
         );
 
         return array_column($sortable, 'rail');
+    }
+
+    /**
+     * The sections the website should draw, in order, already filtered.
+     *
+     * Degrades exactly as `arrange()` does, and for the same reason: the home
+     * page must survive the window between code landing and migrations
+     * running. No table or no rows means the built-in order, every section on.
+     *
+     * @return Collection<int, static>
+     */
+    public static function forWebRender(): Collection
+    {
+        try {
+            $rows = static::ordered()->get();
+        } catch (QueryException $e) {
+            Log::warning('home_sections is unreadable; serving the built-in home order.', [
+                'exception' => $e->getMessage(),
+            ]);
+
+            $rows = collect();
+        }
+
+        if ($rows->isEmpty()) {
+            $rows = collect(array_keys(self::DEFAULTS))
+                ->map(fn (string $key) => new static(['key' => $key, 'enabled' => true]));
+        }
+
+        return $rows->filter(fn (self $row) => $row->enabled)->values();
+    }
+
+    /**
+     * The home page, as runs of partials to include.
+     *
+     * Consecutive sections that live inside the page container are grouped so
+     * the container is opened once around each run, and a full-width section
+     * breaks the run rather than being wrapped. That grouping is why this
+     * returns runs and not a flat list: an admin can drag a banner anywhere,
+     * so where the container opens and closes is not knowable at authoring
+     * time the way it was when the order was hard-coded.
+     *
+     * @param  array<string, mixed>  $data  the shared collections the partials read
+     * @return array<int, array{bleed: bool, steps: array<int, array{view: string, with: array<string, mixed>}>}>
+     */
+    public static function webPlan(array $data): array
+    {
+        $groups = [];
+
+        foreach (static::forWebRender() as $row) {
+            $spec = self::WEB_VIEWS[$row->key] ?? null;
+
+            // A section the app can render and the website cannot yet. It is
+            // skipped here rather than treated as an error: adding a rail
+            // server-side must stay a one-line change.
+            if ($spec === null || ! self::hasContent($spec['data'] ?? null, $data)) {
+                continue;
+            }
+
+            $with = $spec['with'] ?? [];
+
+            foreach ($spec['routes'] ?? [] as $parameter => $route) {
+                $with[$parameter] = route(...$route);
+            }
+
+            // The admin's label reaches the website the same way it reaches
+            // the app. Partials fall back to their own translation key, so
+            // every other page that includes them is unaffected.
+            $with['sectionHeading'] = $row->displayTitle();
+
+            $bleed = (bool) ($spec['bleed'] ?? false);
+            $step = ['view' => 'frontend::components.sections.'.$spec['view'], 'with' => $with];
+            $last = array_key_last($groups);
+
+            if ($last !== null && $groups[$last]['bleed'] === $bleed) {
+                $groups[$last]['steps'][] = $step;
+
+                continue;
+            }
+
+            $groups[] = ['bleed' => $bleed, 'steps' => [$step]];
+        }
+
+        return $groups;
+    }
+
+    /**
+     * Does this section have anything to show?
+     *
+     * A key absent from the shared data counts as empty. That is deliberate:
+     * a partial whose collection was never wired would otherwise draw a
+     * heading over nothing, which is the failure the website's Upcoming
+     * section spent months in.
+     *
+     * @param  string|array<int, string>|null  $keys
+     * @param  array<string, mixed>  $data
+     */
+    private static function hasContent(string|array|null $keys, array $data): bool
+    {
+        if ($keys === null) {
+            return true;
+        }
+
+        foreach ((array) $keys as $key) {
+            $value = $data[$key] ?? null;
+
+            if (is_countable($value) ? count($value) > 0 : $value !== null) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

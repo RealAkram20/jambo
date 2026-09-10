@@ -266,10 +266,10 @@ class HomeController extends Controller
      */
     private function categoryRails(array $data, Request $request): array
     {
-        $shelves = collect($data['homeCategories'] ?? [])
-            ->concat($data['randomHomeCategories'] ?? []);
-
-        return $shelves->map(fn ($category) => $this->titleRail(
+        // One collection since 1.8.38. It used to arrive split in two, and
+        // the halves were concatenated straight back together here — the app
+        // never had the website's fixed-slot layout that the split described.
+        return collect($data['homeCategories'] ?? [])->map(fn ($category) => $this->titleRail(
             'category:' . $category->slug,
             $category->name,
             collect($category->railItems ?? []),
