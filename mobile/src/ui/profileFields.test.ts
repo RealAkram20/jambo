@@ -1,6 +1,5 @@
 import {
   avatarFileName,
-  detail,
   displayName,
   imageMimeType,
   memberSince,
@@ -32,29 +31,6 @@ describe('memberSince', () => {
   it('renders the dash for an absent join date rather than an empty row', () => {
     expect(memberSince(null)).toBe(NOT_SET);
     expect(memberSince(undefined)).toBe(NOT_SET);
-  });
-});
-
-describe('detail', () => {
-  it('shows a real value', () => {
-    expect(detail('akram@example.com')).toBe('akram@example.com');
-  });
-
-  /* The one that matters. A phone stored as spaces is not a phone number, and
-     printing it leaves a label with nothing beside it, which reads as broken
-     rather than as empty. */
-  it('treats blank and whitespace as absent', () => {
-    expect(detail('')).toBe(NOT_SET);
-    expect(detail('   ')).toBe(NOT_SET);
-  });
-
-  it('shows the dash for null and undefined', () => {
-    expect(detail(null)).toBe(NOT_SET);
-    expect(detail(undefined)).toBe(NOT_SET);
-  });
-
-  it('trims, so a stray space does not shift the value off the row', () => {
-    expect(detail('  +256 700 123 456  ')).toBe('+256 700 123 456');
   });
 });
 

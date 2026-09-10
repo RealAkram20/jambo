@@ -59,22 +59,6 @@ export function memberSince(iso: string | null | undefined): string {
 }
 
 /**
- * A detail row's value, or the em dash.
- *
- * The one rule this enforces is that a blank string is absence. A phone stored
- * as "" or as three spaces is not a phone number, and rendering it leaves a
- * row with a label and nothing beside it, which reads as broken rather than as
- * empty.
- */
-export function detail(value: string | null | undefined): string {
-  if (value === null || value === undefined) return NOT_SET;
-
-  const trimmed = value.trim();
-
-  return trimmed === '' ? NOT_SET : trimmed;
-}
-
-/**
  * The display name for the viewer.
  *
  * First and last name when there is one, else the username — the website's own

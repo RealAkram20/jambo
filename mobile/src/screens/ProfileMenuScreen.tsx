@@ -97,7 +97,6 @@ type MenuRow = {
   icon: Icon;
   /** Where it goes. Undefined means the screen does not exist yet. */
   to?:
-    | 'Profile'
     | 'ProfileEdit'
     | 'Security'
     | 'Devices'
@@ -457,7 +456,9 @@ export function ProfileMenuScreen({ navigation }: AppScreenProps<'ProfileMenu'>)
      * back on the reasoning that a screen is stranded: it is stranded on
      * purpose.
      */
-    { key: 'profile', label: 'Profile', icon: UserCircle, to: 'Profile' },
+    /* Opens the editor directly. There is no read-only profile screen any
+       more — the audit's §4.1, and it was a subset of this one. */
+    { key: 'profile', label: 'Profile', icon: UserCircle, to: 'ProfileEdit' },
     { key: 'security', label: 'Security', icon: ShieldCheck, to: 'Security' },
     { key: 'devices', label: 'Devices', icon: Devices, to: 'Devices' },
     {
@@ -545,7 +546,7 @@ export function ProfileMenuScreen({ navigation }: AppScreenProps<'ProfileMenu'>)
           showsVerticalScrollIndicator={false}
         >
           {/*
-            The identity block opens Profile.
+            The identity block opens the profile editor.
 
             It used to open an Account hub — a plain list of buttons that
             predated the Profile screen and duplicated most of this menu.
@@ -558,12 +559,17 @@ export function ProfileMenuScreen({ navigation }: AppScreenProps<'ProfileMenu'>)
             only from that hub, and nothing else in the app navigates to
             either. Deleting a screen is only finished when the things behind
             it still have a door.
+
+            **It opened a read-only Profile screen until 2026-09-10.** That
+            screen showed four values the editor already displayed in boxes,
+            so this block cost a tap on the most-used path in the menu and
+            gave nothing back. §4.1.
           */}
           <Focusable
             accessibilityLabel={displayName === '' ? 'Your profile' : `Your profile, ${displayName}`}
             accessibilityRole="link"
             ringRadius={profileMenu.rowRadius}
-            onPress={() => navigation.navigate('Profile')}
+            onPress={() => navigation.navigate('ProfileEdit')}
             style={styles.identity}
           >
             <View style={styles.avatarWrap}>

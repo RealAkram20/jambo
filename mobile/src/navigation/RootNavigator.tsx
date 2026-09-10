@@ -17,7 +17,6 @@ import { NotificationSettingsScreen } from '../features/notifications/Notificati
 import { CollectionScreen } from '../screens/CollectionScreen';
 import { GenresScreen } from '../screens/GenresScreen';
 import { PlansScreen } from '../screens/PlansScreen';
-import { ProfileScreen } from '../screens/ProfileScreen';
 import { ProfileEditScreen } from '../screens/ProfileEditScreen';
 import { ReferralsScreen } from '../features/referrals/ReferralsScreen';
 import { WalletScreen } from '../features/wallet/WalletScreen';
@@ -216,27 +215,19 @@ export function RootNavigator() {
             options={({ route }) => ({ title: route.params?.title ?? 'Genres' })}
           />
           {/*
-            The profile page. Its banner runs under the status bar, so the
-            header floats over the gradient rather than sitting on a bar of
-            its own — the same treatment the title detail screen uses, and the
-            reason the mockup shows a bare back arrow over the artwork.
-          */}
-          <AppStack.Screen
-            name="Profile"
-            component={ProfileScreen}
-            // A solid header with the banner starting beneath it, which is how
-            // Rio's mockup draws it — back arrow and title on the page's own
-            // black, then the gradient as a band below. It was built floating
-            // over the banner first; rendered side by side, the mockup's
-            // version reads better, because a title sitting on a gradient has
-            // to fight it for contrast at every scroll position.
-            options={{ title: 'Profile', headerBackButtonDisplayMode: 'minimal' }}
-          />
+            The profile. One screen, reading and editing together.
 
+            There were two until 2026-09-10 — a read-only `Profile` above this
+            form — and the read-only one showed a subset of the fields the form
+            already displayed. The audit's §4.1 deleted it. The title is
+            "Profile" rather than the form's old "Your details" because this is
+            now the destination the menu's Profile row and its identity block
+            both open.
+          */}
           <AppStack.Screen
             name="ProfileEdit"
             component={ProfileEditScreen}
-            options={{ title: 'Your details' }}
+            options={{ title: 'Profile' }}
           />
           <AppStack.Screen
             name="Referrals"

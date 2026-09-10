@@ -5953,3 +5953,35 @@ an empty file — which is how `ProfileMenuScreen.tsx` went to 0 bytes with an
 hour of uncommitted edits in it. Recovered from `git show HEAD:` plus a replay
 script. **Encode first, then open for writing**, and put a multi-edit replay in
 a file rather than a heredoc so it can be re-run.
+
+---
+
+#### Step 2 of 4 — §4.1, ProfileScreen absorbed into the editor. Complete.
+
+**Deleted:** `screens/ProfileScreen.tsx` (327 lines), the `Profile` route in
+`RootNavigator` and `types.ts`, the `profileBanner` token block (83 lines of
+theme), and `detail()` plus its four tests in `profileFields`. **Added:** one
+caption.
+
+**Verified on the device, read from the view tree:**
+
+- The menu's **Profile row** opens the editor directly. Header title reads
+  **Profile**; the screen carries First name, Last name, Username, Email with
+  its verification state, Phone, Country, Save changes.
+- The **identity block** opens the same screen — both doors, one destination.
+- The footer reads **"Member since September 2026"**, above the existing
+  security line.
+- Coming back from it, the Profile row reads `selected="true"`, so the
+  highlight fix from step 1 holds for a row as well as for the card.
+
+**Nothing to measure against the website here.** The profile hub's blades have
+no "Member since" anywhere — grep found only a `Joined` column on the referrals
+table — so that caption is Rio's mockup's wording, carried over from the screen
+that was deleted rather than newly invented. No component was added, so there
+is no captured value to compare.
+
+**Not verified:** the avatar picker was not exercised again in this step; it
+moved into `useAvatarUpload` yesterday and both callers became one. No PHP was
+touched.
+
+**Deliberately not done:** the editor did not get a hero, per §8.

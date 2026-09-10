@@ -8,6 +8,46 @@ would advertise a webapp update containing no webapp change.
 
 ## Jambo App
 
+### Unreleased — The profile is one screen, not two
+
+`docs/plans/account-area-audit.md` §4.1. **`ProfileScreen` showed a subset of
+the fields the editor already displayed.** Email, Phone, Country and Member
+since, read-only, above a button to a form that showed all four in boxes plus
+the names and the username. A viewer tapped Profile, read four values, tapped
+Edit, and saw the same four again. 327 lines, and one tap on the most-used path
+in the menu.
+
+The split had already done real damage rather than merely costing a tap: the
+avatar upload lived on the read-only half while the editor's own caption said
+pictures were changed on the Jambo website, so one screen denied a capability
+the other one shipped. That was fixed on 2026-09-10 by moving the upload into
+`useAvatarUpload`; deleting the screen is the rest of it.
+
+**Member since crossed over as a caption in the footer and nothing else did.**
+It was the only fact on the old screen that is not a field on this one. It sits
+at the foot because it is a fact about the account rather than about any field,
+and a fifth thing at the top that looks editable and is not would be worse than
+a line at the bottom. An account whose join date is missing or unreadable gets
+no line at all rather than "Member since —".
+
+**The gradient banner did not come with it.** §8 of the plan names giving a
+form a hero as the mistake this drift invites: a 190dp headline above two
+fields pushes the fields under the keyboard. `profileBanner` is deleted from
+the token file rather than left unspent, with a note where it was saying why —
+a token block nothing uses is a design decision nobody can see is dead.
+
+**The route is gone, not orphaned.** `Profile` is removed from the navigator
+and from the route types, the menu's Profile row and its identity block both
+open `ProfileEdit`, and the screen's title is now "Profile" rather than "Your
+details" because it is the destination those two open. `activeRowFor` no longer
+answers for the old route, and the test that asserted it does now asserts the
+opposite, alongside the four other routes removed on 2026-09-09 — with the
+difference recorded, because unlike those four **nothing was lost with this
+one**.
+
+`detail()` in `profileFields.ts` went too. It turned an absent value into an em
+dash for a read-only row, and there are no read-only rows left.
+
 ### Unreleased — The profile menu reads as three groups, and Membership is a card
 
 `docs/plans/account-area-audit.md` §6, which the audit itself called the

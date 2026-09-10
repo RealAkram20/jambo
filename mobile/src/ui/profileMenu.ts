@@ -62,7 +62,9 @@ export function activeRowFor(routeName: string | undefined): string | null {
        applied in the player itself. A route name that lit a row again would
        mean a screen had been quietly reinstated, which is what the test
        asserts. */
-    Profile: 'profile',
+    /* `Profile` is deliberately absent. The read-only profile screen was
+       deleted on 2026-09-10 and the editor is the destination now; a route
+       name that lit this row again would mean it had been reinstated. */
     ProfileEdit: 'profile',
     Security: 'security',
     Devices: 'devices',

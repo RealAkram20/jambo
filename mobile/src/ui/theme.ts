@@ -901,80 +901,19 @@ export const profileMenu = {
 } as const;
 
 /**
- * The profile screen's banner, and the card of details under it.
+ * The profile screen's banner was here.
  *
- * **The banner is a gradient, not a photograph, and that was Rio's
- * instruction** — "for the banner image let's have a gradient from our brand
- * blue". It matters that this is furniture rather than content: there is no
- * cover image anywhere in the API, no endpoint to upload one, and no column to
- * store one. A photographic banner would have had to be either a bundled stock
- * image pretending to be the viewer's, or a control that could not work. A
- * brand gradient is honestly what it is.
+ * Deleted 2026-09-10 with the screen it described — `ProfileScreen`, the
+ * read-only half of the profile, which the audit's §4.1 folded into the
+ * editor. It held a brand gradient, a scrim, a tagline and a 120dp avatar.
  *
- * The three stops are `colors.primary` and the two the sign-in button already
- * uses, run diagonally and deepened at the end so the avatar and the white
- * name below it keep their contrast against the bottom edge. As everywhere
- * else in this app, the accent cannot drift: it is the same pair of values the
- * button and the profile menu's active row draw.
+ * **The form deliberately did not inherit it.** §8 of
+ * `docs/plans/account-area-audit.md` names giving a form a hero as the mistake
+ * this drift invites: a 190dp headline above two fields pushes the fields
+ * under the keyboard. If a profile ever wants a banner again, it wants a
+ * screen that is not a form.
  */
-export const profileBanner = {
-  /**
-   * 190, measured off the mockup rather than chosen.
-   *
-   * The banner there is about 44% of the phone's WIDTH, which on a 427dp
-   * handset is 188. Taking the ratio against width rather than height is the
-   * point: the mockup's phone is a different aspect to a real one, and a
-   * height ratio would have made the band a third too tall.
-   */
-  height: 190,
 
-  /** Light to deep, top-left to bottom-right. */
-  from: auth.buttonFrom,
-  via: tokens.color.primary,
-  to: '#062F73',
-  gradientStart: { x: 0, y: 0 },
-  gradientEnd: { x: 1, y: 1 },
-
-  /**
-   * A dark wash over the bottom third.
-   *
-   * The avatar sits half on the banner and half on the page, and its ring has
-   * to read against both. Without this the ring disappears into the lighter
-   * blue on one side and the page black on the other, which looks like a
-   * rendering fault rather than a design.
-   */
-  scrim: ['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.45)'] as const,
-
-  /** The tagline Rio set into the banner in his mockup. */
-  taglineSize: 11,
-  taglineTracking: 3.2,
-  taglineLineHeight: 20,
-  taglineColor: 'rgba(255, 255, 255, 0.82)',
-
-  /** The avatar, larger here than in the menu — this screen is about it. */
-  /** 120: the mockup's circle is a little under a third of the phone's width. */
-  avatarSize: 120,
-  avatarRing: 4,
-
-  /**
-   * The circle behind the initial, for an account with no photo.
-   *
-   * A brand navy rather than the neutral `colors.inputBg` the other avatars
-   * use, and the difference only shows here: this circle sits half on a blue
-   * banner, and a near-black disc there reads as a hole punched through the
-   * gradient rather than as a placeholder. The other avatars in the app sit on
-   * black, where the neutral is right.
-   */
-  avatarFallback: '#123C6E',
-
-  /** The pencil that opens the photo picker. */
-  editSize: 34,
-
-  /** The detail card: Email, Phone, Country, Member Since. */
-  rowIconSize: 20,
-  rowIconColor: 'rgba(255, 255, 255, 0.55)',
-  rowGap: 18,
-} as const;
 
 
 /**

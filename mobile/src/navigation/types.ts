@@ -115,10 +115,13 @@ export type AppStackParams = {
    */
   Genres: { title?: string } | undefined;
   /**
-   * The viewer's own profile as a page: banner, avatar, name, plan and the
-   * card of details. It reads; `ProfileEdit` is the form behind its last row.
+   * The viewer's own profile. Reading and editing are one screen.
+   *
+   * There was a read-only `Profile` route above this form until 2026-09-10,
+   * and it showed a subset of the fields the form already displayed. The
+   * audit's section 4.1 deleted it; the menu's Profile row and its identity
+   * block both open this.
    */
-  Profile: undefined;
   ProfileEdit: undefined;
   Referrals: undefined;
   Wallet: undefined;

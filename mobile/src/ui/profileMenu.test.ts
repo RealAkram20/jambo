@@ -158,8 +158,7 @@ describe('the rows that stopped being pending', () => {
    * in the screen file without anyone remembering this map, and the only
    * symptom is a highlight that never appears.
    */
-  it('lights the profile row from either profile destination', () => {
-    expect(activeRowFor('Profile')).toBe('profile');
+  it('lights the profile row from the editor, which is now the only profile', () => {
     expect(activeRowFor('ProfileEdit')).toBe('profile');
   });
 
@@ -170,8 +169,8 @@ describe('the rows that stopped being pending', () => {
 
 
   /*
-   * Four routes that no longer exist. Any of them lighting a row would mean a
-   * screen had been quietly reinstated, and all four were removed by Rio on
+   * Five routes that no longer exist. Any of them lighting a row would mean a
+   * screen had been quietly reinstated. Four were removed by Rio on
    * 2026-09-09:
    *
    *  - the Account hub, replaced by the Profile screen;
@@ -188,12 +187,19 @@ describe('the rows that stopped being pending', () => {
    * are set from `PlayerMenu`. "We deleted the screen" and "we stopped
    * collecting history" — or "we dropped the preference" — are one careless
    * sentence apart, and this is the note that keeps them apart.
+   *
+   * The fifth is `Profile` itself, deleted 2026-09-10 by the audit's section
+   * 4.1 — the read-only profile showed a subset of the fields the editor
+   * already displayed, so the menu opens the editor now. Unlike the four
+   * above, **nothing was lost with it**: every value it rendered is a field on
+   * `ProfileEdit`, and Member since came across as a caption.
    */
-  it('knows nothing about the four removed routes', () => {
+  it('knows nothing about the five removed routes', () => {
     expect(activeRowFor('Account')).toBeNull();
     expect(activeRowFor('ContinueWatching')).toBeNull();
     expect(activeRowFor('History')).toBeNull();
     expect(activeRowFor('StreamingPreferences')).toBeNull();
+    expect(activeRowFor('Profile')).toBeNull();
   });
 });
 

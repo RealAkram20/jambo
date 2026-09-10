@@ -10,6 +10,7 @@ import { card, colors, fonts, radius, spacing, typography } from '../ui/theme';
 import { CountryPicker } from '../ui/CountryPicker';
 import { PhoneField } from '../ui/PhoneField';
 import { toE164 } from '../ui/phone';
+import { memberSince, NOT_SET } from '../ui/profileFields';
 import { useAvatarUpload } from '../ui/useAvatarUpload';
 import { Focusable } from '../ui/rails/Focusable';
 import { CaretDown, SealCheck, Warning } from 'phosphor-react-native';
@@ -18,11 +19,25 @@ import type { Profile } from '../api/endpoints';
 import type { AppScreenProps } from '../navigation/types';
 
 /**
- * Editing the viewer's own details.
+ * The viewer's own profile. Reading and editing are the same screen.
  *
- * The website's profile form, minus the parts that are not the app's job:
- * password and two-factor live on the Security screen's note, and the avatar
- * is shown but not replaced here (see below).
+ * **They were two screens until 2026-09-10**, and the audit's §4.1 is the
+ * reason they are not: `ProfileScreen` showed Email, Phone, Country and Member
+ * since read-only, above a button to this form — which already displayed all
+ * four in boxes, plus the names and the username. It was a SUBSET of the
+ * editor behind an extra tap. A viewer read four values, tapped Edit, and saw
+ * the same four again.
+ *
+ * The split had already done real damage: the avatar upload lived on the
+ * read-only half while this half's caption said pictures were changed on the
+ * website, so one screen was denying a capability the other one shipped.
+ * `useAvatarUpload` fixed that; deleting the screen finishes it.
+ *
+ * **Member since came across as a caption and nothing else did.** It was the
+ * only fact on the old screen that is not a field here. The gradient banner
+ * did NOT come with it: §8 of the plan names "give the forms heroes" as the
+ * mistake this drift invites, and a 190dp headline above a form pushes the
+ * first field under the keyboard.
  *
  * `PATCH /profile` requires `first_name`, `last_name`, `username` and `email`
  * together — it is not a partial update — so the form always sends all four
@@ -152,6 +167,13 @@ function ProfileForm({ profile }: { profile: Profile }) {
       setSaved(false);
     };
   }, []);
+
+  /*
+   * The em dash is a real answer here, not a fallback — `memberSince` gives
+   * it for an absent or unparseable date, and "Member since —" is a caption
+   * that says nothing. No line at all is the honest version.
+   */
+  const joined = memberSince(profile.joined_at);
 
   const complete =
     firstName.trim() !== '' &&
@@ -288,6 +310,14 @@ function ProfileForm({ profile }: { profile: Profile }) {
         />
 
         <View style={styles.footer}>
+          {/*
+            Member since, and it is the whole of what the deleted read-only
+            screen carried that this one did not. A fact about the account
+            rather than about any field, so it sits at the foot rather than
+            becoming a fifth thing that looks editable and is not.
+          */}
+          {joined !== NOT_SET ? <Caption>{`Member since ${joined}`}</Caption> : null}
+
           {/*
             It said these were changed on the website, and that stopped being
             true when ChangePassword and TwoFactorSetup shipped. A screen that
