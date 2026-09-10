@@ -201,8 +201,8 @@ const styles = StyleSheet.create({
 
   section: {
     fontFamily: fonts.medium,
-    fontSize: 11,
-    letterSpacing: 1.4,
+    fontSize: list.sectionSize,
+    letterSpacing: list.sectionTracking,
     textTransform: 'uppercase',
     color: colors.textMuted,
     paddingHorizontal: list.rowPaddingH,

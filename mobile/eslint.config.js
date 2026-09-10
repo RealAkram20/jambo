@@ -90,7 +90,7 @@ module.exports = [
   },
   {
     /*
-     * The six that predate the rule, allowed until each is converted.
+     * The five that predate the rule, allowed until each is converted.
      *
      * **A ratchet, not an exemption.** Nothing new can be added to this list
      * without a reviewer seeing it, and the list only shrinks. Converting them
@@ -100,12 +100,18 @@ module.exports = [
      *
      * Delete a line when its file moves to `Sheet`. When the array is empty,
      * delete the block.
+     *
+     * **`ProfileMenuScreen.tsx` left the list on 2026-09-10 without being
+     * converted**, because it never needed to be here: its only `react-native`
+     * import is `ScrollView, StyleSheet, Text, View`. It was added when the
+     * ratchet was written, from the screen list rather than from the imports.
+     * Worth reading the other five the same way before assuming each is real
+     * work.
      */
     files: [
       'src/features/referrals/EditCodeSheet.tsx',
       'src/features/wallet/WithdrawSheet.tsx',
       'src/features/watchlist/WatchlistScreen.tsx',
-      'src/screens/ProfileMenuScreen.tsx',
       'src/ui/CountryPicker.tsx',
       'src/ui/player/PlayerMenu.tsx',
     ],

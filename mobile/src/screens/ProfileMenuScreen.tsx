@@ -2,7 +2,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigationState } from '@react-navigation/native';
+import { useIsFocused, useNavigationState } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Bell,
@@ -24,16 +24,19 @@ import {
 import { api } from '../api/jambo';
 import { useAuth } from '../auth/AuthProvider';
 import { logoSource } from '../ui/branding';
+import { renewalLine } from '../ui/format';
 import { imageUrl } from '../ui/media';
 import { Focusable } from '../ui/rails/Focusable';
 import {
   activeRowFor,
   avatarInitial,
+  groupRows,
+  membershipTitle,
   openedRow,
   rememberOpenedRow,
   unreadBadge,
 } from '../ui/profileMenu';
-import { colors, fonts, profileMenu, radius, spacing, typography } from '../ui/theme';
+import { colors, fonts, profileMenu, spacing, typography } from '../ui/theme';
 import type { AppScreenProps } from '../navigation/types';
 
 /**
@@ -66,6 +69,14 @@ import type { AppScreenProps } from '../navigation/types';
  *
  * Every row here is a row the website's sidebar has, bar Billing. See the
  * list below for the three that were removed and why.
+ *
+ * **Grouped since 2026-09-10**, per `docs/plans/account-area-audit.md` §6.
+ * Nine identical pills with no hierarchy is what made the account area feel
+ * large regardless of how many screens were behind it, so the same rows are
+ * read under ACCOUNT, VIEWING and MONEY, and Membership is promoted out of
+ * them into a card. **No row changed its destination and no screen was added
+ * or removed by that change** — it is a reading order. The grouping itself
+ * lives in `ui/profileMenu.ts`, where it can be tested without a device.
  */
 
 /**
@@ -91,7 +102,6 @@ type MenuRow = {
     | 'Security'
     | 'Devices'
     | 'Notifications'
-    | 'Plans'
     | 'Billing'
     | 'Wallet'
     | 'Referrals';
@@ -184,6 +194,17 @@ function Row({
     <Focusable
       accessibilityLabel={badge === null ? row.label : `${row.label}, ${String(row.badge)} unread`}
       accessibilityRole="link"
+      /*
+       * The fourth signal, and the one that was missing.
+       *
+       * Active was a gradient, a heavier label and a filled icon — three
+       * signals, all of them visual. A screen reader was told nothing at
+       * all, so the one place this app says where you already are said it
+       * to everybody except the people who most need to be told. Found by
+       * trying to read the state out of `uiautomator dump` and getting
+       * `selected="false"` on every row including the lit one.
+       */
+      accessibilityState={{ selected: active }}
       ringRadius={profileMenu.rowRadius}
       onPress={onPress}
       style={styles.row}
@@ -200,6 +221,76 @@ function Row({
         />
       ) : null}
       {body}
+    </Focusable>
+  );
+}
+
+/**
+ * Membership, promoted out of the row list.
+ *
+ * The other half of the audit's §6. It is the single most-opened account page
+ * in a streaming product, because it answers "what am I paying" — and as a row
+ * it was the seventh of nine identical pills, indistinguishable from Billing.
+ * The row is gone; the destination is unchanged.
+ *
+ * It carries the tier pill that used to sit in the identity block. That pill
+ * said the plan's name and nothing else; this says the plan's name, the date
+ * it runs to, and opens the screen. Two surfaces stating one fact is exactly
+ * what makes an account area feel bigger than it is.
+ */
+function MembershipCard({
+  title,
+  meta,
+  active,
+  onPress,
+}: {
+  title: string;
+  meta: string | null;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Focusable
+      accessibilityLabel={meta === null ? `Membership, ${title}` : `Membership, ${title}. ${meta}`}
+      accessibilityRole="link"
+      accessibilityState={{ selected: active }}
+      ringRadius={profileMenu.cardRadius}
+      onPress={onPress}
+      style={styles.card}
+    >
+      {active ? (
+        <LinearGradient
+          colors={[profileMenu.activeFrom, profileMenu.activeTo]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+      ) : null}
+
+      <View style={styles.cardInner}>
+        {/* The site's own gold crown, as the tier pill drew it. On the lit card
+            it becomes white, because gold on the blue gradient is the pairing
+            that fails. */}
+        <Crown size={26} color={active ? colors.onPrimary : colors.warning} weight="fill" />
+
+        <View style={styles.cardText}>
+          <Text style={[styles.cardTitle, active && styles.cardTitleActive]} numberOfLines={1}>
+            {title}
+          </Text>
+          {meta !== null ? (
+            <Text style={[styles.cardMeta, active && styles.cardMetaActive]} numberOfLines={1}>
+              {meta}
+            </Text>
+          ) : null}
+        </View>
+
+        <CaretRight
+          size={profileMenu.chevronSize}
+          color={active ? colors.onPrimary : profileMenu.chevronColor}
+          weight="bold"
+        />
+      </View>
     </Focusable>
   );
 }
@@ -238,6 +329,22 @@ export function ProfileMenuScreen({ navigation }: AppScreenProps<'ProfileMenu'>)
   });
 
   /*
+   * **Why the focus flag is here, and it is not defensive.**
+   *
+   * `openedRow()` is module state read during render, and `useNavigationState`
+   * deliberately does not re-render when its selected slice is unchanged.
+   * Going menu, Billing, back leaves `beneath` as the same tab, so nothing
+   * changed, so the menu never re-rendered — and it came back still lighting
+   * whatever had been opened the time before. Found on the device by opening
+   * Billing and reading `selected` off the view tree: the Membership card was
+   * still the lit one.
+   *
+   * `useIsFocused` flips on the way back to the front, which is exactly the
+   * moment this needs to be read again.
+   */
+  const focused = useIsFocused();
+
+  /*
    * The screen underneath wins when it is one of the menu's own destinations —
    * that is the stronger claim, "you are here". Otherwise the row the viewer
    * last opened from this menu answers, which is the only one of the two that
@@ -245,7 +352,7 @@ export function ProfileMenuScreen({ navigation }: AppScreenProps<'ProfileMenu'>)
    * is the Home tab and matches nothing. See `openedRow` for why that state
    * lives outside this component.
    */
-  const active = activeRowFor(beneath) ?? openedRow();
+  const active = focused ? (activeRowFor(beneath) ?? openedRow()) : null;
 
   /*
    * `me` is usually already cached, so the name and plan paint on the first
@@ -267,6 +374,15 @@ export function ProfileMenuScreen({ navigation }: AppScreenProps<'ProfileMenu'>)
   });
 
   const config = useQuery({ queryKey: ['app-config'], queryFn: () => api.appConfig() });
+
+  /*
+   * The Membership card's own facts, and the same query key the Membership
+   * screen uses — so this is one fetch shared with the screen the card opens,
+   * warmed by the tap that is about to happen. `/me` carries the tier name but
+   * not `auto_renew`, and without that the card cannot tell "Renews" from
+   * "Active until", which is the one word on it that is about money.
+   */
+  const subscription = useQuery({ queryKey: ['subscription'], queryFn: () => api.subscription() });
 
   const card = profile.data;
   const meUser = me.data?.user;
@@ -292,9 +408,19 @@ export function ProfileMenuScreen({ navigation }: AppScreenProps<'ProfileMenu'>)
   const avatar = imageUrl(card?.avatar_url, profileMenu.avatarSize * 2);
   const initial = avatarInitial(card?.first_name ?? meUser?.first_name, username);
 
-  /* The real plan name, or no pill at all. "Premium Member" is not a fact this
-     app may assert on its own — the plan a viewer pays for has a name. */
-  const tier = me.data?.subscription?.tier?.name;
+  /*
+   * The card's facts. The real plan name or none at all — "Premium Member" is
+   * not something this app may assert on its own, because the plan a viewer
+   * pays for has a name.
+   *
+   * `/me` is usually cached, so the name paints on the first frame; the date
+   * waits for `/subscription`, which is the only one of the two that knows
+   * whether the plan renews or merely runs out.
+   */
+  const plan = subscription.data?.subscription ?? null;
+  const tier = plan?.tier?.name ?? me.data?.subscription?.tier?.name;
+  const planTitle = membershipTitle(tier, subscription.isSuccess);
+  const planMeta = renewalLine(plan?.ends_at, plan?.auto_renew);
 
   /*
    * Refer & Earn is conditional on the website too: `_sidebar.blade.php` adds
@@ -341,11 +467,16 @@ export function ProfileMenuScreen({ navigation }: AppScreenProps<'ProfileMenu'>)
       to: 'Notifications',
       badge: notifications.data?.unread,
     },
-    { key: 'membership', label: 'Membership', icon: Crown, to: 'Plans' },
     /*
-     * The second row the website's sidebar does not have, and this one is a
-     * gap on the website rather than a difference in kind: `profile.billing`
-     * exists, renders and is linked from nowhere but the payment-complete
+     * **Membership is not a row any more.** It is the card above these groups
+     * — the audit's §6 — because it is the most-opened account page in a
+     * streaming product and it was the seventh of nine identical pills.
+     * `activeRowFor` still answers `membership` for the Plans route, and the
+     * card reads it. Nothing about the destination changed.
+     *
+     * Billing is the one row the website's sidebar does not have, and that is
+     * a gap on the website rather than a difference in kind: `profile.billing`
+     * exists, renders, and is linked from nowhere but the payment-complete
      * page. The app has no payment-complete page, so without this the screen
      * would be unreachable. Rio's call, 2026-09-09: a row here and a row on
      * Membership.
@@ -481,36 +612,66 @@ export function ProfileMenuScreen({ navigation }: AppScreenProps<'ProfileMenu'>)
                 </Text>
               ) : null}
 
-              {/* Only with a real plan name. No plan means no pill, not "Free". */}
-              {tier !== undefined && tier !== '' ? (
-                <View style={styles.tier}>
-                  <Crown size={13} color={colors.warning} weight="fill" />
-                  <Text style={styles.tierText} numberOfLines={1}>
-                    {tier}
-                  </Text>
-                </View>
-              ) : null}
+              {/*
+                The tier pill was here. It said the plan's name and nothing
+                else, and the Membership card directly below now says the
+                plan's name, the date it runs to, and opens the screen. One
+                fact, one place.
+              */}
             </View>
 
             <CaretRight size={profileMenu.chevronSize} color={profileMenu.chevronColor} weight="bold" />
           </Focusable>
 
-          <View style={styles.rule} />
+          <MembershipCard
+            title={planTitle}
+            meta={planMeta}
+            active={active === 'membership'}
+            onPress={() => {
+              rememberOpenedRow('membership');
+              navigation.navigate('Plans');
+            }}
+          />
 
-          <View style={styles.rows}>
-            {rows.map((row) => (
-              <Row
-                key={row.key}
-                row={row}
-                active={active === row.key}
-                onPress={row.to === undefined && row.tab === undefined ? undefined : () => go(row)}
-              />
+          {/*
+            Three labelled groups over the same eight rows.
+
+            `groupRows` decides the grouping, not this file, so the decision
+            is testable without a device — including the two cases that
+            matter on screen: a group whose rows are all switched off is not
+            drawn at all, and a row nobody has assigned a group is drawn
+            anyway, under no heading, rather than disappearing.
+          */}
+          <View style={styles.groups}>
+            {groupRows(rows).map((group) => (
+              <View key={group.key}>
+                {group.label !== null ? <Text style={styles.section}>{group.label}</Text> : null}
+
+                <View style={styles.rows}>
+                  {group.rows.map((row) => (
+                    <Row
+                      key={row.key}
+                      row={row}
+                      active={active === row.key}
+                      onPress={
+                        row.to === undefined && row.tab === undefined ? undefined : () => go(row)
+                      }
+                    />
+                  ))}
+                </View>
+              </View>
             ))}
           </View>
 
-          <View style={styles.rule} />
+          {/*
+            The rule, and no heading over Sign out.
 
-          <Text style={styles.section}>Account</Text>
+            It used to carry an "ACCOUNT" label of its own, which stopped
+            being possible the moment three of the rows above became a group
+            of that name. A single destructive row separated by a rule needs
+            no title.
+          */}
+          <View style={styles.rule} />
 
           <Focusable
             accessibilityLabel="Sign out"
@@ -590,20 +751,29 @@ const styles = StyleSheet.create({
   name: { fontFamily: fonts.bold, fontSize: 19, lineHeight: 24, color: colors.fieldText },
   handle: { ...typography.caption, fontSize: 14, color: colors.textMuted },
 
-  tier: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 5,
-    marginTop: 5,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    borderRadius: radius.pill,
+  /* The promoted Membership card. Its surface is the tier pill's, which this
+     replaced — see the `profileMenu` token block. */
+  card: {
+    borderRadius: profileMenu.cardRadius,
     backgroundColor: profileMenu.tierBg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: profileMenu.tierBorder,
+    marginTop: spacing.sm,
+    // Clips the active gradient to the card's corners.
+    overflow: 'hidden',
   },
-  tierText: { fontFamily: fonts.medium, fontSize: 11, lineHeight: 15, color: profileMenu.tierText },
+  cardInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
+  cardText: { flex: 1, gap: 2 },
+  cardTitle: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 21, color: colors.fieldText },
+  cardTitleActive: { color: colors.onPrimary },
+  cardMeta: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 17, color: profileMenu.tierText },
+  cardMetaActive: { color: colors.onPrimary },
 
   rule: {
     height: StyleSheet.hairlineWidth,
@@ -612,6 +782,9 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.sm,
   },
 
+  /* Between one labelled group and the next. Larger than the gap between
+     rows, which is what makes the three groups read as three. */
+  groups: { gap: spacing.lg, marginTop: spacing.lg },
   rows: { gap: profileMenu.rowGap },
   row: {
     height: profileMenu.rowHeight,

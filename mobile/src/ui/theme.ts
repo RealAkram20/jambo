@@ -759,6 +759,11 @@ export const list = {
   labelSize: 15,
   valueSize: 15,
   detailSize: 13,
+
+  /** A section heading above a card, or above a group of menu rows. Held here
+   *  rather than in each caller because it was two identical literal pairs. */
+  sectionSize: 11,
+  sectionTracking: 1.4,
 } as const;
 
 /**
@@ -859,8 +864,18 @@ export const profileMenu = {
   avatarRing: 'rgba(255, 255, 255, 0.12)',
   editBadgeSize: 24,
 
-  /** The tier pill. Blue-tinted, with the site's own gold crown on it, so both
-   *  brand marks survive the recolour from the mockup's pink. */
+  /**
+   * The Membership card. Blue-tinted, with the site's own gold crown on it, so
+   * both brand marks survive the recolour from the mockup's pink.
+   *
+   * These were the tier pill's three values and they still are. The pill sat
+   * in the identity block saying the plan's name; the card below it now says
+   * the plan's name, the date it runs to, and opens Membership. Keeping the
+   * pill would have been the same fact twice, so the pill went and its surface
+   * came here rather than a second blue being invented for the card.
+   *
+   * `tierText` on `tierBg` over the menu's own ground measures 9.6:1.
+   */
   tierBg: 'rgba(26, 152, 255, 0.16)',
   tierBorder: 'rgba(26, 152, 255, 0.45)',
   tierText: '#8FCBFF',
@@ -870,9 +885,19 @@ export const profileMenu = {
   badgeText: '#ffffff',
   badgeSize: 20,
 
-  /** "ACCOUNT" above the sign-out row. */
-  sectionSize: 11,
-  sectionTracking: 1.4,
+  /**
+   * The group headings — ACCOUNT, VIEWING, MONEY.
+   *
+   * `list`'s, not this block's own, for the reason the row metrics are: the
+   * same heading is drawn over every card in the app and there is no reason
+   * the menu's should be able to drift away from it.
+   */
+  sectionSize: list.sectionSize,
+  sectionTracking: list.sectionTracking,
+
+  /** The Membership card's corner. Larger than a row's, because it is a card
+   *  sitting among pills and needs to read as a different kind of thing. */
+  cardRadius: 14,
 } as const;
 
 /**

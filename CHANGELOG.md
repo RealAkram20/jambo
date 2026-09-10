@@ -8,6 +8,68 @@ would advertise a webapp update containing no webapp change.
 
 ## Jambo App
 
+### Unreleased — The profile menu reads as three groups, and Membership is a card
+
+`docs/plans/account-area-audit.md` §6, which the audit itself called the
+cheapest change in the document and the one Rio would feel first. **The reason
+the account area felt large was never the number of screens behind it.** It was
+that the menu is nine identical rows — same height, same weight, same chevron,
+no hierarchy — so the eye reads all nine every time and a streaming app's
+account behaves like a settings app.
+
+**No row changed its destination, no screen was added and none was removed.**
+The same rows are now read under ACCOUNT (Profile, Security, Devices), VIEWING
+(Watchlist, Notifications) and MONEY (Billing, Wallet, Refer & Earn), in the
+order the audit derived from how often a viewer of a streaming product actually
+opens each one rather than from the website's sidebar order.
+
+**Membership is promoted out of the list into a card**, carrying the plan's
+name and the date it runs to. It is the most-opened account page in this
+product because it answers "what am I paying", and as a row it was the seventh
+of nine pills, indistinguishable from Billing.
+
+**The tier pill left the identity block in the same change.** It said the
+plan's name and nothing else; the card directly below it says the plan's name,
+the date, and opens the screen. Two surfaces stating one fact is exactly what
+makes an account area feel bigger than it is. The pill's own three colour
+values became the card's, so no second blue was invented.
+
+**"Renews" versus "Active until" is now decided in one place.** That sentence
+was private to the Membership screen and the card needed the same one; telling
+somebody they are about to be billed when their plan is merely running out is
+the one error on these screens that costs money, and it is a sentence that must
+not be able to differ between two surfaces. It also stopped printing
+"Renews —" for a plan with no end date — a line that admits it does not know,
+in the shape of a fact — and draws nothing instead.
+
+**The grouping is a pure function with tests, not a shape in the screen file.**
+Two of its behaviours are the point: a group whose rows are all switched off is
+not drawn at all, because a heading over nothing reads as a feature that failed
+to load; and a row nobody has assigned a group is still drawn, under no
+heading, rather than disappearing. Adding a row and forgetting to group it is
+the obvious mistake, and being loud about it is cheaper than being invisible.
+
+🔴 **Two defects found by rendering it, both older than this change.**
+
+- **The active row was invisible to a screen reader.** "Where you are" was a
+  gradient, a heavier label and a filled icon — three signals, all of them
+  visual. Found by trying to read the state out of `uiautomator dump` and
+  getting `selected="false"` on every row including the lit one. Both the rows
+  and the new card now carry `accessibilityState`.
+- **The highlight did not follow you back.** Opening a destination from the
+  menu and pressing back left the row from the visit before it lit.
+  `openedRow()` is module state read during render, and `useNavigationState`
+  deliberately does not re-render when its selected slice is unchanged — which
+  it is not, because the tab underneath does not move. Reading `useIsFocused`
+  is what makes the menu look again at the moment it returns to the front.
+
+**One file left the lint allowlist without being converted.**
+`ProfileMenuScreen.tsx` was on `eslint.config.js`'s shrinking list of files
+allowed to import `Modal` and `Alert` from `react-native`, and it imports
+neither and never did — it was added from a list of screens rather than from
+its imports. The ratchet drops from six to five at no cost. Worth reading the
+other five the same way before assuming each is real work.
+
 ### Unreleased — The two daily Top 10 banners, and a scrim that was never painted
 
 Rio: *"i am not seeing the top 10 movies of the day banner on the app."* It was

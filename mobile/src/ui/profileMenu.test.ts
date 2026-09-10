@@ -1,6 +1,9 @@
 import {
   activeRowFor,
   avatarInitial,
+  groupOf,
+  groupRows,
+  membershipTitle,
   openedRow,
   rememberOpenedRow,
   unreadBadge,
@@ -191,5 +194,115 @@ describe('the rows that stopped being pending', () => {
     expect(activeRowFor('ContinueWatching')).toBeNull();
     expect(activeRowFor('History')).toBeNull();
     expect(activeRowFor('StreamingPreferences')).toBeNull();
+  });
+});
+
+describe('the three groups', () => {
+  /*
+   * The grouping is the audit's §6 and it is a reading order, not a feature:
+   * no row moved to a different destination and no screen was added or
+   * removed. What these assertions protect is the two ways the grouping can
+   * silently lose a row — a heading drawn over nothing, and a row assigned to
+   * no group at all — because neither of them raises anything anywhere.
+   */
+  const ROWS = [
+    { key: 'watchlist' },
+    { key: 'profile' },
+    { key: 'security' },
+    { key: 'devices' },
+    { key: 'notifications' },
+    { key: 'billing' },
+    { key: 'wallet' },
+    { key: 'refer' },
+  ];
+
+  it('reads Account, then Viewing, then Money', () => {
+    expect(groupRows(ROWS).map((group) => group.label)).toEqual(['Account', 'Viewing', 'Money']);
+  });
+
+  it('puts every row in exactly one group, and loses none of them', () => {
+    const grouped = groupRows(ROWS).flatMap((group) => group.rows.map((row) => row.key));
+
+    expect(grouped).toHaveLength(ROWS.length);
+    expect(new Set(grouped)).toEqual(new Set(ROWS.map((row) => row.key)));
+  });
+
+  it('groups them the way the plan does', () => {
+    expect(groupRows(ROWS).map((group) => group.rows.map((row) => row.key))).toEqual([
+      ['profile', 'security', 'devices'],
+      ['watchlist', 'notifications'],
+      ['billing', 'wallet', 'refer'],
+    ]);
+  });
+
+  /*
+   * Refer & Earn is drawn only when the admin's referral switch is on, so this
+   * is a real configuration rather than a hypothetical: MONEY is legitimately
+   * two rows on some accounts.
+   */
+  it('keeps a group that lost a conditional row', () => {
+    const withoutReferrals = ROWS.filter((row) => row.key !== 'refer');
+
+    expect(groupRows(withoutReferrals).map((group) => group.label)).toEqual([
+      'Account',
+      'Viewing',
+      'Money',
+    ]);
+  });
+
+  /* A heading over nothing reads as a feature that failed to load. */
+  it('does not draw a group whose rows are all absent', () => {
+    const labels = groupRows([{ key: 'profile' }, { key: 'security' }]).map((g) => g.label);
+
+    expect(labels).toEqual(['Account']);
+  });
+
+  /*
+   * The one that matters most. Adding a row to the menu and forgetting to
+   * assign it a group is the obvious mistake; under a design that filtered by
+   * membership the only symptom would be a row that silently does not exist.
+   */
+  it('still draws a row it has never heard of, under no heading', () => {
+    const groups = groupRows([{ key: 'profile' }, { key: 'gift-cards' }]);
+
+    expect(groups.map((group) => group.label)).toEqual(['Account', null]);
+    expect(groups[1]?.rows).toEqual([{ key: 'gift-cards' }]);
+  });
+
+  /*
+   * Membership is the promoted card, not a row. If it ever appears in the row
+   * list again it lands in the unlabelled trailing group, which is visible on
+   * screen — that is the intended way to notice, and this pins the reason.
+   */
+  it('assigns no group to membership, because it is the card', () => {
+    expect(groupOf('membership')).toBeNull();
+  });
+});
+
+describe('membershipTitle', () => {
+  /*
+   * Three states, and the third is the one that costs something. Saying "No
+   * active membership" to a paying viewer — even for the frame before
+   * `/subscription` answers — is the app telling somebody a falsehood about
+   * their own money.
+   */
+  it('says the plan name once it has one', () => {
+    expect(membershipTitle('Premium', true)).toBe('Premium');
+    expect(membershipTitle('Premium', false)).toBe('Premium');
+  });
+
+  it('says Membership while the subscription is still loading', () => {
+    expect(membershipTitle(undefined, false)).toBe('Membership');
+  });
+
+  it('says there is none only once the server has answered', () => {
+    expect(membershipTitle(undefined, true)).toBe('No active membership');
+  });
+
+  /* A blank plan name is not a plan name. Rendering it leaves a card with a
+     date on it and nothing to say what the date is for. */
+  it('treats a blank name as absent', () => {
+    expect(membershipTitle('   ', true)).toBe('No active membership');
+    expect(membershipTitle('   ', false)).toBe('Membership');
   });
 });

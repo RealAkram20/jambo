@@ -108,3 +108,95 @@ export function rememberOpenedRow(key: string | null): void {
 export function openedRow(): string | null {
   return lastOpenedRow;
 }
+
+/**
+ * The three groups the menu's rows are read in.
+ *
+ * **Nine identical rows is what made the account area feel large**, and it was
+ * the cheapest finding in `docs/plans/account-area-audit.md` §6: same height,
+ * same weight, same chevron, no hierarchy, so the eye reads all nine every
+ * time and the screen behaves like a settings app. **No row moved and no
+ * destination changed** — only the reading order and three labels above it.
+ *
+ * The order is the plan's, which is ordered by how often a viewer of a
+ * streaming product opens each one rather than by the website's sidebar. The
+ * website has no groups at all: on a desktop the rail sits beside the page it
+ * describes and is scanned once, and on a phone it is the whole screen.
+ */
+export type MenuGroupKey = 'account' | 'viewing' | 'money';
+
+const GROUP_ORDER: readonly { key: MenuGroupKey; label: string }[] = [
+  { key: 'account', label: 'Account' },
+  { key: 'viewing', label: 'Viewing' },
+  { key: 'money', label: 'Money' },
+];
+
+/**
+ * Which group each row belongs to.
+ *
+ * `membership` is deliberately absent: it is the promoted card above the
+ * groups rather than a row, which is the other half of §6. Anything else
+ * missing here is a mistake rather than a decision, and `groupRows` renders it
+ * visibly rather than swallowing it — see below.
+ */
+const GROUP_OF: Readonly<Record<string, MenuGroupKey>> = {
+  profile: 'account',
+  security: 'account',
+  devices: 'account',
+  watchlist: 'viewing',
+  notifications: 'viewing',
+  billing: 'money',
+  wallet: 'money',
+  refer: 'money',
+};
+
+export function groupOf(rowKey: string): MenuGroupKey | null {
+  return GROUP_OF[rowKey] ?? null;
+}
+
+/** A group as the screen draws it. A null label is a group with no heading. */
+export type MenuGroup<T> = { key: string; label: string | null; rows: T[] };
+
+/**
+ * The rows, grouped, in the order the screen renders them.
+ *
+ * Two behaviours here are load-bearing and both are about not lying:
+ *
+ * **An empty group is not drawn.** Refer & Earn is conditional on the admin's
+ * referral switch, so MONEY can legitimately be shorter — but a heading over
+ * nothing would read as a feature that failed to load.
+ *
+ * **A row this file has never heard of is still drawn**, in a trailing group
+ * with no heading, rather than dropped. Adding a row to the menu and
+ * forgetting to add it here is the obvious mistake, and its only symptom under
+ * the other design would be a row that silently does not exist. Loud is
+ * cheaper than invisible.
+ */
+export function groupRows<T extends { key: string }>(rows: readonly T[]): MenuGroup<T>[] {
+  const groups: MenuGroup<T>[] = GROUP_ORDER.map((group) => ({
+    key: group.key,
+    label: group.label,
+    rows: rows.filter((row) => groupOf(row.key) === group.key),
+  })).filter((group) => group.rows.length > 0);
+
+  const ungrouped = rows.filter((row) => groupOf(row.key) === null);
+
+  return ungrouped.length > 0
+    ? [...groups, { key: 'ungrouped', label: null, rows: ungrouped }]
+    : groups;
+}
+
+/**
+ * The title on the promoted Membership card.
+ *
+ * Three states rather than two, and the third is the one that matters: while
+ * the subscription is still loading the card says "Membership", because
+ * "No active membership" on a paying viewer's screen — even for one frame — is
+ * the app telling them something false about their own money. It resolves to
+ * the real plan name the moment either `/me` or `/subscription` answers.
+ */
+export function membershipTitle(tierName: string | undefined, settled: boolean): string {
+  if (tierName !== undefined && tierName.trim() !== '') return tierName;
+
+  return settled ? 'No active membership' : 'Membership';
+}

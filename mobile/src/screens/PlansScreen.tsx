@@ -23,6 +23,7 @@ import { fetchOrder, startCheckout, type Checkout } from '../features/billing/ap
 import { CheckoutSheet } from '../features/billing/CheckoutSheet';
 import type { Plan, Subscription, TitleCard } from '../api/catalogue';
 import { CAN_SUBSCRIBE_IN_APP } from '../config/env';
+import { renewalLine } from '../ui/format';
 import { imageUrl } from '../ui/media';
 import { badge, colors, fonts, plans as planTokens, spacing, typography } from '../ui/theme';
 import { Alert, Caption, ErrorState, Loading } from '../ui/components';
@@ -628,8 +629,10 @@ function Benefit({ icon: Glyph, label }: { icon: Icon; label: string }) {
  */
 function CurrentStrip({ subscription }: { subscription: Subscription | null }) {
   const name = subscription?.tier?.name;
-  const renews = formatPlanDate(subscription?.ends_at);
-  const auto = subscription?.auto_renew === true;
+  /* Shared with the profile menu's Membership card, so the two surfaces
+     cannot disagree about the word or the date. Null for a plan with no end
+     date, which is drawn as no line rather than as "Renews —". */
+  const renews = renewalLine(subscription?.ends_at, subscription?.auto_renew);
 
   return (
     <View
@@ -638,7 +641,7 @@ function CurrentStrip({ subscription }: { subscription: Subscription | null }) {
       accessibilityLabel={
         subscription === null
           ? 'You have no active membership.'
-          : `Current plan, ${name ?? 'unknown'}. ${auto ? 'Renews' : 'Active until'} ${renews}.`
+          : `Current plan, ${name ?? 'unknown'}.${renews === null ? '' : ` ${renews}.`}`
       }
     >
       <Crown size={22} color={colors.primary} weight="fill" />
@@ -646,9 +649,9 @@ function CurrentStrip({ subscription }: { subscription: Subscription | null }) {
         <Text style={styles.stripTitle} numberOfLines={1}>
           {subscription === null ? 'No active membership' : `Current plan: ${name ?? '—'}`}
         </Text>
-        {subscription === null ? null : (
+        {subscription === null || renews === null ? null : (
           <Text style={styles.stripMeta} numberOfLines={1}>
-            {`${auto ? 'Renews' : 'Active until'} ${renews}`}
+            {renews}
           </Text>
         )}
       </View>
@@ -904,22 +907,6 @@ function statusWord(status: string | null | undefined): string {
   const word = typeof status === 'string' && status !== '' ? status : 'active';
 
   return word.charAt(0).toUpperCase() + word.slice(1);
-}
-
-/**
- * A membership date, or an em dash.
- *
- * The blade prints `?->format('F j, Y') ?? '—'`, so an absent date is a dash
- * and never today's. A lifetime plan has no end, and printing one would be the
- * app inventing an expiry.
- */
-function formatPlanDate(iso: string | null | undefined): string {
-  if (typeof iso !== 'string' || iso === '') return '—';
-
-  const when = new Date(iso);
-  if (Number.isNaN(when.getTime())) return '—';
-
-  return when.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 const SCREEN_WIDTH = Dimensions.get('window').width;

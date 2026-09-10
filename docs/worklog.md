@@ -5852,3 +5852,104 @@ is now clean.
 - **No slice of the account-area audit was implemented.** Merging
   `ProfileScreen` into the editor, folding notification settings in, turning
   the invoice into a sheet and the billing summary are all still open.
+
+### 2026-09-10 — the account area: grouping, the merged profile, the folded settings, the billing summary (jambo-6b)
+
+**Status:** in progress
+**Owns:**
+- `mobile/src/ui/profileMenu.ts` and `mobile/src/ui/profileMenu.test.ts`
+- `mobile/src/screens/ProfileMenuScreen.tsx`
+- `mobile/src/screens/ProfileScreen.tsx` — to be **deleted** (§4.1)
+- `mobile/src/screens/ProfileEditScreen.tsx`
+- `mobile/src/features/notifications/NotificationsScreen.tsx`
+- `mobile/src/features/notifications/NotificationSettingsScreen.tsx` — to be **deleted** (§4.2)
+- `mobile/src/features/billing/BillingScreen.tsx`
+- `mobile/src/features/billing/InvoiceScreen.tsx` — becomes a `Sheet` (§4.3)
+
+**Shares — minimal diffs, each named:**
+- `mobile/src/ui/theme.ts` — the `list` and `profileMenu` token blocks only.
+- `mobile/src/ui/format.ts` — one added formatter, shared with `PlansScreen`.
+- `mobile/src/ui/list.tsx` — the section heading reads its two numbers from
+  `list` instead of holding them as literals.
+- `mobile/src/screens/PlansScreen.tsx` — the `CurrentStrip` date line only,
+  which moves to the shared formatter.
+- `mobile/src/navigation/types.ts`, `mobile/src/navigation/RootNavigator.tsx` —
+  the routes the deleted screens leave behind.
+- `docs/api/openapi.yaml` + `mobile/src/api/schema.d.ts` — only if §3 needs a
+  field, and always in the same commit.
+
+**What this is:** the four numbered slices of
+`docs/plans/account-area-audit.md` that were still open after `6f91859`, in the
+order the plan gives them and one commit each. §7's step 1 (navigation) and
+§9.4's step 0 (the copy sweep) are already done and are not touched.
+
+**Coordination:** jambo-5b was live and has been told which files are claimed.
+
+**For whoever is next:** §2.2 — the account icon kept present on account
+screens, so the area is a hub rather than a tree — is deliberately NOT in this
+work. It changes navigation Rio has already signed off, so it is a question for
+him rather than a fifth commit.
+
+---
+
+#### Step 1 of 4 — §6, the groups and the promoted card. Complete.
+
+**Verified, on a booted emulator and read from the view tree rather than from
+pixels.** Density 480, so 3.0, and every number below is px/3:
+
+| | |
+|---|---|
+| Membership card | 1208 x 194 px = **402.7 x 64.7 dp** |
+| Row | 168 px = **56 dp**, which is `list.rowMinHeight` and unchanged |
+| Between rows | 6 px = **2 dp**, `profileMenu.rowGap`, unchanged |
+| Between one group and the next | 48 px = **16 dp**, `spacing.lg` |
+| Whole menu | ends at y=2775 of 2856 — **it no longer scrolls** |
+
+Read off the tree in order: identity, the card, ACCOUNT / Profile, Security,
+Devices, VIEWING / Watchlist, Notifications, MONEY / Billing, Wallet, Refer &
+Earn, then Sign out under a rule with no heading.
+
+- The card opens Membership, and the Membership screen's own strip reads
+  **"Active until Sep 11, 2026"** — the same word and the same date as the
+  card, from the one shared formatter, against the real dev database.
+- Six mutants killed on the two pure modules (grouping x2, the card title x2,
+  the renewal word x2), applied from a file rather than a shell one-liner so
+  each one is provably applied. All restored.
+- `npm run check` green: 23 suites, 390 tests, plus api:check, tokens:check,
+  typecheck and lint.
+
+**Not verified:** no PHP was touched, so `php artisan test` was not run for
+this step. The grouping was rendered only with referrals switched ON, so the
+"MONEY loses a row" path exists in a test and has not been seen on a screen.
+Nothing was checked on a tablet or on the TV build.
+
+**🔴 Two defects found by rendering, both older than this change and both
+fixed here** — the active row was invisible to a screen reader
+(`accessibilityState` was never set, on any row), and the highlight did not
+follow you back from a destination (`useNavigationState` does not re-render
+when its selected slice is unchanged, so the menu kept the previous visit's
+row lit). The second is the one worth remembering: **the view tree could not
+answer a question about state, and that was itself the finding.**
+
+**§5's placement of the next charge — stated, not slipped in.** The audit
+argues the next charge belongs on Membership rather than Billing, and putting
+the renewal date on the Membership card takes that recommendation. I agree
+with it: "when am I next charged" is a membership question, and it is one line
+on a card people already open. Rio has not seen that argued, and it is the one
+genuine judgment call in this slice — flagged rather than assumed. Step 4's
+Billing summary will still carry what you have SPENT; only the next charge
+sits on Membership.
+
+**🔴 An environment trap that cost half an hour, and it is the XAMPP bleed one
+port over.** Apache serves the *Precious* Laravel app on **8081**, which is
+Metro's default, and it wins the bind — so `adb reverse tcp:8081` sends the
+dev client to a different project's homepage with no error anywhere. Metro was
+moved to **8099**. Check what answers on a port before trusting it:
+`curl -s http://127.0.0.1:8081/status` returned a page titled PRECIOUS.
+
+**🔴 A self-inflicted one worth a rule.** `io.open(path, 'w')` truncates the
+file *before* the write, so a `UnicodeEncodeError` raised while encoding leaves
+an empty file — which is how `ProfileMenuScreen.tsx` went to 0 bytes with an
+hour of uncommitted edits in it. Recovered from `git show HEAD:` plus a replay
+script. **Encode first, then open for writing**, and put a multi-edit replay in
+a file rather than a heredoc so it can be re-run.
