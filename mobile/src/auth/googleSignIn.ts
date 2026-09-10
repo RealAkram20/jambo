@@ -1,6 +1,4 @@
 import { useCallback } from 'react';
-import * as Google from 'expo-auth-session/providers/google';
-import * as WebBrowser from 'expo-web-browser';
 
 import { CAN_SIGN_IN_WITH_GOOGLE, GOOGLE_ANDROID_CLIENT_ID, GOOGLE_WEB_CLIENT_ID } from '../config/env';
 
@@ -24,19 +22,71 @@ import { CAN_SIGN_IN_WITH_GOOGLE, GOOGLE_ANDROID_CLIENT_ID, GOOGLE_WEB_CLIENT_ID
  *
  * **An ID token, not an access token.** The server wants proof of WHO this is,
  * signed by Google and checkable without trusting us; an access token would be
- * permission to call Google's APIs, which this product has no use for. So the
- * response type is `id_token` and nothing is stored from Google beyond what
- * the server derives from it.
+ * permission to call Google's APIs, which this product has no use for.
+ *
+ * ── 🔴 Why this file loads its dependency by hand ──────────────────────
+ *
+ * `import * as Google from 'expo-auth-session/providers/google'` at the top of
+ * this file **crashed the app on its first screen**, and Rio hit it minutes
+ * after the feature was committed: `expo-auth-session` pulls in
+ * `expo-application`, which is a NATIVE module, and a dev client built before
+ * that dependency existed does not contain it. The failure is
+ * `Cannot find native module 'ExpoApplication'`, thrown while `SignInScreen`
+ * renders — so the app cannot reach sign-in at all, which is every screen.
+ *
+ * A static import is loaded when this module is, and this module is loaded
+ * because the sign-in screen imports it. Nothing about the button being hidden
+ * helps: the crash happens before any of that is evaluated.
+ *
+ * So the dependency is required at runtime and only when it can work. Two
+ * guards, and both are needed:
+ *
+ *  - `CAN_SIGN_IN_WITH_GOOGLE` — this build has no client id, so there is
+ *    nothing to load it for;
+ *  - the `try`/`catch` — a build that HAS ids can still be running in a dev
+ *    client that predates the native module, and a missing Google button is a
+ *    survivable state where a white screen is not.
+ *
+ * The rule this is an instance of: **a native module added to an Expo app is
+ * not available until something rebuilds the client, and reaching for one that
+ * is missing is a crash rather than a null.** Anything optional must be
+ * required lazily behind a guard.
  */
 
-/*
- * Closes the browser tab when the app is resumed mid-flow.
+type GoogleProviders = typeof import('expo-auth-session/providers/google');
+type WebBrowserModule = typeof import('expo-web-browser');
+
+/**
+ * The provider module, or null when it cannot be loaded here.
  *
- * Without it an abandoned sign-in leaves the Custom Tab sitting on top of the
- * app on Android, so the viewer returns to a browser rather than to Jambo.
- * Called at module scope because it patches a listener, not per render.
+ * Resolved once at module scope rather than per render: the answer cannot
+ * change while the app is running, and a `require` inside a hook would run on
+ * every render of the sign-in screen.
  */
-WebBrowser.maybeCompleteAuthSession();
+const google: GoogleProviders | null = (() => {
+  if (!CAN_SIGN_IN_WITH_GOOGLE) return null;
+
+  try {
+    /* eslint-disable-next-line @typescript-eslint/no-require-imports -- see the note above: a static import crashes a dev client without the native module. */
+    const providers = require('expo-auth-session/providers/google') as GoogleProviders;
+
+    /*
+     * Closes the browser tab when the app is resumed mid-flow. Without it an
+     * abandoned sign-in leaves the Custom Tab on top of the app on Android, so
+     * the viewer returns to a browser rather than to Jambo. Inside the guard
+     * because it is a second native module.
+     */
+    /* eslint-disable-next-line @typescript-eslint/no-require-imports -- as above. */
+    (require('expo-web-browser') as WebBrowserModule).maybeCompleteAuthSession();
+
+    return providers;
+  } catch {
+    return null;
+  }
+})();
+
+/** Whether this build can start a Google sign-in at all. */
+export const GOOGLE_AVAILABLE = google !== null;
 
 export type GoogleSignInResult =
   | { kind: 'token'; idToken: string }
@@ -48,10 +98,10 @@ export type GoogleSignInResult =
 /**
  * Starts a Google sign-in and resolves with an ID token to POST.
  *
- * Returns a `start` of `null` when this build has no Google client configured,
- * which is how `SignInScreen` knows not to draw the button. A control that
- * cannot complete must not be on screen — that rule is the whole reason this
- * file exists.
+ * **Only call this from a component that is mounted when `GOOGLE_AVAILABLE`.**
+ * It calls a hook from the provider module, which does not exist otherwise;
+ * `SignInScreen` guards on the same constant. A control that cannot complete
+ * must not be on screen — that rule is the whole reason this file exists.
  */
 export function useGoogleSignIn(): { start: (() => Promise<GoogleSignInResult>) | null } {
   /*
@@ -60,8 +110,11 @@ export function useGoogleSignIn(): { start: (() => Promise<GoogleSignInResult>) 
    * the signing certificate — and the Web client is the fallback for anything
    * that is not an Android build. Whichever is used ends up in the token's
    * `aud`, and the server accepts either.
+   *
+   * The non-null assertion is what the guard above buys: this hook is only
+   * reached from a component the caller mounted behind `GOOGLE_AVAILABLE`.
    */
-  const [request, , promptAsync] = Google.useIdTokenAuthRequest({
+  const [request, , promptAsync] = google!.useIdTokenAuthRequest({
     ...(GOOGLE_ANDROID_CLIENT_ID === '' ? {} : { androidClientId: GOOGLE_ANDROID_CLIENT_ID }),
     ...(GOOGLE_WEB_CLIENT_ID === '' ? {} : { webClientId: GOOGLE_WEB_CLIENT_ID }),
   });
@@ -94,8 +147,7 @@ export function useGoogleSignIn(): { start: (() => Promise<GoogleSignInResult>) 
   /*
    * `request` is null until the discovery document has loaded, and pressing
    * before then does nothing — so the button is disabled rather than
-   * unresponsive. `CAN_SIGN_IN_WITH_GOOGLE` is the build-time half of the same
-   * question.
+   * unresponsive.
    */
-  return { start: CAN_SIGN_IN_WITH_GOOGLE && request !== null ? start : null };
+  return { start: request !== null ? start : null };
 }

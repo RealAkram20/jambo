@@ -5,7 +5,7 @@ import { Envelope, Lock } from 'phosphor-react-native';
 
 import { ApiError, NetworkError } from '../api/errors';
 import { useAuth } from '../auth/AuthProvider';
-import { useGoogleSignIn } from '../auth/googleSignIn';
+import { GOOGLE_AVAILABLE, useGoogleSignIn, type GoogleSignInResult } from '../auth/googleSignIn';
 import { AuthBackground, PlayWatermark } from '../ui/AuthBackground';
 import {
   AuthField,
@@ -60,7 +60,6 @@ function messageFor(error: unknown): string {
 
 export function SignInScreen({ navigation }: AuthScreenProps<'SignIn'>) {
   const { signIn, signInWithGoogle, config } = useAuth();
-  const google = useGoogleSignIn();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -83,11 +82,13 @@ export function SignInScreen({ navigation }: AuthScreenProps<'SignIn'>) {
    * broken.** The server saying yes was never enough: until 2026-09-11 the
    * button's handler was `navigation.navigate('SignIn')` — it navigated to the
    * screen it was already on, so it did nothing at all, and it was visible on
-   * production only because the live server has a client id set. `google.start`
-   * is null when this BUILD has no Google client configured, which is the
-   * other way the control can be unable to finish.
+   * production only because the live server has a client id set.
+   * `GOOGLE_AVAILABLE` is the other half: false when this BUILD has no Google
+   * client configured, or when the native modules the flow needs are not in
+   * the binary — see `googleSignIn.ts`, which crashed the app on this screen
+   * before it loaded them by hand.
    */
-  const googleEnabled = config?.features?.google_sign_in === true && google.start !== null;
+  const googleEnabled = config?.features?.google_sign_in === true && GOOGLE_AVAILABLE;
 
   /**
    * Google sign-in, end to end.
@@ -100,23 +101,19 @@ export function SignInScreen({ navigation }: AuthScreenProps<'SignIn'>) {
    * not register, which is exactly the confusion this whole change exists to
    * end.
    */
-  const submitGoogle = async () => {
-    if (busy || google.start === null) return;
+  const onGoogleResult = async (result: GoogleSignInResult) => {
+    if (result.kind === 'cancelled') return;
+
+    if (result.kind === 'failed') {
+      setBanner('Google did not complete that sign-in. Try again, or use your email.');
+      return;
+    }
 
     setBusy(true);
     setBanner(null);
     setFieldErrors({});
 
     try {
-      const result = await google.start();
-
-      if (result.kind === 'cancelled') return;
-
-      if (result.kind === 'failed') {
-        setBanner('Google did not complete that sign-in. Try again, or use your email.');
-        return;
-      }
-
       const outcome = await signInWithGoogle(result.idToken);
 
       if (outcome.kind === 'two-factor') {
@@ -274,12 +271,10 @@ export function SignInScreen({ navigation }: AuthScreenProps<'SignIn'>) {
                   <>
                     <OrDivider />
                     <View style={styles.socialRow}>
-                      <QuietButton
-                        label="Google"
-                        icon={<GoogleMark />}
+                      <GoogleButton
                         disabled={busy}
-                        onPress={() => {
-                          void submitGoogle();
+                        onResult={(result) => {
+                          void onGoogleResult(result);
                         }}
                       />
                     </View>
@@ -300,6 +295,41 @@ export function SignInScreen({ navigation }: AuthScreenProps<'SignIn'>) {
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
+  );
+}
+
+/**
+ * The Google button, and the only thing that calls `useGoogleSignIn`.
+ *
+ * 🔴 **It is a component rather than a hook call in `SignInScreen` because a
+ * hook cannot be called conditionally.** The provider module is absent on a
+ * build without Google configured, and on a dev client that predates the
+ * native modules it needs — which is how the first version of this feature
+ * crashed the app on its first screen. A component boundary is the guard: the
+ * caller renders this only when `GOOGLE_AVAILABLE`, so the hook is never
+ * reached otherwise.
+ */
+function GoogleButton({
+  disabled,
+  onResult,
+}: {
+  disabled: boolean;
+  onResult: (result: GoogleSignInResult) => void;
+}) {
+  const { start } = useGoogleSignIn();
+
+  return (
+    <QuietButton
+      label="Google"
+      icon={<GoogleMark />}
+      // `start` is null until the discovery document has loaded, so the button
+      // is disabled rather than silently doing nothing when pressed early.
+      disabled={disabled || start === null}
+      onPress={() => {
+        if (start === null) return;
+        void start().then(onResult);
+      }}
+    />
   );
 }
 
