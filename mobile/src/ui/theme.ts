@@ -482,26 +482,42 @@ export const genreTile = {
 /**
  * A personality card, measured off the rendered site at 390x844 on 2026-09-10.
  *
- * **It is a rounded rectangle, not a circle**, and that is the correction this
- * block exists for. The app drew a round portrait — the shape a streaming app's
- * cast row usually has — while `cards/personality-card.blade.php` renders
- * `rounded-3` on a 1/1.3 portrait, and the site's own rail shows two of them per
- * view where the app showed four. Rio saw the two side by side.
+ * **Two shapes, and they are different on purpose.**
  *
- * The caption is BELOW the image here, unlike the genre tile whose label is
- * centred over it. Same rail geometry, different card: `.cast-title` is
- * `position: static`, 14px/500, centred.
+ * The HOME rail is a circle, four across — Rio's instruction, *"make the
+ * people's cards like this and smaller on home for both webapp and mobile"*,
+ * and the website was changed to match in the same commit rather than the app
+ * being allowed to diverge from it. The numbers below are read back off that
+ * changed site, not chosen: 89.5 slides holding a 75.5 circle, the name at
+ * 12px.
+ *
+ * The CAST LIST page keeps the rounded 1/1.3 portrait, because "on home" was
+ * the instruction and `/cast-list` is not home. Its card is measured
+ * separately below.
+ *
+ * The caption is BELOW the image in both, unlike the genre tile whose label is
+ * centred over it.
  */
 export const personTile = {
-  /** 165 / 214.5. The site declares `aspect-ratio: 1 / 1.3` outright. */
-  aspect: 1 / 1.3,
+  /* ── the home rail: a circle, four across ──────────────────────── */
+
+  /** Square, because a circle is. `aspect-ratio: 1` on the site. */
+  railAspect: 1,
+  /** An 89.5 slide holding a 75.5 circle. */
+  railGap: (89.5 - 75.5) / 2,
+  /** `.cast-title` under a quarter-width avatar, where 14 wraps to three
+   *  lines and pushes the rail taller than the artwork it labels. */
+  railNameSize: 12,
+  railNameLineHeight: 15,
+
+  /* ── the cast list page: a rounded portrait, three across ───────── */
+
+  /** 97.98 / 127.38. The site declares `aspect-ratio: 1 / 1.3` outright. */
+  indexAspect: 1 / 1.3,
   radius: 8,
   /** `margin-bottom: 16px` on `.personality-img`. */
   gapBelow: 16,
-  nameSize: 14,
   nameWeight: '500' as const,
-  /** A 179pt slide holding a 165pt card. */
-  gap: (179 - 165) / 2,
 
   /**
    * The all-personalities page, measured at 390 on 2026-09-10.
@@ -512,6 +528,16 @@ export const personTile = {
    */
   indexNameSize: 16,
   roleSize: 14,
+
+  /**
+   * The gutter inside each cell of the cast grid.
+   *
+   * `/cast-list` is `row-cols-3` on a phone and its columns span the viewport
+   * edge to edge: at 390 that is three columns of 129.98 holding a 97.98 card,
+   * so 16 inside each cell. The grid is deliberately NOT inset like the rest
+   * of the app's lists, because the site's is not.
+   */
+  indexGutter: 16,
 } as const;
 
 /**

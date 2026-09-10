@@ -189,8 +189,8 @@ class TaxonomyController extends Controller
      *
      * Ordered by how much of the catalogue they are in, which is what makes
      * the grid useful rather than alphabetical. **The website's own
-     * `/all-personality` orders by surname and lists everybody**, including
-     * people with nothing published; this deliberately does neither, and the
+     * `/cast-list` orders by surname and lists everybody**, including people
+     * with nothing published; this deliberately does neither, and the
      * divergence is older than this change.
      *
      * 🔴 **The image field was `photo_url` and the contract said

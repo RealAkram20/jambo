@@ -151,12 +151,17 @@ export function VjCard(props: {
 /**
  * A cast member or personality: a portrait and a name below it.
  *
- * **A rounded rectangle, not a circle**, which is the correction Rio asked for
- * on 2026-09-10. `cards/personality-card.blade.php` renders `rounded-3` on an
- * image the stylesheet gives `aspect-ratio: 1 / 1.3`; the app drew a round
- * portrait, which is what a streaming app's cast row usually looks like and is
- * not what this one looks like. Measured at 165 x 214.5 with a 16pt gap under
- * it, and the name at 14px/500 rather than the app's caption size.
+ * **Two shapes, chosen by `variant`, and the difference is Rio's.**
+ *
+ * On the home rail it is a circle, four across, small — *"make the people's
+ * cards like this and smaller on home for both webapp and mobile"*, 2026-09-10.
+ * The website was changed to match in the same commit, and these numbers were
+ * then read back off it rather than invented here, so the two surfaces cannot
+ * drift.
+ *
+ * On the cast list it is the rounded 1/1.3 portrait `/cast-list` draws, with a
+ * 16px name and the role line under it. That page was left alone because the
+ * instruction was "on home".
  *
  * Every number is in `theme.personTile` with the selector it came from.
  */
@@ -181,8 +186,10 @@ export function PersonCard({
   variant?: 'rail' | 'index';
 }) {
   const name = item.name ?? 'Unknown';
-  const height = Math.round(width / personTile.aspect);
   const index = variant === 'index';
+  const height = Math.round(width / (index ? personTile.indexAspect : personTile.railAspect));
+  /* A circle on the rail, the site's 8pt corner on the page. */
+  const corner = index ? personTile.radius : width / 2;
   /*
    * The role line, and only when the server sent one. `known_for` is nullable
    * on the column and the rail does not request it at all, so absent is the
@@ -194,13 +201,13 @@ export function PersonCard({
   return (
     <Focusable
       accessibilityLabel={name}
-      ringRadius={personTile.radius}
+      ringRadius={corner}
       onPress={onPress}
       style={{ width }}
     >
       <ExpoImage
         source={imageUrl(item.image_url, width)}
-        style={[styles.portrait, { width, height, borderRadius: personTile.radius }]}
+        style={[styles.portrait, { width, height, borderRadius: corner }]}
         contentFit="cover"
         // `object-position: 50% 0%` on the site, and it matters more here than
         // on a still: these are people, and a centre crop of a 1/1.3 portrait
@@ -297,19 +304,23 @@ const styles = StyleSheet.create({
 
   portrait: { backgroundColor: colors.surface },
 
-  /* `.cast-title` in the rail: 14px/500, centred, white, 16pt under the
-     image. The index draws the same line at 16px — see `personNameIndex`. */
+  /* `.cast-title` in the rail: 12px/500, centred, white, 16pt under the
+     circle. The index draws the same line at 16px — see `personNameIndex`. */
   personName: {
     ...typography.caption,
     fontFamily: fonts.medium,
-    fontSize: personTile.nameSize,
+    fontSize: personTile.railNameSize,
+    lineHeight: personTile.railNameLineHeight,
     fontWeight: personTile.nameWeight,
     color: card.titleColor,
     marginTop: personTile.gapBelow,
     textAlign: 'center',
   },
   /* The index's `.cast-title`, which is `h6` rather than the rail's caption. */
-  personNameIndex: { fontSize: personTile.indexNameSize },
+  personNameIndex: {
+    fontSize: personTile.indexNameSize,
+    lineHeight: personTile.indexNameSize * 1.3,
+  },
   /* `.person-cats`: 14px/400, centred, white. */
   personRole: {
     ...typography.caption,

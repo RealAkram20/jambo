@@ -193,7 +193,6 @@ Route::group([], function () {
     //cast pages
     Route::get('/cast-list', [FrontendController::class, 'cast_list'])->name('frontend.cast_list');
     Route::get('/cast-details/{slug?}', [FrontendController::class, 'cast_details'])->name('frontend.cast_details');
-    Route::get('/all-personality', [FrontendController::class, 'all_personality'])->name('frontend.all_personality');
 
     //tag pages
     Route::get('/tag/{slug?}', [FrontendController::class, 'tag'])->name('frontend.tag');

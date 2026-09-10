@@ -16,7 +16,7 @@ import { UpdateRequiredScreen } from '../screens/UpdateRequiredScreen';
 import { NotificationsScreen } from '../features/notifications/NotificationsScreen';
 import { CollectionScreen } from '../screens/CollectionScreen';
 import { GenresScreen } from '../screens/GenresScreen';
-import { PersonalitiesScreen } from '../screens/PersonalitiesScreen';
+import { CastListScreen } from '../screens/CastListScreen';
 import { PlansScreen } from '../screens/PlansScreen';
 import { ProfileEditScreen } from '../screens/ProfileEditScreen';
 import { ReferralsScreen } from '../features/referrals/ReferralsScreen';
@@ -227,9 +227,12 @@ export function RootNavigator() {
             options={({ route }) => ({ title: route.params.title })}
           />
           <AppStack.Screen
-            name="Personalities"
-            component={PersonalitiesScreen}
-            options={({ route }) => ({ title: route.params?.title ?? 'Personalities' })}
+            name="CastList"
+            component={CastListScreen}
+            // "Cast", which is the heading `/cast-list` carries. The rail that
+            // opens it is headed "Your Favourite Personality" and the page it
+            // lands on is not, on the website either.
+            options={({ route }) => ({ title: route.params?.title ?? 'Cast' })}
           />
           <AppStack.Screen
             name="Genres"

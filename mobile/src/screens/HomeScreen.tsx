@@ -385,12 +385,13 @@ function RailFor({
 
     case 'people': {
       /*
-       * Two per view, the same `data-mobile="2"`, and a 165pt card in a 179pt
-       * slide rather than the poster rail's width. The app was drawing four
-       * round portraits across where the site draws two portrait rectangles.
+       * Four per view and round — Rio's instruction of 2026-09-10, with the
+       * website changed to match in the same commit. The site is
+       * `data-mobile="4"` with an 89.5 slide holding a 75.5 circle, so the
+       * gutter is 7 either side.
        */
-      const slide = (metrics.width - inset * 2) / 2;
-      const portrait = slide - personTile.gap * 2;
+      const slide = (metrics.width - inset * 2) / PEOPLE_PER_VIEW;
+      const portrait = slide - personTile.railGap * 2;
 
       return (
         <Rail
@@ -401,7 +402,7 @@ function RailFor({
           onSeeAll={onSeeAll}
           keyExtractor={(item, index) => item.slug ?? String(index)}
           renderItem={({ item }) => (
-            <View style={{ paddingHorizontal: personTile.gap }}>
+            <View style={{ paddingHorizontal: personTile.railGap }}>
               <PersonCard
                 item={item}
                 width={portrait}
@@ -461,6 +462,14 @@ function RailFor({
  * outcome is a 404. The check is against the live list rather than a
  * hardcoded one, so the answer stays right when the server changes.
  */
+/**
+ * Four people per view on the home rail.
+ *
+ * The site's `data-mobile="4"` on `Your-Favourite-Personality.blade.php`, set
+ * there and here on 2026-09-10 when Rio asked for round, smaller avatars.
+ */
+const PEOPLE_PER_VIEW = 4;
+
 function seeAllFor(
   rail: RailData,
   archives: ReadonlySet<string>,
@@ -511,8 +520,11 @@ function seeAllFor(
    *
    * Named here for the same reason genres is: there is no such key in
    * `RailArchiveCatalog` and the collection check below correctly refuses it.
-   * The website agrees — its rail links to `/all-personality`, not to a
-   * collection of titles.
+   * The website agrees — its rail links to `/cast-list`, not to a collection
+   * of titles.
+   *
+   * **No title is passed.** The rail is headed "Your Favourite Personality"
+   * and the page it opens is headed "Cast", on the website too.
    *
    * 🔴 **The key is `personalities`; the KIND is `people`.** They are not the
    * same string and this function reads the key. Written as `people` first,
@@ -521,7 +533,7 @@ function seeAllFor(
    * `HomeTest` now pins all three keys the app switches on.
    */
   if (key === 'personalities') {
-    return () => navigation.navigate('Personalities', { title });
+    return () => navigation.navigate('CastList');
   }
 
 

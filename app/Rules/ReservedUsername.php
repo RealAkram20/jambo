@@ -33,7 +33,12 @@ class ReservedUsername implements ValidationRule
 
         // Taxonomy pages
         'genres', 'geners', 'all-genres', 'tag', 'view-all-tags',
-        'categories', 'cast-list', 'cast-details', 'all-personality',
+        'categories', 'cast-list', 'cast-details',
+        // `/all-personality` was removed on 2026-09-10 as a duplicate of
+        // `/cast-list`, and the slug stays reserved anyway. Freeing a
+        // reserved name is the one-way door: somebody takes it, the route
+        // comes back, and the route shadows their profile.
+        'all-personality',
 
         // Detail pages
         'movie-detail', 'tv-show-detail', 'vj',

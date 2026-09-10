@@ -55,7 +55,7 @@ addressed; what remains is named below and is deliberate, not forgotten.**
 | Deactivate account | `account.deactivate` | `DELETE /account` | 1.8.29 |
 | Search suggestions | `frontend.search.suggest` | `GET /search/suggest` | 1.8.30 |
 | Tags | `frontend.tag`, `frontend.view-all-tags` | `GET /tags`, `/tags/{slug}` | 1.8.30 |
-| Cast grid | `frontend.cast_list`, `frontend.all_personality` | `GET /cast` | 1.8.30 |
+| Cast grid | `frontend.cast_list` | `GET /cast` | 1.8.30 |
 | Rail archives ("see all") | `frontend.rail_archive` | `GET /collections`, `/collections/{rail}` | 1.8.30 |
 | About / FAQ / Privacy / Terms | `frontend.about_us` etc. | `GET /pages`, `/pages/{slug}` | 1.8.30 |
 

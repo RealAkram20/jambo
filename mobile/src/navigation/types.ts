@@ -120,14 +120,19 @@ export type AppStackParams = {
    */
   Genres: { title?: string } | undefined;
   /**
-   * Every personality, which is the Personality rail's "View all".
+   * Every cast member and personality — the Personality rail's "View all".
    *
    * A list of PEOPLE rather than of titles, so it is a screen of its own for
-   * the same reason `Genres` is: there is no `people` key in
-   * `RailArchiveCatalog` and there should not be. The website agrees, linking
-   * its rail to `/all-personality` rather than to a collection.
+   * the same reason `Genres` is: there is no such key in `RailArchiveCatalog`
+   * and there should not be. The website agrees, linking its rail to a page
+   * rather than to a collection of titles.
+   *
+   * **Named for `/cast-list`, which is the page it mirrors.** It was
+   * `Personalities` for one commit, after `/all-personality` — a second route
+   * running the identical query behind a different grid. Rio had that removed
+   * on 2026-09-10 and this followed it.
    */
-  Personalities: { title?: string } | undefined;
+  CastList: { title?: string } | undefined;
   /**
    * The viewer's own profile. Reading and editing are one screen.
    *

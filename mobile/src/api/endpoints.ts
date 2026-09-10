@@ -391,7 +391,7 @@ export class JamboApi {
    * cannot be built from. 40 a page.
    *
    * **The order is not the website's and that is older than this call.** The
-   * site's `/all-personality` lists everybody by surname, including people with
+   * site's `/cast-list` lists everybody by surname, including people with
    * nothing published; this lists only those with published work, most-present
    * first. The endpoint's own docblock defends that, and a client is not the
    * place to re-litigate it.

@@ -951,3 +951,51 @@
 .otthome-tab-slider .tab-slider-banner .tab-slider-banner-images::before {
     background-color: rgba(0, 0, 0, 0.6);
 }
+
+
+/* ================================================================== */
+/* Your Favourite Personality — round avatars, four across on a phone */
+/* ================================================================== */
+/*
+ * Rio, 2026-09-10, over a shot of four circular avatars: *"make the people's
+ * cards like this and smaller on home for both webapp and mobile"*. The app
+ * carries the same change.
+ *
+ * **Scoped to `--home`, a class added for this, and the first attempt got that
+ * wrong.** `components/cards/personality-card.blade.php` is included five
+ * times — this rail plus the cast and crew rows on the movie and TV detail
+ * pages — and those are not "home". Editing the partial would have rounded all
+ * five. So would scoping to `.favourite-person-block`, which was the first
+ * attempt: the detail pages wrap their rows in that same class, and a probe of
+ * a movie page caught it reading `border-radius: 50%` where nothing should
+ * have changed.
+ *
+ * The template draws this image as a 1/1.3 portrait with an 8px corner. A
+ * circle needs a square box, so the aspect goes to 1 and the radius to 50%;
+ * `object-position: 50% 0%` stays, because these are faces and a square crop
+ * of a portrait should keep the top of the head rather than the middle.
+ *
+ * The count per view is the blade's `data-mobile`, not CSS — Swiper reads it
+ * from the attribute.
+ */
+.favourite-person-block--home .personality-img {
+    aspect-ratio: 1;
+    /*
+     * `!important`, and only on this one line. The card carries Bootstrap's
+     * `rounded-3` utility, and every Bootstrap utility ships `!important`, so
+     * a plain declaration here loses however specific the selector is. The
+     * alternative was removing the class from the shared partial, which the
+     * four detail-page cast rows also render.
+     */
+    border-radius: 50% !important;
+}
+
+/*
+ * The name under a smaller avatar. The template's `.cast-title` is 14px,
+ * which at a quarter of the row's width wraps most full names to three lines
+ * and pushes the rail's height past the artwork it is labelling.
+ */
+.favourite-person-block--home .cast-title {
+    font-size: 12px;
+    line-height: 1.25;
+}

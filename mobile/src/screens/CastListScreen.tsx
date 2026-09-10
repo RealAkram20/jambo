@@ -9,16 +9,27 @@ import { EmptyState, ErrorState, Loading, Spinner } from '../ui/components';
 import { PersonCard } from '../ui/rails/TaxonomyCards';
 import type { AppScreenProps } from '../navigation/types';
 
+/** The site's `row-cols-3` on a phone. Three columns, edge to edge. */
+const COLUMNS = 3;
+
 /**
- * Everyone with published work, which is the Personality rail's "View all".
+ * Every cast member and personality — the Personality rail's "View all".
  *
- * The website's `/all-personality` is a grid of `cards/cast`, and at 390pt its
- * `row-cols-1` resolves to a single full-width column: the card 358 wide on
- * the same 1/1.3 portrait and the same 8pt corner the rail's card has, with
- * the name at 16px and the role line under it. So this is one column of
- * `PersonCard` in its `index` variant at the content width — the site's page
- * rather than a phone-shaped reinterpretation of it. Same reasoning, and the
- * same shape, as `GenresScreen`.
+ * This is the website's `/cast-list`, and at 390pt its `row-cols-3` resolves to
+ * three columns spanning the viewport edge to edge: columns of 129.98 each
+ * holding a 97.98 card on the same 1/1.3 portrait and 8pt corner the rail's
+ * card has, the name at 16px and the role line under it. So the gutter is 16
+ * inside every cell and the grid is deliberately NOT inset like the rest of the
+ * app's lists, because the site's is not.
+ *
+ * **It mirrored `/all-personality` for one commit and that page no longer
+ * exists.** Rio, 2026-09-10: *"the /all-personality should be /cast-list so we
+ * can remove the /all-personality for casts"*. He was right and the controller
+ * showed why — the two actions ran the identical query and differed only in
+ * which view they rendered, one card per row against three. `/cast-list` is the
+ * survivor because it is the page the site's own sidebar navigates to. The
+ * layout here was re-measured rather than carried over, because the two pages
+ * showed the same people in different grids.
  *
  * **Paged, unlike the genres index, because the endpoint is.** `GET /cast`
  * returns 40 at a time by OFFSET — its primary order is
@@ -32,13 +43,13 @@ import type { AppScreenProps } from '../navigation/types';
  * place to re-litigate it; it is named here so the difference is not mistaken
  * for a bug.
  */
-export function PersonalitiesScreen({ route, navigation }: AppScreenProps<'Personalities'>) {
-  const title = route.params?.title ?? 'Personalities';
+export function CastListScreen({ route, navigation }: AppScreenProps<'CastList'>) {
+  const title = route.params?.title ?? 'Cast';
   const metrics = useRailMetrics();
 
   const { data, isPending, isError, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery({
-      queryKey: ['personalities'],
+      queryKey: ['cast-list'],
       queryFn: ({ pageParam }: { pageParam: number }) => api.people(pageParam),
       initialPageParam: 1,
       getNextPageParam: (last) => last.nextPage ?? undefined,
@@ -69,21 +80,28 @@ export function PersonalitiesScreen({ route, navigation }: AppScreenProps<'Perso
     return (
       <View style={styles.screen}>
         <EmptyState
-          title="No personalities yet"
+          title="No cast yet"
           detail="People appear here once their titles are published."
         />
       </View>
     );
   }
 
-  const width = metrics.width - metrics.inset * 2;
+  /*
+   * The cell is a third of the FULL width, not of an inset content box, which
+   * is what makes this match the site: its grid has no outer gutter and each
+   * column carries its own 16 inside.
+   */
+  const cell = metrics.width / COLUMNS;
+  const card = cell - personTile.indexGutter * 2;
 
   return (
     <View style={styles.screen}>
       <FlatList
         data={people}
+        numColumns={COLUMNS}
         keyExtractor={(item: PersonCardData, index) => item.slug ?? String(index)}
-        contentContainerStyle={[styles.list, { paddingHorizontal: metrics.inset }]}
+        contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         onEndReached={() => {
           if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
@@ -97,10 +115,10 @@ export function PersonalitiesScreen({ route, navigation }: AppScreenProps<'Perso
           ) : null
         }
         renderItem={({ item }) => (
-          <View style={styles.row}>
+          <View style={[styles.cell, { width: cell }]}>
             <PersonCard
               item={item}
-              width={width}
+              width={card}
               variant="index"
               onPress={
                 item.slug === undefined
@@ -123,8 +141,11 @@ export function PersonalitiesScreen({ route, navigation }: AppScreenProps<'Perso
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   list: { paddingTop: spacing.md, paddingBottom: spacing.xxl },
-  /* The site's grid gutter, which is the same half-gap the rail puts between
-     two cards — applied vertically here because the column is one wide. */
-  row: { marginBottom: personTile.gap * 2 },
+  /* The site's `.col` — the gutter lives inside the cell, not around the
+     grid, which is why the list itself has no horizontal padding. */
+  cell: {
+    paddingHorizontal: personTile.indexGutter,
+    marginBottom: personTile.indexGutter,
+  },
   footer: { paddingVertical: spacing.lg },
 });

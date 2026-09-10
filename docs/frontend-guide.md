@@ -85,7 +85,6 @@
 |------|-----|--------|------------|
 | Cast List | `/cast-list` | `cast_list()` | `Pages/Cast/list-page` |
 | Cast Detail | `/cast-details` | `cast_details()` | `Pages/Cast/detail-page` |
-| All Personalities | `/all-personality` | `all_personality()` | `Pages/Cast/all-personality` |
 
 ### 7. Watchlist & Playlist Pages (3 pages)
 

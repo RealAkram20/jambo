@@ -2179,16 +2179,22 @@ class FrontendController extends Controller
         return view('frontend::Pages.Cast.detail-page', compact('person'));
     }
 
+    /**
+     * Every cast member and personality.
+     *
+     * **There were two of these until 2026-09-10.** `all_personality()` ran
+     * this exact query and rendered a second view of it, and Rio spotted that
+     * the app and the site were pointing at different URLs for one page. This
+     * is the survivor because it is the one the product navigates to: the
+     * site's own sidebar links here and marks it active, while the other was
+     * reachable from a single "View All" on the home rail.
+     *
+     * The rail now links here too, and `/api/v1/cast` is this page's data.
+     */
     public function cast_list()
     {
         $persons = Person::withCount(['movies', 'shows'])->orderBy('last_name')->get();
         return view('frontend::Pages.Cast.list-page', compact('persons'));
-    }
-
-    public function all_personality()
-    {
-        $persons = Person::withCount(['movies', 'shows'])->orderBy('last_name')->get();
-        return view('frontend::Pages.Cast.all-personality', compact('persons'));
     }
 
     // playlist Pages Routes
