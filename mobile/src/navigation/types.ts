@@ -53,20 +53,47 @@ export type AppStackParams = {
    */
   Taxonomy: { kind: 'genre' | 'category' | 'vj' | 'cast'; slug: string; name: string };
   Search: undefined;
-  Account: undefined;
   Devices: undefined;
-  ContinueWatching: undefined;
-  History: undefined;
   Notifications: undefined;
+  /** The inbox's gear: which channels may reach this viewer. */
+  NotificationSettings: undefined;
   Security: undefined;
+  /**
+   * Changing the account password.
+   *
+   * The website renders this form inline on its Security page; the app gives
+   * it a screen, because it carries its own validation and its own
+   * consequence — the server signs every other device out — and both deserve
+   * room to be said before the button is pressed.
+   */
+  ChangePassword: undefined;
+  /**
+   * Turning two-factor on: secret, authenticator, confirm, recovery codes.
+   *
+   * A route rather than a section on `Security`, because it is a flow with
+   * three steps and a cancel path, and the website's own page is two
+   * completely different layouts depending on whether a setup is pending.
+   */
+  TwoFactorSetup: undefined;
   Plans: undefined;
   /**
-   * How this viewer wants their video delivered — quality, autoplay, and
-   * Wi-Fi-only downloads. Kept on the account rather than the handset, so the
-   * same answers hold on a second phone and on the television in Phase 4.
+   * Payment history — the website's `profile-hub/billing.blade.php`.
+   *
+   * Reachable from two places on purpose. The website's own Billing page has
+   * no sidebar entry at all and is linked only from the payment-complete
+   * page, which the app has no equivalent of, so Rio's call on 2026-09-09 was
+   * a row in the profile menu AND a row on Membership.
    */
-  StreamingPreferences: undefined;
-
+  Billing: undefined;
+  /**
+   * One invoice.
+   *
+   * `reference` is the merchant reference, NOT the row id — that is what
+   * `GET /subscription/orders/{reference}` takes, and it is the identifier
+   * the rest of the payment flow already treats as canonical. The website's
+   * own invoice route takes a numeric id instead.
+   */
+  Invoice: { reference: string };
   /**
    * A whole home rail, the website's "View all".
    *
@@ -75,6 +102,23 @@ export type AppStackParams = {
    * `collectionKeyFor` converts. Passing a rail key here would 404.
    */
   Collection: { rail: string; title: string };
+  /**
+   * Every genre, which is the Genres rail's "View all".
+   *
+   * Not a `Collection`: a collection is a list of TITLES behind one rail, and
+   * this is a list of genres. The website makes the same distinction — its
+   * rail links to `/all-genres`, not to `/collection/genres`, and there is no
+   * `genres` key in `RailArchiveCatalog` at all.
+   *
+   * `title` is optional so a caller that has no heading to hand still gets a
+   * sensible one.
+   */
+  Genres: { title?: string } | undefined;
+  /**
+   * The viewer's own profile as a page: banner, avatar, name, plan and the
+   * card of details. It reads; `ProfileEdit` is the form behind its last row.
+   */
+  Profile: undefined;
   ProfileEdit: undefined;
   Referrals: undefined;
   Wallet: undefined;
@@ -88,6 +132,25 @@ export type AppStackParams = {
    * and it reaches `navigate` without being threaded through every screen.
    */
   ProfileMenu: undefined;
+
+  /**
+   * The player.
+   *
+   * `type` and `id`, and NO slug — deliberately, because that is the only
+   * identifier a Continue Watching card carries. `POST /playback/sessions`
+   * takes exactly this pair, so a card that could not open a detail page can
+   * still resume. `title` and `poster` are passed for the chrome so the
+   * screen has something to draw before the session comes back; both are
+   * optional because a resume from a rail may not know them.
+   */
+  Watch: {
+    type: 'movie' | 'episode';
+    id: number;
+    title?: string;
+    subtitle?: string;
+    /** The series slug, when known. Lets the player find the next episode. */
+    seriesSlug?: string;
+  };
 };
 
 export type AuthScreenProps<T extends keyof AuthStackParams> = NativeStackScreenProps<

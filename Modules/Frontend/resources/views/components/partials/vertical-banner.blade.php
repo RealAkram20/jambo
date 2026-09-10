@@ -7,21 +7,12 @@
      * $item  Movie (with genres loaded)
      */
     $img = $item->backdrop_url ?: $item->poster_url;
-    $imgSrc = media_url($img, 'media/the-first-of-us.webp');
+    // 1280: the large slide in the Top 10 vertical slider.
+    $imgSrc = media_img($img, 1280, 'media/the-first-of-us.webp');
 
     $runtime = $item->runtime_minutes
         ? floor($item->runtime_minutes / 60) . 'hr : ' . ($item->runtime_minutes % 60) . 'm'
         : null;
-
-    // 5-star display from average rating (0-5 scale). Prefer the
-    // eager-loaded `ratings_avg_stars` from SectionDataComposer's
-    // loadAvg() so we don't N+1 once per slide; fall back to a lazy
-    // ratings()->avg() if some other caller skipped the eager load.
-    $avg = $item->ratings_avg_stars ?? $item->ratings()->avg('stars');
-    $avg = $avg !== null ? max(0, min(5, (float) $avg)) : 5;
-
-    // IMDB-style numeric score (display to 1 dp, 0–5 range to match stars).
-    $score = $avg !== null ? number_format($avg, 1) : '—';
 
     $genres = $item->relationLoaded('genres') ? $item->genres->take(4) : collect();
 @endphp
@@ -60,23 +51,12 @@
                 <a href="{{ route('frontend.movie_detail', $item->slug) }}">{{ $item->title }}</a>
             </h2>
             <div class="d-flex align-items-center gap-3 py-2 justify-content-center justify-content-lg-start flex-wrap">
-                <div class="slider-ratting d-flex align-items-center gap-1">
-                    <ul class="ratting-start p-0 m-0 list-inline text-warning d-flex align-items-center justify-content-left">
-                        @for ($i = 1; $i <= 5; $i++)
-                            <li>
-                                @if ($i <= floor($avg))
-                                    <i class="ph-fill ph-star" aria-hidden="true"></i>
-                                @elseif ($i - $avg < 1)
-                                    <i class="ph-fill ph-star-half" aria-hidden="true"></i>
-                                @else
-                                    <i class="ph ph-star" aria-hidden="true"></i>
-                                @endif
-                            </li>
-                        @endfor
-                    </ul>
-                </div>
+                {{-- Five-star row removed 2026-09-10, with the same one on
+                     hero-banner: `ratings()->avg('stars') ?? 5` over an empty
+                     ratings table nothing can write to. See docs/adr/0006.
+                     The IMDb mark stays; the score beside it does not, because
+                     it was the same invented average to one decimal place. --}}
                 <div class="d-flex align-items-center gap-1">
-                    <p class="mb-0">{{ $score }}</p>
                     <img class="imdb-img" alt="imdb-logo" src="{{ asset('frontend/images/pages/imdb-logo.svg') }}">
                 </div>
                 @if ($runtime)

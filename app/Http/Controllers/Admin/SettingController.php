@@ -367,6 +367,35 @@ class SettingController extends Controller
         return redirect()->route('admin.settings.index')->with('status_access', $msg);
     }
 
+    /**
+     * Whether the mobile app offers account deletion.
+     *
+     * Rio, 2026-09-10: *"we will have a delete button. but we can disable this
+     * button when we please, when enabled it shows and when disabled it
+     * disappears from the app."*
+     *
+     * **The switch is enforced on the server, not only in the app.** The flag
+     * reaches the app through `/app/config` and hides the row, but
+     * `DELETE /account` checks the same setting and refuses when it is off.
+     * A client-side-only switch is not a switch: an older build, or anything
+     * holding a token, would keep closing accounts after it was turned off.
+     */
+    public function updateAccountDeletion(Request $request)
+    {
+        $data = $request->validate([
+            'account_deletion_enabled' => ['required', 'boolean'],
+        ]);
+
+        Setting::set('app.account_deletion_enabled', $data['account_deletion_enabled'] ? '1' : '0', 'boolean');
+        Setting::flushCache();
+
+        $msg = $data['account_deletion_enabled']
+            ? 'Account deletion is ON — the app shows the button and the API accepts the request.'
+            : 'Account deletion is OFF — the button is hidden in the app and the API refuses the request.';
+
+        return redirect()->route('admin.settings.index')->with('status_account_deletion', $msg);
+    }
+
     public function updateMaintenance(Request $request)
     {
         $data = $request->validate([

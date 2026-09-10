@@ -1,0 +1,39 @@
+// expo-jambo-media — the app's only native code (ADR-0002).
+//
+// Media3 is pinned to an exact version rather than a range. A player that
+// silently changes ExoPlayer behaviour between two builds of the same app is
+// the hardest class of bug to reproduce, and Phase 3 will add an encrypted
+// CacheDataSource to this same chain — that work needs a fixed baseline.
+apply plugin: 'com.android.library'
+apply plugin: 'expo-module-gradle-plugin'
+
+group = 'com.jambofilms.media'
+version = '0.1.0'
+
+android {
+  namespace 'expo.modules.jambomedia'
+  defaultConfig {
+    minSdkVersion 24
+    // Required, not decorative: `expo-autolinking` reads
+    // `android.defaultConfig.versionName` while configuring every linked
+    // module and fails the whole build without it —
+    // "'android.defaultConfig.versionName' is not defined", raised against
+    // node_modules/expo/android/build.gradle, which points nowhere near the
+    // module that is actually missing it.
+    versionCode 1
+    versionName '0.1.0'
+  }
+}
+
+dependencies {
+  def media3 = '1.4.1'
+
+  // The player itself, and the HTTP data source it streams through.
+  implementation "androidx.media3:media3-exoplayer:${media3}"
+  // media3-ui is here for PlayerView's SurfaceView handling only. The CONTROLS
+  // are React Native, deliberately: they have to be the website's controls
+  // drawn from design tokens, they have to be focusable through the app's own
+  // `Focusable` for the remote, and Media3's default control bar is Google's
+  // design. Using it would have put a second, un-themed player UI in the app.
+  implementation "androidx.media3:media3-ui:${media3}"
+}

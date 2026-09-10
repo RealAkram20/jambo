@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Frontend\app\Http\Controllers\Admin\HomeSectionController;
 use Modules\Frontend\app\Http\Controllers\FrontendController;
 
 /*
@@ -254,3 +255,31 @@ Route::group([], function () {
         })->name('frontend.change-password');
     });
 });
+
+/*
+|--------------------------------------------------------------------------
+| Admin — the arrangement of the home screen
+|--------------------------------------------------------------------------
+|
+| The order the app's home screen renders its shelves in, dragged rather than
+| deployed. Same middleware stack and naming as the Content module's admin
+| routes, and the same reorder contract as featured and categories.
+|
+| It lives in Frontend rather than Content because the sections it arranges
+| are this module's rails, built by HomeRailsService and served by
+| HomeController. Content owns titles; Frontend owns the home page.
+|
+*/
+Route::middleware(['auth', 'role:admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::get('home-sections', [HomeSectionController::class, 'index'])
+            ->name('home-sections.index');
+        Route::patch('home-sections/reorder', [HomeSectionController::class, 'reorder'])
+            ->name('home-sections.reorder');
+        // Registered after `reorder` would still match, since the segment is
+        // an id, but keeping the literal route first is the house habit.
+        Route::patch('home-sections/{homeSection}/toggle', [HomeSectionController::class, 'toggle'])
+            ->name('home-sections.toggle');
+    });

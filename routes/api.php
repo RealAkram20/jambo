@@ -45,6 +45,12 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::prefix('v1')->name('api.v1.')->group(function () {
     Route::get('app/config', [AppConfigController::class, 'show'])->name('app.config');
 
+    // The ISO country list behind the profile form's picker. Public, because
+    // it is the same for everybody and the registration form needs it before
+    // anyone has a token. One source of truth for codes and names, so the app
+    // cannot drift into offering a country the server then rejects.
+    Route::get('countries', [ProfileController::class, 'countries'])->name('countries');
+
     Route::middleware('throttle:auth')->group(function () {
         Route::post('auth/login', [AuthController::class, 'login'])->name('auth.login');
         Route::post('auth/2fa/challenge', [AuthController::class, 'twoFactorChallenge'])

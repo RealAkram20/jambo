@@ -55,15 +55,23 @@ export function activeRowFor(routeName: string | undefined): string | null {
 
   const map: Record<string, string> = {
     Watchlist: 'watchlist',
-    /* The hub the identity block opens. It is the profile area, so the
-       Profile row is the honest thing to light. */
-    Account: 'profile',
+    /* None of History, Continue Watching or Streaming preferences is here,
+       because none is a row: Rio removed all three on 2026-09-09. The home
+       rail already answers Continue Watching, history is collected to train
+       the model rather than to be browsed, and the streaming settings are
+       applied in the player itself. A route name that lit a row again would
+       mean a screen had been quietly reinstated, which is what the test
+       asserts. */
+    Profile: 'profile',
     ProfileEdit: 'profile',
     Security: 'security',
     Devices: 'devices',
     Notifications: 'notifications',
     Plans: 'membership',
-    StreamingPreferences: 'streaming',
+    /* Both billing routes light the Billing row: an invoice is a page inside
+       order history, and the website's own invoice view keeps the same tab. */
+    Billing: 'billing',
+    Invoice: 'billing',
     Wallet: 'wallet',
     Referrals: 'refer',
   };

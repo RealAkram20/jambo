@@ -8,9 +8,13 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Modules\Content\app\Models\Category;
 use Modules\Content\app\Models\Episode;
+use Modules\Content\app\Models\FeaturedItem;
+use Modules\Content\app\Models\Genre;
 use Modules\Content\app\Models\Movie;
+use Modules\Content\app\Models\Person;
 use Modules\Content\app\Models\Season;
 use Modules\Content\app\Models\Show;
+use Modules\Content\app\Models\Tag;
 use Modules\Streaming\app\Models\Device;
 use Modules\Streaming\app\Models\WatchHistoryItem;
 use Tests\TestCase;
@@ -62,11 +66,24 @@ class HomeTest extends TestCase
 
         foreach ($rails as $rail) {
             $this->assertArrayHasKey('key', $rail);
-            $this->assertArrayHasKey('title', $rail);
             $this->assertArrayHasKey('items', $rail);
+
+            // A heading, for every kind that draws one. The two daily `banner`
+            // rails do not: the website's vertical slider and tab slider carry
+            // no title row at all, the rank label inside each slide does that
+            // job. Asserting a title on them would be asserting a heading the
+            // design does not have.
+            if ($rail['kind'] !== 'banner') {
+                $this->assertArrayHasKey('title', $rail, "Rail '{$rail['key']}' draws a heading and has no title.");
+            }
+
             $this->assertContains(
                 $rail['kind'],
-                ['titles', 'progress', 'genres', 'vjs', 'people'],
+                // `banner` joined the list on 2026-09-10 with the two daily
+                // Top 10 rails. Keep this in step with `RENDERABLE` in
+                // `mobile/src/api/catalogue.ts`: a kind the server sends and
+                // the app has no component for renders as nothing at all.
+                ['titles', 'progress', 'genres', 'vjs', 'people', 'banner'],
                 "Rail '{$rail['key']}' declares an unknown kind; the app has no card component for it."
             );
         }
@@ -221,7 +238,161 @@ class HomeTest extends TestCase
         }
     }
 
+    /**
+     * The banner is not a poster card.
+     *
+     * The app's banner drew a portrait poster with a year under it while the
+     * website drew a backdrop, a synopsis and three taxonomy lines, and the
+     * cause was this endpoint sending `MovieResource::card()`. These are the
+     * fields `components/partials/hero-banner.blade.php` renders; if one stops
+     * arriving, that part of the banner silently disappears rather than
+     * breaking, which is why it is asserted rather than eyeballed.
+     */
+    public function test_the_hero_carries_everything_the_websites_banner_draws(): void
+    {
+        $this->seedHeroTitle();
+
+        $hero = $this->getJson('/api/v1/home')->assertOk()->json('data.hero');
+
+        $movie = collect($hero)->firstWhere('title', 'Banner Movie');
+        $this->assertNotNull($movie, 'The seeded title must reach the hero.');
+
+        foreach (['backdrop_url', 'synopsis', 'genres', 'tags', 'cast'] as $field) {
+            $this->assertArrayHasKey($field, $movie, "The banner draws {$field}.");
+        }
+
+        $this->assertSame('Drama', $movie['genres'][0]['name']);
+        $this->assertSame('Kampala', $movie['tags'][0]['name']);
+        $this->assertSame('Ada Actor', $movie['cast'][0]['name']);
+    }
+
+    /**
+     * A series banner needs two things a movie banner does not: the badge says
+     * "N season" where a movie's says its certification, and the clock line
+     * has no `runtime_minutes` on a show to read.
+     */
+    public function test_a_series_in_the_hero_carries_its_season_count_and_episode_runtime(): void
+    {
+        $this->seedHeroTitle();
+
+        $hero = $this->getJson('/api/v1/home')->assertOk()->json('data.hero');
+        $series = collect($hero)->firstWhere('type', 'series');
+
+        $this->assertNotNull($series, 'The seeded series must reach the hero.');
+        $this->assertSame(1, $series['seasons_count']);
+        // 30 and 50 were seeded, so the mean is 40 — not the first episode's
+        // 30, which is what the website's blade would have shown.
+        $this->assertSame(40, $series['episode_runtime_minutes']);
+    }
+
+    /**
+     * ⚠️ The star average is gone, and this is the assertion that keeps it gone.
+     *
+     * `hero-banner.blade.php` read `ratings()->avg('stars') ?? 5`, so on a
+     * catalogue with no ratings it drew five filled gold stars on every title.
+     * There are no ratings and there is no way to create one — no controller
+     * or endpoint on either surface writes to that table, only a seeder — so
+     * Rio removed the star row from the app AND from the website on
+     * 2026-09-10 (ADR-0006). The IMDb mark stays on both.
+     *
+     * The field going back into the payload is how this would quietly regress,
+     * because a field is much easier to add than a component.
+     */
+    public function test_the_hero_sends_no_star_average(): void
+    {
+        $this->seedHeroTitle();
+
+        $hero = $this->getJson('/api/v1/home')->assertOk()->json('data.hero');
+
+        foreach ($hero as $item) {
+            $this->assertArrayNotHasKey('stars_avg', $item, 'The star row was removed; the field should have gone with it.');
+        }
+    }
+
+    /**
+     * The banner shape is the banner's alone.
+     *
+     * Two shapes exist so a shelf of thirty posters does not carry thirty
+     * synopses. A later change that widened `card()` to fix the banner would
+     * put the home payload's weight up by an order of magnitude and nothing
+     * else in the suite would notice.
+     */
+    public function test_the_rails_below_the_hero_still_carry_plain_poster_cards(): void
+    {
+        $this->seedHeroTitle();
+
+        $rails = $this->getJson('/api/v1/home')->assertOk()->json('data.rails');
+
+        $titleRails = collect($rails)->where('kind', 'titles');
+        $this->assertNotEmpty($titleRails, 'There must be poster rails to check.');
+
+        foreach ($titleRails as $rail) {
+            foreach ($rail['items'] as $item) {
+                $this->assertArrayNotHasKey('synopsis', $item, "Rail {$rail['key']} is carrying banner fields.");
+                $this->assertArrayNotHasKey('backdrop_url', $item);
+            }
+        }
+    }
+
     // ── fixtures ─────────────────────────────────────────────────────
+
+    /**
+     * One movie and one series with everything the banner draws attached.
+     *
+     * Curated rather than seeded loosely, because `buildHero()` prefers
+     * FeaturedItem when any exist and falls back to the most-viewed otherwise
+     * — pinning both is what makes "the seeded title must reach the hero" a
+     * fact rather than a coin toss on view counts.
+     */
+    private function seedHeroTitle(): void
+    {
+        $this->seedCatalogue();
+
+        $genre = Genre::create(['name' => 'Drama', 'slug' => 'banner-drama']);
+        $tag = Tag::create(['name' => 'Kampala', 'slug' => 'banner-kampala']);
+        $person = Person::create(['first_name' => 'Ada', 'last_name' => 'Actor', 'slug' => 'banner-ada']);
+
+        $movie = Movie::factory()->create([
+            'title' => 'Banner Movie',
+            'status' => Movie::STATUS_PUBLISHED,
+            'published_at' => now()->subDay(),
+            'video_url' => self::VIDEO,
+        ]);
+        $movie->genres()->attach($genre->id);
+        $movie->tags()->attach($tag->id);
+        $movie->cast()->attach($person->id, ['role' => 'actor']);
+
+        $show = Show::create([
+            'title' => 'Banner Series',
+            'slug' => 'banner-series',
+            'status' => 'published',
+            'published_at' => now()->subDay(),
+        ]);
+        $show->genres()->attach($genre->id);
+
+        $season = Season::create(['show_id' => $show->id, 'number' => 1, 'title' => 'S1']);
+        foreach ([30, 50] as $number => $runtime) {
+            Episode::create([
+                'season_id' => $season->id,
+                'number' => $number + 1,
+                'title' => 'Episode ' . ($number + 1),
+                'runtime_minutes' => $runtime,
+                'published_at' => now()->subDay(),
+                'video_url' => self::VIDEO,
+            ]);
+        }
+
+        FeaturedItem::create([
+            'featurable_type' => $movie->getMorphClass(),
+            'featurable_id' => $movie->id,
+            'position' => 1,
+        ]);
+        FeaturedItem::create([
+            'featurable_type' => $show->getMorphClass(),
+            'featurable_id' => $show->id,
+            'position' => 2,
+        ]);
+    }
 
     private function seedCatalogue(): void
     {

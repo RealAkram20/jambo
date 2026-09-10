@@ -123,6 +123,33 @@ class SubscriptionTier extends Model
     }
 
     /**
+     * Which paid tier wears the "Most popular" pill.
+     *
+     * The rule was written inline in `pricing-page.blade.php` and is now
+     * here because the mobile app draws the same pill on the same tiers: the
+     * highest access level among MONTHLY tiers, falling back to the highest
+     * access level of any paid tier so a catalog with no monthly plan still
+     * has a visual winner. Two copies of this would disagree the first time
+     * an admin adds a tier, and the disagreement would be invisible until
+     * somebody put the two screens side by side.
+     *
+     * Free tiers are excluded by the caller, not here: a plan nobody pays for
+     * cannot be the popular one, and both callers already separate paid from
+     * free for their own reasons.
+     *
+     * @param  \Illuminate\Support\Collection<int, self>  $paidTiers
+     */
+    public static function popularFrom($paidTiers): ?self
+    {
+        $monthly = $paidTiers
+            ->where('billing_period', self::PERIOD_MONTHLY)
+            ->sortByDesc('access_level')
+            ->first();
+
+        return $monthly ?? $paidTiers->sortByDesc('access_level')->first();
+    }
+
+    /**
      * Suggest the cheapest active tier that supports more concurrent
      * streams than `$currentMaxStreams`. Used by the device-limit
      * picker's "Upgrade to X" CTA so the user sees a concrete step

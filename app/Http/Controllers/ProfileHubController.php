@@ -218,7 +218,10 @@ class ProfileHubController extends Controller
         $user = $this->resolveOwn($request, $username);
 
         $orders = PaymentOrder::where('user_id', $user->id)
-            ->with('payable.tier')
+            // payable IS the SubscriptionTier, not a row that has one. Eager-loading
+            // payable.tier threw RelationNotFoundException for every account that had
+            // ever paid, so this page 500d unless the order list was empty.
+            ->with('payable')
             ->latest()
             ->paginate(15);
 
@@ -235,7 +238,10 @@ class ProfileHubController extends Controller
 
         $order = PaymentOrder::where('user_id', $user->id)
             ->where('id', $orderId)
-            ->with('payable.tier')
+            // payable IS the SubscriptionTier, not a row that has one. Eager-loading
+            // payable.tier threw RelationNotFoundException for every account that had
+            // ever paid, so this page 500d unless the order list was empty.
+            ->with('payable')
             ->firstOrFail();
 
         return view('profile-hub.invoice', [
@@ -472,20 +478,12 @@ class ProfileHubController extends Controller
 
         abort_unless(\Modules\Referrals\app\Services\ReferralSettings::active(), 404);
 
+        // The rules live in ReferralCodeRules now, shared with the live
+        // availability check and with both API endpoints. Unchanged in
+        // substance: this method's list was the correct one, and the API's was
+        // the one missing the reserved-route rule.
         $request->validate([
-            'referral_code' => [
-                'required', 'string', 'min:3', 'max:50',
-                'regex:/^[a-zA-Z0-9_.\-]+$/',
-                new \App\Rules\ReservedUsername(),
-                \Illuminate\Validation\Rule::unique('users', 'referral_code')->ignore($user->id),
-                // A code that is someone ELSE's username would let this
-                // user impersonate their referral link.
-                function ($attribute, $value, $fail) use ($user) {
-                    if (User::where('username', $value)->where('id', '!=', $user->id)->exists()) {
-                        $fail('That referral code is already taken.');
-                    }
-                },
-            ],
+            'referral_code' => \Modules\Referrals\app\Support\ReferralCodeRules::rulesFor($user),
         ]);
 
         $user->referral_code = $request->input('referral_code');

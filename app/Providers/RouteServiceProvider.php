@@ -43,6 +43,30 @@ class RouteServiceProvider extends ServiceProvider
             ];
         });
 
+        /*
+         * Starting a payment. **Below auth's rate, and it fails closed.**
+         *
+         * `engineering-standards`: anything that costs money is limited under
+         * the auth rate and refuses rather than degrading. Every call here
+         * mints a `PaymentOrder` row and a PesaPal order, so a loop does not
+         * merely waste CPU — it fills the table the finance side reconciles
+         * against with junk that looks like abandoned checkouts.
+         *
+         * Keyed on the user and never on the address alone: the CGNAT
+         * reasoning from `api` applies with more force here, because throttling
+         * a whole cell tower out of paying is worse than throttling it out of
+         * browsing. Six a minute is generous for a human pressing Subscribe
+         * and hostile to anything else.
+         */
+        RateLimiter::for('checkout', function (Request $request) {
+            $who = $request->user()?->id ?: $request->header('X-Device-Id') ?: $request->ip();
+
+            return [
+                Limit::perMinute(6)->by('checkout|' . $who),
+                Limit::perMinute(30)->by('checkout-ip|' . $request->ip()),
+            ];
+        });
+
         // Sign-in and the two-factor challenge. Keyed on email+ip, not ip
         // alone: East African carriers put thousands of handsets behind one
         // CGNAT address, so a per-ip bucket would throttle a whole cell

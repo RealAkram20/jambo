@@ -1,5 +1,4 @@
 @php
-    $gSrc = media_url($genersImage);
 @endphp
 <div class="iq-card-geners position-relative card-hover-style-two">
     <div class="img-box position-relative">

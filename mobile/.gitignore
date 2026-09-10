@@ -27,3 +27,9 @@ npm-debug.*
 *.keystore
 google-services.json
 credentials.json
+
+# Gradle output from the local Kotlin module. The module's SOURCE is committed
+# and autolinks from here; its build/ is 144 files of dex, jars and merged
+# manifests that regenerate on every prebuild. The `/android` rule above is
+# anchored to this directory, so it does not reach modules/*/android.
+modules/*/android/build/

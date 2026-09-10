@@ -118,11 +118,33 @@ export class ApiClient {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    if (options.body !== undefined) {
+    /*
+     * FormData goes through untouched, and NOT setting the header is the
+     * whole trick.
+     *
+     * A multipart body is only parseable with the boundary string that
+     * separates its parts, and that boundary is generated when the request is
+     * built. Setting `Content-Type: multipart/form-data` by hand sends the
+     * type without the boundary, and the server then sees a body it cannot
+     * split — which surfaces as an empty `$request->file()` and a validation
+     * error saying the file is required, on a request that plainly contained
+     * one. Leaving the header off lets fetch write both together.
+     *
+     * `JSON.stringify` on a FormData would likewise produce `{}` and lose the
+     * file entirely, which is the same bug wearing a different hat.
+     */
+    const isMultipart = options.body instanceof FormData;
+
+    if (options.body !== undefined && !isMultipart) {
       headers['Content-Type'] = 'application/json';
     }
 
-    const body = options.body === undefined ? null : JSON.stringify(options.body);
+    const body =
+      options.body === undefined
+        ? null
+        : isMultipart
+          ? (options.body as FormData)
+          : JSON.stringify(options.body);
 
     let response: Response;
 

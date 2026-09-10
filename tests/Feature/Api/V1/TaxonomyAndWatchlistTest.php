@@ -196,6 +196,139 @@ class TaxonomyAndWatchlistTest extends TestCase
     }
 
     /**
+     * The watchlist card carries what the WEBSITE's watchlist card shows.
+     *
+     * `profile-hub/watchlist.blade.php` has always passed `card-style` a
+     * `cardGenres` of two names and a `movietime` of "2h 49m" or "N seasons".
+     * The app drew a thinner card for the same row until 2026-09-09. If these
+     * fields ever fall off the payload again the phone silently loses a line
+     * of the card and nothing else fails, which is why this is pinned.
+     */
+    public function test_a_watchlist_card_carries_the_genres_the_website_shows(): void
+    {
+        [$movie] = $this->seedCatalogue();
+        $movie->genres()->attach([
+            Genre::create(['name' => 'Action', 'slug' => 'action-wl'])->id,
+            Genre::create(['name' => 'Thriller', 'slug' => 'thriller-wl'])->id,
+            Genre::create(['name' => 'Drama', 'slug' => 'drama-wl'])->id,
+        ]);
+
+        $user = $this->viewer();
+        WatchlistItem::addFor($user->id, $movie);
+        $token = $this->signIn($user);
+
+        $card = $this->withFreshToken($token)
+            ->getJson('/api/v1/watchlist')
+            ->assertOk()
+            ->json('data.items.0');
+
+        // Two, which is what the website takes. A third would wrap the row.
+        $this->assertSame(['Action', 'Thriller'], $card['genres']);
+    }
+
+    public function test_a_saved_series_reports_its_season_count(): void
+    {
+        [, $show] = $this->seedCatalogue();
+        Season::create(['show_id' => $show->id, 'number' => 2, 'title' => 'S2']);
+
+        $user = $this->viewer();
+        WatchlistItem::addFor($user->id, $show);
+        $token = $this->signIn($user);
+
+        $card = $this->withFreshToken($token)
+            ->getJson('/api/v1/watchlist')
+            ->assertOk()
+            ->json('data.items.0');
+
+        $this->assertSame(2, $card['seasons_count']);
+    }
+
+    /**
+     * **A series resumes; it does not restart.**
+     *
+     * This is the website's own rule, from `watchlistSeriesPlay`: the most
+     * recent unfinished episode of that show wins over episode one. Both now
+     * ask `WatchlistPlayResolver`, so this test covers the site as well as the
+     * app — and it is the difference between "Pick up where you left off"
+     * being true and being a slogan.
+     */
+    public function test_play_on_a_saved_series_resumes_the_unfinished_episode(): void
+    {
+        [, $show] = $this->seedCatalogue();
+        $season = $show->seasons()->first();
+        $second = Episode::create([
+            'season_id' => $season->id,
+            'number' => 2,
+            'title' => 'The one they stopped in',
+            'published_at' => now()->subDay(),
+            'video_url' => self::VIDEO,
+        ]);
+
+        $user = $this->viewer();
+        WatchlistItem::addFor($user->id, $show);
+        WatchHistoryItem::create([
+            'user_id' => $user->id,
+            'watchable_type' => (new Episode)->getMorphClass(),
+            'watchable_id' => $second->id,
+            'position_seconds' => 400,
+            'completed' => false,
+            'watched_at' => now(),
+        ]);
+
+        $token = $this->signIn($user);
+        $card = $this->withFreshToken($token)
+            ->getJson('/api/v1/watchlist')
+            ->assertOk()
+            ->json('data.items.0');
+
+        $this->assertSame(['type' => 'episode', 'id' => $second->id], $card['play']);
+    }
+
+    public function test_play_on_a_series_never_watched_starts_at_the_first_episode(): void
+    {
+        [, $show] = $this->seedCatalogue();
+        $first = Episode::whereHas('season', fn ($q) => $q->where('show_id', $show->id))->first();
+
+        $user = $this->viewer();
+        WatchlistItem::addFor($user->id, $show);
+        $token = $this->signIn($user);
+
+        $card = $this->withFreshToken($token)
+            ->getJson('/api/v1/watchlist')
+            ->assertOk()
+            ->json('data.items.0');
+
+        $this->assertSame(['type' => 'episode', 'id' => $first->id], $card['play']);
+    }
+
+    /**
+     * An unreleased title offers no Play at all.
+     *
+     * Null, not a target that fails at the point of streaming: the card draws
+     * no control rather than one that always errors, which is the same thing
+     * the site does when it swaps "Play now" for "View details".
+     */
+    public function test_an_unreleased_movie_offers_nothing_to_play(): void
+    {
+        $movie = Movie::factory()->create([
+            'status' => Movie::STATUS_PUBLISHED,
+            'published_at' => now()->addMonth(),
+            'video_url' => self::VIDEO,
+        ]);
+
+        $user = $this->viewer();
+        WatchlistItem::addFor($user->id, $movie);
+        $token = $this->signIn($user);
+
+        $card = $this->withFreshToken($token)
+            ->getJson('/api/v1/watchlist')
+            ->assertOk()
+            ->json('data.items.0');
+
+        $this->assertNull($card['play']);
+    }
+
+    /**
      * The app retries over a connection that drops. A second add must not
      * create a duplicate, and a second remove must not fail — that is the
      * whole reason this is not the website's toggle endpoint.

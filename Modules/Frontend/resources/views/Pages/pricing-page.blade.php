@@ -32,13 +32,14 @@
      * Highlight rule for the "most popular" pill: whichever monthly tier
      * has the highest access level, falling back to the single highest-
      * access paid tier so even all-yearly catalogs get a visual winner.
+     *
+     * The rule moved onto the model on 2026-09-09 so the mobile app's
+     * membership screen draws the pill on the same tier. It was inline here
+     * and would have been inline there too; two copies disagree the first
+     * time an admin adds a plan, and nobody sees it until the two screens
+     * are put side by side.
      */
-    $highlightedId = $paidTiers
-        ->where('billing_period', SubscriptionTier::PERIOD_MONTHLY)
-        ->sortByDesc('access_level')
-        ->first()
-        ?->id
-        ?? $paidTiers->sortByDesc('access_level')->first()?->id;
+    $highlightedId = SubscriptionTier::popularFrom($paidTiers)?->id;
 
     /**
      * Query-param highlight. The device-limit picker appends

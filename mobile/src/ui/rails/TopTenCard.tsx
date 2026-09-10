@@ -1,12 +1,9 @@
-import { useId } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Svg, { Defs, Image as SvgImage, Pattern, Text as SvgText } from 'react-native-svg';
 
 import { fonts, rail, topTen } from '../theme';
 import { tokens } from '../tokens';
 import { PosterCard, type PosterItem } from './PosterCard';
-
-const TEXTURE = require('../../../assets/streamit/top-ten-texture.webp');
+import { TextureText } from './TextureText';
 
 /**
  * A ranked poster, for the Top 10 rails.
@@ -18,17 +15,10 @@ const TEXTURE = require('../../../assets/streamit/top-ten-texture.webp');
  * read `color` off the site would draw nothing at all — which is exactly what
  * the first token export produced, and why `asset.topTenTexture` is a token.
  *
- * React Native has no `background-clip: text`. The equivalent that needs no
- * new dependency is SVG: `react-native-svg` is already installed for the icon
- * set, and a `<Pattern>` holding the same texture, used as a text `fill`, is
- * the same operation the browser performs. The alternative was
- * `@react-native-masked-view/masked-view`, a native module — and a new native
- * module means `expo prebuild --clean` and a full rebuild, which this buys
- * nothing over an SVG.
- *
- * The texture file is Streamit's own and is copied out of
- * `public/frontend/images/pages/` rather than downloaded, so it is under
- * source control with the rest of the design.
+ * How that is drawn lives in `TextureText`, which the home banner's headline
+ * uses too — the site fills both from the same `texure.webp` through the same
+ * `.texture-text` rule, so a second implementation here would be two things
+ * that have to be changed together and will not be.
  */
 export function TopTenCard({
   item,
@@ -83,43 +73,10 @@ function numeralSize(posterWidth: number): number {
 }
 
 function TextureNumeral({ value, size }: { value: number; size: number }) {
-  // One pattern per instance. Several Top 10 rails render on the home screen
-  // at once, and a duplicated SVG id makes every numeral after the first
-  // resolve `url(#…)` to the wrong pattern. React's useId contains characters
-  // (« » :) that are not valid in an SVG fragment identifier.
-  const id = `tt${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
-
-  const label = String(value);
-  // Roboto Black at this size is about 0.62em per digit, plus the overhang the
-  // texture needs so the fill reaches the edges of the glyph.
-  const boxWidth = Math.ceil(size * 0.66 * label.length);
-  const boxHeight = Math.ceil(size * 1.05);
-
   return (
-    <Svg width={boxWidth} height={boxHeight}>
-      <Defs>
-        <Pattern id={id} patternUnits="userSpaceOnUse" width={boxWidth} height={boxHeight}>
-          <SvgImage
-            href={TEXTURE}
-            width={boxWidth}
-            height={boxHeight}
-            preserveAspectRatio="xMidYMid slice"
-          />
-        </Pattern>
-      </Defs>
-      <SvgText
-        x={0}
-        // Baseline, not top: SVG text hangs from its baseline, so the glyph
-        // needs the box height less its descender to sit inside the box.
-        y={boxHeight * 0.86}
-        fill={`url(#${id})`}
-        fontFamily={fonts.black}
-        fontSize={size}
-        fontWeight={String(topTen.weight)}
-      >
-        {label}
-      </SvgText>
-    </Svg>
+    <TextureText size={size} weight={topTen.weight} fontFamily={fonts.black} accessibilityHidden>
+      {String(value)}
+    </TextureText>
   );
 }
 

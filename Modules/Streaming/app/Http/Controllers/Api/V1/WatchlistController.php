@@ -18,6 +18,7 @@ use Modules\Content\app\Models\Show;
 use Modules\Frontend\app\Services\HomeRailsService;
 use Modules\Streaming\app\Models\WatchHistoryItem;
 use Modules\Streaming\app\Models\WatchlistItem;
+use Modules\Streaming\app\Services\WatchlistPlayResolver;
 
 /**
  * The viewer's own lists: watchlist, Continue Watching, and history.
@@ -51,11 +52,23 @@ class WatchlistController extends Controller
                     Show::class => ['genres'],
                     Episode::class => ['season.show'],
                 ]);
+
+                // A COUNT, not a load. The card shows "2 Seasons" and nothing
+                // else about them, so loading every season of every saved
+                // series to call ->count() on it would be the N+1 the
+                // website's own controller added this same count to avoid
+                // (ProfileHubController::watchlist, "without an N+1 query per
+                // show"). `morphWithCount` is the morph equivalent —
+                // `morphWith` above takes relations to load and cannot carry
+                // one.
+                $morphTo->morphWithCount([
+                    Show::class => ['seasons'],
+                ]);
             }])
             ->get()
             // A title deleted or unpublished since it was saved leaves a row
             // pointing at nothing. Drop it rather than sending a null card.
-            ->map(fn (WatchlistItem $row) => $this->card($request, $row->watchable))
+            ->map(fn (WatchlistItem $row) => $this->watchlistCard($request, $row->watchable))
             ->filter()
             ->values();
 
@@ -190,6 +203,74 @@ class WatchlistController extends Controller
             ->where('watchable_type', $model->getMorphClass())
             ->where('watchable_id', $model->getKey())
             ->first();
+    }
+
+    /**
+     * A watchlist card: the ordinary card, plus what the website's own
+     * watchlist page shows on top of it.
+     *
+     * **The extra fields are not new product, they are parity.**
+     * `resources/views/profile-hub/watchlist.blade.php` has always passed
+     * `card-style.blade.php` a `cardGenres` of the first two genre names and a
+     * `movietime` that reads "2h 49m" for a movie and "2 seasons" for a show.
+     * The app was drawing a thinner card than the website for the same row,
+     * because `MovieResource::card()` is a rail shape and a rail does not show
+     * genres. Rio's ruling of 2026-09-09 is that the app reuses the website's
+     * components with their real design and behaviour, so the endpoint now
+     * sends what that component consumes.
+     *
+     * They are added HERE rather than to the shared resources on purpose. A
+     * home screen is thirteen rails of thirty cards; putting genres on every
+     * one of them would grow that payload for a component that does not draw
+     * them. This is the one endpoint whose card does.
+     *
+     * `play` is the same question `/watchlist/{slug}` and
+     * `/watchlist/series/{slug}` answer, resolved by the service they now
+     * share — so a series opens at the episode the viewer stopped on rather
+     * than at episode one, on the phone exactly as on the site.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function watchlistCard(Request $request, ?Model $watchable): ?array
+    {
+        $card = $this->card($request, $watchable);
+
+        if ($card === null) {
+            return null;
+        }
+
+        // Two, which is what the website takes. A poster card is not a place
+        // to list six genres and the third one would wrap the row.
+        if ($watchable instanceof Movie || $watchable instanceof Show) {
+            $card['genres'] = $watchable->relationLoaded('genres')
+                ? $watchable->genres->take(2)->pluck('name')->values()->all()
+                : [];
+        }
+
+        // Null, never 0, when the count was not loaded: "0 Seasons" on a
+        // series a viewer can watch is a lie, and an absent field lets the
+        // client draw nothing instead.
+        if ($watchable instanceof Show) {
+            $card['seasons_count'] = $watchable->seasons_count === null
+                ? null
+                : (int) $watchable->seasons_count;
+        }
+
+        // The season an episode sits in, so the card can read "S01E02 — Name"
+        // the way `widgets/watchlist-detail-card.blade.php` composes it.
+        // `EpisodeResource` carries `season_id`, which identifies the row and
+        // tells a viewer nothing. The relation is already eager-loaded above,
+        // so this costs no query.
+        if ($watchable instanceof Episode) {
+            $card['season_number'] = $watchable->season?->number === null
+                ? null
+                : (int) $watchable->season->number;
+        }
+
+        $card['play'] = app(WatchlistPlayResolver::class)
+            ->resolve($watchable, $request->user());
+
+        return $card;
     }
 
     /** @return array<string, mixed>|null */

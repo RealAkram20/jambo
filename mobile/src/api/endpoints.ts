@@ -1,6 +1,8 @@
 import type { ApiClient } from './client';
 import type {
   ContinueWatchingCard,
+  Episode,
+  GenreCard,
   HistoryEntry,
   Home,
   MovieDetail,
@@ -8,13 +10,17 @@ import type {
   Notification,
   Plan,
   SecurityState,
+  SeriesCard,
   SeriesDetail,
   SeriesList,
   Subscription,
   TitleCard,
   TitleDetail,
+  WatchlistCard,
 } from './catalogue';
 import { required } from './errors';
+import { File as ExpoFile } from 'expo-file-system';
+
 import type { components } from './schema';
 import { deviceRegistration } from '../device/deviceId';
 
@@ -26,6 +32,10 @@ export type Profile = components['schemas']['Profile'];
 export type ReferralDashboard = components['schemas']['ReferralDashboard'];
 export type Wallet = components['schemas']['Wallet'];
 export type StreamingPreferences = components['schemas']['StreamingPreferences'];
+export type PlaybackSession = components['schemas']['PlaybackSession'];
+
+/** One row of the country picker: the stored code and the name to show. */
+export type Country = { code: string; name: string };
 
 /**
  * Every call this slice makes, in one place and typed from the spec.
@@ -141,15 +151,32 @@ export class JamboApi {
    * whether this phone counts against the viewer's cap is the one question the
    * list is there to answer, and the answer changes when Rio flips it.
    */
-  async devices(): Promise<{ devices: Device[]; countsAppDevices: boolean }> {
+  async devices(): Promise<{
+    devices: Device[];
+    countsAppDevices: boolean;
+    /**
+     * How many can watch at once, and the tier's cap.
+     *
+     * `limit` is null for no subscription and for a tier with no cap, and it
+     * stays null here rather than becoming a zero. A zero draws a full meter
+     * and reads as "you may watch on nothing", which is the opposite of what
+     * it means.
+     */
+    streams: { watching: number; limit: number | null };
+  }> {
     const { data } = await this.client.request<{
       devices?: Device[];
       counts_app_devices?: boolean;
+      streams?: { watching?: number; limit?: number | null };
     }>('/devices');
 
     return {
       devices: data.devices ?? [],
       countsAppDevices: data.counts_app_devices ?? false,
+      streams: {
+        watching: data.streams?.watching ?? 0,
+        limit: data.streams?.limit ?? null,
+      },
     };
   }
 
@@ -200,9 +227,14 @@ export class JamboApi {
    * Not paginated by the contract, and deliberately not paged here either —
    * inventing a `?cursor=` the server ignores would look like it worked until
    * somebody had more than a page of titles.
+   *
+   * `WatchlistCard`, not `TitleCard`: this endpoint sends genres, a season
+   * count and a resolved `play` target on top of the ordinary card, because
+   * the website's own watchlist card draws all three. Typing it as a rail card
+   * here would have hidden the fields the screen exists to show.
    */
-  async watchlist(): Promise<{ items: TitleCard[] }> {
-    const { data } = await this.client.request<{ items?: TitleCard[] }>('/watchlist');
+  async watchlist(): Promise<{ items: WatchlistCard[] }> {
+    const { data } = await this.client.request<{ items?: WatchlistCard[] }>('/watchlist');
     return { items: data.items ?? [] };
   }
 
@@ -337,6 +369,19 @@ export class JamboApi {
    * map rather than interpolated, so a `kind` the server does not have cannot
    * be built into a URL.
    */
+  /**
+   * Every genre, for the header's chip bar.
+   *
+   * The same list the website's `HeaderComposer` builds — all of them, ordered
+   * by name — so the two headers offer the same chips in the same order rather
+   * than each deciding what a reasonable subset would be.
+   */
+  async genres(): Promise<GenreCard[]> {
+    const { data } = await this.client.request<{ genres?: GenreCard[] }>('/genres');
+
+    return data.genres ?? [];
+  }
+
   async taxonomy(
     kind: 'genre' | 'category' | 'vj' | 'cast',
     slug: string,
@@ -413,19 +458,114 @@ export class JamboApi {
     return { items: data.items ?? [], nextCursor: data.next_cursor ?? null };
   }
 
-  /** The viewer's notifications, newest first, with the unread count. */
-  async notifications(): Promise<{ items: Notification[]; unread: number }> {
+  /**
+   * The viewer's notifications, newest first, with the unread count.
+   *
+   * `category` is the filter chip and it is sent to the server rather than
+   * applied here, because the list is cursor-paginated: filtering the page the
+   * app happens to hold would hide matching rows until the viewer scrolled far
+   * enough to load them. Omit it for All — the endpoint takes an absent
+   * parameter, not a category that means everything.
+   *
+   * `unread` is the whole inbox and never the filtered page, so a bell badge
+   * built on it does not move when a chip is pressed.
+   */
+  async notifications(options?: {
+    category?: string | null;
+    cursor?: string | null;
+  }): Promise<{ items: Notification[]; unread: number; nextCursor: string | null }> {
+    const query = new URLSearchParams();
+    const category = options?.category;
+    const cursor = options?.cursor;
+
+    if (typeof category === 'string' && category !== '') query.set('category', category);
+    if (typeof cursor === 'string' && cursor !== '') query.set('cursor', cursor);
+
+    const suffix = query.toString();
     const { data } = await this.client.request<{
       items?: Notification[];
       unread_count?: number;
-    }>('/notifications');
+      next_cursor?: string | null;
+    }>(suffix === '' ? '/notifications' : `/notifications?${suffix}`);
 
-    return { items: data.items ?? [], unread: data.unread_count ?? 0 };
+    return {
+      items: data.items ?? [],
+      unread: data.unread_count ?? 0,
+      nextCursor: data.next_cursor ?? null,
+    };
   }
 
   /** Mark everything read. One call rather than one per row. */
   async markNotificationsRead(): Promise<void> {
     await this.client.request<null>('/notifications/read-all', { method: 'POST' });
+  }
+
+  /**
+   * Mark one read.
+   *
+   * Idempotent on the server, which is what makes it safe to fire on a press
+   * without waiting: a retry over a dropped connection cannot mark the wrong
+   * row, and one already read is a success rather than an error.
+   */
+  async markNotificationRead(id: string): Promise<void> {
+    await this.client.request<null>(`/notifications/${encodeURIComponent(id)}/read`, {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * Empty the inbox.
+   *
+   * Destructive with no undo — the server deletes the rows rather than
+   * flagging them — so every caller confirms first. Idempotent: clearing an
+   * inbox that is already empty is a success, which is what makes a retry over
+   * a dropped connection safe.
+   */
+  async clearNotifications(): Promise<void> {
+    await this.client.request<null>('/notifications', { method: 'DELETE' });
+  }
+
+  /** Remove one. Also idempotent: deleting one already gone satisfies intent. */
+  async deleteNotification(id: string): Promise<void> {
+    await this.client.request<null>(`/notifications/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  }
+
+  /**
+   * The viewer's delivery channels, and whether their email is confirmed.
+   *
+   * The per-type `preferences` array comes back too and is deliberately not
+   * read here: the website has no per-type UI and neither does the app, so
+   * surfacing it would mean designing a screen the product does not have.
+   */
+  async notificationChannels(): Promise<{
+    channels: { in_app: boolean; email: boolean; push: boolean };
+    emailVerified: boolean;
+  }> {
+    const { data } = await this.client.request<{
+      channels?: { in_app?: boolean; email?: boolean; push?: boolean };
+      email_verified?: boolean;
+    }>('/notifications/preferences');
+
+    return {
+      channels: {
+        in_app: data.channels?.in_app ?? true,
+        email: data.channels?.email ?? true,
+        push: data.channels?.push ?? true,
+      },
+      emailVerified: data.email_verified ?? false,
+    };
+  }
+
+  /** Change one or more delivery channels. Sends only what changed. */
+  async setNotificationChannels(
+    channels: Partial<{ in_app: boolean; email: boolean; push: boolean }>,
+  ): Promise<void> {
+    await this.client.request<null>('/notifications/preferences', {
+      method: 'PUT',
+      body: { channels },
+    });
   }
 
   /**
@@ -493,6 +633,82 @@ export class JamboApi {
   }
 
   /**
+   * Replace the profile photo.
+   *
+   * Takes the local file URI the image picker hands back, not bytes: React
+   * Native's FormData understands `{ uri, name, type }` and streams the file
+   * itself, so a 2 MB photo never passes through JavaScript memory.
+   *
+   * `type` matters more than it looks. The endpoint validates
+   * `mimes:jpeg,png,webp,gif`, and a part sent without a content type arrives
+   * as `application/octet-stream` — which fails that rule on a photo that is
+   * a perfectly good JPEG. The caller reads the real type off the picked
+   * asset rather than guessing from the extension.
+   *
+   * Answers with the whole updated profile, so a caller replaces its cached
+   * profile with the response instead of guessing the new avatar URL.
+   */
+  async uploadAvatar(file: { uri: string; name: string; type: string }): Promise<Profile> {
+    const form = new FormData();
+
+    /*
+     * `new File(uri)` from expo-file-system, NOT React Native's old
+     * `{ uri, name, type }` part shape — and this is the whole reason this
+     * method looks the way it does.
+     *
+     * The classic shape is what every React Native upload example on the
+     * internet shows, and it fails here with "Unsupported FormDataPart
+     * implementation": the FormData in this runtime is the spec-compliant one,
+     * and it accepts only a real Blob. `expo-file-system`'s `File` declares
+     * `implements Blob`, so it is one, and it streams from disk rather than
+     * reading a 2 MB photo into JavaScript memory first.
+     *
+     * The filename is passed as the third argument because the endpoint's
+     * `mimes:jpeg,png,webp,gif` rule reads the extension as well as the
+     * detected type; a part named "blob" is refused on a valid photo.
+     */
+    form.append('avatar', new ExpoFile(file.uri), file.name);
+
+    const { data } = await this.client.request<{ profile: Profile }>('/profile/avatar', {
+      method: 'POST',
+      body: form,
+      // A photo on a Ugandan mobile uplink is not a 10-second request. The
+      // client's default would abort a perfectly healthy upload.
+      timeoutMs: 60_000,
+    });
+
+    return data.profile;
+  }
+
+  /** Remove the profile photo, falling back to the initial the website draws. */
+  async deleteAvatar(): Promise<Profile> {
+    const { data } = await this.client.request<{ profile: Profile }>('/profile/avatar', {
+      method: 'DELETE',
+    });
+
+    return data.profile;
+  }
+
+  /**
+   * The ISO country list the profile picker is built from.
+   *
+   * Fetched rather than bundled so the codes and their names have one source
+   * of truth. A list duplicated in the app would drift from the validator, and
+   * the drift shows up as a viewer picking a country the server then refuses.
+   *
+   * `suggested` is the handful shown above the divider — East Africa, from the
+   * server, so the emphasis can change without a new APK.
+   */
+  async countries(): Promise<{ countries: Country[]; suggested: string[] }> {
+    const { data } = await this.client.request<{
+      countries?: Country[];
+      suggested?: string[];
+    }>('/countries');
+
+    return { countries: data.countries ?? [], suggested: data.suggested ?? [] };
+  }
+
+  /**
    * Save the viewer's own details.
    *
    * **Not a partial update.** `PATCH /profile` requires `first_name`,
@@ -509,6 +725,9 @@ export class JamboApi {
     username: string;
     email: string;
     phone: string | null;
+    /** ISO-3166-1 alpha-2, or null for none. Not a partial update: omitting
+     *  this clears the stored country, the same as phone. */
+    country: string | null;
   }): Promise<Profile> {
     const { data } = await this.client.request<Profile>('/profile', {
       method: 'PATCH',
@@ -539,6 +758,42 @@ export class JamboApi {
   }
 
   /**
+   * Set a custom referral code.
+   *
+   * A 422 carries the server's own message, which is the one a viewer should
+   * read — "That referral code is already taken", not a rewording of it. The
+   * client does not pre-validate beyond trimming: the rules live in
+   * `ReferralCodeRules` on the server and a second copy here would be the
+   * fourth place they had to agree.
+   */
+  async updateReferralCode(code: string): Promise<string | null> {
+    const { data } = await this.client.request<{ code?: string | null }>('/referrals/code', {
+      method: 'PUT',
+      body: { code: code.trim() },
+    });
+
+    return data.code ?? null;
+  }
+
+  /**
+   * Is this code free, while somebody is typing it?
+   *
+   * The website has had this since Refer & Earn was built and the app had no
+   * equivalent, so its only way to learn a code was taken was to submit and
+   * read the error. Answers `available` plus a human message; it never throws
+   * for an unusable code, because a validation error per keystroke is not a
+   * useful answer to somebody mid-word.
+   */
+  async checkReferralCode(code: string): Promise<{ available: boolean; message: string }> {
+    const { data } = await this.client.request<{ available?: boolean; message?: string }>(
+      '/referrals/code/check',
+      { method: 'POST', body: { code: code.trim() } },
+    );
+
+    return { available: data.available === true, message: data.message ?? '' };
+  }
+
+  /**
    * The wallet: balance, the withdrawal floor, and the ledger.
    *
    * **Never gated on the referral programme**, and the website says why in a
@@ -555,6 +810,34 @@ export class JamboApi {
     const { data } = await this.client.request<Wallet>('/wallet', { query: { cursor } });
 
     return data;
+  }
+
+  /**
+   * Request a cash withdrawal to a mobile-money number.
+   *
+   * **Must never be retried on a timeout, and nothing here retries it.** The
+   * client sends each request once, which is what makes this safe to call —
+   * but it is worth stating, because the obvious "improvement" of retrying a
+   * failed money request is the one change that would break it. The server
+   * locks the row and refuses a second open request, so a resubmit fails
+   * rather than duplicating; a client that retried would show a viewer an
+   * error for a withdrawal that had actually gone through. Refetch the wallet
+   * instead, which is the only way to learn what really happened.
+   *
+   * The 422 message is written for a viewer: the minimum, the withdrawal
+   * already in progress, or the insufficient balance. Show it as it comes.
+   */
+  async requestWithdrawal(input: {
+    amount: string;
+    payee_name: string;
+    payee_msisdn: string;
+  }): Promise<{ balance: string }> {
+    const { data } = await this.client.request<{ balance?: string }>('/wallet/withdrawals', {
+      method: 'POST',
+      body: input,
+    });
+
+    return { balance: data.balance ?? '' };
   }
 
   /**
@@ -590,6 +873,91 @@ export class JamboApi {
     );
 
     return data.preferences;
+  }
+
+  /**
+   * One episode, and the series it belongs to.
+   *
+   * The player needs this to answer "what is next". A playback session
+   * identifies an episode by id alone and carries no series, and
+   * `/series/{slug}` is slug-only — so this endpoint is the bridge between
+   * them. It is why autoplay works from a Continue Watching card, which also
+   * carries only `{type, id}`.
+   */
+  async episode(id: number): Promise<{ episode: Episode; series: SeriesCard | undefined }> {
+    const { data } = await this.client.request<{ episode?: Episode; series?: SeriesCard }>(
+      `/episodes/${id}`,
+    );
+
+    return { episode: required(data.episode, 'the episode'), series: data.series };
+  }
+
+  /**
+   * Open a playback session: may I watch this, and where are the bytes.
+   *
+   * The entitlement rules are the website's, run server-side by
+   * `PlaybackAuthorizer` — release state, the sign-up switch, the plan level
+   * with an episode inheriting its series' plan, and the concurrent-stream cap
+   * keyed on this device's uuid. The app deliberately does NOT try to answer
+   * any of that from `tier_required` on a detail page; it asks, and it renders
+   * whatever refusal comes back.
+   *
+   * `type` and `id`, not a slug — which is what lets a Continue Watching card
+   * resume. That card carries `resume: {type, id}` and no slug, and the detail
+   * endpoint is slug-only, so this is the ONLY call that can play it.
+   */
+  async playbackSession(
+    type: 'movie' | 'episode',
+    id: number,
+    quality?: 'default' | 'low',
+  ): Promise<PlaybackSession> {
+    const { data } = await this.client.request<PlaybackSession>('/playback/sessions', {
+      method: 'POST',
+      // `quality` is omitted rather than sent as undefined: the validator
+      // accepts `default|low` or absence, and an explicit null is neither.
+      body: quality === undefined ? { type, id } : { type, id, quality },
+    });
+
+    return data;
+  }
+
+  /**
+   * Report where the viewer is, every `heartbeat_seconds`.
+   *
+   * **The interval comes from the session response and is never a constant in
+   * this app.** A shipped APK cannot be re-tuned, so if beats ever cost too
+   * much on the VPS the server lowers the number and every installed copy
+   * slows down without a release. Hard-coding 15 here would throw that away.
+   *
+   * A 409 means this device was signed out of the account mid-stream. The
+   * caller stops playing and signs out; it does not retry.
+   */
+  async heartbeat(
+    type: 'movie' | 'episode',
+    id: number,
+    positionSeconds: number,
+    durationSeconds?: number,
+  ): Promise<{ position: number; completed: boolean }> {
+    const { data } = await this.client.request<{ position?: number; completed?: boolean }>(
+      '/playback/heartbeat',
+      {
+        method: 'POST',
+        body: {
+          type,
+          id,
+          position: Math.max(0, Math.floor(positionSeconds)),
+          // Sent only when the PLAYER knows it. The server decides
+          // "completed" from this, and the catalogue's `runtime_minutes` is
+          // an editorial figure that can disagree with the file — sending
+          // that instead would mark titles finished that are not.
+          ...(durationSeconds !== undefined && durationSeconds > 0
+            ? { duration: Math.floor(durationSeconds) }
+            : {}),
+        },
+      },
+    );
+
+    return { position: data.position ?? 0, completed: data.completed ?? false };
   }
 }
 

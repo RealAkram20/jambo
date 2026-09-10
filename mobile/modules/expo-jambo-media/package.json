@@ -1,0 +1,10 @@
+{
+  "name": "expo-jambo-media",
+  "version": "0.1.0",
+  "description": "Jambo's Media3 player, and in Phase 3 its encrypted offline cache. ADR-0002.",
+  "main": "index.ts",
+  "private": true,
+  "author": "ArmGenius",
+  "license": "UNLICENSED",
+  "platforms": ["android"]
+}

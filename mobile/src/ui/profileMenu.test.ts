@@ -86,7 +86,6 @@ describe('activeRowFor', () => {
     expect(activeRowFor('Security')).toBe('security');
     expect(activeRowFor('Devices')).toBe('devices');
     expect(activeRowFor('Notifications')).toBe('notifications');
-    expect(activeRowFor('StreamingPreferences')).toBe('streaming');
   });
 
   /* Membership and Plans are the same place under two names — the website's
@@ -157,12 +156,40 @@ describe('the rows that stopped being pending', () => {
    * symptom is a highlight that never appears.
    */
   it('lights the profile row from either profile destination', () => {
+    expect(activeRowFor('Profile')).toBe('profile');
     expect(activeRowFor('ProfileEdit')).toBe('profile');
-    expect(activeRowFor('Account')).toBe('profile');
   });
 
   it('lights the money rows', () => {
     expect(activeRowFor('Wallet')).toBe('wallet');
     expect(activeRowFor('Referrals')).toBe('refer');
+  });
+
+
+  /*
+   * Four routes that no longer exist. Any of them lighting a row would mean a
+   * screen had been quietly reinstated, and all four were removed by Rio on
+   * 2026-09-09:
+   *
+   *  - the Account hub, replaced by the Profile screen;
+   *  - Continue Watching, because the home rail already answers it;
+   *  - History, because it is collected to train the model rather than to be
+   *    browsed;
+   *  - Streaming preferences, because the settings are applied in the player.
+   *
+   * **Neither removal touched what the server does.**
+   * `PlaybackBeatRecorder::record` writes `WatchHistoryItem` from the playback
+   * heartbeat; the screen only ever read it back, and `GET /history` is still
+   * served. `GET`/`PATCH /account/preferences` is likewise still served, and
+   * the player is now its only writer — `video_quality` and `autoplay_next`
+   * are set from `PlayerMenu`. "We deleted the screen" and "we stopped
+   * collecting history" — or "we dropped the preference" — are one careless
+   * sentence apart, and this is the note that keeps them apart.
+   */
+  it('knows nothing about the four removed routes', () => {
+    expect(activeRowFor('Account')).toBeNull();
+    expect(activeRowFor('ContinueWatching')).toBeNull();
+    expect(activeRowFor('History')).toBeNull();
+    expect(activeRowFor('StreamingPreferences')).toBeNull();
   });
 });

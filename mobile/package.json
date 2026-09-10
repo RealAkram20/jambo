@@ -16,6 +16,11 @@
     "tokens:check": "node scripts/check-generated.mjs tokens",
     "check": "npm run api:check && npm run tokens:check && npm run typecheck && npm run lint && npm test"
   },
+  "expo": {
+    "autolinking": {
+      "nativeModulesDir": "./modules"
+    }
+  },
   "jest": {
     "preset": "jest-expo",
     "setupFilesAfterEnv": [
@@ -46,18 +51,22 @@
     "expo-file-system": "~57.0.6",
     "expo-font": "~57.0.1",
     "expo-image": "~57.0.4",
+    "expo-image-picker": "~57.0.16",
     "expo-linear-gradient": "~57.0.1",
     "expo-secure-store": "~57.0.1",
     "expo-splash-screen": "~57.0.8",
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.3",
+    "libphonenumber-js": "^1.13.12",
     "phosphor-react-native": "^3.0.6",
     "react": "19.2.3",
     "react-native": "npm:react-native-tvos@0.86.2-0",
     "react-native-gesture-handler": "~2.32.0",
+    "react-native-qrcode-svg": "^6.3.24",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
-    "react-native-svg": "15.15.4"
+    "react-native-svg": "15.15.4",
+    "react-native-webview": "13.16.1"
   },
   "devDependencies": {
     "@react-native-tvos/config-tv": "^0.1.6",

@@ -8,6 +8,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { AuthBackground } from '../ui/AuthBackground';
 import { AuthField, GradientButton, LinkText, RevealToggle } from '../ui/authComponents';
 import { Alert } from '../ui/components';
+import { PasswordMeter } from '../ui/PasswordMeter';
 import { auth, colors, spacing, typography } from '../ui/theme';
 import type { AuthScreenProps } from '../navigation/types';
 
@@ -183,6 +184,14 @@ export function RegisterScreen({ navigation }: AuthScreenProps<'Register'>) {
                     <RevealToggle shown={reveal} onToggle={() => setReveal((r) => !r)} />
                   </View>
                 </View>
+
+                {/*
+                  The bar goes under the box where a password is CHOSEN, and
+                  nowhere else. Under Confirm it would grade the same string a
+                  second time; on the sign-in screen it would grade a password
+                  that already exists and cannot be improved from there.
+                */}
+                <PasswordMeter password={fields.password} />
 
                 <AuthField
                   label="Confirm password"

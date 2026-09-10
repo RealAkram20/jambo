@@ -1,5 +1,6 @@
 @php
-    $castSrc = media_url($castImg, null, 'frontend/images/cast');
+    // 384: a cast avatar, matching personality-card.
+    $castSrc = media_img($castImg, 384, null, 'frontend/images/cast');
 @endphp
 <div class="iq-cast position-relative">
     <div class="cast-images position-relative">

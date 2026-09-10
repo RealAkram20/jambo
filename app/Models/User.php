@@ -20,14 +20,27 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
     use HasHashedMediaTrait;
 
     /**
-     * Avatar lives in a single-file media collection so each new
-     * upload replaces the previous file rather than piling up. The
-     * media-library config persists files under storage/app/public,
-     * exposed via the standard /storage symlink.
+     * Avatar lives in a single-file media collection so each new upload
+     * replaces the previous file rather than piling up.
+     *
+     * **On its own `profiles` disk**, added 2026-09-09 because Rio asked for
+     * one folder for profile photos that works "regardless of the
+     * environment" — a viewer signs in on a phone, a tablet and a browser and
+     * has to see their own face on all three.
+     *
+     * The default media-library disk writes to `storage/app/public`, served
+     * through the `public/storage` symlink. That link is not present on every
+     * install of this project — here it is a real directory holding the
+     * poster art — so avatars written there were never served and an upload
+     * had never once displayed. The `profiles` disk is rooted through
+     * `public/storage/profiles` instead, which resolves correctly whether
+     * that path is a symlink, a real directory, or absent. See
+     * `config/filesystems.php`.
      */
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('profile_image')
+            ->useDisk('profiles')
             ->singleFile()
             ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
     }
@@ -44,6 +57,9 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
         'last_name',
         'email',
         'phone',
+        // ISO-3166-1 alpha-2. See App\Support\Countries for why the code is
+        // stored and the display name is always derived.
+        'country',
         'password',
     ];
 

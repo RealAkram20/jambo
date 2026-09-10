@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use Modules\Streaming\app\Models\Device;
+use App\Notifications\QueuedVerifyEmail;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 /**
@@ -53,7 +55,14 @@ class ProfileAndSecurityTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.profile.first_name', 'Grace')
             ->assertJsonPath('data.profile.username', 'gracehopper')
-            ->assertJsonPath('data.profile.phone', '+256 700 000 000');
+            /*
+             * Normalised, not echoed. Updated 2026-09-10 when phone numbers
+             * started being stored as E.164 — Rio's request, because the
+             * column held the same number in fifteen shapes. Sending
+             * `+256 700 000 000` and reading back `+256700000000` is the
+             * change working, not a regression. See `App\Support\PhoneNumber`.
+             */
+            ->assertJsonPath('data.profile.phone', '+256700000000');
     }
 
     /**
@@ -101,6 +110,66 @@ class ProfileAndSecurityTest extends TestCase
         ])->assertOk()->assertJsonPath('data.profile.email_verified', false);
 
         $this->assertNull($user->fresh()->email_verified_at);
+    }
+
+    /**
+     * The link the response promises is actually sent.
+     *
+     * 🔴 **It was not.** `update()` cleared `email_verified_at` and
+     * answered "Check your new address for a verification link" while sending
+     * nothing, so the one moment somebody is watching their inbox for that
+     * mail was the moment it did not come. The test above passed throughout,
+     * because it asserted the flag and not the consequence — the same shape
+     * jambo-49 and I traded findings about on 2026-09-10: assert what the code
+     * is FOR, not only what it sets.
+     *
+     * Sent to the NEW address, which is what the signed URL has to match.
+     *
+     * The class asserted is the app's own queued notification, not the
+     * framework's: `User::sendEmailVerificationNotification()` overrides the
+     * default so the mail leaves on a queue rather than in the request.
+     */
+    public function test_changing_the_email_sends_a_verification_link_to_the_new_address(): void
+    {
+        Notification::fake();
+
+        $user = $this->viewer();
+        $user->forceFill(['email_verified_at' => now()])->save();
+        $token = $this->signIn($user);
+
+        $this->withFreshToken($token)->patchJson('/api/v1/profile', [
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+            'username' => $user->username,
+            'email' => 'moved@example.test',
+            'current_password' => self::PASSWORD,
+        ])->assertOk();
+
+        Notification::assertSentTo(
+            $user->fresh(),
+            QueuedVerifyEmail::class,
+            fn ($notification, $channels, $notifiable) => $notifiable->email === 'moved@example.test',
+        );
+    }
+
+    /** A profile saved without touching the email sends nothing. */
+    public function test_saving_a_profile_without_changing_the_email_sends_nothing(): void
+    {
+        Notification::fake();
+
+        $user = $this->viewer();
+        $user->forceFill(['email_verified_at' => now()])->save();
+        $token = $this->signIn($user);
+
+        $this->withFreshToken($token)->patchJson('/api/v1/profile', [
+            'first_name' => 'Renamed',
+            'last_name' => $user->last_name,
+            'username' => $user->username,
+            'email' => $user->email,
+            'current_password' => self::PASSWORD,
+        ])->assertOk();
+
+        Notification::assertNothingSent();
     }
 
     public function test_a_username_cannot_be_taken_or_reserved(): void
@@ -257,6 +326,63 @@ class ProfileAndSecurityTest extends TestCase
         $this->assertNotNull($user->fresh()->deactivated_at);
         $this->withFreshToken($phone)->getJson('/api/v1/me')->assertStatus(401);
         $this->withFreshToken($tv)->getJson('/api/v1/me')->assertStatus(401);
+    }
+
+    /**
+     * Rio's switch, enforced on the server rather than only in the app.
+     *
+     * He asked for a delete button he can withdraw at any time
+     * (2026-09-10). `/app/config` carries the flag so the row disappears, but
+     * a build already on somebody's phone still draws it — so the endpoint
+     * refuses on the same setting. Without this test the feature is a
+     * client-side courtesy dressed as a control.
+     */
+    public function test_account_deletion_is_refused_when_the_admin_has_turned_it_off(): void
+    {
+        setting(['app.account_deletion_enabled', '0']);
+
+        $user = $this->viewer();
+        $token = $this->signIn($user, 'device-uuid-offswit');
+
+        $this->withFreshToken($token)->deleteJson('/api/v1/account', [
+            'password' => self::PASSWORD, 'confirm' => true,
+        ])->assertStatus(403)->assertJsonPath('code', 'FORBIDDEN');
+
+        $this->assertNull($user->fresh()->deactivated_at, 'The account must survive a refused request.');
+    }
+
+    /**
+     * A missing settings row means ON.
+     *
+     * The two flags beside this one in `/app/config` default to false because
+     * they gate unfinished features. This gates a finished one, and defaulting
+     * it off would take away somebody's ability to close their own account on
+     * any server where nobody had ever visited the settings page.
+     */
+    public function test_account_deletion_is_offered_by_default(): void
+    {
+        $this->assertTrue(
+            (bool) $this->getJson('/api/v1/app/config')->assertOk()->json('data.features.account_deletion')
+        );
+
+        $user = $this->viewer();
+        $token = $this->signIn($user, 'device-uuid-default');
+
+        $this->withFreshToken($token)->deleteJson('/api/v1/account', [
+            'password' => self::PASSWORD, 'confirm' => true,
+        ])->assertOk();
+
+        $this->assertNotNull($user->fresh()->deactivated_at);
+    }
+
+    /** The flag the app hides the row on follows the same setting. */
+    public function test_app_config_reports_the_switch(): void
+    {
+        setting(['app.account_deletion_enabled', '0']);
+
+        $this->getJson('/api/v1/app/config')
+            ->assertOk()
+            ->assertJsonPath('data.features.account_deletion', false);
     }
 
     // ── helpers ──────────────────────────────────────────────────────

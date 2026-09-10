@@ -1,5 +1,4 @@
 @php
-    $epSrc = media_url($showImg);
 @endphp
 <div class="episode-block rounded-3">
     <div class="block-image position-relative z-1">

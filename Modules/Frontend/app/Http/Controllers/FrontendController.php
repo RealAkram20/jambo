@@ -11,6 +11,7 @@ use Modules\Content\app\Models\Tag;
 use Modules\Content\app\Models\Person;
 use Modules\Content\app\Models\Vj;
 use Modules\Streaming\app\Models\WatchHistoryItem;
+use Modules\Streaming\app\Services\WatchlistPlayResolver;
 use Modules\Streaming\app\Playback\PlaybackDenial;
 use Modules\Streaming\app\Services\PlaybackAuthorizer;
 use Modules\Streaming\app\Models\WatchlistItem;
@@ -1717,38 +1718,21 @@ class FrontendController extends Controller
             return redirect()->route('frontend.series_detail', $show->slug)->with('info', $msg);
         }
 
-        $episodeClass = (new Episode)->getMorphClass();
+        // Resume the last unfinished episode, else start at the beginning.
+        // The rule itself now lives in WatchlistPlayResolver, because the
+        // mobile app's watchlist has to answer exactly this question and a
+        // second copy of it here would be a fork of a shared mechanism — the
+        // same fault PlaybackAuthorizer was extracted to end. Behaviour is
+        // unchanged; only its address is.
+        $episode = app(WatchlistPlayResolver::class)
+            ->episodeFor($show, auth()->id());
 
-        $resume = WatchHistoryItem::where('user_id', auth()->id())
-            ->where('watchable_type', $episodeClass)
-            ->where('completed', false)
-            ->whereIn('watchable_id', function ($q) use ($show) {
-                $q->select('episodes.id')
-                    ->from('episodes')
-                    ->join('seasons', 'seasons.id', '=', 'episodes.season_id')
-                    ->where('seasons.show_id', $show->id);
-            })
-            ->orderByDesc('watched_at')
-            ->first();
-
-        if ($resume) {
-            $resumeEp = Episode::with('season.show')->find($resume->watchable_id);
-            if ($resumeEp) {
-                return redirect($resumeEp->frontendUrl());
-            }
-        }
-
-        $firstEpisode = Episode::whereHas('season', fn ($q) => $q->where('show_id', $show->id))
-            ->orderBy('season_id')
-            ->orderBy('number')
-            ->first();
-
-        if (!$firstEpisode) {
+        if (!$episode) {
             return redirect()->route('frontend.series_detail', $show->slug)
                 ->with('info', 'This series has no episodes yet.');
         }
 
-        return redirect($firstEpisode->frontendUrl($show));
+        return redirect($episode->frontendUrl($show));
     }
 
     /**
@@ -2129,6 +2113,10 @@ class FrontendController extends Controller
     public function all_genres()
     {
         $genres = Genre::withCount(['movies', 'shows'])->orderBy('name')->get();
+        // Every tile on this page draws `featured_image_url`, and the accessor
+        // costs up to four queries per genre. Two for the whole page instead.
+        Genre::attachFeaturedImages($genres);
+
         return view('frontend::Pages.all-geners-page', compact('genres'));
     }
 

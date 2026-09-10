@@ -3,11 +3,11 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { FilmSlate } from 'phosphor-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { api } from '../api/jambo';
 import { seasonsOf, type Episode, type TitleDetail } from '../api/catalogue';
+import { formatRuntime } from '../ui/format';
 import { imageUrl } from '../ui/media';
 import { useRailMetrics } from '../ui/metrics';
 import { Button, ErrorState, Loading } from '../ui/components';
@@ -78,19 +78,14 @@ export function TitleDetailScreen({ route, navigation }: AppScreenProps<'Title'>
           <MetaRow detail={detail} released={data.isReleased} />
 
           <View style={styles.ctaRow}>
+            <PlayButton
+              detail={detail}
+              type={type}
+              released={data.isReleased}
+              seasons={seasons}
+              navigation={navigation}
+            />
             <WatchlistButton detail={detail} type={type} />
-          </View>
-
-          {/*
-            Said plainly rather than hidden. A detail page with no way to watch
-            and no explanation reads as a broken page; one sentence turns it
-            into a page that is honest about where the app is.
-          */}
-          <View style={styles.notice}>
-            <FilmSlate size={18} color={colors.textMuted} weight="regular" />
-            <Text style={styles.noticeText}>
-              Playback arrives in the next update. Everything else here works.
-            </Text>
           </View>
 
           {typeof detail.synopsis === 'string' && detail.synopsis !== '' ? (
@@ -108,7 +103,9 @@ export function TitleDetailScreen({ route, navigation }: AppScreenProps<'Title'>
           />
           <ChipStrip label="Categories" items={detail.categories ?? []} />
 
-          {seasons.length > 0 ? <Seasons seasons={seasons} /> : null}
+          {seasons.length > 0 ? (
+            <Seasons seasons={seasons} title={title} navigation={navigation} />
+          ) : null}
 
           <CastStrip detail={detail} navigation={navigation} />
         </View>
@@ -180,6 +177,90 @@ function MetaRow({ detail, released }: { detail: TitleDetail; released: boolean 
 
       {!released ? <Text style={styles.upcoming}>Coming soon</Text> : null}
     </View>
+  );
+}
+
+/**
+ * Play, or Resume, or nothing at all.
+ *
+ * **This control replaced the line "Playback arrives in the next update."**
+ * That sentence was the honest thing to render while there was no player;
+ * with one, the honest thing is a button that works.
+ *
+ * Three states, and the third is the one worth explaining:
+ *
+ *  - A movie plays itself.
+ *  - A series plays its first episode, because "Play" on a series page means
+ *    "start watching", which is what the website's own CTA does.
+ *  - **A series with no episodes gets NO button.** Not a disabled one and not
+ *    one that opens an empty player: there is nothing to play, and a control
+ *    that cannot complete is the thing this project removed from the Continue
+ *    Watching card rather than ship.
+ *
+ * Entitlement is deliberately NOT checked here. Whether this viewer may watch
+ * is the server's answer, from `POST /playback/sessions`, and guessing it from
+ * `tier_required` would refuse an admin or anyone whose plan the app has not
+ * refreshed. The player renders the real refusal.
+ */
+function PlayButton({
+  detail,
+  type,
+  released,
+  seasons,
+  navigation,
+}: {
+  detail: TitleDetail;
+  type: 'movie' | 'series';
+  released: boolean;
+  seasons: readonly { number?: number; episodes?: Episode[] }[];
+  navigation: AppScreenProps<'Title'>['navigation'];
+}) {
+  /*
+   * An unreleased title has no session to open — `PlaybackAuthorizer` refuses
+   * it as a 404 so it cannot even leak its tier. The meta row already says
+   * "Coming soon", so the button is absent rather than present and refusing.
+   */
+  if (!released) return null;
+
+  if (type === 'movie') {
+    const id = detail.id;
+    if (id === undefined) return null;
+
+    return (
+      <Button
+        label="Play"
+        onPress={() =>
+          navigation.push('Watch', { type: 'movie', id, title: detail.title ?? 'Untitled' })
+        }
+      />
+    );
+  }
+
+  // The first episode of the earliest season, by the numbers a viewer sees
+  // rather than by array order — the endpoint returns database order, and a
+  // series whose pilot was added last would otherwise start in the middle.
+  const first = [...seasons]
+    .sort((a, b) => (a.number ?? 0) - (b.number ?? 0))
+    .flatMap((season) =>
+      [...(season.episodes ?? [])]
+        .sort((a, b) => (a.number ?? 0) - (b.number ?? 0))
+        .map((episode) => ({ season, episode })),
+    )[0];
+
+  if (first === undefined || first.episode.id === undefined) return null;
+
+  return (
+    <Button
+      label="Play"
+      onPress={() =>
+        navigation.push('Watch', {
+          type: 'episode',
+          id: first.episode.id as number,
+          title: detail.title ?? 'Untitled',
+          subtitle: `S${String(first.season.number ?? 1).padStart(2, '0')}E${String(first.episode.number ?? 1).padStart(2, '0')} · ${first.episode.title ?? ''}`,
+        })
+      }
+    />
   );
 }
 
@@ -277,7 +358,15 @@ function ChipStrip({
  * whose two states look identical would be building a control for its own
  * sake.
  */
-function Seasons({ seasons }: { seasons: readonly { number?: number; title?: string | null; episodes?: Episode[] }[] }) {
+function Seasons({
+  seasons,
+  title,
+  navigation,
+}: {
+  seasons: readonly { number?: number; title?: string | null; episodes?: Episode[] }[];
+  title: string;
+  navigation: AppScreenProps<'Title'>['navigation'];
+}) {
   const [openSeason, setOpenSeason] = useState<number>(seasons[0]?.number ?? 1);
 
   return (
@@ -311,21 +400,64 @@ function Seasons({ seasons }: { seasons: readonly { number?: number; title?: str
       ) : null}
 
       {(seasons.find((s, i) => (s.number ?? i + 1) === openSeason)?.episodes ?? []).map(
-        (episode) => <EpisodeRow key={episode.id} episode={episode} />,
+        (episode) => (
+          <EpisodeRow
+            key={episode.id}
+            episode={episode}
+            seasonNumber={openSeason}
+            seriesTitle={title}
+            navigation={navigation}
+          />
+        ),
       )}
     </View>
   );
 }
 
-function EpisodeRow({ episode }: { episode: Episode }) {
+/**
+ * One episode, and since this slice it plays.
+ *
+ * The lock badge is drawn from `effective_tier_required` but the row is still
+ * pressable, and that is deliberate: whether this viewer may watch is decided
+ * by `POST /playback/sessions` on the server, not guessed here from a tier
+ * string. A row disabled on a client-side guess would refuse people who are
+ * in fact entitled — an admin, or somebody whose plan the app has not
+ * refreshed. The player renders the refusal honestly when there is one.
+ */
+function EpisodeRow({
+  episode,
+  seasonNumber,
+  seriesTitle,
+  navigation,
+}: {
+  episode: Episode;
+  seasonNumber: number;
+  seriesTitle: string;
+  navigation: AppScreenProps<'Title'>['navigation'];
+}) {
   const locked =
     typeof episode.effective_tier_required === 'string' && episode.effective_tier_required !== '';
+
+  const id = episode.id;
 
   return (
     <Focusable
       accessibilityLabel={`Episode ${episode.number ?? ''}, ${episode.title ?? ''}${locked ? ', premium' : ''}`}
+      accessibilityHint="Plays this episode"
       ringRadius={radius.card}
       style={styles.episode}
+      disabled={id === undefined}
+      onPress={
+        id === undefined
+          ? undefined
+          : () =>
+              navigation.push('Watch', {
+                type: 'episode',
+                id,
+                title: seriesTitle,
+                subtitle: `S${String(seasonNumber).padStart(2, '0')}E${String(episode.number ?? 0).padStart(2, '0')} · ${episode.title ?? ''}`,
+              })
+      }
     >
       <ExpoImage
         source={imageUrl(episode.still_url, 160)}
@@ -412,14 +544,6 @@ function CastStrip({
       </ScrollView>
     </View>
   );
-}
-
-/** "1h 30m", the way the website writes it, and never "90m" for a feature. */
-function formatRuntime(minutes: number): string {
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  if (hours === 0) return `${rest}m`;
-  return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
 }
 
 /** 445088 → "445K". A view count is a sense of scale, not an audited figure. */

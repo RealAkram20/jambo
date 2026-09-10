@@ -6,7 +6,8 @@
      */
     $isShow = $item->_isShow ?? false;
     $thumbImg = $item->poster_url;
-    $thumbSrc = media_url($thumbImg, 'media/gameofhero-portrait.webp');
+    // 384: a poster thumbnail in the hero rail.
+    $thumbSrc = media_img($thumbImg, 384, 'media/gameofhero-portrait.webp');
 
     if ($isShow) {
         $meta = $item->seasons->count() . ' ' . __('streamEpisode.season');

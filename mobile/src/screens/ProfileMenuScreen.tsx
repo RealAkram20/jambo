@@ -12,9 +12,9 @@ import {
   Devices,
   Gift,
   PencilSimple,
+  Receipt,
   ShieldCheck,
   SignOut,
-  SlidersHorizontal,
   UserCircle,
   Wallet,
   X,
@@ -64,7 +64,8 @@ import type { AppScreenProps } from '../navigation/types';
  * `accessibilityViewIsModal`. The navigator does every one of those things for
  * a screen, and correctly.
  *
- * One row is not on the website: Streaming. See the list below for why.
+ * Every row here is a row the website's sidebar has, bar Billing. See the
+ * list below for the three that were removed and why.
  */
 
 /**
@@ -85,13 +86,13 @@ type MenuRow = {
   icon: Icon;
   /** Where it goes. Undefined means the screen does not exist yet. */
   to?:
-    | 'Account'
+    | 'Profile'
     | 'ProfileEdit'
     | 'Security'
     | 'Devices'
     | 'Notifications'
     | 'Plans'
-    | 'StreamingPreferences'
+    | 'Billing'
     | 'Wallet'
     | 'Referrals';
   /** The tab to select, for rows that live in the bottom bar rather than the stack. */
@@ -305,7 +306,32 @@ export function ProfileMenuScreen({ navigation }: AppScreenProps<'ProfileMenu'>)
 
   const rows: MenuRow[] = [
     { key: 'watchlist', label: 'Watchlist', icon: BookmarksSimple, tab: 'Watchlist' },
-    { key: 'profile', label: 'Profile', icon: UserCircle, to: 'ProfileEdit' },
+    /*
+     * **Neither History nor Continue Watching is a row here, and both were
+     * removed by Rio on 2026-09-09 within an hour of each other.**
+     *
+     * Continue Watching: *"remove it, we have it on the homepage."* The home
+     * rail is the app's answer to that question and a menu row was a second
+     * one.
+     *
+     * History: *"history is used in background for training our ai system."*
+     * It is collected for the model rather than browsed by the viewer, so it
+     * has no door. **Removing the screen changed nothing about what is
+     * collected** — `PlaybackBeatRecorder::record` writes `WatchHistoryItem`
+     * from the playback heartbeat, and the screen only ever read it back.
+     *
+     * Streaming preferences was the third, later the same day: *"remove the
+     * streaming menu, because all of these settings are applied to the player
+     * itself."* Quality was always written from the player's own menu, so the
+     * row was a second door onto one account field. Autoplay was not — it
+     * moved into `PlayerMenu` in the same change rather than being lost.
+     *
+     * All three screens went with their rows, because the menu was the only
+     * thing that navigated to any of them. Worth knowing before adding a row
+     * back on the reasoning that a screen is stranded: it is stranded on
+     * purpose.
+     */
+    { key: 'profile', label: 'Profile', icon: UserCircle, to: 'Profile' },
     { key: 'security', label: 'Security', icon: ShieldCheck, to: 'Security' },
     { key: 'devices', label: 'Devices', icon: Devices, to: 'Devices' },
     {
@@ -315,16 +341,16 @@ export function ProfileMenuScreen({ navigation }: AppScreenProps<'ProfileMenu'>)
       to: 'Notifications',
       badge: notifications.data?.unread,
     },
-    /*
-     * The one row the website's sidebar does not have, and it is here because
-     * the website does not need it: a browser has no mobile-data bundle to
-     * protect and no next episode to roll into unattended. Rio asked for it on
-     * 2026-09-09 — "all can edit and update their streaming preferences" — and
-     * it sits with Devices and Notifications rather than with the money rows
-     * below, because those three are how the app behaves.
-     */
-    { key: 'streaming', label: 'Streaming', icon: SlidersHorizontal, to: 'StreamingPreferences' },
     { key: 'membership', label: 'Membership', icon: Crown, to: 'Plans' },
+    /*
+     * The second row the website's sidebar does not have, and this one is a
+     * gap on the website rather than a difference in kind: `profile.billing`
+     * exists, renders and is linked from nowhere but the payment-complete
+     * page. The app has no payment-complete page, so without this the screen
+     * would be unreachable. Rio's call, 2026-09-09: a row here and a row on
+     * Membership.
+     */
+    { key: 'billing', label: 'Billing', icon: Receipt, to: 'Billing' },
     { key: 'wallet', label: 'Wallet', icon: Wallet, to: 'Wallet' },
   ];
 
@@ -388,20 +414,25 @@ export function ProfileMenuScreen({ navigation }: AppScreenProps<'ProfileMenu'>)
           showsVerticalScrollIndicator={false}
         >
           {/*
-            The identity block opens the Account screen, NOT the Profile
-            editor, and the two are deliberately different destinations.
-            Account is the hub — the subscription, Continue Watching and
-            History — and this menu is the only way to it now that Rio has
-            made the menu the app's single navigation. The Profile row below
-            goes to the editor, which is where the pencil's promise is kept.
-            Pointing this block at the editor as well would give the menu two
-            routes to one screen and leave Continue Watching unreachable.
+            The identity block opens Profile.
+
+            It used to open an Account hub — a plain list of buttons that
+            predated the Profile screen and duplicated most of this menu.
+            Rio, 2026-09-09: *"we should remove this, and link this to our
+            account page we have designed, because it is linking to the older
+            account page."* The hub is gone.
+
+            Removing it stranded two screens, which is why Continue Watching
+            and History are rows above rather than a loss: they were reachable
+            only from that hub, and nothing else in the app navigates to
+            either. Deleting a screen is only finished when the things behind
+            it still have a door.
           */}
           <Focusable
-            accessibilityLabel={displayName === '' ? 'Your account' : `Your account, ${displayName}`}
+            accessibilityLabel={displayName === '' ? 'Your profile' : `Your profile, ${displayName}`}
             accessibilityRole="link"
             ringRadius={profileMenu.rowRadius}
-            onPress={() => navigation.navigate('Account')}
+            onPress={() => navigation.navigate('Profile')}
             style={styles.identity}
           >
             <View style={styles.avatarWrap}>

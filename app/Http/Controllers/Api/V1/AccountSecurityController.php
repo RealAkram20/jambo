@@ -140,6 +140,22 @@ class AccountSecurityController extends Controller
      */
     public function deactivate(Request $request): JsonResponse
     {
+        /*
+         * The admin switch, checked here and not only in the app.
+         *
+         * Rio can hide the button from `/app/config`, and a build that already
+         * shipped still has it. The setting is the authority; the flag the app
+         * reads is a courtesy so the row disappears rather than failing when
+         * pressed. Refused before the password is even checked, so a disabled
+         * feature cannot be used as an oracle for whether a password is right.
+         */
+        if (! (bool) setting('app.account_deletion_enabled', true)) {
+            return ApiResponse::error(
+                ApiErrorCode::Forbidden,
+                'Closing your account from the app is turned off. Contact support and we will do it for you.',
+            );
+        }
+
         $request->validate([
             'password' => ['required', 'string'],
             'confirm' => ['accepted'],

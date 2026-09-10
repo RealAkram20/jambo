@@ -6,7 +6,8 @@
      * $item  Movie (with genres loaded)
      */
     $thumbImg = $item->backdrop_url ?: $item->poster_url;
-    $thumbSrc = media_url($thumbImg, 'media/the-first-of-us.webp');
+    // 384: a thumbnail beside the Top 10 vertical slider.
+    $thumbSrc = media_img($thumbImg, 384, 'media/the-first-of-us.webp');
 
     $runtime = $item->runtime_minutes
         ? floor($item->runtime_minutes / 60) . 'hr : ' . ($item->runtime_minutes % 60) . 'm'

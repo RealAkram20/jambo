@@ -811,6 +811,13 @@ export interface paths {
                         email: string;
                         phone?: string | null;
                         /**
+                         * @description ISO-3166-1 alpha-2. Case-insensitive in, stored upper
+                         *     case. Omitting the key clears it, the same as phone — this
+                         *     endpoint is not a partial update.
+                         * @example UG
+                         */
+                        country?: string | null;
+                        /**
                          * Format: password
                          * @description Required only when the email is changing.
                          */
@@ -915,6 +922,72 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/countries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The ISO country list for the profile picker
+         * @description Public and unauthenticated: it is the same list for everybody, and the
+         *     registration form needs it before anyone has a token.
+         *
+         *     `countries` is ordered for a human scanning it — the suggested codes
+         *     first, then the rest by NAME rather than by code. `suggested` is the
+         *     handful shown above the divider; it is sent rather than hard-coded in
+         *     the client so the emphasis can change without a new APK.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EnvelopeOk"] & {
+                            data?: {
+                                countries?: {
+                                    /** @example UG */
+                                    code?: string;
+                                    /** @example Uganda */
+                                    name?: string;
+                                }[];
+                                /**
+                                 * @example [
+                                 *       "UG",
+                                 *       "KE",
+                                 *       "TZ",
+                                 *       "RW",
+                                 *       "BI",
+                                 *       "SS",
+                                 *       "CD"
+                                 *     ]
+                                 */
+                                suggested?: string[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1335,6 +1408,25 @@ export interface paths {
                                  *     sessions always count.
                                  */
                                 counts_app_devices?: boolean;
+                                /**
+                                 * @description **A concurrency limit, not a device limit**, and the two
+                                 *     are easy to conflate. Nothing stops an account
+                                 *     registering a hundred installs; what the tier enforces
+                                 *     is how many can watch at once. `watching` comes from the
+                                 *     same method `TierGate` calls before letting a stream
+                                 *     start, so a client's meter cannot say a viewer has room
+                                 *     while the player is about to refuse them.
+                                 */
+                                streams?: {
+                                    watching?: number;
+                                    /**
+                                     * @description The tier's cap, or null when there is no
+                                     *     subscription or the tier sets none. **Null is not
+                                     *     zero**: zero would draw a full meter and read as
+                                     *     "you may watch on nothing".
+                                     */
+                                    limit?: number | null;
+                                };
                             };
                         };
                     };
@@ -2398,11 +2490,20 @@ export interface paths {
          *     entirely.
          *
          *     Carries `unread_count`, so a badge costs one request rather than two.
+         *     The count is of the whole inbox and never of the filtered page: it is the
+         *     bell's badge, and a badge that moved when a chip was pressed would be
+         *     reporting the chip.
+         *
+         *     `category` filters on the server because the list is cursor-paginated —
+         *     filtering the page the app happens to hold would hide matching rows until
+         *     the viewer scrolled far enough to load them. An unrecognised category is a
+         *     422, never a silently unfiltered list.
          */
         get: {
             parameters: {
                 query?: {
                     cursor?: string;
+                    category?: "movies" | "series" | "account" | "offers";
                 };
                 header?: never;
                 path?: never;
@@ -2589,7 +2690,17 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Per-category notification preferences */
+        /**
+         * Notification channels, and per-category preferences
+         * @description Two layers, and they are not the same thing.
+         *
+         *     `channels` is the viewer's global per-channel switch — the three columns on
+         *     `users` that form layer 4 of the gate in `ChannelGatedNotification`, and the
+         *     three switches the website's own "Delivery preferences" card renders.
+         *
+         *     `preferences` is the per-notification-type opt-out, which can only narrow
+         *     what `channels` allows.
+         */
         get: {
             parameters: {
                 query?: never;
@@ -2607,6 +2718,13 @@ export interface paths {
                     content: {
                         "application/json": components["schemas"]["EnvelopeOk"] & {
                             data?: {
+                                channels?: components["schemas"]["NotificationChannels"];
+                                /**
+                                 * @description Whether the address the emails would go to is confirmed. The
+                                 *     website says this beside its Email switch, because it is a
+                                 *     fact the switch itself cannot show.
+                                 */
+                                email_verified?: boolean;
                                 preferences?: components["schemas"]["NotificationPreference"][];
                             };
                         };
@@ -2614,7 +2732,12 @@ export interface paths {
                 };
             };
         };
-        /** Set preferences */
+        /**
+         * Set channels, preferences, or both
+         * @description Both keys are optional; a request carrying neither is a 422. A PUT that
+         *     validates and changes nothing reads as success to the app, which leaves the
+         *     switch where the viewer put it while the server disagrees.
+         */
         put: {
             parameters: {
                 query?: never;
@@ -2625,7 +2748,8 @@ export interface paths {
             requestBody: {
                 content: {
                     "application/json": {
-                        preferences: components["schemas"]["NotificationPreference"][];
+                        channels?: components["schemas"]["NotificationChannels"];
+                        preferences?: components["schemas"]["NotificationPreference"][];
                     };
                 };
             };
@@ -2880,7 +3004,113 @@ export interface paths {
             };
         };
         put?: never;
-        post?: never;
+        /**
+         * Start paying for a plan
+         * @description Creates a pending order and returns where to send the payer.
+         *
+         *     **The request names a plan and nothing else.** There is no `amount`,
+         *     no `currency` and no gateway: the server reads the price off the tier
+         *     row, freezes it into `metadata.tier_snapshot`, computes any referral
+         *     discount itself, and picks the gateway from `payments.default_gateway`.
+         *     A client cannot pair a plan with a price of its own, and adding a
+         *     second gateway is a server change this contract does not see.
+         *
+         *     **Who may call it is decided by the app, not here.** ADR-0004 makes the
+         *     Google Play build consumption-only, because Play's Payments policy
+         *     requires Play Billing for subscription video outside IN/KR/EEA/US. The
+         *     direct APK shows the button; the Play build does not. The server does
+         *     not police the variant — Google inspects the binary, not the API, and a
+         *     variant flag sent by a client is not a security control.
+         *
+         *     The payer finishes in a browser. The gateway confirms to the **server**,
+         *     so a client should poll `GET /subscription/orders/{reference}` rather
+         *     than treating its own return as proof of payment.
+         *
+         *     Rate limited below the auth rate and fails closed: every call mints an
+         *     order row and a gateway order.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @description An active, paid tier. A free or withdrawn plan is refused. */
+                        tier_slug: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Order created; send the payer to `redirect_url`. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EnvelopeOk"] & {
+                            data?: {
+                                /**
+                                 * @description **How to present the checkout, not which gateway made it.**
+                                 *     The app ships knowing a closed set of modes and the server
+                                 *     picks one per order, so a gateway added later needs no app
+                                 *     release — which is the point: a phone that has not updated
+                                 *     in a year still completes the sale.
+                                 */
+                                checkout?: {
+                                    /**
+                                     * @description `webview` hosts it inside the app, which is what every
+                                     *     hosted checkout fits, PesaPal's iframe included.
+                                     *     `redirect` opens it outside. A client meeting a mode it
+                                     *     does not know must fall back to `redirect`.
+                                     * @enum {string}
+                                     */
+                                    mode?: "webview" | "redirect";
+                                    url?: string;
+                                    /** @description Jambo own URL. Navigation here means the flow finished. */
+                                    return_url?: string;
+                                    /** @description Jambo own URL. Navigation here means the payer backed out. */
+                                    cancel_url?: string;
+                                };
+                                /** @description The merchant reference, for polling the order. */
+                                reference?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description NOT_FOUND — no such active plan. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description VALIDATION_FAILED — the plan is free, or no slug was sent. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description RATE_LIMITED. */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description SERVER_ERROR — payments unconfigured, or the gateway refused. */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -2991,6 +3221,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/referrals/code/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Is this referral code free?
+         * @description Live availability while a code is being typed, so a viewer learns a
+         *     code is taken before they submit rather than from a 422.
+         *
+         *     **Never says available for something `PUT /referrals/code` would
+         *     reject.** Both go through `ReferralCodeRules`, which is also what the
+         *     website's own form and its `/referrals/check-code` endpoint use — so
+         *     the four cannot drift apart. That matters because a referral code
+         *     shares a namespace with usernames: the profile hub lives at
+         *     `/{username}`, so a code is also a URL segment and cannot be a name the
+         *     router already owns.
+         *
+         *     POST rather than GET: the code is user input and a GET would put every
+         *     keystroke in an access log.
+         *
+         *     An unusable code is `available: false` with a reason, not a validation
+         *     error — a 422 per keystroke is not a useful answer to somebody
+         *     mid-word. A 404 means the referral programme is switched off.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        code: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EnvelopeOk"] & {
+                            data?: {
+                                available?: boolean;
+                                /** @description Why, in words a viewer can read. */
+                                message?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description The referral programme is not available. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/referrals/code": {
         parameters: {
             query?: never;
@@ -3054,10 +3358,20 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Balance and ledger
-         * @description Every entry records the balance after it, so a client never adds money
-         *     up itself. Withdrawal is deliberately not exposed: money leaving the
-         *     business earns its own slice.
+         * Balance, ledger and withdrawals
+         * @description Every entry records the balance after it, so a client never adds money up
+         *     itself.
+         *
+         *     `withdrawals` carries the ten most recent requests, and it is not
+         *     decoration: the hold is taken the moment a withdrawal is requested, so a
+         *     balance that has dropped with nothing paid out yet has no explanation
+         *     without it. `has_open_withdrawal` is computed from the same statuses the
+         *     service guards on, so the button an app draws and the rule the server
+         *     enforces cannot disagree.
+         *
+         *     **Money arrives as a string, and its decimal formatting follows the
+         *     database.** MySQL answers `"15000.00"` where SQLite answers `"15000"`.
+         *     Format for display; never compare these as strings.
          */
         get: {
             parameters: {
@@ -3085,6 +3399,94 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wallet/withdrawals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request a cash withdrawal
+         * @description Money leaving the business. Added 2026-09-09 so the app's wallet screen can
+         *     finish the task rather than send a viewer to a browser.
+         *
+         *     **It writes no money logic of its own.** The controller calls
+         *     `ReferralWalletService::requestWithdrawal`, which is the entry point the
+         *     website's own form posts to, and `Payouts::request` below that is where the
+         *     row lock, the one-open-request guard and the ledger hold live. The whole
+         *     thing runs in a transaction: if the ledger refuses the hold, the request row
+         *     rolls back with it.
+         *
+         *     **A retry is safe without an idempotency key.** The service locks the owner
+         *     row and refuses a second open request, so a resubmit over a dropped
+         *     connection cannot create two withdrawals — it returns 422 instead, and the
+         *     client refetches to show the one that exists.
+         *
+         *     A 422 carries a message written for a viewer: the minimum, the withdrawal
+         *     already in progress, or the insufficient balance. All three are answers
+         *     rather than faults.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        amount: number;
+                        payee_name: string;
+                        /**
+                         * @description The same rule the website's form applies. A number the browser
+                         *     rejects and the app accepts is a payout that fails at the till.
+                         */
+                        payee_msisdn: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Requested */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EnvelopeOk"] & {
+                            data?: {
+                                withdrawal?: components["schemas"]["Withdrawal"];
+                                /** @description The balance after the hold, so a client never subtracts it itself. */
+                                balance?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description The wallet is not available to this viewer */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Refused, with a message written for a viewer */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -3119,7 +3521,7 @@ export interface paths {
                     content: {
                         "application/json": components["schemas"]["EnvelopeOk"] & {
                             data?: {
-                                items?: (components["schemas"]["MovieCard"] | components["schemas"]["SeriesCard"] | components["schemas"]["Episode"])[];
+                                items?: components["schemas"]["WatchlistCard"][];
                             };
                         };
                     };
@@ -3945,6 +4347,20 @@ export interface components {
                 downloads?: boolean;
                 in_app_subscribe?: boolean;
                 /**
+                 * @description Whether the app offers its "Delete account" button. Set from
+                 *     admin settings (`app.account_deletion_enabled`) and **defaults
+                 *     to true**, unlike the flags around it: those gate features that
+                 *     are not finished, this one gates a feature that is, and a
+                 *     missing settings row must not silently take away somebody's
+                 *     ability to close their own account.
+                 *
+                 *     `DELETE /account` checks the same setting and refuses with
+                 *     FORBIDDEN when it is off, so turning it off stops a build that
+                 *     already draws the button. This flag only decides whether the
+                 *     row is drawn.
+                 */
+                account_deletion?: boolean;
+                /**
                  * @description Whether this server has Google sign-in configured. The sign-in
                  *     screen needs it before anyone is authenticated, which is why it
                  *     is here rather than only in /account/security. False means hide
@@ -3998,7 +4414,35 @@ export interface components {
             username?: string;
             email?: string;
             phone?: string | null;
+            /**
+             * @description ISO-3166-1 alpha-2, upper case. Null when the viewer has never set
+             *     one, which is most accounts — render a dash, never a guess.
+             * @example UG
+             */
+            country?: string | null;
+            /**
+             * @description The display name for `country`, derived server-side so no client
+             *     carries a 250-row lookup to render one row. Null exactly when
+             *     `country` is null. Falls back to the code itself on a server
+             *     without the `intl` extension.
+             * @example Uganda
+             */
+            country_name?: string | null;
             email_verified?: boolean;
+            /**
+             * @description A path relative to the public root, like every other image this API
+             *     returns — `poster_url` is `/storage/gallery/...` and this is the
+             *     same shape. Resolve it against the host you are talking to, NOT
+             *     against any host the payload names.
+             *
+             *     The exception is an image this server does not host: an
+             *     admin-pasted Dropbox or Backblaze link comes back as the absolute
+             *     URL it was stored as, and must be used verbatim.
+             *
+             *     Null when the account has never uploaded a photo, which is most of
+             *     them. Draw the viewer's initial rather than a stock face.
+             * @example /storage/3/hQmG5DJV3C04a6rpVMWVY25Zv88WV3hVzz41L8gp.png
+             */
             avatar_url?: string | null;
             /** Format: date-time */
             joined_at?: string | null;
@@ -4057,14 +4501,44 @@ export interface components {
             kind?: "app" | "browser";
             /** @description For a browser, the parsed user agent. */
             name?: string | null;
+            /**
+             * @description A Phosphor icon name for this row — `ph-desktop`, `ph-device-mobile`,
+             *     `ph-television`, `ph-globe`.
+             *
+             *     For a browser it is whatever `UserAgent::parse` decided, which is the
+             *     same call the website's own device list draws from, so the two surfaces
+             *     cannot disagree about the same user agent. For an app install it comes
+             *     from `platform`.
+             *
+             *     Clients resolve it through their icon table rather than branching on
+             *     `kind`: a browser row has no `platform`, so without this every browser
+             *     would be the same picture.
+             */
+            icon?: string;
             /** @description App installs only. */
             model?: string | null;
             /** @enum {string|null} */
             platform?: "android" | "android_tv" | null;
             /** @description App installs only. */
             app_version?: string | null;
-            /** @description Browser sessions only. */
+            /**
+             * @description The address this thing last spoke from. Browser sessions have always
+             *     carried one; app installs record it as of 2026-09-09, one value only,
+             *     overwritten when the device moves.
+             */
             ip_address?: string | null;
+            /**
+             * @description "Kampala, Uganda", resolved at read time from `ip_address` and never
+             *     stored. **Null is the normal answer** and clients must render it: a
+             *     private address has no location, and the geolocation database is not in
+             *     the repository, so a server without one answers null for every row. Fall
+             *     back to showing `ip_address`, which is what the website shows.
+             *
+             *     Never guessed. A wrong city on a security screen is worse than no city,
+             *     because the whole point of the line is that a viewer can say they have
+             *     never been there.
+             */
+            location?: string | null;
             /** Format: date-time */
             last_seen_at?: string | null;
             is_current?: boolean;
@@ -4112,8 +4586,17 @@ export interface components {
             server_time?: string;
         };
         Home: {
-            /** @description Curated at /admin/featured, falling back to an automatic mix. Movies and series interleaved. */
-            hero?: (components["schemas"]["MovieCard"] | components["schemas"]["SeriesCard"])[];
+            /**
+             * @description The home banner. Curated at /admin/featured, falling back to an
+             *     automatic mix. Movies and series interleaved.
+             *
+             *     These are NOT poster cards. The banner is the website's
+             *     full-bleed slide - `components/partials/hero-banner.blade.php` -
+             *     and it draws a backdrop, a synopsis and three taxonomy lines that
+             *     a rail's card has no reason to carry. The rails below it are
+             *     still MovieCard / SeriesCard.
+             */
+            hero?: (components["schemas"]["MovieHero"] | components["schemas"]["SeriesHero"])[];
             rails?: components["schemas"]["Rail"][];
             /** Format: date-time */
             server_time?: string;
@@ -4125,15 +4608,37 @@ export interface components {
              * @example top_movies
              */
             key?: string;
-            /** @description Already translated, and the same string the website renders. */
+            /**
+             * @description Already translated, and the same string the website renders.
+             *     ABSENT on `kind: banner` - a full-width banner carries no shelf
+             *     heading on either surface, so there is nothing to draw.
+             */
             title?: string;
             /**
-             * @description Which card component to render. Treat an unknown kind as a rail to skip.
+             * @description What shape the items are, and so which component renders them.
+             *     Treat an unknown kind as a rail to skip.
              * @enum {string}
              */
-            kind?: "titles" | "progress" | "genres" | "vjs" | "people";
+            kind?: "titles" | "progress" | "genres" | "vjs" | "people" | "banner";
+            /**
+             * @description How to present this rail, where `kind` says what is in it. Absent
+             *     means the ordinary treatment for that kind, which is what almost
+             *     every rail wants - so a client reads this with a default and never
+             *     switches on it exhaustively.
+             *
+             *     `numbered` is a `titles` rail drawn with the Top 10 numerals.
+             *     `movies_today` and `series_today` are the two daily banners; they
+             *     differ in layout, not only in wording, so they are two styles
+             *     rather than one banner that inspects its items.
+             *
+             *     This field exists so a ranked shelf added on the server looks
+             *     right with no app release. It replaced a hardcoded set of two
+             *     rail keys in the app on 2026-09-10.
+             * @enum {string}
+             */
+            style?: "numbered" | "movies_today" | "series_today";
             /** @description Shape depends on `kind`. Never empty - an empty rail is omitted. */
-            items?: (components["schemas"]["MovieCard"] | components["schemas"]["SeriesCard"] | components["schemas"]["ContinueWatchingCard"] | components["schemas"]["GenreCard"] | components["schemas"]["VjCard"] | components["schemas"]["PersonCard"])[];
+            items?: (components["schemas"]["MovieCard"] | components["schemas"]["SeriesCard"] | components["schemas"]["ContinueWatchingCard"] | components["schemas"]["GenreCard"] | components["schemas"]["VjCard"] | components["schemas"]["PersonCard"] | components["schemas"]["MovieBannerSlide"] | components["schemas"]["SeriesBannerSlide"])[];
         };
         /** @description kind = progress. */
         ContinueWatchingCard: {
@@ -4210,9 +4715,33 @@ export interface components {
             currency?: string;
             /** @enum {string} */
             billing_period?: "daily" | "weekly" | "monthly" | "yearly";
+            /**
+             * @description The suffix under the price, as the website writes it: "per day",
+             *     "per week", "per month", "per year". Authored server-side so a
+             *     client never has to keep its own copy of the mapping.
+             */
+            period_label?: string;
             access_level?: number;
             /** @description null means no cap. Render "unlimited". */
             max_concurrent_streams?: number | null;
+            /**
+             * @description What the plan includes, as the admin wrote it, and the same list
+             *     the website's pricing cards render. Always present; an empty array
+             *     means no features have been written, never a missing field.
+             *
+             *     Added 2026-09-09. It existed on the column all along and this
+             *     endpoint did not forward it, which left the app with a price
+             *     ladder and no stated reason to choose one rung over another.
+             */
+            features?: string[];
+            /**
+             * @description True on the one tier that wears the "Most popular" pill. Decided
+             *     server-side by `SubscriptionTier::popularFrom` — the highest
+             *     access level among monthly paid tiers, falling back to the highest
+             *     paid tier — which is the same call the website's pricing page
+             *     makes, so the two surfaces cannot mark different plans.
+             */
+            is_popular?: boolean;
         };
         Subscription: {
             status?: string;
@@ -4223,13 +4752,36 @@ export interface components {
             auto_renew?: boolean;
             tier?: components["schemas"]["Plan"];
         };
+        /**
+         * @description One charge on the account, as the billing list and the invoice read it.
+         *
+         *     A `description` field was published here until 2026-09-09. No column
+         *     ever backed it, so it was null on every order; it is replaced by
+         *     `plan`, which is what the website's billing table and invoice actually
+         *     print.
+         */
         PaymentOrder: {
+            /** @description The merchant reference. This is the id GET /subscription/orders/{reference} takes. */
             reference?: string;
+            /** @description pending | completed | failed | cancelled. */
             status?: string;
             /** @description What was actually paid, not the current plan price. */
             amount?: string;
             currency?: string;
-            description?: string | null;
+            /**
+             * @description What was bought, when the order points at a subscription plan.
+             *     Null for any other payable — the table is polymorphic and is meant
+             *     to carry rentals and merchandise later.
+             */
+            plan?: {
+                name?: string;
+                /** @description daily | weekly | monthly | yearly. */
+                billing_period?: string | null;
+            } | null;
+            /** @description card, mpesa, airtel. Null until the gateway reports one. */
+            payment_method?: string | null;
+            /** @description The gateway-assigned id, for reconciling against a statement. */
+            tracking_id?: string | null;
             /** Format: date-time */
             created_at?: string | null;
         };
@@ -4251,10 +4803,35 @@ export interface components {
                 min_withdrawal?: string;
             };
         };
+        /**
+         * @description One cash-out request. `rejection_reason` is a clerk's internal note and is
+         *     returned only on a rejected row, where it is the one thing the viewer needs;
+         *     on every other status it is null.
+         */
+        Withdrawal: {
+            id?: number;
+            amount?: string;
+            currency?: string;
+            /** @enum {string} */
+            status?: "requested" | "approved" | "paid" | "rejected";
+            /** @description The mobile-money transaction reference, once it has been paid. */
+            reference?: string | null;
+            rejection_reason?: string | null;
+            /** Format: date-time */
+            requested_at?: string | null;
+        };
         Wallet: {
             currency?: string;
             balance?: string;
             min_withdrawal?: string;
+            /**
+             * @description Whether a request is already in flight. Computed from the same statuses
+             *     the service guards on, so a client's button and the server's rule cannot
+             *     disagree about what "open" means.
+             */
+            has_open_withdrawal?: boolean;
+            /** @description The ten most recent, newest first. */
+            withdrawals?: components["schemas"]["Withdrawal"][];
             entries?: {
                 id?: number;
                 type?: string;
@@ -4271,12 +4848,40 @@ export interface components {
             id?: string;
             title?: string;
             message?: string;
+            /**
+             * @description A Phosphor icon name, as the website's own inbox uses — `ph-film-strip`,
+             *     `ph-device-mobile`, `ph-bell`. The app maps these onto the same glyphs.
+             */
             icon?: string;
+            /**
+             * @description Which tone the icon tile wears. The website paints it as
+             *     `bg-{colour}-subtle` on `text-{colour}-emphasis`; the app captures those
+             *     pairs so both surfaces tint a notification identically.
+             * @enum {string}
+             */
+            colour?: "primary" | "success" | "warning" | "danger" | "info";
             image_url?: string | null;
             action_url?: string | null;
+            /**
+             * @description Which filter chip this notification sits under, or null when it belongs
+             *     under All alone. Derived from the notification's stored class, so rows
+             *     written before the chips existed still answer it.
+             * @enum {string|null}
+             */
+            category?: "movies" | "series" | "account" | "offers" | null;
             read?: boolean;
             /** Format: date-time */
             created_at?: string | null;
+        };
+        /**
+         * @description The viewer's global per-channel switch. Layer 4 of the four-layer gate: a
+         *     channel fires only when every layer allows it, so switching one off here
+         *     silences it regardless of any per-type preference.
+         */
+        NotificationChannels: {
+            in_app?: boolean;
+            email?: boolean;
+            push?: boolean;
         };
         NotificationPreference: {
             key?: string;
@@ -4349,6 +4954,17 @@ export interface components {
             slug?: string;
             name?: string;
             colour?: string | null;
+            /**
+             * @description The tile's artwork. A genre owns no image of its own, so this is
+             *     borrowed from its most recent published title - backdrop first,
+             *     poster second, movies before series. It is the same
+             *     `featured_image_url` the website's `card-genres-grid` draws, so
+             *     both surfaces show the same picture for the same genre.
+             *
+             *     Null for a genre with no published content. Draw the label on the
+             *     surface colour rather than an empty frame.
+             */
+            image_url?: string | null;
             movies_count?: number | null;
             shows_count?: number | null;
         };
@@ -4383,8 +4999,11 @@ export interface components {
              * @description A content certification - G, PG, PG-13, R, NC-17 - NOT a star
              *     rating. The website renders it as a certification badge
              *     (hero-banner.blade.php falls back to the literal 'PG'). The
-             *     five-star display on the site comes from a different source,
-             *     `ratings()->avg('stars')`, which no catalogue endpoint exposes.
+             *     five-star display that used to sit beside it was removed from
+             *     BOTH surfaces on 2026-09-10: it came from
+             *     `ratings()->avg('stars') ?? 5` over a table nothing in the product
+             *     can write to, so it was always the fallback. No endpoint exposes a
+             *     star rating. See docs/adr/0006.
              *     Typed as a number until 2026-09-09, which would have had the app
              *     drawing "NC-17" stars.
              */
@@ -4392,6 +5011,111 @@ export interface components {
             poster_url?: string;
             /** @description Plan slug this title needs, or null for free. Draw the lock badge from this. */
             tier_required?: string | null;
+        };
+        /**
+         * @description A movie as the home banner draws it: the card plus what
+         *     `components/partials/hero-banner.blade.php` renders and no more. Not
+         *     MovieDetail, because the banner is on the critical path of every first
+         *     paint and never draws `views_count`, `published_at` or `categories`.
+         */
+        MovieHero: components["schemas"]["MovieCard"] & {
+            /**
+             * @description Already falls back to the poster server-side, so this is never
+             *     null and the client needs no chain of its own. A title with no
+             *     backdrop uploaded therefore sends a 5:7 poster for a 16:9 box -
+             *     crop it, as the website's `background-size: cover` does.
+             */
+            backdrop_url?: string;
+            synopsis?: string | null;
+            /** @description At most three, matching the blade's own `take(3)`. */
+            genres?: components["schemas"]["Taxonomy"][];
+            /** @description At most three. The banner's "Tags:" line. */
+            tags?: components["schemas"]["Taxonomy"][];
+            /**
+             * @description At most three, deduplicated by person. The banner's
+             *     "Starring:" line, which is text - no photo is sent because
+             *     none is drawn.
+             */
+            cast?: components["schemas"]["Taxonomy"][];
+        };
+        /**
+         * @description A series as the home banner draws it. Two fields a movie has no need
+         *     of: the badge reads "N season" where a movie's reads its
+         *     certification, and a show carries no `runtime_minutes` for the clock
+         *     line.
+         */
+        SeriesHero: components["schemas"]["SeriesCard"] & {
+            backdrop_url?: string;
+            synopsis?: string | null;
+            genres?: components["schemas"]["Taxonomy"][];
+            tags?: components["schemas"]["Taxonomy"][];
+            cast?: components["schemas"]["Taxonomy"][];
+            /** @description The banner's badge, and the thumbnail strip's meta line. */
+            seasons_count?: number | null;
+            /**
+             * @description The MEAN episode length, whole minutes, and deliberately not
+             *     the website's number. The blade shows the runtime of the first
+             *     episode of whichever season loaded first, found by walking
+             *     every episode of the series into memory. Null draws no clock
+             *     line, exactly as a null runtime does on the website.
+             */
+            episode_runtime_minutes?: number | null;
+        };
+        /**
+         * @description What makes a banner slide a RANKED banner slide. Both daily shelves
+         *     backfill from all-time popularity when a day is quiet, and the website
+         *     will not print a rank a title did not earn - it says "Popular on
+         *     Jambo" instead. Position alone cannot tell the two apart, so the
+         *     server says which. The viewer count itself is never sent: the surfaces
+         *     draw a label, not a number.
+         */
+        RankedSlide: {
+            /** @description 1-based position in this shelf, today. Not stored anywhere. */
+            rank?: number;
+            /**
+             * @description True when this position came from real viewing in the window.
+             *     False means it was padded in from all-time popularity - draw
+             *     "Popular on Jambo", not "#3 in Movies Today".
+             */
+            ranked_today?: boolean;
+        };
+        /**
+         * @description A movie as the Top 10 Movies of the Day banner draws it
+         *     (`components/partials/vertical-banner.blade.php`). A hero minus the
+         *     Tags and Starring lines, which that banner does not draw, plus the
+         *     rank. Ten of these are on the home payload, so the fields it does not
+         *     render are worth not sending.
+         */
+        MovieBannerSlide: components["schemas"]["MovieCard"] & components["schemas"]["RankedSlide"] & {
+            /** @description Already falls back to the poster server-side, as on MovieHero. */
+            backdrop_url?: string;
+            synopsis?: string | null;
+            /**
+             * @description At most FOUR, not the hero's three, because the blade slices
+             *     this one with `->take(4)`.
+             */
+            genres?: components["schemas"]["Taxonomy"][];
+        };
+        /**
+         * @description A series as the Top 10 Series of the Day banner draws it
+         *     (`components/partials/tab-series-slide.blade.php`). Carries no genres:
+         *     that banner draws a release month and a season count instead.
+         *
+         *     The episode list in the blade is not here because it is not drawn - it
+         *     sits in a `d-none d-lg-block` column that no phone ever shows.
+         */
+        SeriesBannerSlide: components["schemas"]["SeriesCard"] & components["schemas"]["RankedSlide"] & {
+            backdrop_url?: string;
+            synopsis?: string | null;
+            /**
+             * Format: date-time
+             * @description The banner's release line, rendered "August 2023". Never null
+             *     in practice: every title in this shelf came through
+             *     `Show::published()`, which requires one.
+             */
+            published_at?: string | null;
+            /** @description The other half of the meta line, rendered "2 Seasons". */
+            seasons_count?: number | null;
         };
         MovieDetail: components["schemas"]["MovieCard"] & {
             synopsis?: string | null;
@@ -4404,6 +5128,53 @@ export interface components {
             categories?: components["schemas"]["Taxonomy"][];
             cast?: components["schemas"]["Person"][];
         };
+        /**
+         * @description A saved title, as the WATCHLIST screen draws it — the ordinary card
+         *     plus the three things the website's own watchlist card shows and a
+         *     rail's card does not.
+         *
+         *     `resources/views/profile-hub/watchlist.blade.php` passes
+         *     `card-style.blade.php` a `cardGenres` of the first two genre names and
+         *     a `movietime` reading "2h 49m" for a movie or "N seasons" for a show.
+         *     These fields are what that component consumes, so the app can draw the
+         *     same card the web draws. They are on THIS endpoint only: a home screen
+         *     is thirteen rails of thirty cards and none of them show genres.
+         */
+        WatchlistCard: (components["schemas"]["MovieCard"] | components["schemas"]["SeriesCard"] | components["schemas"]["Episode"]) & {
+            /** @description At most two names, matching what the website's card takes. */
+            genres?: string[];
+            /**
+             * @description Episodes only. The season it sits in, so a card can read
+             *     "S01E02 — Name" as `widgets/watchlist-detail-card.blade.php`
+             *     composes it. `season_id` identifies the row and tells a viewer
+             *     nothing.
+             */
+            season_number?: number | null;
+            /**
+             * @description Series only. Null rather than 0 when it was not counted — "0
+             *     Seasons" on a series a viewer can watch is a lie, and an absent
+             *     value lets the client draw nothing instead.
+             */
+            seasons_count?: number | null;
+            /**
+             * @description What this card's Play control opens, resolved server-side by
+             *     `WatchlistPlayResolver` — the same service
+             *     `/watchlist/series/{slug}` uses on the website. **A series
+             *     resolves to the most recent UNFINISHED episode**, and only
+             *     falls back to the first episode when there is nothing to
+             *     resume, so "pick up where you left off" is true on both
+             *     clients.
+             *
+             *     Null when there is nothing to play: an unreleased title, or a
+             *     series with no episodes. Draw no control rather than a
+             *     disabled one.
+             */
+            play?: {
+                /** @enum {string} */
+                type?: "movie" | "episode";
+                id?: number;
+            } | null;
+        };
         SeriesCard: {
             /** @enum {string} */
             type?: "series";
@@ -4415,8 +5186,11 @@ export interface components {
              * @description A content certification - G, PG, PG-13, R, NC-17 - NOT a star
              *     rating. The website renders it as a certification badge
              *     (hero-banner.blade.php falls back to the literal 'PG'). The
-             *     five-star display on the site comes from a different source,
-             *     `ratings()->avg('stars')`, which no catalogue endpoint exposes.
+             *     five-star display that used to sit beside it was removed from
+             *     BOTH surfaces on 2026-09-10: it came from
+             *     `ratings()->avg('stars') ?? 5` over a table nothing in the product
+             *     can write to, so it was always the fallback. No endpoint exposes a
+             *     star rating. See docs/adr/0006.
              *     Typed as a number until 2026-09-09, which would have had the app
              *     drawing "NC-17" stars.
              */

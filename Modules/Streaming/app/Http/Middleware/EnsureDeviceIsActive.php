@@ -54,7 +54,7 @@ class EnsureDeviceIsActive
         // saveQuietly, and only when the stamp is actually stale: a player
         // beating every 15 seconds must not write this row every beat.
         if (! $device->last_seen_at || $device->last_seen_at->lt(now()->subMinute())) {
-            $device->touchSeen($request->header('X-App-Version'));
+            $device->touchSeen($request->header('X-App-Version'), $request->ip());
         }
 
         return $next($request);

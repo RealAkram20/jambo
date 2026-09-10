@@ -48,19 +48,36 @@ describe('collectionKeyFor', () => {
 });
 
 describe('isNumberedRail', () => {
-  it('marks the two ranked shelves and nothing else', () => {
-    expect(isNumberedRail('top_movies')).toBe(true);
-    expect(isNumberedRail('top_series')).toBe(true);
-    expect(isNumberedRail('latest_movies')).toBe(false);
-    expect(isNumberedRail(undefined)).toBe(false);
+  const rail = (over: Partial<Rail>): Rail => ({ key: 'k', kind: 'titles', ...over });
+
+  it('reads the style the server sent, not the rail key', () => {
+    expect(isNumberedRail(rail({ key: 'top_movies', style: 'numbered' }))).toBe(true);
+    expect(isNumberedRail(rail({ key: 'top_series', style: 'numbered' }))).toBe(true);
+    expect(isNumberedRail(rail({ key: 'latest_movies' }))).toBe(false);
   });
 
-  it('never treats an unknown key as ranked', () => {
-    // `key` is open-ended by contract — category shelves arrive as
-    // `category:<slug>` — so anything unrecognised must fall through to the
-    // ordinary poster card rather than be guessed at.
-    expect(isNumberedRail('category:award-winners')).toBe(false);
-    expect(isNumberedRail('something_invented_next_year')).toBe(false);
+  /*
+   * 🔴 The one that pins the change of 2026-09-10.
+   *
+   * The app used to hold a set of two literal keys and give those the
+   * numerals. A shelf added on the server could not be ranked without an app
+   * release, and a renamed key would have silently un-ranked one. Both of
+   * these would have passed under the old implementation and are the reason
+   * the decision moved to the server.
+   */
+  it('does not rank a key that merely looks ranked', () => {
+    expect(isNumberedRail(rail({ key: 'top_movies' }))).toBe(false);
+  });
+
+  it('ranks a shelf whose key this build has never seen', () => {
+    expect(isNumberedRail(rail({ key: 'top_documentaries', style: 'numbered' }))).toBe(true);
+  });
+
+  it('falls through for a style this build does not know', () => {
+    // Read with a default, never switched on: a style from a newer server
+    // must draw the ordinary card rather than nothing at all.
+    expect(isNumberedRail(rail({ style: 'invented_next_year' as never }))).toBe(false);
+    expect(isNumberedRail(rail({}))).toBe(false);
   });
 });
 

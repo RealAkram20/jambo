@@ -1,4 +1,4 @@
-import { imageUrl } from './media';
+import { assetUrl, imageUrl } from './media';
 
 /**
  * These cases are not invented. Each one is a real value seen on 2026-09-09:
@@ -90,5 +90,51 @@ describe('imageUrl', () => {
     const url = imageUrl(`${ORIGIN}/img/storage/gallery/a.png?w=640&fm=webp`, 88);
 
     expect(url).not.toContain('/img/img/');
+  });
+});
+
+/**
+ * The player's URL, which is NOT an image URL.
+ *
+ * `POST /playback/sessions` usually returns an absolute, token-signed CDN
+ * link — but not always. When no CDN zone claims the stored value,
+ * `CdnUrlResolver::resolve()` returns it untouched, and this database stores
+ * bare paths. Confirmed against the running API on 2026-09-09:
+ *
+ *   {"source":"file","url":"/jambo/movies/hidden-storm-29765.mp4", ...}
+ *
+ * A native player handed that fails with a URL error and no useful
+ * diagnostic. It is the same class of fault as the image one above, and it
+ * needs a different fix: the image proxy must never touch a video.
+ */
+describe('assetUrl', () => {
+  it('leaves a signed CDN URL exactly as it arrived', () => {
+    // A signed URL survives no edit at all: the signature covers the path and
+    // the expiry, so a single re-encoded character makes it a 403.
+    const signed = 'https://jambo.b-cdn.net/movies/film.mp4?token=abc123&expires=1757400000';
+
+    expect(assetUrl(signed)).toBe(signed);
+  });
+
+  it('makes a bare path absolute against the API origin', () => {
+    expect(assetUrl('/jambo/movies/hidden-storm-29765.mp4')).toBe(
+      `${ORIGIN}/jambo/movies/hidden-storm-29765.mp4`,
+    );
+  });
+
+  it('never routes a video through the image proxy', () => {
+    // Asking an image resizer for a two-hour MP4 is not a small mistake, and
+    // it is the failure mode of reusing `imageUrl` for this.
+    const url = assetUrl('/jambo/movies/hidden-storm-29765.mp4');
+
+    expect(url).not.toContain('/img/');
+    expect(url).not.toContain('fm=webp');
+  });
+
+  it('gives nothing for a missing or empty source rather than a bare origin', () => {
+    // An origin with no path is a URL that looks valid and 404s.
+    expect(assetUrl(null)).toBeNull();
+    expect(assetUrl(undefined)).toBeNull();
+    expect(assetUrl('   ')).toBeNull();
   });
 });

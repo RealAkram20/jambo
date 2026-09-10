@@ -29,6 +29,15 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
     Route::middleware(['auth:sanctum', 'device.active'])->group(function () {
         Route::get('subscription', [SubscriptionController::class, 'show'])->name('subscription');
+        /*
+         * Starting a payment. `throttle:checkout` is below the auth rate and
+         * fails closed, because every call mints a PaymentOrder row and a
+         * PesaPal order — a loop does not waste CPU, it fills the table
+         * finance reconciles against.
+         */
+        Route::post('subscription/orders', [SubscriptionController::class, 'createOrder'])
+            ->middleware('throttle:checkout')
+            ->name('subscription.orders.store');
         Route::get('subscription/orders', [SubscriptionController::class, 'orders'])->name('subscription.orders');
         Route::get('subscription/orders/{reference}', [SubscriptionController::class, 'order'])
             ->name('subscription.order');

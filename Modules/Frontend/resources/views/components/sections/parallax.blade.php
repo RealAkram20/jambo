@@ -8,26 +8,15 @@
                     <h2 class="mb-0 parallaxt-details-heading">{{ __('streamMovies.godzilla') }}</h2>
                     <div
                         class="d-flex flex-column flex-md-row gap-2 flex-wrap align-items-center r-mb-23 mt-2 mb-3 gap-md-3 justify-content-center justify-content-lg-start">
-                        <div class="slider-ratting d-flex align-items-center">
-                            <ul
-                                class="ratting-start p-0 m-0 list-inline text-warning d-flex align-items-center justify-content-left">
-                                <li>
-                                    <i class="ph-fill ph-star" aria-hidden="true"></i>
-                                </li>
-                                <li>
-                                    <i class="ph-fill ph-star" aria-hidden="true"></i>
-                                </li>
-                                <li>
-                                    <i class="ph-fill ph-star" aria-hidden="true"></i>
-                                </li>
-                                <li>
-                                    <i class="ph-fill ph-star" aria-hidden="true"></i>
-                                </li>
-                                <li>
-                                    <i class="ph ph-star" aria-hidden="true"></i>
-                                </li>
-                            </ul>
-                        </div>
+                        {{-- Hardcoded four-and-a-bit stars removed 2026-09-10,
+                             with every other invented star row on the site.
+                             ⚠️ The REST of this block is still Streamit's
+                             placeholder: the title, the year, the description,
+                             the image and the "5" below are all template
+                             filler for a film called Godzilla that is not in
+                             this catalogue, and the Play Now button routes to
+                             `frontend.movie_detail` with no slug. That is a
+                             bigger fix than this one and it is not done. --}}
                         <div class="d-flex gap-2 align-items-center">
                             <span>5
                             </span>

@@ -29,28 +29,16 @@
                     </h2>
                     <div class="flex-wrap align-items-center">
                         <div class="slider-ratting d-flex align-items-center gap-3 flex-wrap mb-3 mb-md-0">
-                            @if (isset($movieRating))
-                                <ul
-                                    class="ratting-start p-0 m-0 list-inline text-warning d-flex align-items-center justify-content-left">
-                                    <li>
-                                        <i class="ph-fill ph-star" aria-hidden="true"></i>
-                                    </li>
-                                    <li>
-                                        <i class="ph-fill ph-star" aria-hidden="true"></i>
-                                    </li>
-                                    <li>
-                                        <i class="ph-fill ph-star" aria-hidden="true"></i>
-                                    </li>
-                                    <li>
-                                        <i class="ph-fill ph-star-half" aria-hidden="true"></i>
-                                    </li>
-                                    <li>
-                                        <i class="ph ph-star" aria-hidden="true"></i>
-                                    </li>
-                                </ul>
-                            @else
-                            @endif
+                            {{-- The five-star row was removed on 2026-09-10.
 
+                                 This one was not even reading the database: it
+                                 was three filled stars, a half and an empty,
+                                 hardcoded, on every listing banner — /movie,
+                                 /series, /upcoming, /genres/*, the VJ pages and
+                                 the taxonomy archives. `$movieRating` gated it
+                                 and is still passed by those eight pages; it now
+                                 gates nothing and can go when someone is next in
+                                 here. See docs/adr/0006. --}}
                             @if (isset($movieRange))
                                 <div class="d-flex align-items-center gap-1">
                                     <span class="text-white">

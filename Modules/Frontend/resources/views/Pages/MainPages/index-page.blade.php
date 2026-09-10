@@ -33,19 +33,26 @@
                                             {{ $movie->title }}
                                         </h2>
                                         <div class="d-flex flex-wrap align-items-center gap-3 r-mb-23 RightAnimate-two">
-                                            <div class="slider-ratting d-flex align-items-center">
-                                                <ul class="ratting-start p-0 m-0 list-inline text-warning d-flex align-items-center justify-content-left">
-                                                    @for ($i = 1; $i <= 5; $i++)
-                                                        <li><i class="ph-fill ph-star{{ $i > ($movie->rating ?? 5) ? '-half' : '' }}" aria-hidden="true"></i></li>
-                                                    @endfor
-                                                </ul>
-                                            </div>
+                                            {{-- Two things were removed here on 2026-09-10.
+
+                                                 The five-star row, for the reason in docs/adr/0006:
+                                                 nothing in the product can write a rating, so the
+                                                 stars were always the `?? 5` fallback. Worse than on
+                                                 the OTT hero, this one drove them from
+                                                 `$movie->rating`, which is a CONTENT CERTIFICATION —
+                                                 "PG-13", "NC-17" — so `$i > "NC-17"` was comparing an
+                                                 integer to a string and the result was arbitrary.
+
+                                                 And the certification printed beside the IMDb mark as
+                                                 though it were a score: a viewer read "NC-17" where a
+                                                 rating out of ten belongs. It is a badge now, the same
+                                                 badge hero-banner.blade.php gives it. --}}
                                             @if ($movie->rating)
-                                                <span class="d-flex align-items-center gap-1">
-                                                    <span>{{ $movie->rating }}</span>
-                                                    <img src="{{ asset('frontend/images/pages/imdb-logo.svg') }}" alt="imdb logo" class="img-fluid imdb-img">
-                                                </span>
+                                                <span class="badge rounded-0 text-white text-uppercase bg-secondary fw-bold">{{ $movie->rating }}</span>
                                             @endif
+                                            <span class="d-flex align-items-center gap-1">
+                                                <img src="{{ asset('frontend/images/pages/imdb-logo.svg') }}" alt="imdb logo" class="img-fluid imdb-img">
+                                            </span>
                                             @if ($movie->plan_label)
                                                 <span class="badge rounded-2 text-white bg-secondary font-size-12">{{ strtoupper($movie->plan_label) }}</span>
                                             @endif

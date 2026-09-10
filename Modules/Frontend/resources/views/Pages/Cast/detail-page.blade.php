@@ -7,7 +7,9 @@
 @php
     $fullName = trim(($person->first_name ?? '') . ' ' . ($person->last_name ?? ''));
     $photo = $person->photo_url;
-    $photoSrc = media_url($photo, 'charles-melton.webp', 'frontend/images/cast');
+    // 640: the cast member's portrait on their own page, larger than the
+    // 384 avatar the rails draw.
+    $photoSrc = media_img($photo, 640, 'charles-melton.webp', 'frontend/images/cast');
 @endphp
 
 @section('content')

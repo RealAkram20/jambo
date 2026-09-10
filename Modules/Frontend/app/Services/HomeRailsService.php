@@ -2,6 +2,7 @@
 
 namespace Modules\Frontend\app\Services;
 
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Collection;
 use Modules\Content\app\Models\Category;
@@ -96,10 +97,16 @@ class HomeRailsService
 
             // Vertical slider — all ten of the Top 10 Movies of the DAY (24h
             // window, not the weekly rail above) so the "#X in Movies Today"
-            // badge on each slide is accurate. loadAvg() pre-computes
-            // ratings_avg_stars in one batch query so vertical-banner does
-            // not N+1 a ratings()->avg() call per slide.
-            'verticalFeatured' => $recommender->topMoviesOfTheDay(10)->loadAvg('ratings', 'stars'),
+            // badge on each slide is accurate.
+            //
+            // The `loadAvg('ratings', 'stars')` that used to hang off this
+            // line is gone with the thing it fed. It batched an average for
+            // the five-star row, and that row was removed from
+            // vertical-banner.blade.php and from the app on 2026-09-10 (ADR-
+            // 0006) once it was established that nothing in the product can
+            // write a rating. A pre-computation for a display nobody renders
+            // is a query per home page for nothing.
+            'verticalFeatured' => $recommender->topMoviesOfTheDay(10),
 
             // Tab slider — Top 10 Series of the Day: ranked by distinct 24h
             // viewers, cached on a per-date key so the shelf is stable within
@@ -120,11 +127,18 @@ class HomeRailsService
             // weighted blend. See docs/plans/top-picks-personalization.md.
             'topPicks' => $this->resolveTopPicks(8),
 
-            // Home Genres rail — genres with poster fallback via picsum seed
-            'homeGenres' => Genre::withCount(['movies', 'shows'])
-                ->orderByDesc('movies_count')
-                ->take(10)
-                ->get(),
+            // Home Genres rail. Each tile is a piece of artwork borrowed from
+            // the genre's most recent published title, and
+            // `attachFeaturedImages` resolves the whole rail in two queries —
+            // the accessor on its own walks up to four per genre, which is
+            // forty on this rail, on every home page, for a decoration.
+            'homeGenres' => tap(
+                Genre::withCount(['movies', 'shows'])
+                    ->orderByDesc('movies_count')
+                    ->take(10)
+                    ->get(),
+                fn ($genres) => Genre::attachFeaturedImages($genres),
+            ),
 
             // Home VJs rail — narrators ranked by combined catalogue
             // size, but filtered to only VJs with at least one
@@ -219,7 +233,7 @@ class HomeRailsService
         $curated = FeaturedItem::heroItems();
 
         if ($curated->isNotEmpty()) {
-            return $curated;
+            return $this->withHeroAggregates($curated);
         }
 
         $relations = [
@@ -248,6 +262,44 @@ class HomeRailsService
         for ($i = 0; $i < $max; $i++) {
             if (isset($movies[$i])) $items->push($movies[$i]);
             if (isset($shows[$i]))  $items->push($shows[$i]);
+        }
+
+        return $this->withHeroAggregates($items);
+    }
+
+    /**
+     * The one aggregate the hero draws, batched.
+     *
+     * Both hero paths come through here — the curated list and the automatic
+     * fallback — so there is one place that decides what a hero item carries,
+     * rather than the curated path quietly lacking a field the fallback has.
+     *
+     * One query for the whole banner, regardless of how many slides it has.
+     * The alternative is what `hero-banner.blade.php` does: it reaches for the
+     * first episode's runtime through `seasons->flatMap->episodes`, lazy-
+     * loading every episode of every hero series on every page load. The blade
+     * still does that; only the API path is fixed here, because changing the
+     * blade's query shape is a separate change to a shared file.
+     *
+     * It batched the star average too until 2026-09-10. The star row is gone
+     * from both surfaces (ADR-0006), so that query went with it — a query for
+     * a number nothing draws is worse than no query at all.
+     *
+     * `loadAvg` writes the aggregate onto the model instances themselves, and
+     * the partition holds the same instances the caller's collection does, so
+     * the collection that comes back is the one that went in.
+     *
+     * @param  Collection<int, mixed>  $items
+     * @return Collection<int, mixed>
+     */
+    private function withHeroAggregates(Collection $items): Collection
+    {
+        [$shows] = $items->partition(fn ($item) => (bool) ($item->_isShow ?? false));
+
+        if ($shows->isNotEmpty()) {
+            // hasManyThrough seasons, so this is the mean over every episode
+            // of the series in one query.
+            (new EloquentCollection($shows->all()))->loadAvg('episodes', 'runtime_minutes');
         }
 
         return $items;

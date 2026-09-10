@@ -40,4 +40,46 @@ config.transformer.getTransformOptions = async () => ({
   },
 });
 
+/*
+ * One package, one specifier, one override.
+ *
+ * `libphonenumber-js` publishes its metadata twice in its exports map:
+ *
+ *   "./metadata.max.json": { import: "./metadata.max.json.js",
+ *                            require: "./metadata.max.json" }
+ *
+ * The `import` target is a shim the package ships because Node's ESM loader
+ * cannot import JSON. Metro resolves an `import` statement with the `import`
+ * condition, lands on `metadata.max.json.js`, and cannot resolve that double
+ * extension — the app builds, launches, and dies on the dev launcher's error
+ * screen. Metro reads `.json` natively and needs no shim at all, so this
+ * points that one specifier at the `require` target.
+ *
+ * **Deliberately not `unstable_enablePackageExports = false`**, which is the
+ * fix most often suggested for this. That switch changes how *every* package
+ * in the tree resolves, to fix one file — a blast radius of the whole
+ * dependency graph for a problem the size of a single import.
+ */
+const path = require('node:path');
+
+const defaultResolveRequest = config.resolver.resolveRequest;
+
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName === 'libphonenumber-js/metadata.max.json') {
+    return {
+      type: 'sourceFile',
+      filePath: path.join(
+        __dirname,
+        'node_modules',
+        'libphonenumber-js',
+        'metadata.max.json',
+      ),
+    };
+  }
+
+  return defaultResolveRequest
+    ? defaultResolveRequest(context, moduleName, platform)
+    : context.resolveRequest(context, moduleName, platform);
+};
+
 module.exports = config;

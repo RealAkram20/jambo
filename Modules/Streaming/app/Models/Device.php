@@ -44,6 +44,7 @@ class Device extends Model
         'model',
         'app_version',
         'last_seen_at',
+        'last_ip',
         'revoked_at',
         'personal_access_token_id',
         'fcm_token',
@@ -191,12 +192,25 @@ class Device extends Model
         ActiveStream::terminateSession($this->user_id, $this->uuid);
     }
 
-    /** Cheap "still here" stamp, written on authenticated requests. */
-    public function touchSeen(?string $appVersion = null): void
+    /**
+     * Cheap "still here" stamp, written on authenticated requests — and where
+     * from.
+     *
+     * `$ip` was added 2026-09-09 for the devices screen's location line. It
+     * rides on this call rather than getting a write of its own because this
+     * one is already rate-limited to once a minute by its caller — a player
+     * beating every fifteen seconds must not write the row every beat, and an
+     * address that changes has no more need to be recorded promptly than a
+     * timestamp does.
+     *
+     * Only the most recent address is kept. Nothing accumulates a trail.
+     */
+    public function touchSeen(?string $appVersion = null, ?string $ip = null): void
     {
         $this->forceFill([
             'last_seen_at' => now(),
             'app_version' => $appVersion ?: $this->app_version,
+            'last_ip' => $ip ?: $this->last_ip,
         ])->saveQuietly();
     }
 }

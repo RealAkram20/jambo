@@ -80,40 +80,51 @@ class PaymentController extends Controller
         $tier = $this->resolveTier($data);
 
         if ($tier) {
-            $amount = (float) $tier->price;
-            $currency = $tier->currency ?: config('payments.currency', 'UGX');
-            $description = "Jambo — {$tier->name}";
-            $payableType = \Modules\Subscriptions\app\Models\SubscriptionTier::class;
-            $payableId = $tier->id;
-            $metadata = array_merge($data['metadata'] ?? [], [
-                'tier_slug' => $tier->slug,
-                'tier_name' => $tier->name,
-                'billing_period' => $tier->billing_period,
-                // Price frozen at checkout. The activation backstop validates
-                // the paid amount against THIS snapshot, not the live tier
-                // price — so an admin raising the price (or editing currency)
-                // between checkout and the gateway confirming can't cause a
-                // genuinely-paid order to be refused activation.
-                'tier_snapshot' => [
-                    'tier_id'  => $tier->id,
-                    'price'    => number_format((float) $tier->price, 2, '.', ''),
-                    'currency' => $currency,
-                ],
-            ]);
+            /*
+             * 🔴 **One money path, shared with the app since 2026-09-10.**
+             *
+             * This branch used to build the order inline — price off the tier,
+             * frozen snapshot, referral discount, insert, gateway. All of it
+             * moved to `SubscriptionCheckout` when ADR-0004's direct-APK
+             * checkout was finally built, because the alternative was a second
+             * implementation of a money path, and two of those drift. The
+             * website and the app now buy a plan the same way.
+             *
+             * The cookie is still passed here and is null from the app: only a
+             * browser has one, and the service reads the account's own referral
+             * state either way.
+             */
+            try {
+                $started = app(\Modules\Payments\app\Services\SubscriptionCheckout::class)->start(
+                    $user,
+                    $tier,
+                    $request->cookie(\Modules\Referrals\app\Http\Middleware\CaptureReferralCode::COOKIE_NAME),
+                    $this->callbackUrl('payment.callback'),
+                    $this->callbackUrl('payment.complete', ['result' => 'cancelled']),
+                );
+            } catch (Throwable $e) {
+                Log::error('[payments] createOrder failed', [
+                    'user_id' => $user->id,
+                    'tier_slug' => $tier->slug,
+                    'error' => $e->getMessage(),
+                ]);
 
-            // Referral discount on the buyer's first payment. Computed
-            // server-side off the tier price; the block records the terms
-            // (percents + amounts) honoured downstream.
-            $referralBlock = app(\Modules\Referrals\app\Services\ReferralCheckoutService::class)->apply(
-                $user,
-                number_format($amount, 2, '.', ''),
-                $currency,
-                $request->cookie(\Modules\Referrals\app\Http\Middleware\CaptureReferralCode::COOKIE_NAME),
-            );
-            if ($referralBlock !== null) {
-                $amount = (float) $referralBlock['final_amount'];
-                $metadata['referral'] = $referralBlock;
+                return $this->createOrderFailure(
+                    $request,
+                    'Could not start payment. Please try again.',
+                    500,
+                );
             }
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'ok' => true,
+                    'redirect_url' => $started['redirect_url'],
+                    'merchant_reference' => $started['merchant_reference'],
+                ]);
+            }
+
+            return redirect()->away($started['redirect_url']);
         } else {
             // Subscription tiers may ONLY be purchased through the tier
             // branch above, where amount/currency are copied off the tier

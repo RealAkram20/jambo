@@ -37,16 +37,23 @@ class TaxonomyController extends Controller
 
     public function genres(Request $request): JsonResponse
     {
-        $genres = Genre::withCount(['movies', 'shows'])
+        $all = Genre::withCount(['movies', 'shows'])
             ->orderByDesc('movies_count')
-            ->get()
-            ->map(fn (Genre $genre) => [
-                'slug' => $genre->slug,
-                'name' => $genre->name,
-                'colour' => $genre->colour,
-                'movies_count' => $genre->movies_count,
-                'shows_count' => $genre->shows_count,
-            ]);
+            ->get();
+
+        // Two queries for the whole list, whatever its length. This endpoint
+        // backs the app's "View all" grid, so it is every genre rather than a
+        // rail of ten, and the per-genre accessor would scale with it.
+        Genre::attachFeaturedImages($all);
+
+        $genres = $all->map(fn (Genre $genre) => [
+            'slug' => $genre->slug,
+            'name' => $genre->name,
+            'colour' => $genre->colour,
+            'image_url' => media_url($genre->featured_image_url),
+            'movies_count' => $genre->movies_count,
+            'shows_count' => $genre->shows_count,
+        ]);
 
         return ApiResponse::ok(['genres' => $genres]);
     }

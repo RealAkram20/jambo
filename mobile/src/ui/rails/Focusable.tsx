@@ -1,5 +1,14 @@
 import React, { useCallback, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+  type AccessibilityRole,
+  type AccessibilityState,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
 import { focus, radius } from '../theme';
 
@@ -27,10 +36,28 @@ export type FocusableProps = {
   onLongPress?: (() => void) | undefined;
   accessibilityLabel: string;
   accessibilityHint?: string | undefined;
-  accessibilityRole?: 'button' | 'link' | 'imagebutton';
+  /**
+   * Any real accessibility role.
+   *
+   * Was `'button' | 'link' | 'imagebutton'`, which was fine while every
+   * Focusable was a poster. The Watchlist's filter tabs, its per-card menu and
+   * its selection checkboxes are none of those, and a narrow union does not
+   * make a screen use the right role — it makes the screen announce a tab as a
+   * button, which is an accessibility defect rather than a style point.
+   */
+  accessibilityRole?: AccessibilityRole;
+  /**
+   * Selected, checked, busy, expanded.
+   *
+   * Forwarded because a control whose state is drawn — a lit filter tab, a
+   * ticked card — must say that state as well as show it. `disabled` is
+   * still merged in below from the prop, so a caller cannot accidentally
+   * announce an enabled control as disabled or the reverse.
+   */
+  accessibilityState?: AccessibilityState | undefined;
   /** Corner radius of the ring. Match the thing being ringed. */
   ringRadius?: number;
-  style?: ViewStyle | undefined;
+  style?: StyleProp<ViewStyle> | undefined;
   disabled?: boolean;
   /**
    * Ask for initial focus when the screen mounts. On a remote this decides
@@ -48,6 +75,7 @@ export function Focusable({
   accessibilityLabel,
   accessibilityHint,
   accessibilityRole = 'button',
+  accessibilityState,
   ringRadius = radius.card,
   style,
   disabled = false,
@@ -71,7 +99,7 @@ export function Focusable({
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
       {...(accessibilityHint === undefined ? {} : { accessibilityHint })}
-      accessibilityState={{ disabled }}
+      accessibilityState={{ ...accessibilityState, disabled }}
       disabled={disabled}
       focusable={!disabled}
       hasTVPreferredFocus={hasTVPreferredFocus}

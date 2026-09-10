@@ -2,8 +2,8 @@
 
 @section('hub-content')
     @php
-        $tierName = $order->payable?->tier?->name ?? '—';
-        $billingPeriod = $order->payable?->tier?->billing_period ?? null;
+        $tierName = $order->payable?->name ?? '—';
+        $billingPeriod = $order->payable?->billing_period ?? null;
         $statusCls = $order->status === 'completed' ? 'bg-success' : 'bg-warning';
     @endphp
 

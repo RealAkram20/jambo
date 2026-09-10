@@ -27,7 +27,7 @@
                     <tbody>
                         @foreach ($orders as $order)
                             @php
-                                $tierName = $order->payable?->tier?->name ?? '—';
+                                $tierName = $order->payable?->name ?? '—';
                                 $statusCls = $order->status === 'completed' ? 'bg-success' : 'bg-warning';
                             @endphp
                             <tr>

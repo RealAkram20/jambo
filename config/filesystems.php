@@ -44,6 +44,42 @@ return [
             'throw' => false,
         ],
 
+        /*
+         * Profile photos.
+         *
+         * A disk of its own so avatars land in one predictable folder instead
+         * of media-library's numbered directories scattered under the public
+         * disk, and — the reason Rio asked for it — so a viewer's photo
+         * resolves from any device in any environment.
+         *
+         * **Rooted at `public_path()`, deliberately, not `storage_path()`.**
+         * The conventional Laravel location is `storage/app/public` served
+         * through the `public/storage` symlink, and that is exactly the link
+         * that is missing here: on this machine `public/storage` is a real
+         * directory holding 126 poster files, so anything media-library wrote
+         * to `storage/app/public` was never served and an avatar upload had
+         * never once displayed locally.
+         *
+         * Writing through `public/storage/profiles` works in every
+         * arrangement, which is the whole point:
+         *   - symlinked install  → resolves to storage/app/public/profiles
+         *   - real directory     → written and served directly
+         *   - no link at all     → the directory is created and still served
+         *
+         * The url is a root-relative path, not `APP_URL`-prefixed. `APP_URL`
+         * is the website's address and need not be the host a phone is
+         * talking to; a path lets every client resolve against its own origin.
+         * See App\Support\MediaUrl for the same reasoning applied on the way
+         * out of the API.
+         */
+        'profiles' => [
+            'driver' => 'local',
+            'root' => public_path('storage/profiles'),
+            'url' => '/storage/profiles',
+            'visibility' => 'public',
+            'throw' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

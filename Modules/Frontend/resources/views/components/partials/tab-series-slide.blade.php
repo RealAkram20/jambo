@@ -90,7 +90,7 @@
                                             @foreach ($season->episodes->sortBy('number')->take(4) as $ep)
                                                 @php
                                                     $epImg = $ep->still_url;
-                                                    $epSrc = media_url($epImg, 'media/episode/s1e1-the-buddha.webp');
+                                                    $epSrc = media_img($epImg, 384, 'media/episode/s1e1-the-buddha.webp');
                                                 @endphp
                                                 <li class="d-flex align-items-center gap-3">
                                                     <div class="image-box flex-shrink-0">

@@ -208,7 +208,14 @@ export function Alert({ tone, children }: { tone: 'error' | 'ok'; children: Reac
 }
 
 /**
- * The loading state, using the site's own preloader animation.
+ * The branded preloader. **Opening the app, and nowhere else.**
+ *
+ * Rio, 2026-09-09: *"we only need the preloader when we are opening the app,
+ * not every screen."* It is the app arriving, not a progress indicator, and
+ * the animation only reads as the former when it happens once. Repeated on
+ * every list and every tab it stops meaning "Jambo is starting" and starts
+ * meaning "Jambo is slow", which is the opposite of what a brand animation is
+ * for. `RootNavigator`'s `phase === 'starting'` is the only caller.
  *
  * `expo-image` rather than React Native's `Image`: the admin's preloader is an
  * animated GIF, and RN's own Image does not animate GIFs on Android unless the
@@ -220,7 +227,7 @@ export function Alert({ tone, children }: { tone: 'error' | 'ok'; children: Reac
  * the server-driven URL; the bundled file is the default and the offline
  * fallback. See `src/ui/branding.ts`.
  */
-export function Loading({ label, source }: { label: string; source?: BrandSource }) {
+export function Preloader({ label, source }: { label: string; source?: BrandSource }) {
   return (
     <View style={styles.centred}>
       {/*
@@ -242,6 +249,35 @@ export function Loading({ label, source }: { label: string; source?: BrandSource
         accessibilityRole="progressbar"
         accessibilityLabel={label}
       />
+    </View>
+  );
+}
+
+/**
+ * A screen waiting for its data.
+ *
+ * Every screen in the app calls this, which is exactly why it is quiet. It
+ * used to draw the branded preloader and Rio asked for that back: a 200px
+ * animated logo is an entrance, and an entrance that plays on every tab change
+ * and every pull-to-refresh reads as slowness rather than as brand.
+ *
+ * **Deliberately no `source`.** The signature could have kept accepting the
+ * admin's preloader URL and quietly ignored it, which would have left two
+ * screens passing a prop that does nothing and looks like it does something.
+ * A caller that genuinely wants the animation asks for `Preloader` by name.
+ *
+ * The label stays as the accessibility name for the same reason it always did:
+ * a screen reader must be told the screen is busy, and a bare spinner tells it
+ * nothing.
+ */
+export function Loading({ label }: { label: string }) {
+  return (
+    <View
+      style={styles.centred}
+      accessibilityRole="progressbar"
+      accessibilityLabel={label}
+    >
+      <ActivityIndicator size="large" color={colors.primary} />
     </View>
   );
 }
@@ -277,11 +313,19 @@ export function ErrorState({
   );
 }
 
-export function EmptyState({ title, detail }: { title: string; detail: string }) {
+/**
+ * `detail` is optional, and that is Rio's ruling of 2026-09-09 rather than a
+ * convenience: a screen whose state is obvious from its title says nothing
+ * more. It is still there for the states where a viewer genuinely cannot work
+ * out how to change what they are looking at.
+ */
+export function EmptyState({ title, detail }: { title: string; detail?: string }) {
   return (
     <View style={styles.centred}>
       <Text style={styles.emptyTitle}>{title}</Text>
-      <Text style={styles.emptyDetail}>{detail}</Text>
+      {detail === undefined || detail === '' ? null : (
+        <Text style={styles.emptyDetail}>{detail}</Text>
+      )}
     </View>
   );
 }

@@ -142,3 +142,35 @@ function encodeSegment(segment: string): string {
   }
   return encodeURIComponent(decoded);
 }
+
+/**
+ * An absolute URL for a non-image asset on the site, with no resizing.
+ *
+ * Added for the player. `POST /playback/sessions` returns a `url` that is
+ * usually an absolute, token-signed CDN link — but not always: when no CDN
+ * zone claims it, `CdnUrlResolver::resolve()` returns the stored value
+ * untouched, and this database stores bare paths like
+ * `/jambo/movies/hidden-storm-29765.mp4`. Confirmed against the running API,
+ * not inferred. A native player handed that string fails with a URL error and
+ * no useful diagnostic.
+ *
+ * This is the same class of fault `imageUrl` above exists for, so it reuses
+ * the same origin derivation rather than a second copy of it — but it must
+ * NOT be `imageUrl`, because that routes through the site's `/img` proxy and
+ * asking an image resizer for a two-hour MP4 is not a small mistake.
+ */
+export function assetUrl(raw: string | null | undefined): string | null {
+  if (raw === null || raw === undefined) return null;
+
+  const value = raw.trim();
+  if (value === '') return null;
+
+  // Already absolute: a signed CDN URL, or an admin-pasted external link.
+  // Handed over exactly as received — a signed URL survives no edit at all,
+  // since the signature covers the path and the expiry.
+  if (/^https?:\/\//i.test(value)) return value;
+
+  if (ORIGIN === '') return value;
+
+  return `${ORIGIN}${BASE_PATH}/${value.replace(/^\/+/, '')}`;
+}

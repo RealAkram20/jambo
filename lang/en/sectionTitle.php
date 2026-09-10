@@ -53,10 +53,29 @@ return [
     "top_10_video_to_watch" => "Top 10 Videos to Watch",
     "top_picks" => "Top Picks for You",
     "top_ten" => "Top 10 Movies This Week",
+    /*
+     * The two daily banners, named for the screen that arranges them.
+     *
+     * Neither surface draws these strings: the website's vertical slider and
+     * tab slider are full-width banners with no shelf heading, and the app
+     * sends no title for either. They exist so a row on /admin/home-sections
+     * has something to say, which is why they are worded as the admin reads
+     * them — "Top 10 Movies Today", not "#3 in Movies Today", which is the
+     * per-slide badge and lives in streamMovies.
+     */
+    "top_movies_today" => "Top 10 Movies Today",
+    "top_series_today" => "Top 10 Series Today",
     "top_trending" => "Top Trending",
     "tv_upcoming_title" => "Upcoming Series",
     "tv_popular_shows" => "Popular Series",
     "upcoming" => "Upcoming",
+    // The homepage's Upcoming section asks for this key. It did not exist, so
+    // the live site rendered the literal string "sectionTitle.upcoming_title"
+    // as a heading whenever that rail had anything in it — invisible only
+    // because the rail is currently empty. Added here rather than repointing
+    // the Blade, because language files are a config point the template
+    // provides and its layouts are not ours to edit.
+    "upcoming_title" => "Upcoming",
     "upcoming_movies" => "Upcoming Movies",
     "upcoming_video" => "Upcoming Video",
     "view_all" => "View All",

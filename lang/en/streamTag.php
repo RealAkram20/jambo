@@ -32,7 +32,12 @@ return [
     'genre' => 'Genres',
     'vjs' => 'VJs',
     'recommended' => 'Recommended',
-    'starrting' => 'Starting',
+    // "Starting", not "Starring", until 2026-09-10. The key is misspelled too
+    // but is referenced from several blades, so only the value is corrected —
+    // the guest home page has always said "Starring" through
+    // `favouritePersonalities.starring`, so the site was showing two different
+    // words for the same line on its two home pages.
+    'starrting' => 'Starring',
 
     'cancel' => 'Cancel',
     'cancelled' => 'Cancelled',

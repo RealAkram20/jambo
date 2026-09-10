@@ -9,6 +9,7 @@ import { colors } from '../ui/theme';
 import { useRailMetrics } from '../ui/metrics';
 import { ErrorState, Loading } from '../ui/components';
 import { PosterGrid } from '../ui/rails/PosterGrid';
+import { AppHeader } from '../ui/AppHeader';
 
 /**
  * The Movies and Series archives.
@@ -32,6 +33,23 @@ export function CatalogueScreen({
 }) {
   const metrics = useRailMetrics();
 
+  /*
+   * The site's header, which this tab did not have.
+   *
+   * `AppHeader` was rendered by `HomeScreen` alone, so Movies and Series had
+   * no search and no account icon — the only way to a profile from here was to
+   * go back to Home first. Rio hit the same dead end on Watchlist, 2026-09-10.
+   * Rendered per screen rather than on the tab navigator because putting it
+   * there closes an import cycle and black-screens the app; the note in
+   * `TabNavigator` has the detail. It takes no props — it reaches the stack
+   * itself, which is another session's change and the right one: four call
+   * sites passing the same two callbacks was four chances to pass a different
+   * pair.
+   */
+  const header = (
+    <AppHeader />
+  );
+
   const fetchPage = useCallback(
     ({ pageParam }: { pageParam: string | undefined }): Promise<Page> =>
       kind === 'movies' ? api.movies(pageParam) : api.series(pageParam),
@@ -52,7 +70,8 @@ export function CatalogueScreen({
 
   if (isError) {
     return (
-      <SafeAreaView style={styles.screen} edges={['top']}>
+      <SafeAreaView style={styles.screen} edges={[]}>
+        {header}
         <ErrorState
           message={
             error instanceof Error && error.message !== ''
@@ -70,7 +89,8 @@ export function CatalogueScreen({
   const items: TitleCard[] = data.pages.flatMap((page): TitleCard[] => page.items ?? []);
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
+    <SafeAreaView style={styles.screen} edges={[]}>
+      {header}
       <PosterGrid
         items={items}
         metrics={metrics}

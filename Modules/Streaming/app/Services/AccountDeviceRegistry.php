@@ -2,6 +2,7 @@
 
 namespace Modules\Streaming\app\Services;
 
+use App\Support\IpLocation;
 use App\Support\UserAgent;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -48,7 +49,30 @@ class AccountDeviceRegistry
                 'id' => $row->id,
                 'kind' => 'browser',
                 'name' => $this->describeAgent($row->user_agent ?? ''),
+                /*
+                 * The website's own icon for this agent, forwarded rather than
+                 * re-derived. `UserAgent::parse` already decides between a
+                 * phone, a desktop and a globe, and the hub's device list
+                 * draws exactly this — so an app that guessed from `kind`
+                 * would be a second opinion about the same user agent, and the
+                 * two lists would disagree about the same browser.
+                 *
+                 * It is also the only signal a browser row has: `platform` is
+                 * an app-install field, so without this every browser is the
+                 * same picture.
+                 */
+                'icon' => UserAgent::parse($row->user_agent ?? '')['icon'],
                 'ip_address' => $row->ip_address,
+                /*
+                 * The city, when it can be known. Resolved at read time from
+                 * the address that is already stored — nothing new is
+                 * persisted, and null means the screen shows the address
+                 * instead, which is what the website has always shown. A
+                 * guessed city on a security screen is worse than none: the
+                 * whole point of the line is that somebody can say "I have
+                 * never been there".
+                 */
+                'location' => IpLocation::describe($row->ip_address),
                 'last_seen_at' => $row->last_activity
                     ? Carbon::createFromTimestamp($row->last_activity)->toIso8601String()
                     : null,
@@ -74,8 +98,15 @@ class AccountDeviceRegistry
                 'kind' => 'app',
                 'name' => $device->name ?: $device->model ?: 'Jambo app',
                 'platform' => $device->platform,
+                // The same key browsers carry, so a client has one field to
+                // read rather than a branch per kind.
+                'icon' => $device->platform === Device::PLATFORM_ANDROID_TV
+                    ? 'ph-television'
+                    : 'ph-device-mobile',
                 'model' => $device->model,
                 'app_version' => $device->app_version,
+                'ip_address' => $device->last_ip,
+                'location' => IpLocation::describe($device->last_ip),
                 'last_seen_at' => optional($device->last_seen_at)->toIso8601String(),
                 'is_current' => $current !== null && $current->getKey() === $device->getKey(),
             ])

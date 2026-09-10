@@ -287,6 +287,7 @@ Route::middleware(['auth', 'role:admin'])
             Route::post('settings/recaptcha', [AdminSettingController::class, 'updateRecaptcha'])->name('settings.recaptcha');
             Route::post('settings/maintenance', [AdminSettingController::class, 'updateMaintenance'])->name('settings.maintenance');
             Route::post('settings/access', [AdminSettingController::class, 'updateAccess'])->name('settings.access');
+            Route::post('settings/account-deletion', [AdminSettingController::class, 'updateAccountDeletion'])->name('settings.account-deletion');
             Route::post('settings/google', [AdminSettingController::class, 'updateGoogleAuth'])->name('settings.google');
             Route::post('settings/video-cdn', [AdminSettingController::class, 'updateVideoCdn'])->name('settings.video-cdn');
         });

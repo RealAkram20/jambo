@@ -448,13 +448,37 @@ The values known today:
 |---|---|---|
 | Home | `/` (`frontend.ott`) via `HomeRailsService` | Hero slider, Top 10 Movies/Series of the day with numbered badges, Continue Watching with progress, Top Picks, Smart Shuffle, Upcoming, category rails, genres, VJs, personalities |
 | Movies / Series | `/movie`, `/series` | Banner + rails + VJ rails; Load More = infinite list |
-| Movie detail | `/movie-detail/{slug}` | 21:9 backdrop (1.8.9), trailer, CTA row: Play / Trailer / Watchlist / **Download** |
-| Series detail | `/series/{slug}` | Episode grid/scroller toggle, per-episode **Download**, **Download season** |
-| Watch / Episode | `/watch/{slug}`, `/episode/…` | Player + related rails; Data Saver toggle; next episode |
+| ~~Movie detail~~ | ~~`/movie-detail/{slug}`~~ | **Not in the app.** See the ruling below |
+| ~~Series detail~~ | ~~`/series/{slug}`~~ | **Not in the app** for movies. A series still needs an episode picker; where it lives is open |
+| Watch / Episode | `/watch/{slug}`, `/episode/…` | Player + related rails; Data Saver toggle; next episode. **A card opens this directly.** Carries what the detail page used to hold: backdrop, synopsis, cast, trailer, Watchlist, Download, related rails |
+
+**Rio, 2026-09-09: the app skips the detail page and plays.**
+
+> another thing to be clear on the app we will skip the detail page for the
+> watch page. since the detail page was used for SEO.
+
+The website's detail page earns its keep by being a crawlable URL per title.
+An app has no crawler and no URL to rank, so the page is a tap between a
+viewer and the thing they asked for. Pressing a card opens the player.
+
+**What this does not settle, and must not be assumed:**
+
+- **Everything the detail page carried still has to live somewhere.** Synopsis,
+  cast, trailer, rating, Watchlist, Download and the related rails are not SEO
+  furniture; they are how a viewer decides and how Download is reached at all.
+  The working assumption is that they move onto the watch screen, below or
+  behind the player, and that is a design question rather than a deletion.
+- **A series is not a movie.** Playing a series means choosing an episode. Some
+  surface still has to list seasons and episodes, whether that is the watch
+  screen's own drawer or a lighter screen than today's.
+- **Nothing has been built or removed for this.** `TitleDetailScreen` is still
+  in the app and still routed. Rio's instruction was to record the direction,
+  not to act on it. It is a slice of its own, and it changes the Phase 2 exit
+  criteria below.
 | Search | `/search` + suggest | Voice search on TV (Android TV search intent) |
 | Genres, categories, VJ hub, VJ movies/series, cast | matching routes | Archive layouts as on site |
 | Watchlist, Continue Watching, History | `/watchlist`, profile hub | |
-| Profile & settings | `/{username}`, `/change-password`, 2FA | Plus: Devices, Downloads settings (quality, Wi-Fi only, storage), Notifications |
+| Profile & settings | `/{username}`, `/change-password`, 2FA | Plus: Devices, Notifications. **Playback settings are the player's, not this menu's — see §6.5.** Download storage and the Wi-Fi rule belong to the Downloads screen |
 | **Downloads** (new) | — | Grouped by title/season; progress, size, "expires in 12 days", "48 h left once started"; storage meter; Delete all |
 | **Offline home** (new) | — | When offline at launch: Downloads first, cached rails greyed, a bar "You're offline — showing your downloads" |
 | Plans | `/pricing` | `play`: informational. `direct`: Subscribe → PesaPal |
@@ -469,6 +493,92 @@ The values known today:
 - Downloads **off by default on TV** (typical box storage is 8 GB); enabled
   by a setting for boxes with an SD card or USB storage.
 - TV builds skip the `direct` subscribe flow (no checkout on a remote).
+
+### 6.4 How it moves — `apple-design`, translated to React Native
+
+Added 2026-09-09 by Rio's ruling: the app is a cross-platform product, so its
+motion, gesture and material behaviour follow the machine-wide `apple-design`
+skill alongside `screen` and `ui-performance`. Tokens say what the app looks
+like; this says how it behaves. The two are decided together, not in sequence.
+
+The skill is written for the web and must be translated, not copied:
+
+| The skill says | In this app |
+|---|---|
+| Springs via Motion / Framer Motion | `Animated.spring` on the native driver. Default critically damped, no overshoot; bounce only after a gesture that carried momentum |
+| Pointer Events with `setPointerCapture` | `react-native-gesture-handler`, already a dependency. Respect the grab offset; never snap to the element's centre |
+| `backdrop-filter` for translucent chrome | There is none in React Native. Use `expo-blur`, or a gradient scrim, according to what the captured token says the website actually renders — never assume |
+| `prefers-reduced-motion` | `AccessibilityInfo.isReduceMotionEnabled()`, and the change listener, because a viewer can turn it on while the app is open |
+
+What carries over unchanged, and is the part that matters:
+
+- **Respond on press-down, not on release.** `Focusable` already dims on
+  press; nothing may wait for touch-up to acknowledge a touch.
+- **Track a drag 1:1 the whole way through.** A seek bar that only moves when
+  the finger lifts is the failure this rule exists to name.
+- **Never lock out input during a transition**, and always animate from the
+  current on-screen value rather than the target, so a moving thing can be
+  grabbed and reversed without a jump.
+- **Enter and exit along the same path.** A sheet that rises from the bottom
+  dismisses downward.
+- **Every screen answers "how do I get out",** by remote as well as by touch.
+
+The one place it is explicitly outranked: **the website's own design wins on
+appearance.** Where Apple's idiom and Streamit's rendered CSS disagree about
+what something looks like, the token file is right. This section governs
+behaviour, and only behaviour.
+
+### 6.5 The player owns the viewing settings
+
+Added 2026-09-09, by Rio, when he removed the Streaming preferences screen
+from the profile menu:
+
+> remove the streaming menu, because all of these settings are applied to the
+> player itself
+
+and then, on the same breath, on how to act on it:
+
+> wait to build the player we are going to build it fully. so i need you to
+> have it in plan
+
+**So the row, the route and the screen were deleted; the player was not
+touched.** The full player build is a slice of its own and it inherits these
+settings rather than reinventing them. This subsection is that inheritance,
+written down so the next session building the player does not have to
+reconstruct it from a deletion.
+
+**The state of it today.** `GET`/`PATCH /account/preferences` is live and
+unchanged, backed by the `streaming_preferences` JSON column on users, with
+ten feature tests. It holds three fields.
+
+| Field | Where it is set today | Where it must end up |
+|---|---|---|
+| `video_quality` | `PlayerMenu`, and always was | Stays in the player's settings menu |
+| `autoplay_next` | **Nowhere.** Read by `WatchScreen`, was settable only from the deleted screen | The full player build. Until then it is frozen at its default of on |
+| `wifi_only_downloads` | **Nowhere.** Gated behind `features.downloads`, which is `false` | The Downloads screen in Phase 3, not the player. A Wi-Fi rule for a background transfer is not a playback control |
+
+**The one open regression, and it is small on purpose.** `autoplay_next` has
+no control anywhere in the app between this change and the player build. It
+defaults to on, so a series rolls into the next episode and a viewer who
+wants that behaviour off cannot reach it. That was the accepted cost of not
+touching a slice that is about to be rebuilt; it is the first thing the player
+build closes, not something to be discovered later.
+
+**Three constraints on the player's settings menu, all of them already true
+of the code that exists:**
+
+- **The account is the store, not the handset.** Every one of these is written
+  through the same PATCH, which is what makes a choice made on a phone true on
+  the television in Phase 4. A local override would be a second source of
+  truth that silently disagrees with itself across devices.
+- **Never offer a control that cannot act.** Data saver is absent on a title
+  with no low rendition, subtitles are absent because no caption track exists
+  anywhere in Streaming or Content, and autoplay should be absent on a title
+  with no next episode. A viewer who toggles something and sees nothing
+  happen concludes they turned something on.
+- **The quality list is two files, not a resolution ladder.** `auto`, `high`
+  and `data_saver` map onto `video_url` and `video_url_low`. Anyone adding a
+  1080p row adds a rendition first.
 
 ---
 

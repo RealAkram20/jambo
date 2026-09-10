@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Streaming\app\Models\Device;
 use Modules\Streaming\app\Services\AccountDeviceRegistry;
+use Modules\Subscriptions\app\Models\UserSubscription;
 
 /**
  * The account's app installs: what is signed in, and booting one.
@@ -35,9 +36,38 @@ class DeviceController extends Controller
         // home needs to free that slot from their phone.
         $devices = $registry->all($request->user()->id, currentDevice: $current);
 
+        /*
+         * The usage meter on the app's devices screen, added 2026-09-09.
+         *
+         * **It is a concurrency limit, not a device limit, and the two are
+         * easy to conflate.** Rio's mockup drew "4 of 6 devices used", which
+         * describes a cap Jambo does not have: nothing stops an account
+         * registering a hundred installs. What the tier actually enforces is
+         * how many can *watch at once*, and that is what these two numbers
+         * are. Naming them `watching`/`limit` rather than `used`/`total` is
+         * the whole difference between a true meter and a plausible one.
+         *
+         * `countAgainstCap` is the same method `TierGate` calls before letting
+         * a stream start, so the bar cannot say a viewer has room when the
+         * player is about to refuse them.
+         *
+         * A null limit is a tier with no cap, and the app draws no bar for it.
+         * Zero would read as "you may watch on nothing".
+         */
+        $limit = UserSubscription::with('tier')
+            ->where('user_id', $request->user()->id)
+            ->current()
+            ->orderByDesc('ends_at')
+            ->first()
+            ?->tier?->max_concurrent_streams;
+
         return ApiResponse::ok([
             'devices' => $devices,
             'counts_app_devices' => AccountDeviceRegistry::appDevicesCount(),
+            'streams' => [
+                'watching' => $registry->countAgainstCap($request->user()->id),
+                'limit' => $limit === null ? null : (int) $limit,
+            ],
         ]);
     }
 

@@ -35,6 +35,21 @@ class AppConfigController extends Controller
                 // ship its Downloads screen dark and have it lit server-side,
                 // rather than needing a Play review to turn it on.
                 'downloads' => (bool) setting('app.downloads_enabled', false),
+                /*
+                 * Whether the app draws its Delete account button. Rio's, and
+                 * his to turn off at any time from admin settings.
+                 *
+                 * **Defaults to true**, unlike the two flags around it: those
+                 * gate features that are not finished, and this one gates a
+                 * feature that is. A missing settings row must not silently
+                 * take away somebody's ability to close their own account.
+                 *
+                 * The app hides the row on this; `DELETE /account` refuses on
+                 * the same setting. Both, because a flag only the client reads
+                 * is not a switch — an older build would keep closing accounts
+                 * after it was turned off.
+                 */
+                'account_deletion' => (bool) setting('app.account_deletion_enabled', true),
                 // ADR-0004: the Play build may not mention payment. The build
                 // itself decides that, but the server can force it off.
                 'in_app_subscribe' => (bool) setting('app.in_app_subscribe', false),

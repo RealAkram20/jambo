@@ -122,6 +122,59 @@
                 </div>
             </form>
 
+            {{-- Mobile app: account deletion ========================= --}}
+            {{-- Rio, 2026-09-10: the app's delete button is his to show or
+                 hide. The flag is enforced in the API as well as read by the
+                 app, so turning it off here refuses the request even from a
+                 build that still draws the button. --}}
+            <form action="{{ route('admin.settings.account-deletion') }}" method="POST" class="mt-4">
+                @csrf
+
+                @php
+                    $deletionOn = (bool) setting('app.account_deletion_enabled', true);
+                @endphp
+
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="card-title mb-0">
+                                <i class="ph ph-user-minus me-1"></i> Account deletion (mobile app)
+                                @if (! $deletionOn)
+                                    <span class="badge bg-secondary ms-2">Hidden</span>
+                                @endif
+                            </h4>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="ph ph-check me-1"></i> Save deletion
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        @if (session('status_account_deletion'))
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                {{ session('status_account_deletion') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        @endif
+
+                        <div class="form-check form-switch">
+                            <input type="hidden" name="account_deletion_enabled" value="0">
+                            <input type="checkbox" class="form-check-input" role="switch"
+                                id="account_deletion_enabled" name="account_deletion_enabled" value="1"
+                                {{ $deletionOn ? 'checked' : '' }}>
+                            <label class="form-check-label" for="account_deletion_enabled">
+                                Let people close their own account from the app
+                            </label>
+                        </div>
+
+                        <p class="small text-muted mb-0 mt-2">
+                            Off hides the button in the app and makes the API refuse the request.
+                            Closing an account signs out every device and blocks sign-in; the
+                            person's records are kept.
+                        </p>
+                    </div>
+                </div>
+            </form>
+
             {{-- Google sign-in ====================================== --}}
             <form action="{{ route('admin.settings.google') }}" method="POST" class="mt-4">
                 @csrf

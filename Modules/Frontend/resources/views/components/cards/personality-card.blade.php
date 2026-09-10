@@ -1,5 +1,4 @@
 @php
-    $castSrc = media_url($castImage, null, 'frontend/images/cast');
     $castLink = $castLink ?? route('frontend.cast_details');
 @endphp
 <a href="{{ $castLink }}">

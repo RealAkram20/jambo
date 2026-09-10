@@ -1,0 +1,15 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!--
+    INTERNET only, and nothing else.
+
+    No WAKE_LOCK: the screen is kept awake with FLAG_KEEP_SCREEN_ON on the
+    window while the player is on screen, which needs no permission and is
+    released automatically when the view goes away. A wake lock would outlive
+    a crash and quietly drain a battery.
+
+    No FOREGROUND_SERVICE and no MediaSession in this phase — background audio
+    and lock-screen controls are not built, so declaring their permissions
+    would ask a viewer for something the app does not do.
+  -->
+  <uses-permission android:name="android.permission.INTERNET" />
+</manifest>

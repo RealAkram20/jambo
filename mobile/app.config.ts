@@ -109,6 +109,26 @@ export default (): ExpoConfig => ({
 
     'expo-image',
 
+    /*
+     * Replacing the profile photo, which is the pencil on the Profile screen.
+     *
+     * The two strings are the permission rationale Android shows, and they are
+     * written for the person reading the dialog rather than for the developer:
+     * somebody being asked for their photos deserves to know it is for their
+     * profile picture and nothing else. Vague rationale is also what gets a
+     * Play submission questioned.
+     *
+     * No microphone, no video, no location. `expo-image-picker` asks for what
+     * its config declares, so the narrow declaration is the narrow permission.
+     */
+    [
+      'expo-image-picker',
+      {
+        photosPermission: 'Jambo needs access to your photos so you can choose a profile picture.',
+        cameraPermission: 'Jambo needs your camera so you can take a new profile picture.',
+      },
+    ],
+
     '@sentry/react-native',
 
     /*

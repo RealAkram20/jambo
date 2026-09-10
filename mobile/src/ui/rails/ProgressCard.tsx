@@ -24,15 +24,21 @@ import { Focusable } from './Focusable';
  * which is what the blend mode was there to support, so the effect is
  * reproduced and the technique is not.
  *
- * **Without `onPress` the card is not interactive at all** — not focusable, no
- * press target, no focus ring. That is not a detail: a Continue Watching card
- * has exactly one real action, resume, and resume needs the player. It cannot
- * fall back to opening the title's page either, because
- * `ContinueWatchingCard` carries `resume: {type, id}` and no slug, and
- * `/movies/{id}` is a 404 — the detail endpoint is slug-only. So until the
- * player exists there is no honest action, and a focusable card that does
- * nothing when pressed is the thing the screen rules forbid. Adding `slug` to
- * the resource is a one-line server change and is named in the worklog.
+ * **The card resumes, as of the player slice.** It could not before, and the
+ * reason is worth keeping because it shaped the API call the player uses:
+ * `ContinueWatchingCard` carries `resume: {type, id}` and NO slug, while the
+ * detail endpoint is slug-only — `/movies/1` is a 404, checked against the
+ * running API. So the card could not even fall back to opening the title's
+ * page, and slice 2b shipped it deliberately inert rather than focusable and
+ * dead.
+ *
+ * `POST /playback/sessions` takes exactly `{type, id}`, which is what makes
+ * resume possible with no server change at all. The play mark is back with it.
+ *
+ * **Without `onPress` the card is still not interactive** — not focusable, no
+ * press target, no ring, no play mark. That path is kept rather than removed:
+ * a caller with nothing honest to do on a tap should render the card inert,
+ * and the component should not be the place that invents an action.
  */
 export type ProgressItem = ContinueWatchingCard;
 

@@ -1,106 +1,70 @@
-import { useCallback, useRef, useState } from 'react';
-import {
-  FlatList,
-  StyleSheet,
-  Text,
-  View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-} from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Clock } from 'phosphor-react-native';
 
-import { colors, fonts, hero, spacing, typography } from '../theme';
+import { banner, colors, fonts, hero, typography } from '../theme';
 import { imageUrl } from '../media';
+import { bannerBadge, bannerRuntime, taxonomyNames } from './banner';
+import { BannerPager } from './BannerPager';
 import { Focusable } from './Focusable';
-import type { PosterItem } from './PosterCard';
+import { BannerButton } from './BannerButton';
+import { ImdbMark } from './ImdbMark';
+import { TextureText } from './TextureText';
+import type { HeroCard } from '../../api/catalogue';
 
 /**
- * The home banner: the admin's curated picks, one at a time.
+ * The home banner: the website's own, slide for slide.
  *
- * The website runs this as an auto-rotating swiper. The app does not
- * auto-rotate, and that is a deliberate departure with a reason: a carousel
- * that moves on its own takes the thing a viewer is reading away from them,
- * and on a remote it moves the focus target out from under the d-pad. The
- * website's own CHANGELOG (1.8.21) records the rotation as something added for
- * a desktop banner. Swiping and the d-pad both work here; nothing moves unless
- * the viewer moves it.
+ * What the site draws, in this order, is
+ * `components/partials/hero-banner.blade.php`: a full-bleed backdrop, a
+ * texture-filled headline, a meta row of certification-or-season badge, the
+ * IMDb mark and a runtime, a three-line synopsis, then Tags, Genres and
+ * Starring, then Play Now. The measurements behind every number here are in
+ * `theme.banner`, read off the rendered page at 390pt rather than matched by
+ * eye.
  *
- * `hero` items are `MovieCard`s and `SeriesCard`s, so the only artwork they
- * carry is `poster_url` — a portrait poster. A 21:9 backdrop exists on the
- * *detail* resources, not on the card, so this draws the poster into a shorter
- * box and lets the gradient carry the text. Asking the server for backdrops on
- * the hero would be a better banner and is a PHP change; it is named in the
- * worklog rather than done here.
+ * **The five-star row is gone from this banner and from the website's**, by
+ * Rio's decision on 2026-09-10. It was never a rating: the blade reads
+ * `ratings()->avg('stars') ?? 5`, the `ratings` table is empty, and no
+ * controller or endpoint on either surface can write to it — only a seeder
+ * can. So every one of the 120 titles showed five filled gold stars,
+ * permanently, for a score nobody had given. The IMDb mark it sat beside
+ * stays, on both. ADR-0006 has the reasoning and the alternatives.
+ *
+ * The paging, the dots, and the two deliberate departures that come with them
+ * — no auto-rotation and no thumbnail strip — are `BannerPager`, which all
+ * three of the site's home banners now share.
  */
 export function Hero({
   items,
   width,
   onPress,
 }: {
-  items: readonly PosterItem[];
+  items: readonly HeroCard[];
   width: number;
-  onPress: (item: PosterItem) => void;
+  onPress: (item: HeroCard) => void;
 }) {
-  const [index, setIndex] = useState(0);
-  const listRef = useRef<FlatList<PosterItem>>(null);
-
   const height = heroHeight(width);
 
-  const getItemLayout = useCallback(
-    (_: ArrayLike<PosterItem> | null | undefined, i: number) => ({
-      length: width,
-      offset: width * i,
-      index: i,
-    }),
-    [width],
-  );
-
-  const onMomentumEnd = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const next = Math.round(event.nativeEvent.contentOffset.x / Math.max(1, width));
-      setIndex(next);
-    },
-    [width],
-  );
-
-  if (items.length === 0) return null;
-
+  /*
+   * The paging list and the dot strip both live in `BannerPager` as of the
+   * daily-banners slice. They were written here first, and the second banner
+   * to need them would have been a copy — which is the one thing this
+   * repository's rules are most explicit about. Nothing rendered changes: the
+   * hero's dots are the site's equal-sized ones, measured again on the way
+   * out, so `dynamicDots` stays off.
+   */
   return (
-    <View style={styles.block}>
-      <FlatList
-        ref={listRef}
-        data={items as PosterItem[]}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={(item, i) => `${item.type ?? ''}${item.id ?? i}`}
-        getItemLayout={getItemLayout}
-        onMomentumScrollEnd={onMomentumEnd}
-        renderItem={({ item }) => (
-          <HeroSlide item={item} width={width} height={height} onPress={() => onPress(item)} />
-        )}
-      />
-
-      {/*
-        Position, not decoration: with one screen-wide slide and no arrows,
-        the dots are the only thing that says there are five more. Hidden from
-        screen readers because the list already announces its own position.
-      */}
-      <View
-        style={styles.dots}
-        pointerEvents="none"
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-      >
-        {items.map((item, i) => (
-          <View
-            key={`${item.type ?? ''}${item.id ?? i}`}
-            style={[styles.dot, i === index && styles.dotActive]}
-          />
-        ))}
-      </View>
-    </View>
+    <BannerPager
+      items={items}
+      width={width}
+      indicator="dots"
+      keyExtractor={(item, i) => `${item.type ?? ''}${item.id ?? i}`}
+      renderItem={(item) => (
+        <HeroSlide item={item} width={width} height={height} onPress={() => onPress(item)} />
+      )}
+    />
   );
 }
 
@@ -110,7 +74,7 @@ function HeroSlide({
   height,
   onPress,
 }: {
-  item: PosterItem;
+  item: HeroCard;
   width: number;
   height: number;
   onPress: () => void;
@@ -118,19 +82,20 @@ function HeroSlide({
   const title = item.title ?? 'Untitled';
 
   return (
-    <Focusable
-      accessibilityLabel={item.year ? `${title}, ${item.year}` : title}
-      accessibilityHint="Opens details"
-      ringRadius={0}
-      onPress={onPress}
-      style={{ width, height }}
-    >
+    <View style={{ width, height }}>
+      {/*
+        The artwork is the slide's background and not a control of its own, so
+        it is drawn plainly and the Focusable below carries the whole slide's
+        press target and label. Wrapping the image would give a remote two
+        stops for one thing.
+      */}
       <ExpoImage
-        source={imageUrl(item.poster_url, width)}
+        source={imageUrl(item.backdrop_url, width)}
         style={StyleSheet.absoluteFill}
         contentFit="cover"
-        // Posters put the title and the faces in the upper half, and this box
-        // is much shorter than a poster — centring would crop to a midriff.
+        // `background-position: 50% 0%` on the site. It matters most when a
+        // title has no backdrop and the server falls back to its poster: a
+        // 5:7 poster centred in this box crops to a midriff.
         contentPosition="top"
         recyclingKey={item.slug ?? String(item.id ?? title)}
         transition={180}
@@ -138,103 +103,204 @@ function HeroSlide({
         accessible={false}
       />
 
-      {/*
-        The scrim is what makes the headline legible over arbitrary artwork,
-        and it runs to the site's black so the banner reads as continuous with
-        the rails below rather than as a photo with a hard edge.
-      */}
+      {/* Two layers, left then right, exactly as the site stacks them. */}
       <LinearGradient
-        colors={['rgba(0, 0, 0, 0.15)', 'rgba(0, 0, 0, 0.55)', colors.background]}
-        locations={[0, 0.55, 1]}
+        colors={banner.scrimLeftColors}
+        locations={banner.scrimLeftLocations}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
+      <LinearGradient
+        colors={banner.scrimRightColors}
+        locations={banner.scrimRightLocations}
+        start={{ x: 1, y: 0 }}
+        end={{ x: 0, y: 0 }}
         style={StyleSheet.absoluteFill}
         pointerEvents="none"
       />
 
-      <View style={styles.caption} pointerEvents="none">
-        <Text numberOfLines={2} style={styles.title}>
-          {title}
-        </Text>
-        <HeroMeta item={item} />
+      <View style={styles.contentWrap} pointerEvents="box-none">
+        <Focusable
+          accessibilityLabel={title}
+          accessibilityHint="Opens details"
+          ringRadius={0}
+          onPress={onPress}
+          style={styles.content}
+        >
+          <View style={styles.title}>
+            <TextureText
+              size={hero.titleSize}
+              weight={hero.titleWeight}
+              tracking={hero.tracking}
+              fontFamily={fonts.black}
+              numberOfLines={1}
+              accessibilityHidden
+            >
+              {title}
+            </TextureText>
+          </View>
+
+          <MetaRow item={item} />
+
+          {item.synopsis ? (
+            <Text numberOfLines={banner.synopsisLines} style={styles.synopsis}>
+              {item.synopsis}
+            </Text>
+          ) : null}
+
+          <TaxonomyLine label="Tags" terms={item.tags} />
+          <TaxonomyLine label="Genres" terms={item.genres} />
+          <TaxonomyLine label="Starring" terms={item.cast} />
+        </Focusable>
+
+        <View style={styles.cta}>
+          <BannerButton label="Play Now" onPress={onPress} />
+        </View>
       </View>
-    </Focusable>
+    </View>
   );
 }
 
 /**
- * The meta line under the headline.
+ * Badge, IMDb mark, runtime — the site's one wrapping row.
  *
- * ⚠️ `rating` is **not** a star rating. The database holds a content
- * certification — `G`, `PG`, `PG-13`, `R`, `NC-17` — and the site's own hero
- * renders it as a certification badge (`hero-banner.blade.php` falls back to
- * the literal `'PG'`). The five-star display on the website comes from a
- * different source entirely, `ratings()->avg('stars')`, which no catalogue
- * endpoint exposes. `docs/api/openapi.yaml` typed the field as a `number`,
- * which would have produced "NC-17 stars"; the spec has been corrected.
+ * The badge and the runtime are each conditional, because each is a claim
+ * about this particular title and an absent one should draw nothing rather
+ * than a gap. The mark is not conditional: it says nothing about the title,
+ * so there is no state in which it is the wrong thing to draw.
  *
- * Nothing is rendered for a field the server did not send. A dash where a year
- * should be is honest; a zero is not.
+ * The row's 48pt height comes from the mark's 32pt box rather than from any
+ * text in it, which is true on the website too and is why the app's row was
+ * 14pt short of the site's while the mark was missing.
  */
-function HeroMeta({ item }: { item: PosterItem }) {
-  const parts: string[] = [];
-  if (typeof item.year === 'number') parts.push(String(item.year));
+function MetaRow({ item }: { item: HeroCard }) {
+  const badge = bannerBadge(item);
+  const runtime = bannerRuntime(item);
 
-  const certification = (item as { rating?: unknown }).rating;
-  if (typeof certification === 'string' && certification !== '') parts.push(certification);
+  return (
+    <View style={styles.meta}>
+      {badge === null ? null : (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{badge.toUpperCase()}</Text>
+        </View>
+      )}
 
-  if (parts.length === 0) return null;
+      {/*
+        The IMDb mark sits where the site puts it, between the badge and the
+        runtime, and it is unconditional because it says nothing about this
+        particular title. The five-star row that used to be beside it is gone
+        from both surfaces — Rio's call, 2026-09-10, once it was established
+        that the ratings table is empty and nothing in the product can write
+        to it. See ADR-0006.
+      */}
+      <ImdbMark size={banner.imdbSize} />
 
-  return <Text style={styles.meta}>{parts.join('  ·  ')}</Text>;
+      {runtime === null ? null : (
+        <View style={styles.runtime}>
+          <Clock size={banner.runtimeFontSize} color={colors.text} />
+          <Text style={styles.runtimeText}>{runtime}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+/** "Genres: Drama, Comedy" — the label in primary, the names in body text. */
+function TaxonomyLine({
+  label,
+  terms,
+}: {
+  label: string;
+  terms: readonly { name?: string }[] | undefined;
+}) {
+  const names = taxonomyNames(terms);
+
+  if (names === null) return null;
+
+  return (
+    <Text style={styles.taxonomy} numberOfLines={1}>
+      <Text style={styles.taxonomyLabel}>{label}: </Text>
+      {names}
+    </Text>
+  );
 }
 
 /**
  * How tall the banner is.
  *
- * Sized off the width rather than fixed, for the same reason the rails are:
- * a fixed height is a phone height, and on a rotated phone it would be most of
- * the screen. 4:3 in portrait keeps the artwork readable; in landscape the
- * width is large and the height must not follow it, so it is capped against
- * the width instead of growing with it.
+ * The site's slide is 440 tall in a 390 viewport, so the shape is a ratio and
+ * not a number — a fixed height is a phone height, and on a rotated phone it
+ * would be most of the screen. The cap is what stops it following the width
+ * into landscape, where the slide would otherwise be taller than the screen.
  */
 function heroHeight(width: number): number {
-  return Math.round(Math.min(width * 0.75, 420));
+  return Math.round(Math.min(width * banner.aspect, 520));
 }
 
 const styles = StyleSheet.create({
-  block: { position: 'relative' },
-
-  caption: {
+  /*
+   * The content is centred in the slide, which is what `align-items: center`
+   * on the site's row resolves to: 50 above and 50 below a 340-tall block in
+   * a 440-tall slide.
+   *
+   * `box-none` so the artwork behind it is not swallowed, and so the CTA below
+   * stays its own press target rather than being covered by the block.
+   */
+  contentWrap: {
     position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-    bottom: spacing.xl,
-  },
-  title: {
-    fontFamily: fonts.black,
-    fontSize: hero.titleSize,
-    fontWeight: String(hero.titleWeight) as '800',
-    letterSpacing: hero.tracking,
-    color: colors.onPrimary,
-  },
-  meta: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: spacing.xs,
-  },
-
-  dots: {
-    position: 'absolute',
-    bottom: spacing.sm,
+    top: 0,
     left: 0,
     right: 0,
-    flexDirection: 'row',
+    bottom: 0,
     justifyContent: 'center',
-    gap: 6,
+    paddingHorizontal: banner.inset,
   },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.border,
+  content: { alignSelf: 'stretch' },
+  title: { marginBottom: banner.titleGap },
+
+  meta: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: banner.metaGap,
+    paddingVertical: banner.metaPadY,
   },
-  dotActive: { backgroundColor: colors.primary, width: 18 },
+  badge: {
+    backgroundColor: banner.badgeBg,
+    paddingVertical: banner.badgePadY,
+    paddingHorizontal: banner.badgePadX,
+    // Square, not rounded. `.badge.rounded-0` on the site, and it is the one
+    // hard corner in the banner.
+    borderRadius: 0,
+  },
+  badgeText: {
+    color: banner.badgeFg,
+    fontSize: banner.badgeFontSize,
+    fontWeight: '700',
+  },
+  runtime: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  runtimeText: {
+    color: colors.text,
+    fontSize: banner.runtimeFontSize,
+    fontWeight: '500',
+  },
+
+  synopsis: {
+    ...typography.body,
+    color: colors.text,
+    lineHeight: banner.synopsisLineHeight,
+    marginVertical: banner.synopsisMarginY,
+  },
+
+  taxonomy: {
+    fontSize: banner.taxonomyFontSize,
+    lineHeight: banner.taxonomyLineHeight,
+    color: colors.text,
+    marginBottom: banner.taxonomyGap,
+  },
+  taxonomyLabel: { color: colors.primary },
+
+  cta: { marginTop: banner.buttonMarginTop },
 });

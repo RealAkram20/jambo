@@ -9,6 +9,7 @@ use Modules\Payments\app\Models\PaymentOrder;
 use Modules\Referrals\app\Models\Referral;
 use Modules\Referrals\app\Services\ReferralAttributionService;
 use Modules\Referrals\app\Services\ReferralSettings;
+use Modules\Referrals\app\Support\ReferralCodeRules;
 
 /**
  * Manual promo-code entry: lets a logged-in user who arrived without a
@@ -23,44 +24,14 @@ class ReferralCodeController extends Controller
      */
     public function check(Request $request): JsonResponse
     {
-        $user = $request->user();
-        $code = trim((string) $request->input('code', ''));
+        // The rules moved to ReferralCodeRules so this, the web save, and both
+        // API endpoints give one answer. The comment this method used to carry
+        // promised it "mirrors updateReferralCode's rules exactly"; that was
+        // true here and false of the API, which is why they are shared now
+        // rather than restated.
+        $answer = ReferralCodeRules::availability($request->user(), (string) $request->input('code', ''));
 
-        if ($code === '' || strlen($code) < 3 || strlen($code) > 50
-            || preg_match('/^[a-zA-Z0-9_.\-]+$/', $code) !== 1
-        ) {
-            return response()->json([
-                'ok' => true,
-                'available' => false,
-                'message' => __('Use 3–50 letters, numbers, dots, dashes or underscores.'),
-            ]);
-        }
-
-        $reservedFails = false;
-        (new \App\Rules\ReservedUsername())->validate('code', $code, function () use (&$reservedFails) {
-            $reservedFails = true;
-        });
-
-        $takenAsCode = \App\Models\User::where('referral_code', $code)
-            ->where('id', '!=', $user->id)
-            ->exists();
-        $takenAsUsername = \App\Models\User::where('username', $code)
-            ->where('id', '!=', $user->id)
-            ->exists();
-
-        if ($reservedFails || $takenAsCode || $takenAsUsername) {
-            return response()->json([
-                'ok' => true,
-                'available' => false,
-                'message' => __('That referral code is already taken.'),
-            ]);
-        }
-
-        return response()->json([
-            'ok' => true,
-            'available' => true,
-            'message' => __('Available'),
-        ]);
+        return response()->json(['ok' => true] + $answer);
     }
 
     public function apply(Request $request, ReferralAttributionService $attribution): JsonResponse

@@ -41,11 +41,6 @@
         $runtimeText = floor($item->runtime_minutes / 60) . 'hr : ' . ($item->runtime_minutes % 60) . 'm';
     }
 
-    // 5-star display from average rating (0-5 scale).
-    // Ratings table stars are 1-5; fall back to 5 filled if none.
-    $avg = $item->ratings()->avg('stars') ?? 5;
-    $avg = max(0, min(5, (float) $avg));
-
     // Top 3 of each taxonomy
     $genres = $item->relationLoaded('genres') ? $item->genres->take(3) : collect();
     $tags = $item->relationLoaded('tags') ? $item->tags->take(3) : collect();
@@ -67,20 +62,15 @@
                         </h2>
                         <div class="d-flex flex-wrap align-items-center gap-3 py-2 RightAnimate-three">
                             <span class="{{ $badgeClasses }}">{{ $badgeText }}</span>
+                            {{-- The five-star row was removed on 2026-09-10.
+                                 It read `ratings()->avg('stars') ?? 5`, the
+                                 ratings table is empty, and nothing in the
+                                 product can write to it — no controller, no
+                                 endpoint, on the site or in the app. So every
+                                 title showed five filled gold stars for a
+                                 score nobody gave. Rio's call; see
+                                 docs/adr/0006. The IMDb mark stays. --}}
                             <div class="d-flex align-items-center gap-3">
-                                <ul class="ratting-start p-0 m-0 list-inline text-warning d-flex align-items-center justify-content-left gap-1">
-                                    @for ($i = 1; $i <= 5; $i++)
-                                        <li>
-                                            @if ($i <= floor($avg))
-                                                <i class="ph-fill ph-star" aria-hidden="true"></i>
-                                            @elseif ($i - $avg < 1)
-                                                <i class="ph-fill ph-star-half" aria-hidden="true"></i>
-                                            @else
-                                                <i class="ph ph-star" aria-hidden="true"></i>
-                                            @endif
-                                        </li>
-                                    @endfor
-                                </ul>
                                 <span>
                                     <img src="{{ asset('frontend/images/pages/imdb-logo.svg') }}"
                                         alt="imdb logo" class="img-fluid imdb-img">

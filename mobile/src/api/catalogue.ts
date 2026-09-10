@@ -19,7 +19,36 @@ export type RailItem = NonNullable<Rail['items']>[number];
 export type MovieCard = components['schemas']['MovieCard'];
 export type SeriesCard = components['schemas']['SeriesCard'];
 export type TitleCard = MovieCard | SeriesCard;
+
+/**
+ * A slide in the home banner, which is not a poster card.
+ *
+ * The banner draws a backdrop, a synopsis and three taxonomy lines that a
+ * rail's card has no reason to carry, so `GET /home` sends `hero` in its own
+ * shape — see `components/partials/hero-banner.blade.php`, which is what this
+ * mirrors. `type` is the discriminator: only a series carries `seasons_count`
+ * and `episode_runtime_minutes`, only a movie carries `runtime_minutes`.
+ */
+export type MovieHero = components['schemas']['MovieHero'];
+export type SeriesHero = components['schemas']['SeriesHero'];
+export type HeroCard = MovieHero | SeriesHero;
+
+/** A hero slide narrowed to a series, for the fields only a series has. */
+export function heroSeries(item: HeroCard): SeriesHero | null {
+  return item.type === 'series' ? (item as SeriesHero) : null;
+}
 export type ContinueWatchingCard = components['schemas']['ContinueWatchingCard'];
+/**
+ * A saved title, which is a card plus what the website's watchlist card shows.
+ *
+ * Taken from the generated schema rather than widened by hand. It is a union
+ * of three shapes and the `type` field is the discriminator, so `kindOf` in
+ * `features/watchlist/list.ts` is the one place that narrows it — an episode
+ * carries `number` and `still_url` where a movie carries `year` and
+ * `runtime_minutes`, and reading the wrong one is a blank line on a card
+ * rather than an error anybody sees.
+ */
+export type WatchlistCard = components['schemas']['WatchlistCard'];
 export type GenreCard = components['schemas']['GenreCard'];
 export type VjCard = components['schemas']['VjCard'];
 export type PersonCard = components['schemas']['PersonCard'];
@@ -46,27 +75,50 @@ export function seasonsOf(detail: TitleDetail): Season[] {
 }
 
 /**
- * Which rails draw a numbered Top 10 card.
+ * How a rail wants to be drawn, where `kind` says what is in it.
  *
- * **A lookup with a default, not a switch.** The contract is explicit that
- * `key` is open-ended — category shelves arrive as `category:<slug>` — so
- * nothing may branch on it exhaustively. This asks one question, "is this one
- * of the two ranked shelves", and every other key, present or future, falls
- * through to the ordinary poster card. A rail added on the server still
- * renders without an app release, which is the property the endpoint was built
- * for.
+ * **The server answers this now, and until 2026-09-10 the app guessed.** It
+ * held a hardcoded set of two keys, `top_movies` and `top_series`, and gave
+ * those the Top 10 numerals — with a comment saying the field belonged on the
+ * Rail resource instead. It does, and this is it: a third ranked shelf, or a
+ * fourth banner, now looks right with no app release, which is the property
+ * the whole endpoint was built for.
  *
- * The website marks these two by rendering `cards/top-ten-card.blade.php`
- * instead of `cards/card-style.blade.php`; the API does not currently say
- * which presentation a rail wants. **The better home for this is a `style`
- * field on the Rail resource** — one place, every client, no app release when
- * a third ranked rail appears. That is a PHP change and Phase 2 is scoped to
- * touch none, so it is named in the worklog instead of done quietly.
+ * **Read with a default, never switched on exhaustively.** Absent means the
+ * ordinary treatment for that kind, which is what almost every rail wants, and
+ * a style this build has never heard of falls through to the same place rather
+ * than rendering nothing.
  */
-const NUMBERED_RAILS: ReadonlySet<string> = new Set(['top_movies', 'top_series']);
+export type RailStyle = NonNullable<Rail['style']>;
 
-export function isNumberedRail(key: string | undefined): boolean {
-  return key !== undefined && NUMBERED_RAILS.has(key);
+export function railStyle(rail: Rail): RailStyle | undefined {
+  return rail.style;
+}
+
+/** A `titles` rail drawn with the Top 10 numerals. */
+export function isNumberedRail(rail: Rail): boolean {
+  return rail.style === 'numbered';
+}
+
+/**
+ * A slide of one of the two daily Top 10 banners.
+ *
+ * Not a `HeroCard`, and the difference is not only extra fields: a banner
+ * slide carries `rank` and `ranked_today`, and it deliberately lacks the Tags
+ * and Starring lines a hero has, because neither banner draws them. `type` is
+ * the discriminator, exactly as it is for a hero.
+ */
+export type MovieBannerSlide = components['schemas']['MovieBannerSlide'];
+export type SeriesBannerSlide = components['schemas']['SeriesBannerSlide'];
+export type BannerSlide = MovieBannerSlide | SeriesBannerSlide;
+
+export function asBannerSlides(rail: Rail): BannerSlide[] {
+  return (rail.items ?? []) as BannerSlide[];
+}
+
+/** A banner slide narrowed to a series, for the fields only a series has. */
+export function bannerSeries(item: BannerSlide): SeriesBannerSlide | null {
+  return item.type === 'series' ? (item as SeriesBannerSlide) : null;
 }
 
 /**
@@ -83,6 +135,7 @@ const RENDERABLE: ReadonlySet<string> = new Set<RailKind>([
   'genres',
   'vjs',
   'people',
+  'banner',
 ]);
 
 export function renderableRails(rails: Rail[] | undefined): Rail[] {

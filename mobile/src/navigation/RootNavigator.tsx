@@ -1,30 +1,35 @@
 import { DarkTheme, NavigationContainer, type Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+
 import { useAuth } from '../auth/AuthProvider';
 import { colors, fonts, typography } from '../ui/theme';
-import { Loading } from '../ui/components';
-import { AccountScreen } from '../screens/AccountScreen';
+import { Preloader } from '../ui/components';
 import { ProfileMenuScreen } from '../screens/ProfileMenuScreen';
-import { DevicesScreen } from '../screens/DevicesScreen';
+import { DevicesScreen } from '../features/devices/DevicesScreen';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
 import { SignInScreen } from '../screens/SignInScreen';
 import { TwoFactorScreen } from '../screens/TwoFactorScreen';
 import { UpdateRequiredScreen } from '../screens/UpdateRequiredScreen';
-import { ContinueWatchingScreen } from '../screens/ContinueWatchingScreen';
-import { HistoryScreen } from '../screens/HistoryScreen';
-import { NotificationsScreen } from '../screens/NotificationsScreen';
+import { NotificationsScreen } from '../features/notifications/NotificationsScreen';
+import { NotificationSettingsScreen } from '../features/notifications/NotificationSettingsScreen';
 import { CollectionScreen } from '../screens/CollectionScreen';
+import { GenresScreen } from '../screens/GenresScreen';
 import { PlansScreen } from '../screens/PlansScreen';
+import { ProfileScreen } from '../screens/ProfileScreen';
 import { ProfileEditScreen } from '../screens/ProfileEditScreen';
-import { ReferralsScreen } from '../screens/ReferralsScreen';
-import { WalletScreen } from '../screens/WalletScreen';
+import { ReferralsScreen } from '../features/referrals/ReferralsScreen';
+import { WalletScreen } from '../features/wallet/WalletScreen';
 import { SearchScreen } from '../screens/SearchScreen';
 import { SecurityScreen } from '../screens/SecurityScreen';
-import { StreamingPreferencesScreen } from '../screens/StreamingPreferencesScreen';
 import { TaxonomyScreen } from '../screens/TaxonomyScreen';
 import { TitleDetailScreen } from '../screens/TitleDetailScreen';
+import { WatchScreen } from '../screens/WatchScreen';
+import { BillingScreen } from '../features/billing/BillingScreen';
+import { InvoiceScreen } from '../features/billing/InvoiceScreen';
+import { ChangePasswordScreen } from '../features/security/ChangePasswordScreen';
+import { TwoFactorSetupScreen } from '../features/security/TwoFactorSetupScreen';
 import { TabNavigator } from './TabNavigator';
 import type { AppStackParams, AuthStackParams } from './types';
 
@@ -80,7 +85,7 @@ export function RootNavigator() {
   }
 
   if (phase === 'starting') {
-    return <Loading label="Starting Jambo" />;
+    return <Preloader label="Starting Jambo" />;
   }
 
   return (
@@ -90,7 +95,7 @@ export function RootNavigator() {
           {/*
             The tabs are the app's home, and they carry their own headers. The
             stack above them exists for the screens that push over the tabs —
-            Account, Devices, and the detail screens that follow in this slice.
+            Devices, the account screens, and the detail screens they push.
           */}
           <AppStack.Screen
             name="Tabs"
@@ -121,43 +126,82 @@ export function RootNavigator() {
             options={{ title: 'Search' }}
           />
           <AppStack.Screen
-            name="Account"
-            component={AccountScreen}
-            options={{ title: 'Account' }}
-          />
-          <AppStack.Screen
             name="Devices"
             component={DevicesScreen}
             options={{ title: 'Devices' }}
           />
-          <AppStack.Screen
-            name="ContinueWatching"
-            component={ContinueWatchingScreen}
-            options={{ title: 'Continue Watching' }}
-          />
-          <AppStack.Screen
-            name="History"
-            component={HistoryScreen}
-            options={{ title: 'History' }}
-          />
+          {/*
+            **The header action is set by the screen, not here.**
+
+            It used to be a gear defined on this route. The screen now owns an
+            overflow that opens "Mark all read", "Delete all" and Settings in
+            one sheet, and only this route knows which of those have anything
+            to do — the unread count and the row count live in the screen's
+            own query. A static option here could not hide a button for an
+            inbox that is already empty.
+
+            The title stays where the stack puts it on each platform: Rio's
+            mockup centres it because it is drawn in an iPhone frame, and
+            overriding `headerTitleAlign` for this one screen would make it the
+            only screen in the app whose header sits differently from all the
+            others.
+          */}
           <AppStack.Screen
             name="Notifications"
             component={NotificationsScreen}
             options={{ title: 'Notifications' }}
           />
           <AppStack.Screen
+            name="NotificationSettings"
+            component={NotificationSettingsScreen}
+            options={{ title: 'Notification settings' }}
+          />
+          <AppStack.Screen
             name="Security"
             component={SecurityScreen}
             options={{ title: 'Security' }}
           />
-          <AppStack.Screen name="Plans" component={PlansScreen} options={{ title: 'Plans' }} />
+          {/*
+            The route is `Plans` and the header is Membership, and the two
+            differ on purpose: the profile menu's Membership row already points
+            at this route, and renaming it would ripple through another
+            session's files to no end. What a viewer reads is what the website
+            calls the page.
+          */}
           <AppStack.Screen
-            name="StreamingPreferences"
-            component={StreamingPreferencesScreen}
-            // "Streaming" rather than "Streaming preferences": the header has
-            // one line at a phone width and the longer title truncates on a
-            // Tecno-class screen, which is the device this is for.
-            options={{ title: 'Streaming' }}
+            name="Plans"
+            component={PlansScreen}
+            options={{ title: 'Membership' }}
+          />
+          {/*
+            Password and two-factor enrolment. Both hang off Security, which is
+            where the website keeps them: `profile-hub/security.blade.php` is
+            one page carrying the password form and the 2FA card together.
+          */}
+          <AppStack.Screen
+            name="ChangePassword"
+            component={ChangePasswordScreen}
+            options={{ title: 'Change password' }}
+          />
+          <AppStack.Screen
+            name="TwoFactorSetup"
+            component={TwoFactorSetupScreen}
+            options={{ title: 'Two-factor' }}
+          />
+          {/*
+            Billing and the invoice behind it. "Membership" is the header the
+            profile menu's Membership row leads to, so the ladder screen keeps
+            its route name and these sit beside it.
+          */}
+          <AppStack.Screen
+            name="Billing"
+            component={BillingScreen}
+            options={{ title: 'Billing' }}
+          />
+          <AppStack.Screen
+            name="Invoice"
+            component={InvoiceScreen}
+            options={{ title: 'Invoice' }}
           />
           <AppStack.Screen
             name="Collection"
@@ -167,6 +211,29 @@ export function RootNavigator() {
             options={({ route }) => ({ title: route.params.title })}
           />
           <AppStack.Screen
+            name="Genres"
+            component={GenresScreen}
+            options={({ route }) => ({ title: route.params?.title ?? 'Genres' })}
+          />
+          {/*
+            The profile page. Its banner runs under the status bar, so the
+            header floats over the gradient rather than sitting on a bar of
+            its own — the same treatment the title detail screen uses, and the
+            reason the mockup shows a bare back arrow over the artwork.
+          */}
+          <AppStack.Screen
+            name="Profile"
+            component={ProfileScreen}
+            // A solid header with the banner starting beneath it, which is how
+            // Rio's mockup draws it — back arrow and title on the page's own
+            // black, then the gradient as a band below. It was built floating
+            // over the banner first; rendered side by side, the mockup's
+            // version reads better, because a title sitting on a gradient has
+            // to fight it for contrast at every scroll position.
+            options={{ title: 'Profile', headerBackButtonDisplayMode: 'minimal' }}
+          />
+
+          <AppStack.Screen
             name="ProfileEdit"
             component={ProfileEditScreen}
             options={{ title: 'Your details' }}
@@ -174,7 +241,7 @@ export function RootNavigator() {
           <AppStack.Screen
             name="Referrals"
             component={ReferralsScreen}
-            options={{ title: 'Refer and Earn' }}
+            options={{ title: 'Refer & Earn' }}
           />
           <AppStack.Screen name="Wallet" component={WalletScreen} options={{ title: 'Wallet' }} />
 
@@ -193,6 +260,36 @@ export function RootNavigator() {
             name="ProfileMenu"
             component={ProfileMenuScreen}
             options={{ headerShown: false, presentation: 'modal' }}
+          />
+
+          {/*
+            The player.
+
+            `orientation: 'landscape'` is set HERE rather than by a library
+            call inside the screen. react-native-screens applies it to the
+            Activity for as long as this route is on the stack and unwinds it
+            on the way out, so there is no lock to release by hand and no new
+            native dependency. It matters because a phone with rotation lock
+            on would otherwise hold the player in portrait and show a
+            letterboxed strip.
+
+            No header and no back gesture chrome: the player draws its own
+            controls, and a navigation bar over a film is the one place the
+            site's design has nothing to say because the website is fullscreen
+            there too.
+          */}
+          <AppStack.Screen
+            name="Watch"
+            component={WatchScreen}
+            options={{
+              headerShown: false,
+              orientation: 'landscape',
+              animation: 'fade',
+              // The status and navigation bars stay out of the way. A film
+              // with the Android clock over the top of it is not fullscreen.
+              navigationBarHidden: true,
+              statusBarHidden: true,
+            }}
           />
         </AppStack.Navigator>
       ) : (

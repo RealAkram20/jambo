@@ -1,6 +1,5 @@
 @php
     $productPremium = $productPremium ?? false;
-    $topTenSrc = media_url($imagePath, null, 'frontend/images/media');
 
     // See cards/card-style: these posters shipped alt="movie-card" too.
     // Callers now pass the title; keep a generic fallback for any that

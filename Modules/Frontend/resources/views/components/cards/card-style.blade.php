@@ -23,7 +23,6 @@
     // isn't available yet, so routing users through the detail page
     // is the correct path.
     $upcomingRelease = $upcomingRelease ?? null;
-    $imgSrc = media_url($cardImage);
 
     // Alt text. Every card on the site used to ship the literal string
     // "movie-card" — the same alt on every poster, which tells Google

@@ -6,7 +6,7 @@ import { colors, fonts, tabBar } from '../ui/theme';
 import { HomeScreen } from '../screens/HomeScreen';
 import { MoviesScreen } from '../screens/MoviesScreen';
 import { SeriesScreen } from '../screens/SeriesScreen';
-import { WatchlistScreen } from '../screens/WatchlistScreen';
+import { WatchlistScreen } from '../features/watchlist/WatchlistScreen';
 import type { TabParams } from './types';
 
 const Tabs = createBottomTabNavigator<TabParams>();
@@ -23,6 +23,20 @@ const Tabs = createBottomTabNavigator<TabParams>();
  * Search, notifications and the account live in the header on the site, not in
  * this bar, and they do the same here. Promoting them to tabs would be a
  * navigation the website does not have.
+ *
+ * 🔴 **Every tab renders `AppHeader` itself, and that is deliberate rather
+ * than lazy.** It was rendered by `HomeScreen` alone until 2026-09-10, so
+ * Movies, Series and Watchlist had no route to search or to the account at
+ * all — three of four tabs were dead ends, and the only way to a profile was
+ * to go back to Home first. Rio hit it from Watchlist.
+ *
+ * The obvious fix was a `header` on this navigator, one place instead of
+ * four. **It black-screened the app**: pulling `AppHeader` — and through it
+ * `AuthProvider` — into the module the root navigator imports closed an import
+ * cycle, and the bundle failed at load with `Cannot read property
+ * 'EventEmitter' of undefined`. The screens are leaves of that graph and can
+ * import it safely; this file cannot. If a fifth tab is added, it needs the
+ * header added too, and that is the cost of not having the cycle.
  *
  * Every tab is focusable by default under React Navigation, and the labels are
  * real text rather than icons alone — a remote user and a screen-reader user

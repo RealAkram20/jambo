@@ -875,3 +875,79 @@
         font-size: 3.75em;
     }
 }
+
+/* ================================================================== */
+/* The two daily Top 10 banners — a scrim that is actually painted     */
+/* ================================================================== */
+/*
+ * Rio, 2026-09-10, over a screenshot of the Top 10 Movies of the Day
+ * slide on a phone: "the texts here are not visible enough work around
+ * the opacity to have it clear".
+ *
+ * He is right, and the cause is not a missing gradient — it is a
+ * gradient nothing can see. Streamit declares
+ *
+ *     .slider--image { background-image: linear-gradient(90deg, …) }
+ *
+ * on the element that CONTAINS the slide's <img>. A child image paints
+ * over its own parent's background, and this one is `object-fit: cover`
+ * at the full size of the box, so the declared scrim has never reached a
+ * pixel on any slide since the section was built. Every word on that
+ * banner has been sitting on raw artwork, and how legible it was
+ * depended entirely on which film happened to be on screen.
+ *
+ * WHY 0.6, AND NOT A NUMBER THAT LOOKED RIGHT
+ *
+ * Each of the ten slides' backdrops was composited the way the slide
+ * composites it (cover into 390x530), the luminance of the band the text
+ * occupies was read, and the veil was solved for: the smallest alpha
+ * that still clears WCAG AA, 4.5:1, for the 16px synopsis in #d1d0cf.
+ * The brightest slide in the catalogue needed 0.586 and the series
+ * banner's brightest needed 0.607. 0.6 covers the shelf as it stands and
+ * the arithmetic is in the worklog, so the next person can re-solve it
+ * rather than re-guess it.
+ *
+ * WHY FLAT, AND NOT A GRADIENT
+ *
+ * Both of this project's other banners scrim their edges, because their
+ * text is anchored to one. This banner's is not: below 992px every line
+ * of it is centred and the block spans 326 of the 390, so there is no
+ * edge for a gradient to hide in. A flat veil is what a centred block
+ * over a full-bleed image actually needs.
+ *
+ * The series slider keeps its own three gradients — those are real, they
+ * are on a `::before`, and they are part of its look. This only adds the
+ * floor underneath them, because at mid-width they contribute almost
+ * nothing and that is exactly where its synopsis is.
+ *
+ * The app draws the same 0.6 from the same reasoning; see
+ * `mobile/src/ui/theme.ts`, `rankedBanner.scrimAlpha`.
+ */
+/*
+ * The movies slider has no overlay of its own, so it gets one. z-index 2
+ * puts it above the <img>, which is a static child and paints below every
+ * positioned one, and below `.description`, which is z-index 99.
+ */
+.verticle-slider .slider-images .swiper-slide .slider--image::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background-color: rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+}
+
+/*
+ * The series slider already has the right element — its three gradients
+ * live on a `::before` that is correctly stacked under the copy — so this
+ * adds the floor to that layer instead of a second one.
+ *
+ * `background-color`, deliberately, and not a fourth entry in
+ * `background-image`. A colour paints beneath the image layers on the same
+ * box, which composites to exactly the same result, and it means this file
+ * does not hold a second copy of three gradient definitions that would
+ * silently stop matching the template the day one of them changes.
+ */
+.otthome-tab-slider .tab-slider-banner .tab-slider-banner-images::before {
+    background-color: rgba(0, 0, 0, 0.6);
+}

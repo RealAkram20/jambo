@@ -8,7 +8,9 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Modules\Notifications\app\Models\NotificationPreference;
+use Modules\Notifications\app\Support\NotificationCategories;
 use Modules\Streaming\app\Models\Device;
 
 /**
@@ -38,16 +40,36 @@ class NotificationController extends Controller
      * The viewer's notifications, newest first.
      *
      * Carries `unread_count` so a badge costs one request rather than two.
+     *
+     * **`category` filters here rather than in the app**, because the list is
+     * cursor-paginated: filtering the thirty rows the app happens to be
+     * holding would show a viewer four Movies notifications and hide the fifth
+     * until they scrolled far enough to load it. An unknown category is a 422
+     * rather than a silently unfiltered list — a filter that quietly does
+     * nothing is worse than one that says it cannot.
      */
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
 
+        $data = $request->validate([
+            'category' => ['nullable', 'string', Rule::in(NotificationCategories::all())],
+        ]);
+
         // The relation orders by created_at; id breaks ties so a cursor does
         // not drop notifications sent in the same second.
-        $rows = $user->notifications()->orderByDesc('id')->cursorPaginate(self::PER_PAGE);
+        $query = $user->notifications()->orderByDesc('id');
+
+        if (($data['category'] ?? null) !== null) {
+            $query->whereIn('type', NotificationCategories::typesFor($data['category']));
+        }
+
+        $rows = $query->cursorPaginate(self::PER_PAGE);
 
         return ApiResponse::ok([
+            // Deliberately NOT filtered by category. This is the bell's badge,
+            // and a badge that changed when a chip was pressed would be
+            // reporting the chip rather than the inbox.
             'unread_count' => $user->unreadNotifications()->count(),
             'items' => $rows->getCollection()->map(fn ($notification) => $this->card($notification))->values(),
             'next_cursor' => $rows->nextCursor()?->encode(),
@@ -95,11 +117,35 @@ class NotificationController extends Controller
 
     // ── preferences ──────────────────────────────────────────────────
 
+    /**
+     * What this viewer has opted into.
+     *
+     * Two layers, and they are not the same thing. `channels` is the viewer's
+     * global per-channel switch — the three columns on `users` that form layer
+     * 4 of the gate in `ChannelGatedNotification`, and the three switches the
+     * website's own "Delivery preferences" card renders. `preferences` is the
+     * per-notification-type opt-out, which can only narrow what `channels`
+     * allows.
+     *
+     * The channels were added 2026-09-09 for the app's notification settings
+     * screen: `/api/v1` exposed the fine-grained layer and not the coarse one,
+     * so an app could refuse one kind of email but not switch email off.
+     */
     public function preferences(Request $request): JsonResponse
     {
-        $rows = NotificationPreference::where('user_id', $request->user()->id)->get();
+        $user = $request->user();
+        $rows = NotificationPreference::where('user_id', $user->id)->get();
 
         return ApiResponse::ok([
+            'channels' => [
+                'in_app' => (bool) $user->in_app_notifications_enabled,
+                'email' => (bool) $user->email_notifications_enabled,
+                'push' => (bool) $user->push_notifications_enabled,
+            ],
+            // Whether the address the emails would go to is confirmed. The
+            // website says this beside its Email switch, and it is a fact the
+            // switch itself cannot show.
+            'email_verified' => $user->email_verified_at !== null,
             'preferences' => $rows->map(fn (NotificationPreference $p) => [
                 'key' => $p->notification_key,
                 'in_app' => (bool) $p->in_app_enabled,
@@ -109,19 +155,60 @@ class NotificationController extends Controller
         ]);
     }
 
+    /**
+     * Change either layer, or both.
+     *
+     * Both keys are optional and a request carrying neither is refused: a PUT
+     * that validates and changes nothing reads as success to the app, and the
+     * switch stays where the viewer put it while the server disagrees.
+     */
     public function updatePreferences(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'preferences' => ['required', 'array'],
+            'channels' => ['nullable', 'array'],
+            'channels.in_app' => ['nullable', 'boolean'],
+            'channels.email' => ['nullable', 'boolean'],
+            'channels.push' => ['nullable', 'boolean'],
+            'preferences' => ['nullable', 'array'],
             'preferences.*.key' => ['required', 'string', 'max:100'],
             'preferences.*.in_app' => ['nullable', 'boolean'],
             'preferences.*.email' => ['nullable', 'boolean'],
             'preferences.*.push' => ['nullable', 'boolean'],
         ]);
 
-        foreach ($data['preferences'] as $preference) {
+        if (($data['channels'] ?? null) === null && ($data['preferences'] ?? null) === null) {
+            return ApiResponse::error(
+                ApiErrorCode::ValidationFailed,
+                'Send channels, preferences, or both.',
+            );
+        }
+
+        $user = $request->user();
+
+        if (($data['channels'] ?? null) !== null) {
+            $columns = [
+                'in_app' => 'in_app_notifications_enabled',
+                'email' => 'email_notifications_enabled',
+                'push' => 'push_notifications_enabled',
+            ];
+
+            $changes = [];
+            foreach ($columns as $key => $column) {
+                // array_key_exists, not ??: a switch turned OFF sends false,
+                // and false would fall through a null-coalesce as "not sent".
+                if (array_key_exists($key, $data['channels'])) {
+                    $changes[$column] = (bool) $data['channels'][$key];
+                }
+            }
+
+            if ($changes !== []) {
+                $user->forceFill($changes)->save();
+            }
+        }
+
+        foreach ($data['preferences'] ?? [] as $preference) {
             NotificationPreference::updateOrCreate(
-                ['user_id' => $request->user()->id, 'notification_key' => $preference['key']],
+                ['user_id' => $user->id, 'notification_key' => $preference['key']],
                 [
                     'in_app_enabled' => (bool) ($preference['in_app'] ?? true),
                     'email_enabled' => (bool) ($preference['email'] ?? true),
@@ -216,8 +303,16 @@ class NotificationController extends Controller
             'title' => $data['title'] ?? 'Notification',
             'message' => $data['message'] ?? '',
             'icon' => $data['icon'] ?? 'ph-bell',
+            // The site paints the icon tile from this — bg-{colour}-subtle on
+            // text-{colour}-emphasis — so the app has to receive it to wear
+            // the same tile rather than colouring every icon the same.
+            'colour' => $data['colour'] ?? 'primary',
             'image_url' => $data['image'] ?? null,
             'action_url' => $data['action_url'] ?? null,
+            // Which filter chip this row sits under, or null for the rows that
+            // belong under All alone. Derived from the stored class name, so
+            // notifications sent before the chips existed still answer it.
+            'category' => NotificationCategories::forType($notification->type),
             'read' => $notification->read_at !== null,
             'created_at' => optional($notification->created_at)->toIso8601String(),
         ];

@@ -8,6 +8,1199 @@ would advertise a webapp update containing no webapp change.
 
 ## Jambo App
 
+### Unreleased — The two daily Top 10 banners, and a scrim that was never painted
+
+Rio: *"i am not seeing the top 10 movies of the day banner on the app."* It was
+not a regression. It had never been built: the website's two biggest home
+blocks — the Top 10 Movies of the Day vertical slider and the Top 10 Series of
+the Day tab slider — were composed by `HomeRailsService` under the keys
+`verticalFeatured` and `tabSeries`, and neither key ever left it. The app's
+home screen was the website's home screen minus both. Rio then asked for the
+series one too, at the website's exact design.
+
+**`GET /api/v1/home` gained a rail kind.** `kind: banner`, with `style` saying
+which of the two, and slides in a shape of their own — a hero minus the Tags
+and Starring lines that neither banner draws, plus four genres where the hero
+takes three, because the blade takes four. Ten unread cast arrays on the first
+paint of every session is what the separate shape avoids.
+
+**`style` is new on every rail, and it retires a hardcoded list in the app.**
+The Top 10 numerals used to be decided by an app-side set of two literal rail
+keys, with a comment in `catalogue.ts` saying the field belonged on the server.
+It does. `top_movies` and `top_series` now say `style: "numbered"`, and a third
+ranked shelf would look right with no app release — which is the property the
+whole endpoint was designed for.
+
+🔴 **A rank is never printed unless the title earned it.** Both shelves rank on
+distinct viewers in the last 24 hours and pad the rest of the ten from all-time
+popularity, so a slide's *position* is always 1..10 while its *rank* is
+sometimes nothing at all. `ranked_today` says which, and a padded slide reads
+"Popular on Jambo" — the website's own rule, now on the wire. Rio asked whether
+the missing numbers on his local site were a bug; they were one movie and one
+series' worth of viewing history in the window, and step 15 of
+`tools/dev-catalogue/` makes that visible on a dev machine.
+
+**The banners carry no title.** A full-width slide has no shelf heading on
+either surface, and sending one invites a client to draw it. The admin screen
+still names both rows, from `HomeSection::DEFAULTS`, because a row you can drag
+needs a label. A migration inserts them where `ott-page` puts them — the movies
+banner after Upcoming, the series banner after the personality rail — rather
+than letting `seedDefaults()` append both to the bottom.
+
+### Unreleased — Webapp: the Top 10 banners get a scrim that reaches a pixel
+
+Rio, over a screenshot of the movies slide on a phone: *"the texts here are not
+visible enough work around the opacity to have it clear."*
+
+The cause was not a missing gradient. Streamit declares one on
+`.slider--image` — the element that **contains** the slide's `<img>` — and a
+child image paints over its own parent's background. That scrim has never been
+visible on any slide since the section was built, and how legible the banner
+was depended entirely on which film was on screen.
+
+**0.6, and it was solved rather than chosen.** Each of the ten movie backdrops
+and three series backdrops was composited the way its slide composites it, the
+luminance of the band the text occupies was read, and the veil was solved for
+the smallest alpha that still clears WCAG AA — 4.5:1 — for the 16px synopsis.
+The brightest movie needed 0.586 and the brightest series 0.607. Flat rather
+than a gradient because this banner's content is centred and spans 326 of its
+390: there is no edge for a gradient to hide in. The rule is in
+`jambo-header.css` per ADR-0001; the app draws the same number from the same
+arithmetic.
+
+The series slider keeps its own three gradients and gains only the floor
+beneath them, added as a `background-color` on the pseudo-element that already
+carries them, so this file holds no second copy of three gradient definitions
+to drift.
+
+### Unreleased — Subscribing from the app, in a popup, through one gateway-agnostic API
+
+Rio: *"we can not subscribe to any membership plan fix this."* The answer was
+that it was **both deliberate and unbuilt**, and only ADR-0004 says which half
+is which. Google Play requires Play Billing for subscription video outside
+IN/KR/EEA/US and forbids pointing at another payment method, so the Play build
+sells nothing — that part is protecting the listing. The direct APK was always
+meant to take PesaPal and never got it. That half now exists.
+
+**`POST /api/v1/subscription/orders` takes a plan and nothing else.** No
+amount, no currency, no gateway name. The server reads the price off the tier
+row, freezes it into the order's snapshot, computes any referral discount
+itself and resolves the gateway from `payments.default_gateway`. A client
+cannot pair a plan with a price of its own, and the test that proves it sends
+`amount: 1` against a 30,000 shilling plan and asserts the gateway was handed
+30,000.
+
+🔴 **The response describes a presentation, not a provider.** It answers
+`{ mode, url, return_url, cancel_url }`, and Rio's reason is the design
+constraint: *"we don't want to lose sales because someone did not update the
+app."* The app ships knowing a closed set of modes and the server picks one per
+order, so a gateway integrated next year is a server change and a phone that
+has not updated in a year still completes the sale. Verified against live
+PesaPal — the URL it returns is PesaPal's own iframe, passed through untouched.
+
+**The payment happens inside the app.** Rio again: *"we are supposed to use a
+popup, not a redirect"*, and *"we don't have to send people outside the app."*
+A full-height sheet hosts the gateway's page. Handing somebody to the system
+browser mid-purchase means they return by remembering to, or not at all.
+
+**Closing the popup decides nothing.** Reaching the return URL means the payer
+got to the end of the gateway's flow, not that money arrived — mobile money is
+a USSD prompt that can be approved after the page has moved on. The app asks
+the server for the order's status instead, because the gateway confirms to the
+server and that is the only authority.
+
+**One money path, not two.** The website's pricing page now calls the same
+`SubscriptionCheckout` service. The referral tests passing unchanged is what
+says the extraction preserved behaviour rather than approximating it.
+
+**The shared sheet grew two options rather than the app growing a seventh
+overlay.** A payment needs full height and must not close on a stray scrim tap
+while somebody is typing a PIN, so `Sheet` gained `fullHeight` and
+`dismissOnScrim` — and the lint rule banning a raw `Modal` needed no exemption.
+
+**Not yet done:** no payment has been completed end to end. PesaPal's
+confirmation is a server-to-server call to a public URL, so a real completion
+needs `payments.callback_base_url` pointing at a reachable host — a tunnel on a
+development box. The Subscribe button also exists only in the `direct` build.
+
+
+### Unreleased — The Genres rail, at the website's design
+
+Rio, with the two rails side by side: *"the genere on teh webapp are showing
+images and we have the view, fix it as well"*, and then *"learn from the
+orignal from the webapp to get the exact work on design"*.
+
+The site draws a 5:3 still with the genre name centred over it and a "View
+All" beside the heading. The app drew a bordered chip with a title count and no
+link. Both halves were missing for different reasons.
+
+**The picture was a data gap.** A genre owns no artwork, so the site borrows a
+still from its most recent published title through `Genre::featured_image_url`.
+That never reached the API. It does now, as `image_url` on `GenreCard`, so both
+surfaces show the same picture for the same genre.
+
+🔴 **And the accessor behind it was an N+1 nobody could see.** It reads like a
+property and runs up to **four queries per genre** — movie backdrop, movie
+poster, show backdrop, show poster — which is up to forty on the home rail, on
+every request, for a decoration. `Genre::attachFeaturedImages()` answers the
+whole set in **two**, with the accessor's exact precedence, verified against it
+across all eight genres. The website's home page and its `/all-genres` got
+faster for free.
+
+**"View all" needed a screen, not a collection.** `RailArchiveCatalog` has no
+`genres` key and should not: a collection is a list of TITLES behind one rail,
+and this is a list of genres. The website makes the same distinction, linking
+to `/all-genres` rather than `/collection/genres`. So there is a `Genres`
+screen, one full-width column of the same tile, which is what the site's grid
+resolves to at phone width.
+
+**Two faults that only rendering it found.** The rail still had no link after
+the routing was written, because **only the `titles` arm ever forwarded
+`onSeeAll` to the rail component** — genres, VJs and personalities never did.
+And the tiles were 2.4 to a screen where the site shows exactly 2, because the
+rail was using a width derived from the poster rail's card count.
+
+Measured rather than matched: the tile renders at aspect **1.673** against the
+site's **1.667**, and the scrim is the site's own left-to-right gradient, which
+is easy to get wrong — the label is centred, so the obvious vertical scrim
+would darken the artwork above and below it and leave the text on the
+brightest band.
+
+**Still to do, and reported rather than assumed:** the app's VJs and
+Personalities rails have no "View all" where the site has both, the website's
+VJs "View All" points at `/movie` rather than at any VJ index, and the
+`/all-genres` heading reads "Geners".
+
+### Unreleased — The home banner, at the website's design
+
+Rio asked for the webapp home page's banners to exist in the app, *"strictly
+remember we keep the design from the webapp"*. A scan of `/` — which is the
+real home page; `/home` is the secondary one — found three banner-shaped
+blocks and every ordinary rail already ported. This is the first of the three.
+
+**The gap was data before it was styling.** The app's banner drew a portrait
+poster, the title and a year, because `GET /api/v1/home` sent its hero as
+`MovieResource::card()` and a card keeps `backdrop_url`, `synopsis`, `genres`,
+`tags` and `cast` behind the `detail()` flag. So the resources gained a third
+shape, `hero()`, which is exactly what `hero-banner.blade.php` renders and no
+more — not `detail()`, because the banner is on the critical path of every
+first paint and never draws `views_count`, `published_at`, `categories` or a
+series' seasons. **The rails below it still send plain cards**, and a test
+asserts they do: a shelf of thirty posters carrying thirty synopses is the
+cost the two shapes existed to avoid.
+
+The app's side is the site's banner rebuilt from measurements rather than by
+eye — the slide's 440:390 ratio, the two horizontal scrim gradients, the
+square certification badge, the meta row's 16pt gap, the 7pt-cornered CTA with
+its filled play triangle. Every number is in `theme.banner` with the selector
+it came from, read off the rendered page in a headless browser at 390x844.
+
+**The texture-filled headline is now one component, not two.** Streamit fills
+the hero title and the Top 10 numerals from the same `texure.webp` through the
+same `background-clip: text`, which React Native does not have. The SVG
+pattern trick that drew the numerals moved to `ui/rails/TextureText.tsx` and
+both use it. It gained a measuring pass on the way: SVG has no ellipsis, so the
+text is laid out first by a real invisible `<Text numberOfLines>` and RN is
+asked what string it would have drawn. Estimating character widths from the
+font size is fine for tabular digits and wrong for every film title.
+
+🔴 **The five-star rating is gone from the app and from the website, and it
+was never a rating.** `hero-banner.blade.php` read
+`ratings()->avg('stars') ?? 5`; the `ratings` table holds nothing, 0 rows
+against 120 titles, and **no controller, endpoint or form on either surface
+can write to it** — only a seeder can. So `?? 5` was not an edge case, it was
+the only value jambofilms.com had ever displayed: five filled gold stars on
+every film, permanently, for a score nobody gave and nobody could give. Rio's
+call once that was established.
+
+Removed from five places, because it turned out to be everywhere: the home
+banner, the Top 10 Movies banner, the guest home hero, the `parallax`
+placeholder, and `movie-slider.blade.php` — which was the worst of them,
+hardcoding three-and-a-half stars on **eight listing pages** without
+consulting the database at all. `stars_avg` and the aggregate query behind it
+came out of the API too; a field nothing draws is a field that grows a
+consumer later.
+
+**The IMDb mark stays**, on both, by Rio's call. With the invented score
+beside it gone, it is a mark rather than a number attributed to IMDb. In the
+app it is `ui/rails/ImdbMark.tsx`, a port of the site's own SVG rather than a
+redraw — Metro has no SVG transformer here and adding one for a single 2KB
+asset is a build change for nothing.
+
+🔴 **And a bug in the same block.** The guest home hero drove its stars from
+`$movie->rating`, which is a content **certification** — "PG-13", "NC-17" — so
+`$i > "NC-17"` compared an integer against a string, and the certification was
+printed beside the IMDb mark where a score belongs. Viewers read "NC-17" as a
+rating out of ten. It is a proper badge now, the one the OTT hero already
+used.
+
+The same reasoning also removed the blade's `$item->rating ?: 'PG'` fallback
+from the app's badge: a certification is a legal claim about a film, and
+inventing one for a film nobody classified is the same fault as the stars.
+
+**No thumbnail strip, and that is fidelity rather than a shortcut.** The
+desktop banner has a poster rail that doubles as its navigation; at 390pt its
+container computes to `display: none` and swiper's dots take over. The dots
+are what the site actually shows a phone, so the dots are what the app draws —
+10pt, primary blue, inactive at half opacity, as measured.
+
+**No auto-rotation**, unchanged from the previous cut and for the same reason:
+a carousel that moves on its own takes away the thing a viewer is reading, and
+on a remote it moves the focus target out from under the d-pad.
+
+Two things found while reading the page. **`streamTag.starrting` had the value
+"Starting"**, so the OTT home said "Starting:" over the cast list while the
+guest home said "Starring:" through a different key — the value is corrected,
+the misspelled key stays because several blades reference it. And **the
+website's own banner is two N+1s per slide**: `ratings()->avg()` per slide, and
+a series' runtime found by walking every episode into memory through an
+unloaded relation. The API path batches both into two queries for the whole
+banner; the blade still does what it did.
+
+### Unreleased — The inbox can be emptied, and rows can be picked
+
+Rio, on the notifications screen: *"we can click and view the notfication but
+we need the abillity to make all read and clear them"*, and then *"we can have
+the long press event like long press to select and we can select multiple."*
+
+**Both bulk actions moved into the inbox, and then out of its way again.** The
+first cut copied the website's two header buttons literally — a filled blue
+"Mark all read" and an outlined red "Delete all" above the chips. Rio's answer:
+*"i think we can hide these initially or we can upgrade this in the way the
+feels clean and modern simple creative."* He was right. On the site those
+buttons sit in a wide desktop header and read as chrome; on a handset they are
+the loudest thing on a screen whose whole job is a list, and the destructive
+one is loudest of all. They are housekeeping.
+
+So there is now one "⋮" in the header where the gear used to be, opening a
+sheet with Mark all read, Notification settings and Delete all. **One control
+replaced two pills and an icon.** Each action appears only when it has
+something to do, which is what the website's own blade does with the same two
+buttons — `$unreadCount > 0` and `$notifications->total() > 0`. Deleting
+everything asks first, in the app's own dialog, in the website's own words.
+
+**Long press picks rows.** The tick replaces the row's 40x40 poster rather than
+appearing beside it, so entering selection does not reflow the list under the
+thumb that is pressing it. Selection mode is simply the selection being
+non-empty, so unpicking the last row and cancelling cannot disagree. The bar at
+the bottom offers "Mark read" only when something picked is actually unread —
+an action with nothing to do is not drawn at all.
+
+🔴 **A defect this introduced and then fixed, because the shape is worth
+keeping.** Hiding the header buttons on entering selection moved the whole list
+97dp up the screen: the long press moved the row it had just picked, and the
+next tap would have landed on a different one. They stay mounted and go dim
+instead. A gesture must not move the thing it acted on, and "hide the control
+that no longer applies" is the instinct that breaks that.
+
+**"Mark all read" is gone from the notification settings screen.** It was
+parked there when the inbox header had no room for it. It has room now, and two
+ways to mark an inbox read is one too many.
+
+**Shared, not copied.** The selection bar is `ui/SelectionBar.tsx`, and its
+tokens name the Watchlist's own rather than restating them. The Watchlist still
+has its private copy of the same bar; converting it is a commit of its own, not
+a side effect of this one.
+
+Two smaller corrections found on the way: `ListRow` drew a chevron for every
+pressable row, and a caret promises a screen that "Mark all read" never opens;
+and the inbox's filter chips announced as bare "Account", "Movies" and so on,
+where "Account" collided with the header's own account control for anything
+searching by label. They announce as "Account filter" now — a chip that filters
+is not a place.
+
+### Unreleased — The header
+
+Rio: *"let us use the exact header as it is on our web app."* The mockup he
+sent turned out to be the website's own header, which made this a port rather
+than a design.
+
+`header-default.blade.php` below 992px renders the brand, a search toggle, a
+**notification bell with an unread badge**, the **viewer's avatar**, and a
+**second row of genre chips**. The app had the first two and a generic account
+circle. It now has all of it, from probes of the rendered site rather than from
+the screenshot.
+
+**The bell's absence had an expiry date.** Its note said a bell would open a
+list that is always empty for reasons a viewer cannot see, because the
+notifications screen did not exist. It does now.
+
+**The header navigates itself.** All four tabs passed the same two callbacks;
+adding the bell would have made that eight copies of one decision.
+
+🔴 **The logo was too small, and the measurement appeared to disagree with
+Rio.** The site's logo is 24 tall and the app's box was 108x32, which looked
+larger. The brand is a **wide wordmark**, so `contain` fitted it to that box by
+*width* and it landed around **16dp tall**. A fixed box can only be right for
+one logo's aspect and the logo is admin-uploadable, so height drives it now —
+`height; width: auto`, as the site does — with the ratio read from the image.
+
+🔴 **Two probe defects worth knowing, both of which produced plausible
+values.** The genre-chip probe matched the *first* chip, which is "All", which
+is active on the home page — so the resting chip captured as the selected one
+and every chip would have been drawn highlighted. And the bar's border colour
+read as the text colour, because CSS defaults a border colour to `currentColor`
+when no border is set; the captured widths are 0, so there is no border at all.
+
+🔴 **The bell briefly made the Notifications screen unopenable.** The header
+cached its unread count on the key the inbox uses for its All tab, and the two
+read it with different query types — one storing pages, one storing a response
+object. Whichever mounted first won, and when the header won the screen threw
+on a missing `pages`. Two queries may share a key only if they share a shape.
+The badge now caches at `['notifications', 'unread']`, which stays under the
+prefix so invalidation still refreshes it, and a test asserts no category is
+ever called "unread".
+
+The logo went up again to 30 at Rio's request, a deliberate deviation from the
+captured 24 and recorded beside it. It sits inside the site's own range: the
+CSS rule is 36 and only renders shorter because a browser's mobile header
+constrains it.
+
+Four contrast pairs were measured before use. Three pass comfortably. The
+unread badge is white on the brand blue at 3.01:1, which is under AA — the
+tenth entry in that tally, the pair the whole app already wears, kept and named
+rather than re-decided in one slice.
+
+### Unreleased — Phone numbers
+
+Rio, 2026-09-10, with nineteen worked examples of one Ugandan number: the app
+must read all of them, carry a dial code from the selected country, and format
+live as it is typed, the way a card field does.
+
+**All nineteen now converge on `+256742078673`**, and that is what is stored.
+E.164 is the only form that is unambiguous, comparable and dialable, so
+everything typed converges on it and everything shown is derived from it. The
+list is asserted literally in both the app and the server rather than
+summarised — it is the contract, and a case dropped from a test is a shape
+somebody can type that the system refuses.
+
+**The server normalises too, because the app is not the only writer.** The
+website's profile form and the admin save this column; normalising in one place
+would have left the mixture in the database.
+
+**The grouping is Rio's, not the library's.** libphonenumber formats Ugandan
+numbers as `0742 078673` — four then six, the official convention. His examples
+are threes, so Uganda is overridden and every other country keeps the library's
+rules, where the library is the only specification available.
+
+**libphonenumber earns its place on one field.** Recognising his formats needs
+no library; they differ only in separators and prefix. Knowing that
+`0414230000` is a *landline* does — a perfectly valid Ugandan number that
+cannot receive mobile money. The withdrawal field now refuses it, which no
+shape check could have caught.
+
+**Existing numbers convert with a report, never silently.** `phones:normalise`
+runs as a dry run by default and prints what it would change. Anything it
+cannot read confidently is left exactly as it is and listed for a person,
+because a confident guess at somebody's phone number is worse than leaving it.
+
+🔴 **Two build traps, both recorded.** `libphonenumber-js/max` cannot be
+bundled by Metro — it reaches for a `.json.js` shim that exists for Node's ESM
+loader — so `metro.config.js` redirects that one specifier at the real JSON the
+package also exports. And `EXPO_PUBLIC_API_BASE_URL` now lives in `mobile/.env`
+rather than a shell prefix, after a restarted Metro dropped it and the app
+silently called production.
+
+### Unreleased — Security, rebuilt to the mockup, with a delete button Rio controls
+
+Rio's mockup of 2026-09-10: a headline, the protections as rows with their
+state on the right, and recent account activity underneath. Then, mid-build:
+*"we will have a delete button. but we can disable this button when we please,
+when enabled it shows and when disabled it disappears from the app."*
+
+**Account deletion is now a row, and a switch in admin settings.** A new card,
+"Account deletion (mobile app)", shows or hides it. 🔴 **The switch is
+enforced twice.** `/app/config` carries `features.account_deletion` so the app
+hides the row, and `DELETE /account` checks the same setting and refuses with
+FORBIDDEN. A flag only the client reads is not a switch: a build already on
+somebody's phone would keep closing accounts after it was turned off. The
+refusal happens before the password is checked, so a disabled feature cannot be
+used to test passwords. It defaults to ON, unlike the flags beside it, because
+those gate unfinished features and this gates a finished one.
+
+**It closes the account rather than erasing it, and says so.** Every device is
+signed out, every token deleted and sign-in stops working immediately; records
+are kept. The screen states that in as many words, because a Delete button that
+quietly keeps everything is a promise somebody will hold us to. Google Play's
+deletion policy is not met by this and that remains open.
+
+**Two things in the mockup were refused rather than drawn.** "PIN for
+Purchases" does not exist anywhere in Jambo — no column, no endpoint, nothing
+on the website — and the app takes no payments on either build, so the toggle
+would guard a purchase flow that is not there. And the phone number has no
+verified state: the column exists and the profile editor writes it, but nothing
+verifies it. The row is there, the green badge is not. The email badge beside
+it IS real, which is exactly what would have made a matching phone badge
+believable.
+
+**Google sign-in left the screen.** It reported whether the SERVER has Google
+configured, not whether this account is linked. Server configuration is not a
+personal security fact.
+
+**`ListRow` gained an optional icon tile**, off by default, because the mockup
+draws its icons in rounded tiles and the alternative was a second row component
+for one screen. Recent account activity reuses the Devices screen's own query,
+formatters and icon map rather than growing a second opinion about the same
+rows.
+
+
+### Unreleased — One overlay design, enforced
+
+Rio, 2026-09-10, on seeing the device sign-out confirmation: *"we need a
+universal design for our system so that we don't use these default generic
+design and make sure all the other agents use it when it's needed it should be
+enforced."* It was an Android system dialog — grey, teal, capitalised — in the
+middle of a blue product.
+
+`mobile/src/ui/overlay.tsx` is now the only place `Modal` or `Alert` may be
+imported from `react-native`. It exports `useConfirm()` for anything
+irreversible and `Sheet` for every bottom panel.
+
+**The small problem was two `Alert.alert` calls. The large one was six
+hand-rolled sheets.** The watchlist's sort sheet, the player's settings menu,
+the country picker, the referral editor and the withdrawal form had each built
+their own. **Shared tokens had hidden it**: they looked alike, so nobody
+looked, while the Android back button, the safe-area padding and the scrim's
+press target were solved five times and correctly a different number of times.
+
+**Enforced with a lint rule and a shrinking allowlist.** The six files that
+predate it are exempt until each converts; nothing new may be added to that
+list. The rule lands today without turning another session's build red, and
+converting the six stays deliberate work in its own commit.
+
+Almost nothing in the new token block is new. The ground, radius and scrim are
+the existing sheet block, so a dialog and a sheet are one object. The only pair
+that needed deciding was the destructive red, and it reuses the one already
+measured at 5.67:1 rather than introducing a second that nearly matches.
+
+### Unreleased — Devices
+
+The devices screen from Rio's mockup: a hero, a usage meter, an Active and
+Inactive split, and a row per signed-in device with a direct sign out.
+
+**Three of the mockup's elements described things Jambo does not have**, and
+all three were checked against the website and the schema before anything was
+built.
+
+A **city per row**: nothing stored one, the website shows the raw IP, and app
+installs had no address column at all. Rio's call was to add geolocation.
+
+**"4 of 6 devices used"**: there is no device-registration cap; nothing stops
+an account signing in a hundred installs. The only limit the tier enforces is
+how many can watch at once, so the meter counts that and says so. It reads from
+the same method the player calls before letting a stream start, so it cannot
+promise room the player is about to refuse.
+
+**The `+` button**: a device registers by signing in, so there was nothing to
+add. It is gone until TV sign-in exists.
+
+🔴 **The geolocation resolves nothing until a database is installed, and that
+needs an account only Rio can create.** `IpLocation` reads a MaxMind GeoLite2
+file locally — no per-request cost, no rate limit, and no viewer's address
+leaves the server — but the file is licence-keyed, ~60 MB and weekly, so it is
+fetched on the server rather than committed. Until `GEOIP_DATABASE` points at
+one, every row shows its address, which is what the website has always shown.
+A metered API costs per request and the no-account free one forbids commercial
+use, so neither was an option.
+
+**Storing the address was a decision.** `devices.last_ip` is new, holds only
+the latest value, is nullable with no backfill, and the resolved city is never
+persisted. One column that overwrites is a different thing to hold about
+somebody than a movement history.
+
+**The row icon comes from the website's own parser.** `UserAgent::parse`
+already decides between a phone, a desktop and a globe and the hub's device
+list draws it; the API was dropping it, so the app's first cut guessed from
+`kind` and drew every browser identically. It is forwarded now and resolved
+through the notification inbox's icon map rather than a second table. A
+television still draws a desktop glyph because the shared parser has no TV
+case — fixing that improves both surfaces and is not an app-side special case.
+
+**Two defects found by rendering it, not by testing it.** Every app install
+with no reported version rendered the literal string **"vnull"**, because the
+check asked for `undefined` where the server sends null. And a section heading
+carried margins while also sitting inside a row that carried the same ones,
+stacking into a visible hole. Both fixed, the first with a regression test.
+
+### Unreleased — Membership, rebuilt to the mockup, on the website's own card
+
+Rio's mockup, 2026-09-09: a hero, three promises, billing-period tabs, a
+three-abreast plan ladder and a yearly nudge. The screen was a list of rows
+before this, because the ladder was a placeholder waiting for a design.
+
+**The plans endpoint was thinner than the page it was derived from, and that
+was the blocker rather than the layout.** `subscription_tiers.features` has
+backed the website's pricing cards all along and `GET /plans` never sent it,
+so the app could show what a plan costs and not what it includes. It now sends
+`features`, `period_label` and `is_popular`. Nothing about the data changed --
+only what the API was willing to forward.
+
+**"Most popular" is decided in one place now.** The rule was written inline in
+`pricing-page.blade.php`; it is `SubscriptionTier::popularFrom` and both the
+website and the API call it. Two copies of that rule would have marked
+different plans the first time an admin added a tier, and nobody would have
+noticed until the two screens were put side by side.
+
+**The card is the website's, measured rather than drawn.** Twelve probes were
+added to the token exporter for `.pricing-plan-wrapper`, `.plan-main-price`,
+`.pricing-plan-discount`, `.jambo-period-tabs` and `.jambo-strip`, taking the
+token file from 174 values to 217. The type scale is the one thing translated
+rather than copied: the site's 38px price does not fit a third of a phone, and
+a price that wraps is worse than a price a size smaller. The mockup is crimson
+and the app is blue, which is the third time that substitution has been made
+and the same ruling each time.
+
+🔴 **The website's "Most popular" ribbon fails WCAG badly** --
+`#d1d0cf` on `#1a98ff` is **1.95:1**, on the one label whose whole purpose is
+to be read. The app keeps the fill and draws the text white, which is 3.01:1.
+That is still under AA and is deliberately not re-decided here, because
+white-on-blue is the pair the entire app already wears. The website defect
+wants its own fix.
+
+**Four places the screen says something different from the mockup, all for the
+same reason -- a screen may not state what the system cannot back.** The cards
+read "On the website" rather than "Get Started", because neither build can take
+a payment. The yearly banner shows the real cheapest yearly price rather than
+"up to 2 months free", which is arithmetic that would keep being stated after
+an admin changed a price. The hero image is a real catalogue poster rather than
+a studio photograph the product does not own. And the mockup's script lettering
+is absent, because the app ships no script face.
+
+**Free is still never a card**, the tabs still only show periods that have paid
+plans, and the default tab is still the one holding the plan you are paying
+for. All three are the website's rules, inherited rather than re-invented.
+
+
+### Unreleased — Wallet, and withdrawal from the phone
+
+The wallet from Rio's mockup: a balance card, two actions, two tiles and the
+ledger as rows. Withdrawal now completes in the app instead of sending a viewer
+to a browser.
+
+**Six of the mockup's controls were checked against the product before anything
+was built, and only two survived.** Jambo's wallet has no top-up: money enters
+it as referral rewards, refunds and statement credits, and there is no deposit
+code or ledger type anywhere. "Buy/Rent Movies" describes a product Jambo is
+not — it is subscription only, with no purchase or rental model. "Gift Credits"
+and "Airtime Top Up" exist nowhere. Its three sample transactions were all
+three kinds that cannot occur. Rio's calls: "Add Funds" becomes "Earn more"
+pointing at Refer & Earn, which is what the website's own wallet card does, and
+the quick actions become the real destinations.
+
+**Withdrawal writes no money logic of its own.** The endpoint validates a
+request shape and calls `ReferralWalletService::requestWithdrawal` — the entry
+point the website's form posts to — and `Payouts::request` below that already
+held the row lock, the one-open-request guard and the ledger hold, inside a
+transaction that rolls the request row back when the ledger refuses.
+
+**No idempotency key, deliberately.** The path is already idempotent by a
+mechanism that was there: the service locks the owner row and refuses a second
+open request, so the retry a dropped connection produces cannot create two
+withdrawals. A key would be a second mechanism guaranteeing what the first
+already does. One test makes that argument checkable rather than rhetorical.
+
+**`GET /wallet` was thinner than the website and now is not.** The site has
+shown withdrawal history all along; the endpoint dropped it. That matters
+because the hold is taken the moment a withdrawal is requested, so a balance
+that has dropped with nothing paid out had no explanation in the app.
+
+🔴 **`Ledger::balanceFor` returns a string whose decimals follow the database
+driver** — `"15000.00"` on MySQL, `"15000"` on SQLite. Money is now compared
+with `bccomp` in tests and parsed once for display in the app. The screen this
+replaces rendered the raw string on a rule about floating point; the instinct
+was right and the conclusion was not, because the website itself casts to float
+to format and the raw string makes the app's numbers depend on the database.
+
+🔴 **A defect found on the money path and deliberately not fixed here.**
+`wallet_withdrawal_requests.requested_at` is a bare MySQL `timestamp`, so it
+carries the implicit `ON UPDATE CURRENT_TIMESTAMP`. The service inserts the
+correct UTC value and then updates the row with the hold id, and **that update
+silently overwrites the timestamp with the database server's clock in its own
+timezone** — three hours out here, and it moves again on approve, pay and
+reject. Every withdrawal ever made carries a wrong requested-at. It is
+pre-existing and the website shares it. Not fixed in this slice on purpose: it
+is a schema change to a money table with existing bad rows to decide about.
+
+### Unreleased — Streaming preferences leave the menu, and wait for the player
+
+Rio, 2026-09-09: *"remove the streaming menu, because all of these settings are
+applied to the player itself."* Then, while the change was being made: *"wait
+to build the player we are going to build it fully. so i need you to have it in
+plan."*
+
+So the Streaming row is gone from the profile menu, and `StreamingPreferencesScreen`
+with it — the menu was its only door, the third screen this week to go the same
+way after the Account hub and History. The `StreamingPreferences` route and its
+entry in `AppStackParams` are removed. **The player was not touched**, because
+it is about to be rebuilt in full; the two edits that had already been made to
+`PlayerMenu` and `WatchScreen` were reverted, and both files diff clean against
+HEAD.
+
+🔴 **Nothing about where preferences are stored changed.** `GET`/`PATCH
+/account/preferences` is still served, still documented, still backed by the
+`streaming_preferences` column with its ten feature tests. `video_quality` is
+still written to the account from the player's own settings menu on every
+change — which is Rio's point: the screen was a second door onto a field the
+player already owned. Deleting the preferences *screen* and no longer *saving
+preferences* are one careless sentence apart, and only the first happened.
+
+**One setting lost its only control, and it is named rather than buried.**
+`autoplay_next` was read by the watch screen and settable nowhere else, so
+until the player build lands it sits at its default of on and cannot be turned
+off. That is the accepted cost of leaving a slice alone that is about to be
+rebuilt. `wifi_only_downloads` also loses its switch, but it was gated behind
+`features.downloads`, which is off, so no viewer could reach it; it belongs on
+the Downloads screen in Phase 3, not in a player overlay. Both are written into
+§6.5 of `docs/plans/mobile-offline-app.md`, which is what the player build
+inherits.
+
+`activeRowFor` now returns null for `StreamingPreferences` alongside `Account`,
+`ContinueWatching` and `History`. Mutation-proved: putting the map entry back
+fails the case.
+
+The Wallet screen's Streaming tile was replaced with **Billing** rather than
+deleted, so the two-tile row stays a row rather than reading as a rendering
+fault.
+
+
+### Unreleased — History leaves the profile menu
+
+Rio, 2026-09-09: *"as you finish, please remove the history from the menu"*,
+and, when asked what that leaves behind: *"history is used in background for
+training our ai system."*
+
+So the row is gone, and the screen with it — the menu was its only door, the
+same way the Account hub was Continue Watching's an hour earlier. `HistoryScreen`,
+the `History` route and its entry in `AppStackParams` are removed.
+
+🔴 **This changed nothing about what is collected, and the distinction matters
+enough to state plainly.** Watch history is written by
+`PlaybackBeatRecorder::record`, from the playback heartbeat, into
+`WatchHistoryItem`. The screen only ever read it back. `GET /history` is still
+served and still documented. Deleting the History *screen* and stopping the
+collection of *history* are one careless sentence apart, and only the first
+happened.
+
+`api.history()` keeps its place in the client with no caller. A documented
+endpoint the app has quietly stopped being able to call is a worse thing to
+leave than an unused method.
+
+`activeRowFor` now returns null for `History` alongside `Account` and
+`ContinueWatching`, with the assertion extended in the same change as the map
+edit rather than before or after it — either order would have left the suite
+red or the map untested for a window. Mutation-proved: putting `History` back
+in the map fails the case.
+
+
+### Unreleased — The old Account hub removed
+
+Rio, 2026-09-09: *"we should remove this, and link this to our account page we
+have designed, because it is linking to the older account page."* The profile
+menu's identity block now opens the Profile screen, and the hub is deleted.
+
+**It had been overtaken rather than superseded on purpose.** The hub was a
+column of buttons — Notifications, Security, Plans, Devices — every one of
+which is already a row in the profile menu, plus a subscription summary that
+Membership renders more fully. Two things on it were not duplicated anywhere,
+and both had to be dealt with before the file could go.
+
+🔴 **Deleting it stranded two screens.** Continue Watching and History were
+reachable only from that hub; nothing else in the app navigates to either. Both
+became rows in the profile menu.
+
+**Rio reversed half of that within the hour:** *"remove it we have it on the
+homepage."* The home screen's Continue Watching rail already answers that
+question and a menu row was a second answer, so the row went — **and its screen
+with it.** That was checked rather than assumed: with no row it had no callers,
+and `continue-watching` is not in `GET /collections`, so the home rail is
+offered no "View all" and cannot route there either. A screen nothing can reach
+is dead code.
+
+**The consequence is worth stating.** The home rail is now the only place a
+viewer sees in-progress titles, and it shows only what fits the rail. There is
+no full list, by decision rather than by oversight.
+
+**History stays.** It is not on the home page and nothing else reaches it. It is
+also the row most likely to drop out of the active-row map later, since every
+other row has a website equivalent to remind someone it exists — so the tests
+name it, and name the two now-dead routes beside it.
+
+**"Devices at once" moved to the Devices screen rather than being lost.** That
+screen already told a viewer devices count towards how many can watch at once
+and could not say how many. It reads the cap from the `me` query the rest of
+the app shares, and its failure is deliberately not the screen's error state:
+the device list is what the viewer came for.
+
+Nothing was added to the Profile screen. It is identity, and viewing history is
+not identity — putting them there would have rebuilt the hub that just went.
+
+### Unreleased — The preloader plays once
+
+Rio, 2026-09-09: *"we only need the preloader when we are opening the app, not
+every screen."* The branded animation is now the app arriving and nothing else.
+Screens waiting for data show a quiet spinner.
+
+**One component changed rather than twenty-four screens.** `<Loading>` has 24
+call sites; `Loading` now draws an `ActivityIndicator` and a new `Preloader`
+draws the GIF, with `RootNavigator`'s launch state as its only caller. Every
+existing call site gets the new behaviour untouched, which is what the shared
+component is for.
+
+**The reasoning is not taste.** A 200dp animated logo reads as an entrance, and
+an entrance only works once. On every tab change and every pull-to-refresh it
+stops saying "Jambo is starting" and starts saying "Jambo is slow", which is a
+brand animation arguing against the brand.
+
+`Loading` no longer accepts the admin's preloader `source`. Keeping the
+parameter and ignoring it would have left two screens passing a value into
+something with no use for it — code that looks deliberate and does nothing.
+
+**A false alarm, corrected in the same session.** A mid-capture frame showed
+the launch preloader with the S of "FILMS" cut off, and it was reported as a
+possible defect in the asset. It is not: a later frame caught the animation at
+rest and the lockup is complete. The GIF animates from a stacked mark to a
+horizontal one, and a screenshot taken part-way through catches it mid-reveal.
+Nothing is wrong with the file, and nothing was changed.
+
+### Unreleased — Notifications
+
+The inbox from Rio's mockup: five filter chips, day headings, an unread mark,
+and a row carrying either a title's poster or a coloured icon tile. Behind its
+gear, a notification settings screen. It replaces a flat, unfiltered list.
+
+**The chips needed a category and the API had none, so one was derived rather
+than migrated.** `notifications.type` already stores the notification's class
+name, so `NotificationCategories` maps that — no column was added, no payload
+rewritten, and **the chips work over notifications sent before they existed.**
+The map is a literal rather than a string transformation on purpose: all 33
+class names happen to snake_case into their own `settingKey()`, so a
+transformation would work today and fail silently the first time someone names
+one differently. `NotificationCategoryApiTest` walks the directory and fails if
+a class is filed under neither a chip nor `UNCATEGORISED`.
+
+Filtering happens on the server because the list is cursor-paginated. Filtering
+the thirty rows the app happens to hold would hide matching rows until the
+viewer scrolled far enough to load them, and `unread_count` deliberately
+ignores the filter — it is the bell's badge, and a badge that moved when a chip
+was pressed would be reporting the chip.
+
+**Three things in the mockup had nothing behind them and all three went to
+Rio.** "Offers" has no promotional notification type, and his call was to keep
+the chip and point it at admin broadcasts, which is how a promotion actually
+reaches a viewer today. The gear had no destination, and his call was to build
+one. The thumbnail is drawn large where the website's is 40x40, and his call
+was to hold the site's size exactly.
+
+🔴 **All five of the website's icon-tile colour pairs fail WCAG AA, and this is
+a website defect.** The tile fills are fine — each is 14.8:1 or better against
+the black row — but Bootstrap's `-emphasis` foreground fails against every one
+of them: warning `#ffe877` on `#fff7d2` at **1.14:1**, success 1.54, info 1.76,
+danger 2.01, primary 2.11. A yellow glyph on pale yellow is an invisible icon.
+The app keeps each captured fill and replaces the glyph colour with the row's
+own background token, so the icon is a knockout of the surface behind it and no
+raw value was invented to repair one that was wrong. **The website is
+unchanged and this remains open against it.**
+
+🔴 **Bootstrap's `--bs-primary` on this build is a salmon `#ef6b72`, not the
+Jambo blue.** The Streamit theme left it and applies the brand through custom
+CSS instead, so `bg-primary-subtle` renders as pale pink — and primary is the
+commonest notification colour, which makes the most frequent tile in the app
+pink on a blue-branded product. Faithful to the site, and raised with Rio
+rather than decided here. The three screens that have hit this wall all express
+the accent as `auth.buttonFrom`/`auth.buttonTo`, so that pair is the single
+place to change it.
+
+**The unread tint needed no ruling.** The mockup marks unread in crimson, and
+the app has translated that to brand blue three times on the strength of the
+brand guide. This time the site answered directly:
+`.jambo-hub-inbox__row.is-unread` is already `rgba(26, 152, 255, 0.07)` over a
+`rgba(26, 152, 255, 0.18)` border. It was captured, not chosen.
+
+**The token exporter gained a third signed-in page** — the hub's own inbox at
+`/{username}/notifications`, whose row styles live in a `<style>` block on that
+one page and exist nowhere else. Tokens went from 143 to 174, and no existing
+value changed. Three numbers that had been set by eye were replaced by probes:
+the row's title is 16 at 600 and its message and timestamp are both 14, the
+timestamp matching the message being a design decision rather than an
+oversight.
+
+**Two capabilities moved rather than being dropped.** "Mark all read" existed
+on the screen this replaces, and Rio's header has three controls with no room
+for a fourth, so it is the last row of the settings screen. And **push is
+deliberately absent from that screen** although the website has a third switch:
+there it drives a browser Web Push subscription, so in the app it would either
+silence the viewer's *browser* notifications from their phone or toggle a flag
+for a channel with no sender. The endpoint carries `push` either way.
+
+**A defect no test could have caught.** The gear's touch target measured 30dp
+on the emulator against the app's own 48dp floor — `spacing.xs` looked right
+and was not. It is `touchPadding(22)` now, re-measured at exactly 48. The same
+pattern is in `AppHeader` and is reported rather than changed.
+
+### Unreleased — Editing the referral code, and a rule the API was missing
+
+Rio asked for two things on Refer & Earn: the code should be editable, and the
+percentages should follow whatever the admin sets. The second was already
+true and is now proved; the first turned up a defect.
+
+🔴 **The API's referral-code save was weaker than the website's form.** A
+referral code shares a namespace with usernames, because the profile hub lives
+at `/{username}` — so a code is also a URL segment. `ProfileHubController`
+has always applied `ReservedUsername`; `Api\V1\ReferralController::updateCode`
+checked the shape and both uniqueness columns and **not** the reserved-route
+list. The mobile app could therefore take a code of `login`, `movies` or
+`watch`, and the resulting referral link would resolve to a real page instead
+of the referrer. `ReferralCodeController::check` even carried a comment
+promising it "mirrors updateReferralCode's rules exactly"; that was true of the
+web save and false of the API's.
+
+Fixed by extraction rather than by copying the missing rule across.
+`Modules/Referrals/app/Support/ReferralCodeRules.php` now holds the rules and
+the availability answer, and all four call sites use it: the website's save,
+the website's live check, the API's save, and a new API check. Third
+de-duplication of this shape after `PlaybackAuthorizer` and
+`WatchlistPlayResolver`.
+
+**New: `POST /api/v1/referrals/code/check`.** The website has had a debounced
+availability check since Refer & Earn was built; the app's only way to learn a
+code was taken was to submit and read a 422. Because both go through one
+class, "available" can never fail on save — which is the promise the web
+comment made and the code did not keep.
+
+**The app's editor is the website's control, translated.** A sheet with the
+code, a live check debounced at 350ms, a status line, and Save disabled while
+the value is known-taken. Three behaviours from the site's script kept
+deliberately: the debounce, the stale-response guard that drops an answer for
+a code no longer in the box, and a network failure that does not block saving
+because the server validates again.
+
+It is mounted only while open rather than living behind a `visible` flag and
+re-seeding in an effect. Seeding form state from an effect is a known
+input-eating bug in this app and eslint's `react-hooks/set-state-in-effect`
+caught the first cut doing exactly that.
+
+**The two copy controls now do different things**, per Rio: the icon copies
+the code, the button copies the referral link and is labelled "Referral Link".
+Both used to copy the code, which made one of them pointless.
+
+**The percentages were already dynamic and are now verified.**
+`ReferralSettings` reads the `settings` table, the endpoint forwards it, and
+the screen trims decimal zeros the way `refer.blade.php` does. Changing the
+admin values to 17.5 and 25 and re-rendering showed both the hero line and the
+third How It Works step follow, with "17.50" printing as "17.5%". Restored to
+10 and 10 afterwards.
+
+Also, a note on method: the first run of that probe reported the endpoint did
+NOT follow the setting. It was the probe that was wrong — `setting()` takes a
+positional pair and the associative form silently writes nothing. Worth
+recording because a false red on a money-adjacent setting is the kind of thing
+that gets acted on.
+
+### Unreleased — Refer & Earn
+
+The referral screen from Rio's mockup: a hero, the code with two copy
+controls, five share destinations, a three-step explainer and a rewards
+summary. It replaces a plain list of statistics.
+
+**No PHP changed, and that is the finding.** After the Watchlist — where the
+API turned out to be thinner than the Blade view it came from — the first move
+here was to read `resources/views/profile-hub/refer.blade.php` before writing
+anything. It and `ReferralController` both go through
+`ReferralDashboardService`, so the endpoint already carried every figure the
+website shows. The one thing the page has and the endpoint does not is the
+referral *list* — masked name, status, joined date, amount — and the mockup
+shows no list, so that stays a named gap rather than a silent one.
+
+🔴 **One tile in the mockup was not built, and it is the money one.** It reads
+"15 Days Free Premium Earned". Jambo's referral reward is a percentage of what
+the friend pays, credited as money to a wallet; there is no free-days
+entitlement in `Modules/Referrals`, in the ledger, or on any subscription
+tier. Telling someone they have earned fifteen days they cannot redeem is the
+case the never-invent-a-value rule exists for. The tile shows what they
+actually have, in currency, and this is flagged to Rio rather than dropped
+quietly.
+
+**Money is now printed the way the website prints it.** `refer.blade.php`
+renders these figures as `number_format((float) $value, 0)`, so the same
+balance read "UGX 21,000" in a browser and "UGX 21000.00" on a phone. The app
+groups the digits by string surgery rather than by parsing to a number — the
+site casts to float and gets away with it, but a balance large enough to lose
+precision is exactly the balance that must not be misreported.
+
+**The share row is five real destinations, not decoration.** WhatsApp,
+Facebook and X through their public share endpoints, which open the installed
+app when there is one and the web client when there is not; Copy through the
+clipboard; More through the OS sheet. A destination that fails to open falls
+back to the OS sheet rather than doing nothing, because the viewer's intent
+was to share.
+
+**Copy uses `Clipboard` from react-native core, deliberately.** It is
+deprecated but present and linked in react-native-tvos 0.86, while
+`expo-clipboard` needs a native rebuild that would have invalidated the dev
+client two other sessions were running against. One call site, to swap at the
+next rebuild.
+
+Also: `tools/dev-catalogue/13-test-user-referrals.php` seeds five referrals,
+three of them qualified, and credits the rewards **through `Ledger::append`**
+rather than by inserting rows — the ledger computes `balance_after` itself and
+refuses to run outside a transaction, and a fixture that wrote around it would
+produce a balance the ledger disagrees with.
+
+
+### Unreleased — My Watchlist, and the web app's own card
+
+The watchlist screen from Rio's mockup: filter tabs, an item count, a sort
+control, an Edit mode that removes several titles at once, and a grid of the
+site's own poster cards.
+
+**The card is the website's, not a new one, and that took two corrections to
+get right.** The first cut drew a title, a meta line and a three-dot menu
+under each poster — none of which the web app has. Rio's ruling, the same day:
+use the original cards as they are in the web app, with the exact design,
+behaviour and size; an inspirational mockup improves the experience around
+them but never replaces a component we already ship. So the card is now the
+poster and nothing else, three across at the site's own breakpoint ladder, with
+the site's gutter and the site's premium crown. The title, year, genre and
+runtime it used to print are still read — they moved to the card's
+accessibility label, where the site itself puts the title as the image `alt`.
+
+**A press plays, because that is what the web card's link does.**
+`profile-hub/watchlist.blade.php` points every card at `watchlist_play` for a
+movie and `watchlist_series_play` for a series, and both end in a player. The
+app had been diverting to a details page the web card does not link to.
+
+**`WatchlistPlayResolver` is new, and it exists so the two clients cannot
+disagree.** "Play this series" has never meant "start at episode one" on this
+site: `watchlistSeriesPlay` looks for the most recent *unfinished* episode in
+the viewer's history and resumes it, falling back to the first. That rule was
+inline in `FrontendController` and the app had re-derived it in TypeScript —
+badly, starting at episode one and ordering seasons by number where the site
+orders by id. It is now one service that the website's route and
+`GET /api/v1/watchlist` both call, and the endpoint returns a resolved `play`
+target per row. Same class of fix as `PlaybackAuthorizer` in 1.8.22.
+
+**The endpoint also stopped being thinner than the page it came from.**
+`GET /api/v1/watchlist` now sends `genres` (two names), `seasons_count` and
+`season_number`, all of which `card-style.blade.php` has always rendered on the
+website's watchlist and none of which the app could see. The season count is
+`morphWithCount`, not a seasons load — the same N+1 the web controller added
+its own count to avoid. These fields are on this endpoint only: a home screen
+is thirteen rails of thirty cards and none of them show genres.
+
+**Copy is cut throughout**, per Rio's instruction that screens carry no useless
+guides or prompts. The explanatory sentence under the filter tabs is gone and
+the empty state is one short line. `EmptyState` gained an optional `detail` so
+a screen whose title says enough can say only that.
+
+Also: `Focusable` accepts any real accessibility role and an
+`accessibilityState`, so a filter tab announces itself as a tab rather than as
+a button; `formatRuntime` moved to `ui/format.ts` rather than being copied out
+of the detail screen; and two contrast defects introduced in the first cut were
+measured and fixed before they shipped — a destructive button at 2.78:1 and a
+selection tick at 2.90:1.
+
+
+### Unreleased — Billing, the invoice, and the two-factor flow
+
+The account screens the website has and the app did not. Five were asked for
+and **two turned out to be completions rather than new screens**, which is the
+finding worth recording: the plan ladder was already half of the website's
+Membership page, drawn from the same `GET /subscription` call, and the security
+screen's own docblock had scoped password change and two-factor enrolment into
+a later slice. Building a second screen beside either would have shown a viewer
+the same facts twice.
+
+**Two-factor is a flow, and that is why it waited.** Slice 2b displayed the
+status and stopped, deliberately: `POST /account/2fa` mints a pending secret
+and two-factor is not on until `/confirm` succeeds, so a switch that turned it
+on and never showed the recovery codes would lock people out of their own
+accounts. The app now walks secret, authenticator, confirm, then eight recovery
+codes behind an "I have saved my recovery codes" acknowledgement. Once it is
+on, the security screen carries what the website's does: the codes, a fresh
+batch behind a confirmation, and the way out behind the password.
+
+**A pending setup is resumed, never restarted.** Calling `POST /account/2fa`
+again mints a new secret and discards the old one, so somebody who had already
+added Jambo to their authenticator would find their codes rejected forever. The
+screen opens with the pending secret from `GET /account/security` instead.
+
+**Cancelling a setup costs the password, and the website's does not.** The
+website puts two-factor removal behind password-confirmation middleware, which
+is a session concept with no token equivalent, so the API asks on the call
+itself. The screen asks rather than firing a request that would be refused.
+
+**The QR is kept and the manual key is made usable.** On a desktop the key is
+the fallback; on a handset it is the main path, because nobody can scan a code
+displayed on the device they are holding. So the key is grouped in fours and
+selectable, which gives Copy through the platform's own long-press menu and
+needs no clipboard package. The `otpauth://` URI is reproduced character for
+character against what `pragmarx/google2fa` builds, so an entry scanned on the
+website and one added in the app are the same entry under the same name.
+
+**Billing's table becomes rows.** Five columns do not fit a phone, so the plan
+is the label, the date is the second line, and the amount and status take the
+right-hand side where the table's last two columns were. It uses the shared
+`ListRow`, which exists because Rio asked for the UI to be uniform. **No new
+design token:** the status badge spends the `okBg`/`okText`/`okBorder` and
+`warning` values already captured off the site, which already mean exactly
+this.
+
+**Money is never recomputed.** Amounts arrive as decimal strings and the
+separators are inserted into the string; nothing is parsed into a float and
+printed back, and the invoice total is re-rendered from the same string rather
+than summed. A test pins it past `Number.MAX_SAFE_INTEGER`, because that is the
+only place the two implementations differ and a guard nothing can break is not
+a guard.
+
+**Two absences, each named rather than faked.** There is no Print button: the
+website's is `window.print()` and the native equivalent needs `expo-print`, a
+native module and therefore a prebuild. There is no Deactivate account card
+either; `DELETE /account` exists and signing every device out permanently earns
+its own slice.
+
+**Where Billing is reached from, and why it is two places.** The website's own
+Billing page has no entry in the profile-hub sidebar and is linked only from
+the payment-complete page, which the app has no equivalent of. Rio's call: a
+row in the profile menu and an Order history row on Membership.
+
+**The badges and the invoice table are the website's, measured.** Rio ruled the
+same day that the app wears the webapp's own assets at their exact design,
+behaviour and size, and that an inspirational screen never replaces one. Two
+components here failed that: the status badge had been approximated from the
+semantic ok and warning colours and drew a hollow outline where the site paints
+a solid fill, and the invoice's line item was a hand-built table beside the
+site's own. `design/export-tokens.mjs` gained the profile hub's billing page as
+a second signed-in capture — the hub's CSS lives in a `<style>` block in its
+layout, so it exists on no public page — and both components now read from
+probes. Tokens went from 117 to 143, with nothing existing moved.
+
+🔴 **That capture found a live accessibility defect.** The site's
+`.badge.bg-warning` is white text on `#ffd81c`, a contrast ratio of 1.39 to 1
+where WCAG asks 4.5, so the website's own Pending badge is effectively
+unreadable. Rio's call: keep the site's fill, darken the text in the app, and
+fix the website separately so the two converge. It is the only value in the
+badge block that deviates from what was captured.
+
+**Screen copy is cut to what carries a fact**, per Rio's other ruling the same
+day. The sentences under Order history, Current plan and All plans are gone, as
+is the paragraph explaining what an authenticator app is. What stays is what a
+viewer cannot otherwise see: that changing a password signs out every other
+device, that a pending two-factor setup has an unconfirmed secret behind it,
+and the two confirmations before a destructive action.
+
+New work landed feature-shaped under `src/features/billing` and
+`src/features/security`, per Rio's modular ruling. `src/api/endpoints.ts` was
+not grown.
+
+### Unreleased — The player
+
+Phase 2's last screen, and the one every other screen was apologising for.
+Movie and series pages said *"Playback arrives in the next update"*; Continue
+Watching cards were deliberately not interactive because resume needed this.
+Both lines are gone. No PHP was touched.
+
+**`expo-jambo-media`, Kotlin on Media3, is now the app's only native code**
+(ADR-0002). It draws frames and reports state, and nothing else: every control
+a viewer touches is React Native. That split is the point rather than an
+accident. The controls have to wear the design tokens captured off the
+website's own watch page, they have to be reachable by a d-pad through the
+app's existing `Focusable`, and a control written in Kotlin can be neither unit
+tested nor changed without a native rebuild. `useController` is false and stays
+false. Phase 3 adds the encrypted cache to this same ExoPlayer's data-source
+chain, which is the reason for writing Kotlin now instead of reaching for
+`expo-video` and replacing it later.
+
+**The design tokens now come from behind the paywall.**
+`design/export-tokens.mjs` signs in through the site's own login form and
+captures `/watch/{slug}`, which needs a subscription. It found the player's 33
+tokens — and three faults in the exporter itself, each of which would have
+produced a plausible wrong answer:
+
+1. 🔴 **A signed-in run silently deleted the sign-in screen's design.** The
+   browser profile is deleted at startup inside a try/catch, and that delete
+   fails whenever the previous run's browser still holds the files — which it
+   usually does, because `browser.kill()` kills the spawned process while
+   Edge's renderer and GPU children survive it. Twenty were counted after two
+   runs. Harmless while every page was public; the moment the script learned
+   to sign in, run two inherited run one's session cookie, `/login` redirected
+   to the account page, and every `authCard` and `authField` probe matched
+   nothing. Caught only because `color.surface` is on the required list and
+   comes from that page. Fixed with a unique profile per run, which a lock
+   cannot defeat.
+2. 🔴 **Every colour in the control bar came back empty.** `player.css` is
+   written almost entirely in `oklch()` and relative colour —
+   `oklch(from currentColor l c h / 0.2)` — which Chromium returns from
+   `getComputedStyle` verbatim, and the exporter's parser understood only
+   `#rgb` and `rgba()`. Three conversions were measured against the browser
+   and only one works: computed style preserves `oklch`, canvas `fillStyle`
+   echoes it back unchanged, and painting it to a one-pixel canvas and reading
+   the pixel converts it exactly. So that is what it does, which keeps the
+   browser as the single authority on colour rather than putting an
+   OKLab-to-sRGB implementation in the repository to disagree with the screen.
+3. The pill radius `calc(infinity * 1px)` computes to `3.35544e+07px`, which
+   the number parser rejected — so the seek bar's radius read as null, which
+   means "no radius" when the truth is the exact opposite.
+
+**The scrim is a gradient because the tokens said so.** The question of
+`expo-blur` versus a gradient was settled by capture, not preference:
+`color.playerControlsBg` is `transparent`, `effect.playerControlsBackdrop` is
+`none`, and `effect.playerOverlay` is a real `linear-gradient`. The site
+darkens behind its controls with a scrim and nothing else, so adding a blur
+dependency would have imitated something the website does not do.
+
+**The quality menu has two options because there are two files.**
+`video_quality` is `auto | high | data_saver` and is not a resolution ladder:
+Jambo has exactly two renditions, so `high` means the default file and
+`data_saver` means the low one. A menu reading 4K/1080p/720p would be three
+labels for two files. Choosing one writes to `/account/preferences` rather than
+to the handset, so the answer follows the viewer to their television in Phase
+4 — and it PATCHes only the key that moved, because the endpoint merges and a
+client resending the whole set would silently reset a field nobody touched.
+
+**No subtitles menu, and that is a deviation from what was asked.** There is
+no subtitle or caption track anywhere in the Streaming or Content modules, so
+the menu would open onto an empty list and a viewer who tapped it would
+conclude they had turned something on. Raised rather than taken quietly.
+
+**The heartbeat interval is the server's.** `POST /playback/sessions` returns
+`heartbeat_seconds` and the app uses it; the number is never a constant in the
+client. A shipped APK cannot be re-tuned, so if beats ever cost too much on the
+VPS that number moves server-side and every installed copy slows down without
+a release. A final beat fires on the way out, so leaving mid-film resumes where
+the viewer actually was rather than up to fifteen seconds earlier.
+
+**Remote keys are built now, though TV is Phase 4.** Play/pause on select,
+±10s on left and right, and a menu on down, all through `useTVEventHandler`,
+which is inert on a phone build. Retrofitting key handling into a finished
+player means revisiting every control and every focus order; building it
+alongside costs one file.
+
+**Continue Watching resumes with no server change**, and the reason is worth
+recording. The card carries `resume: {type, id}` and no slug, and the detail
+endpoints are slug-only — `/movies/1` is a 404 — so slice 2b could not even
+fall back to opening the title's page and shipped the card deliberately inert.
+`POST /playback/sessions` takes exactly that pair. The play mark is back with
+it.
+
+**A development catalogue that can actually be played.** Nothing in the local
+database was playable: every title carries a placeholder path, no CDN zone is
+configured, so the endpoint returned a bare relative path and the player had
+nothing to load. `tools/dev-catalogue/9-playable-video.php` points six movies
+and one whole two-season series at real files, and `video-server.mjs` serves
+them — a second process because `php artisan serve` answers
+`Range: bytes=1000-2000` with the whole 4.3 MB file and a `200`, so seeking
+would re-download the film, and because it is single-threaded, so video bytes
+would block the heartbeat behind them.
+
+Not built, and named rather than missed: everything in Phase 3 (downloads, the
+encrypted cache, licences, the offline home) and no Download control anywhere;
+subtitles; picture-in-picture, background audio and lock-screen controls;
+Chromecast; guest playback; TV chrome beyond keys and focus; and checkout on a
+refusal, which routes to the informational Plans screen per ADR-0004.
+`FLAG_SECURE` is a prop that exists and is off — ADR-0003 wants it for offline
+playback, and online the website streams the same bytes to an unprotected
+browser.
+
 ### 1.0.0 — The shell, the tokens and the front door
 
 The first slice of Phase 2 of `docs/plans/mobile-offline-app.md`. An Expo app
@@ -87,6 +1280,101 @@ build's PesaPal checkout, anything in Phase 3, and TV beyond installing
 `react-native-tvos` and its config plugin so the door stays open.
 
 ## Jambo
+
+### 1.8.37 — The billing page has been throwing a 500 since it was written
+
+🔴 **The profile hub's Billing and Invoice pages fail for any account that has
+ever paid.** Found while porting them to the app, reproduced against the real
+database, and repaired:
+
+    RelationNotFoundException: Call to undefined relationship [tier]
+    on model [Modules\Subscriptions\app\Models\SubscriptionTier]
+
+`ProfileHubController::billing()` eager-loaded `payable.tier` and both blades
+read `$order->payable?->tier?->name`. But `payable` **is** the
+`SubscriptionTier` — the polymorphic target of the order — not a row that has
+one, and that model has no `tier` relation. The correct expression is
+`$order->payable?->name`.
+
+**Why nobody reported it.** An account with no orders never loads a payable, so
+it lands on the empty state and the page renders perfectly. Every test that had
+touched these pages was written against an empty order list. The failure needs
+one completed payment to appear, and then it is total.
+
+Fixed in four places — the two eager loads and the two blade expressions — with
+`tests/Feature/ProfileHubBillingTest.php` pinning the case that matters: **the
+page renders for an account that HAS orders**, and prints the plan that was
+bought rather than the em dash the broken expression fell back to. The empty
+state is pinned alongside it, so a repair that fixed one by breaking the other
+cannot pass.
+
+**`GET /api/v1/subscription/orders` could not say what was bought.** The
+resource returned a `description` field; `payment_orders` has no such column
+and never had one, so it was null on every order in the table's life. It is
+replaced by `plan` (name and billing period), and joined by `payment_method`
+and `tracking_id`, which are what the website's invoice actually prints. An
+order pointing at a payable that is not a plan returns `plan: null` — the table
+is polymorphic by design and is meant to carry rentals later — rather than
+guessing. `docs/api/openapi.yaml` updated; the app's types regenerate from it.
+
+The orders list now eager-loads its payables. Without that, a page of fifteen
+orders was sixteen queries.
+
+### 1.8.36 — The homepage sections are dragged, not deployed
+
+Rio: *"we are planing to build the drag feature where we rearrange the sections
+on the homepage... i was thinking of having the api that is responsible of the
+arrangement so we apply it on the app to keep things organised and updated."*
+
+**Almost all of this already existed, and the app needed no change at all.**
+`/api/v1/home` has always returned one ordered list of rails with stable keys,
+and `HomeScreen.tsx` has always rendered whatever order it was handed. The only
+thing missing was somewhere to store an order other than the literal array in
+`HomeController::show()`. So this release is a table, a sort, and a screen —
+**not one line of `mobile/` was touched**, which is the point rather than an
+omission.
+
+`home_sections` holds one row per section: `key`, an optional `label` override,
+`position`, `enabled`. It ships seeded with exactly the order the controller
+already hard-coded, so deploying it changes nothing until an admin drags
+something. The admin screen at `/admin/home-sections` is the Featured screen's
+shell, its SortableJS wiring and — deliberately — the *same* reorder request
+the Featured and Categories screens already send. This is the fourth drag list
+in the product and a fourth ordering contract would have been one too many.
+
+🔴 **`home_sections.key` is a foreign key into a published contract, and the
+migration's docblock says so.** The app keys two behaviours on these literal
+strings beyond ordering, in `mobile/src/api/catalogue.ts`: `isNumberedRail()`
+gives `top_movies` and `top_series` the Top 10 numerals, and
+`collectionKeyFor()` decides whether a rail gets a "View all" and where it
+points. The rail and collection key spaces do not match — `/home` is
+underscored, `/collections` hyphenated, three rails have no archive, and
+`exclusives` maps to `only-on-streamit` by an exception with no rule behind it.
+So adding a section is free; **renaming one is a breaking change**, and it
+fails silently as a dead button rather than as an error.
+
+**Two rules stop an admin, or a deploy, from losing a shelf.** A rail whose row
+does not exist yet still renders — last, never dropped — so shipping a new rail
+before its row exists cannot silently cost the home screen a section. And a
+missing or empty table falls back to the order the controller built, which
+matters more than it sounds: shipping without that fallback took
+`GET /api/v1/home` down on the dev box for the time between the code landing
+and the migration running, and every home screen rendered a raw
+`QueryException`. The home screen is the first request an app makes and there
+is nothing behind it, so it degrades rather than fails. There is a test that
+drops the table and expects a 200.
+
+Category shelves are one movable block, not sixteen rows. Their order among
+themselves is already set on the Categories screen, and two controls for one
+order is how two orders start disagreeing.
+
+**The website's homepage is deliberately untouched.** `ott-page.blade.php`
+describes its sections with a different, non-matching vocabulary — its Top 10
+sliders are the *day's*, not the week's, and it has three fixed
+`random-category-rail` slots the API does not expose at all. It is also
+Streamit template Blade, which the ground rules say not to restructure
+casually. Reconciling the two vocabularies is stage 2 and gets its own ADR.
+See `docs/plans/homepage-section-arrangement.md`.
 
 ### 1.8.35 - Streaming preferences, and the flag the app was guessing
 

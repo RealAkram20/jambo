@@ -255,6 +255,20 @@
         </a>
     </li>
 
+    {{-- Home Sections: the order the app's home screen renders its shelves
+         in. Sits next to Featured because both curate the same home page —
+         Featured picks the banner, this arranges everything under it. --}}
+    <li class="nav-item">
+        <a class="nav-link {{ activeRoute(route('admin.home-sections.index')) }}" aria-current="page"
+            href="{{ route('admin.home-sections.index') }}">
+            <i class="icon" data-bs-toggle="tooltip" title="Home Sections" data-bs-placement="right"
+                aria-label="Home Sections" data-bs-original-title="Home Sections">
+                <i class="ph ph-rows fs-4"></i>
+            </i>
+            <span class="item-name">Home Sections</span>
+        </a>
+    </li>
+
     <li class="nav-item">
         <a class="nav-link {{ activeRoute(route('dashboard.vjs')) }}" aria-current="page" href="{{ route('dashboard.vjs') }}">
             <i class="icon" data-bs-toggle="tooltip" title="Vjs" data-bs-placement="right" aria-label="Vjs"

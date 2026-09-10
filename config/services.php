@@ -51,4 +51,24 @@ return [
         'redirect'      => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | GeoIP
+    |--------------------------------------------------------------------------
+    |
+    | Turns a device's IP into the city shown on the app's devices screen, so a
+    | viewer can spot a sign-in that is not theirs. Resolved locally against a
+    | MaxMind GeoLite2 file: no per-request cost, no rate limit, and no
+    | viewer's address leaves this server.
+    |
+    | Unset by default and it must stay that way in this repository. The file
+    | is ~60 MB, free but licence-keyed, and updated weekly, so it is fetched
+    | on the server rather than committed. With no file every device row shows
+    | its IP address instead, which is what the website has always shown.
+    |
+    */
+    'geoip' => [
+        'database' => env('GEOIP_DATABASE'),
+    ],
+
 ];
