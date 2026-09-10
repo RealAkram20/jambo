@@ -6110,11 +6110,9 @@ as a destination and which is still its own screen behind the card.
 
 **Deliberately NOT built, each named so nobody rebuilds it badly:**
 
-- **§2.2, the account icon on account screens.** The fix is one prop on the
-  stack's `screenOptions` and it turns the area from a tree into a hub, which
-  is what the website already is. It changes navigation Rio has signed off, so
-  it is a question for him rather than a fifth commit. **This is the one thing
-  left in the plan.**
+- **~~§2.2, the account icon on account screens.~~** Raised with Rio as
+  planned, and **he chose to build it** — so it became a fifth commit rather
+  than an open question. See the entry below.
 - **The third delivery switch.** Push has no sender; see step 3.
 - **A Print button on the invoice.** Needs `expo-print`, a native module and
   therefore a prebuild.
@@ -6131,3 +6129,40 @@ as a destination and which is still its own screen behind the card.
   `ProfileMenuScreen` left it without being converted, because it never
   imported `Modal` or `Alert` — it was added from a list of screens rather than
   from its imports. Worth reading the other five the same way.
+
+---
+
+#### Step 5 — §2.2, raised and then built (jambo-6b)
+
+**Asked rather than assumed, which was the instruction.** §2.2 was put to Rio
+with the two-tap path drawn out against the four-tap one; he chose to build it.
+It is the last open item in `docs/plans/account-area-audit.md`.
+
+**Owns:** `mobile/src/ui/AccountButton.tsx` (new).
+**Shares — minimal diffs:** `mobile/src/ui/AppHeader.tsx` (the avatar block
+becomes `<AccountButton />` and its `/profile` query goes with it),
+`mobile/src/navigation/RootNavigator.tsx` (one `accountScreenOptions` const,
+spread into seven screens).
+
+**Verified on the device, read from the view tree:**
+
+- The account button is present beside the back arrow on **Profile, Security,
+  Devices, Membership, Billing, Wallet and Refer & Earn** — all seven checked
+  individually, each reporting exactly one `content-desc="Account, testuser"`.
+- **Wallet to Security is two taps**, driven by label rather than coordinates:
+  tap the account button, tap Security. It was four.
+- **The negative case holds.** The Search screen shows `Navigate up` and
+  `Search films and series` and **no account button**, which is what says the
+  catalogue screens were not swept up in a stack-wide option.
+
+**Not verified:** Notifications was left out by design and was not re-checked
+after this change; its overflow menu is unaffected because nothing was added to
+its options. Nothing on a tablet or the TV build, where a persistent account
+control on a remote-driven header may want a different answer.
+
+**A note for whoever adds the eighth account screen:** the button is opt-in per
+screen, spread from `accountScreenOptions`. That is deliberate — a stack-wide
+default would put an account avatar on a film's detail page — but it does mean
+a new account screen will not get it unless somebody remembers. There is no
+test that would catch that, and it would be worth one if a third account screen
+is ever added at once.

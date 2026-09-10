@@ -8,6 +8,40 @@ would advertise a webapp update containing no webapp change.
 
 ## Jambo App
 
+### Unreleased — The account area becomes a hub
+
+`docs/plans/account-area-audit.md` §2.2. **Every account screen was a dead end
+but for the back arrow.** Once inside Wallet the only ways out were back and
+the Android gesture, while the website keeps its sidebar visible on every hub
+page — Wallet to Security is one click there and was four taps here.
+
+It was the one item of the audit left deliberately unbuilt, because it changes
+navigation Rio had already signed off. Put to him on 2026-09-10 with the two-tap
+path drawn out; he chose to build it.
+
+**One `headerRight`, spread into the seven account screens.** Profile,
+Security, Devices, Membership, Billing, Wallet and Refer & Earn each carry the
+header's own account avatar on the right, so the profile menu is one tap from
+anywhere inside the area. **The back arrow is untouched** — this adds a door
+rather than replacing one.
+
+**Two screens are deliberately not in the list.** The catalogue screens —
+Title, Search, Taxonomy, Collection, Genres, Watch — are not account screens,
+and an account avatar on a film's detail page is a second navigation the
+product does not have. And **Notifications is the one account screen without
+it**, because it sets its own `headerRight` from a `useLayoutEffect`: its
+overflow menu would silently win, and two controls fighting for one slot is
+worse than one screen keeping the shape it had. It is reached from the header's
+bell rather than from the menu anyway.
+
+**The avatar moved into `AccountButton` rather than being drawn twice.** It is
+the same circle the tab header draws, and it now has one implementation instead
+of two that happen to match today — which matters more than usual here, because
+this circle shows a real person's face and its empty-state rule is the
+website's own. `AppHeader` lost its `/profile` query with it; the button holds
+the same query key, so the header, the menu and the account screens are still
+one fetch between them rather than three.
+
 ### Unreleased — Billing says what you have spent, and the pre-mockup rows get tiles
 
 `docs/plans/account-area-audit.md` §3, the last of the four open steps. Billing

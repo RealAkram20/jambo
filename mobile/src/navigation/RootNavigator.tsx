@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 
 import { useAuth } from '../auth/AuthProvider';
+import { AccountButton } from '../ui/AccountButton';
 import { colors, fonts, typography } from '../ui/theme';
 import { Preloader } from '../ui/components';
 import { ProfileMenuScreen } from '../screens/ProfileMenuScreen';
@@ -60,6 +61,33 @@ const screenOptions = {
   },
   headerShadowVisible: false,
   contentStyle: { backgroundColor: colors.background },
+} as const;
+
+/**
+ * The account screens keep a way back to the menu.
+ *
+ * **§2.2 of `docs/plans/account-area-audit.md`, and Rio's call on
+ * 2026-09-10.** Every account screen was a dead end but for the back arrow:
+ * once inside Wallet the only ways out were back and the Android gesture,
+ * while the website keeps its sidebar visible on every hub page and makes
+ * Wallet to Security one click. In the app it was four taps.
+ *
+ * One `headerRight` turns the area from a tree into a hub, which is what the
+ * website already is. **The back arrow is untouched** — this adds a door, it
+ * does not replace one.
+ *
+ * **Spread rather than applied to the whole stack, and that is deliberate.**
+ * Title, Search, Taxonomy, Collection, Genres and Watch are catalogue screens,
+ * not account ones; an account avatar on a film's detail page is a second
+ * navigation the product does not have. Notifications is the one account
+ * screen that is NOT here, because it sets its own `headerRight` from a
+ * `useLayoutEffect` — its overflow menu would silently win, and two controls
+ * fighting for one slot is worse than one screen keeping the shape it had.
+ * That screen is reached from the header's bell rather than from the menu
+ * anyway.
+ */
+const accountScreenOptions = {
+  headerRight: () => <AccountButton />,
 } as const;
 
 export function RootNavigator() {
@@ -125,7 +153,7 @@ export function RootNavigator() {
           <AppStack.Screen
             name="Devices"
             component={DevicesScreen}
-            options={{ title: 'Devices' }}
+            options={{ title: 'Devices', ...accountScreenOptions }}
           />
           {/*
             **The header action is set by the screen, not here.**
@@ -151,7 +179,7 @@ export function RootNavigator() {
           <AppStack.Screen
             name="Security"
             component={SecurityScreen}
-            options={{ title: 'Security' }}
+            options={{ title: 'Security', ...accountScreenOptions }}
           />
           {/*
             The route is `Plans` and the header is Membership, and the two
@@ -163,7 +191,7 @@ export function RootNavigator() {
           <AppStack.Screen
             name="Plans"
             component={PlansScreen}
-            options={{ title: 'Membership' }}
+            options={{ title: 'Membership', ...accountScreenOptions }}
           />
           {/*
             Password and two-factor enrolment. Both hang off Security, which is
@@ -188,7 +216,7 @@ export function RootNavigator() {
           <AppStack.Screen
             name="Billing"
             component={BillingScreen}
-            options={{ title: 'Billing' }}
+            options={{ title: 'Billing', ...accountScreenOptions }}
           />
           <AppStack.Screen
             name="Collection"
@@ -215,14 +243,18 @@ export function RootNavigator() {
           <AppStack.Screen
             name="ProfileEdit"
             component={ProfileEditScreen}
-            options={{ title: 'Profile' }}
+            options={{ title: 'Profile', ...accountScreenOptions }}
           />
           <AppStack.Screen
             name="Referrals"
             component={ReferralsScreen}
-            options={{ title: 'Refer & Earn' }}
+            options={{ title: 'Refer & Earn', ...accountScreenOptions }}
           />
-          <AppStack.Screen name="Wallet" component={WalletScreen} options={{ title: 'Wallet' }} />
+          <AppStack.Screen
+            name="Wallet"
+            component={WalletScreen}
+            options={{ title: 'Wallet', ...accountScreenOptions }}
+          />
 
           {/*
             The profile menu. A screen of its own, by Rio's correction on

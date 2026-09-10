@@ -9,9 +9,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { api } from '../api/jambo';
 import { useAuth } from '../auth/AuthProvider';
+import { AccountButton } from './AccountButton';
 import { logoSource } from './branding';
-import { imageUrl } from './media';
-import { avatarInitial, unreadBadge } from './profileMenu';
+import { unreadBadge } from './profileMenu';
 import { colors, fonts, header as t, spacing } from './theme';
 import { Focusable } from './rails/Focusable';
 import type { AppStackParams } from '../navigation/types';
@@ -54,7 +54,7 @@ export function AppHeader() {
    */
   const [aspect, setAspect] = useState(t.logoWidth / t.logoHeight);
   const navigation = useNavigation<NativeStackNavigationProp<AppStackParams>>();
-  const { branding, user } = useAuth();
+  const { branding } = useAuth();
 
   /*
    * The unread count, on a key of its own.
@@ -100,18 +100,11 @@ export function AppHeader() {
   });
 
   /*
-   * The avatar comes from `profile`, on the key the menu already uses.
-   *
-   * The session `user` carries an id, a username and an email and no picture
-   * — reaching for `user.avatar_url` typechecks as `never` and renders as the
-   * letter for everybody. Sharing the key means one fetch for the header and
-   * the menu, and it is warm before either is opened.
+   * The `/profile` query moved into `AccountButton` with the avatar it fed.
+   * It is the same query key, so the header, the menu and the account
+   * screens' button are still one fetch between them rather than three.
    */
-  const profile = useQuery({ queryKey: ['profile'], queryFn: () => api.profile() });
-
   const badge = unreadBadge(notifications.data?.unread);
-  const avatar = imageUrl(profile.data?.avatar_url, t.avatarSize * 2);
-  const initial = avatarInitial(profile.data?.first_name, user?.username);
 
   return (
     <View style={[styles.wrap, { paddingTop: insets.top + spacing.sm }]}>
@@ -181,25 +174,13 @@ export function AppHeader() {
             )}
           </Focusable>
 
-          <Focusable
-            accessibilityRole="button"
-            // The account's own name when there is one. "Account" alone makes
-            // a screen-reader user open a screen to find out whose it is.
-            accessibilityLabel={
-              user?.username === undefined ? 'Account' : `Account, ${user.username}`
-            }
-            ringRadius={t.avatarSize / 2}
-            onPress={() => navigation.navigate('ProfileMenu')}
-            style={styles.action}
-          >
-            {avatar === null ? (
-              <View style={[styles.avatar, styles.avatarLetter]}>
-                <Text style={styles.avatarLetterText}>{initial}</Text>
-              </View>
-            ) : (
-              <ExpoImage source={{ uri: avatar }} style={styles.avatar} contentFit="cover" />
-            )}
-          </Focusable>
+          {/*
+            The avatar moved into `AccountButton` on 2026-09-10, unchanged, so
+            that the account screens could draw the same one — §2.2 of the
+            audit. Two copies of a circle showing a real person's face would
+            eventually disagree about whose account it is.
+          */}
+          <AccountButton />
         </View>
       </View>
 
