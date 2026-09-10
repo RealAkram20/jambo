@@ -500,7 +500,18 @@ class DashboardController extends Controller
         $title = __('sidebar.categories');
         // Same order the homepage rails use, so the table IS the
         // homepage lineup: drag rows to rewrite sort_order.
-        $categories = Category::withCount(['movies', 'shows'])->orderBy('sort_order')->orderBy('name')->get();
+        // Published counts as well as total ones, because the two disagree and
+        // the difference is invisible: the home page only builds a shelf from
+        // PUBLISHED titles, so a category holding nothing but drafts is
+        // switched on here and absent there with nothing saying why. Reported
+        // as a bug on 2026-09-11 — "if we have more than 5 categories active
+        // we are showing about 4 of them" — and it was this, not a cap.
+        $categories = Category::withCount([
+            'movies',
+            'shows',
+            'movies as published_movies_count' => fn ($q) => $q->published(),
+            'shows as published_shows_count' => fn ($q) => $q->published(),
+        ])->orderBy('sort_order')->orderBy('name')->get();
         return view('DashboardPages.persons.PersonCategoies', compact('title', 'categories'));
     }
 

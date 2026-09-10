@@ -3,6 +3,19 @@
 return [
     'name' => 'Frontend',
 
+    'home' => [
+        /*
+         * How many other sections sit between one category shelf and the next
+         * on the home page.
+         *
+         * The Categories row on /admin/home-sections is one draggable row
+         * standing for every Visible Home category, so its position says where
+         * the FIRST shelf goes and this says how far apart the rest are dealt.
+         * Rio asked for two on 2026-09-11. Zero stacks them in one block.
+         */
+        'category_gap' => env('JAMBO_HOME_CATEGORY_GAP', 2),
+    ],
+
     'recommendations' => [
         'enabled' => env('JAMBO_RECOMMENDATIONS_ENABLED', true),
         'cold_threshold' => env('JAMBO_COLD_THRESHOLD', 3),

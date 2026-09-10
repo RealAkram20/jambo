@@ -94,6 +94,17 @@
                                                             title="{{ $category->visible_home ? 'Visible on homepage — click to hide' : 'Hidden from homepage — click to show' }}">
                                                     </div>
                                                 </form>
+                                                @php
+                                                    $liveCount = ($category->published_movies_count ?? 0) + ($category->published_shows_count ?? 0);
+                                                @endphp
+                                                @if ($category->visible_home && $liveCount === 0)
+                                                    {{-- On, but the home page cannot build a shelf from drafts.
+                                                         Saying so beats a switch that silently does nothing. --}}
+                                                    <span class="d-block text-warning" style="font-size:12px; text-transform:none;">
+                                                        <i class="ph ph-warning-circle" aria-hidden="true"></i>
+                                                        Nothing published, so no shelf
+                                                    </span>
+                                                @endif
                                             </td>
                                             <td>{{ ($category->movies_count ?? 0) + ($category->shows_count ?? 0) }}</td>
                                             <td>

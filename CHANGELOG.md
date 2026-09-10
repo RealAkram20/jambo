@@ -1590,6 +1590,41 @@ build's PesaPal checkout, anything in Phase 3, and TV beyond installing
 
 ## Jambo
 
+### 1.8.40 — Category shelves are dealt through the page, and the switch says when it does nothing
+
+Rio, 2026-09-11: *"i have noticed the categories are packed into one block
+after another yet we wanted it to place one category every after two sections
+[...] also if we have more than 5 categories active we are showing about 4 of
+them, i think it's a bug."*
+
+**The block is dealt out.** 1.8.38 made the category shelves one movable block,
+which was right for the admin screen and wrong for the page. The Categories row
+is still one draggable row — its position now says where the FIRST shelf goes,
+and the rest follow one after every two other sections. The gap is
+`frontend.home.category_gap`, defaulting to two, so it changes without a
+deploy; zero restores the block.
+
+**One algorithm, both surfaces.** `HomeSection::spreadCategories()` runs at the
+end of `arrange()` for the app and inside `webPlan()` for the website, so the
+same shelves land in the same gaps. Two edges are deliberate: categories that
+outlast the page fall consecutively at the end rather than being dropped, and
+sections that outlast the categories simply continue.
+
+**Where a shelf lands is still your drag.** With the Categories row near the
+bottom there are few sections left to deal into, so most shelves stack at the
+end. Move the row up and they spread from there.
+
+**The missing categories were not a cap.** 1.8.38 already removed the limit of
+four and that is live. A Visible Home category is dropped for exactly one
+reason now: it has no PUBLISHED titles, because a shelf cannot be built from
+drafts. Nothing said so — the Categories screen showed the switch on and a
+count that includes drafts, and the home page silently disagreed. That row now
+reads "Nothing published, so no shelf" when the switch is on and the published
+count is zero. The honest fix is to say it, not to render an empty rail.
+
+**Also:** `category-rails.blade.php` is gone. Shelves are dealt individually
+now, so the partial that looped them has nothing to loop.
+
 ### 1.8.39 — Seven shelves the product does not have any more
 
 Rio, over the arrangement screen with seven rows switched off: *"now we need to

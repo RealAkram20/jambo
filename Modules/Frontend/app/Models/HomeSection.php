@@ -134,35 +134,35 @@ class HomeSection extends Model
      */
     public const WEB_VIEWS = [
         'continue_watching' => [
-            'view' => 'continue-watching',
+            'view' => 'sections.continue-watching',
             'data' => 'continueWatching',
             'with' => ['value' => '6', 'sectionPaddingClass' => true],
         ],
-        'top_movies' => ['view' => 'top-ten-block', 'data' => 'topMovies'],
-        'top_series' => ['view' => 'top-ten-tvshow', 'data' => 'topShows'],
+        'top_movies' => ['view' => 'sections.top-ten-block', 'data' => 'topMovies'],
+        'top_series' => ['view' => 'sections.top-ten-tvshow', 'data' => 'topShows'],
         'smart_shuffle' => [
-            'view' => 'recommended',
+            'view' => 'sections.recommended',
             'data' => 'recommendedMovies',
             'with' => ['viewAllBtn' => true],
             'routes' => ['viewAllRoute' => ['frontend.rail_archive', 'smart-shuffle']],
         ],
-        'exclusives' => ['view' => 'only-on-streamit', 'data' => 'exclusiveMovies'],
+        'exclusives' => ['view' => 'sections.only-on-streamit', 'data' => 'exclusiveMovies'],
         // `upcomingItems` is not in HomeRailsService::forWeb() — the route
         // action passes it, so the home page hands it to the renderer as
         // extra data. See ott-page.blade.php.
-        'top_movies_today' => ['view' => 'verticle-slider', 'data' => 'verticalFeatured', 'bleed' => true],
+        'top_movies_today' => ['view' => 'sections.verticle-slider', 'data' => 'verticalFeatured', 'bleed' => true],
         // Every Visible Home category shelf, as one block. The website used to
         // scatter three of them at fixed slots standing in for rails that had
         // been retired; those rails are back, so the stand-ins are gone and
         // the block moves as one row, matching what `/api/v1/home` sends.
         self::CATEGORY_GROUP => [
-            'view' => 'category-rails',
+            'view' => 'partials.category-rail',
             'data' => 'homeCategories',
         ],
-        'genres' => ['view' => 'geners', 'data' => 'homeGenres'],
-        'vjs' => ['view' => 'vjs', 'data' => 'homeVjs'],
-        'personalities' => ['view' => 'Your-Favourite-Personality', 'data' => 'favoritePersonalities'],
-        'top_series_today' => ['view' => 'tab-slider', 'data' => 'tabSeries', 'bleed' => true],
+        'genres' => ['view' => 'sections.geners', 'data' => 'homeGenres'],
+        'vjs' => ['view' => 'sections.vjs', 'data' => 'homeVjs'],
+        'personalities' => ['view' => 'sections.Your-Favourite-Personality', 'data' => 'favoritePersonalities'],
+        'top_series_today' => ['view' => 'sections.tab-slider', 'data' => 'tabSeries', 'bleed' => true],
     ];
 
     protected $fillable = ['key', 'label', 'position', 'enabled'];
@@ -305,7 +305,14 @@ class HomeSection extends Model
                 <=> [$b['placed'], $b['position'], $b['index']]
         );
 
-        return array_column($sortable, 'rail');
+        // Every `category:<slug>` rail answers to the one grouped row, so the
+        // sort above leaves them contiguous. Dealing them out is the last step
+        // and it is shared with the website, so both surfaces put the same
+        // shelves in the same gaps.
+        return static::spreadCategories(
+            array_column($sortable, 'rail'),
+            fn (array $rail) => str_starts_with((string) ($rail['key'] ?? ''), self::CATEGORY_PREFIX),
+        );
     }
 
     /**
@@ -352,7 +359,7 @@ class HomeSection extends Model
      */
     public static function webPlan(array $data): array
     {
-        $groups = [];
+        $steps = [];
 
         foreach (static::forWebRender() as $row) {
             $spec = self::WEB_VIEWS[$row->key] ?? null;
@@ -361,6 +368,22 @@ class HomeSection extends Model
             // skipped here rather than treated as an error: adding a rail
             // server-side must stay a one-line change.
             if ($spec === null || ! self::hasContent($spec['data'] ?? null, $data)) {
+                continue;
+            }
+
+            // The category row is one row standing for many shelves, so it
+            // expands here into one step each. They are marked, and
+            // spreadCategories() then deals them through the page.
+            if ($row->key === self::CATEGORY_GROUP) {
+                foreach ($data['homeCategories'] ?? [] as $category) {
+                    $steps[] = [
+                        'view' => 'frontend::components.'.$spec['view'],
+                        'with' => ['cat' => $category],
+                        'bleed' => false,
+                        'category' => true,
+                    ];
+                }
+
                 continue;
             }
 
@@ -375,8 +398,23 @@ class HomeSection extends Model
             // every other page that includes them is unaffected.
             $with['sectionHeading'] = $row->displayTitle();
 
-            $bleed = (bool) ($spec['bleed'] ?? false);
-            $step = ['view' => 'frontend::components.sections.'.$spec['view'], 'with' => $with];
+            $steps[] = [
+                'view' => 'frontend::components.'.$spec['view'],
+                'with' => $with,
+                'bleed' => (bool) ($spec['bleed'] ?? false),
+                'category' => false,
+            ];
+        }
+
+        $steps = static::spreadCategories($steps, fn (array $step) => $step['category']);
+
+        // Group only now. Where the page container opens depends on the FINAL
+        // order, and that is not known until the categories have been dealt
+        // through it.
+        $groups = [];
+
+        foreach ($steps as $step) {
+            $bleed = $step['bleed'];
             $last = array_key_last($groups);
 
             if ($last !== null && $groups[$last]['bleed'] === $bleed) {
@@ -389,6 +427,81 @@ class HomeSection extends Model
         }
 
         return $groups;
+    }
+
+    /**
+     * How many other sections sit between one category shelf and the next.
+     *
+     * Rio, 2026-09-11: *"after the first category is placed, just two sections
+     * then you place another category, the lists goes on and on."*
+     *
+     * Two is his number, and it is a config default rather than a literal in
+     * the algorithm so it can change without a deploy. Zero puts the shelves
+     * back in one block, which is what 1.8.38 shipped.
+     */
+    public static function categoryGap(): int
+    {
+        return max(0, (int) config('frontend.home.category_gap', 2));
+    }
+
+    /**
+     * Deal the category shelves through the page instead of stacking them.
+     *
+     * The category row is a single draggable row, so the sort leaves every
+     * category shelf together at that row's position. That position is
+     * therefore where the FIRST one goes; the rest are dealt out one after
+     * every `categoryGap()` other sections.
+     *
+     * Two edge behaviours are deliberate. **Categories that outlast the page
+     * fall consecutively at the end** rather than being dropped — an admin who
+     * marks twelve categories Visible Home sees twelve shelves. **Sections
+     * that outlast the categories simply continue**, so a page with one
+     * category is that shelf in its place and nothing else disturbed.
+     *
+     * @param  array<int, mixed>  $items  in final order, categories contiguous
+     * @param  callable(mixed): bool  $isCategory
+     * @return array<int, mixed>
+     */
+    private static function spreadCategories(array $items, callable $isCategory): array
+    {
+        $gap = static::categoryGap();
+
+        if ($gap === 0) {
+            return $items;
+        }
+
+        $categories = [];
+        $others = [];
+        $start = null;
+
+        foreach ($items as $item) {
+            if ($isCategory($item)) {
+                // Where the block sits among the sections that are not
+                // categories. Read once, from the first one.
+                $start ??= count($others);
+                $categories[] = $item;
+
+                continue;
+            }
+
+            $others[] = $item;
+        }
+
+        if ($categories === []) {
+            return $items;
+        }
+
+        $out = array_slice($others, 0, $start);
+        $rest = array_slice($others, $start);
+
+        foreach ($categories as $category) {
+            $out[] = $category;
+            // array_splice shortens $rest, so the next category is dealt the
+            // sections after the ones this one just took.
+            $out = array_merge($out, array_splice($rest, 0, $gap));
+        }
+
+        return array_merge($out, $rest);
     }
 
     /**

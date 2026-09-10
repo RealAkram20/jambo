@@ -407,7 +407,7 @@ class HomeSectionArrangementTest extends TestCase
         );
 
         foreach (HomeSection::WEB_VIEWS as $key => $spec) {
-            $view = 'frontend::components.sections.'.$spec['view'];
+            $view = 'frontend::components.'.$spec['view'];
 
             $this->assertTrue(
                 view()->exists($view),
@@ -478,6 +478,75 @@ class HomeSectionArrangementTest extends TestCase
      *
      * @return array{latest: int, popular: int}
      */
+    /**
+     * Category shelves are dealt through the page, not stacked.
+     *
+     * Rio, 2026-09-11: *"after the first category is placed, just two sections
+     * then you place another category."* The Categories row is one draggable
+     * row, so its position is where the FIRST shelf goes and the rest follow
+     * one per `categoryGap()` sections.
+     */
+    public function test_category_shelves_are_dealt_through_the_page(): void
+    {
+        $this->seedCatalogue();
+        $this->seedExtraHomeCategories(2);
+
+        // Put the block near the top, so there are sections left to deal into.
+        HomeSection::where('key', HomeSection::CATEGORY_GROUP)->update(['position' => 1]);
+
+        $keys = $this->railKeys();
+        $categoryPositions = [];
+
+        foreach ($keys as $index => $key) {
+            if (str_starts_with($key, 'category:')) {
+                $categoryPositions[] = $index;
+            }
+        }
+
+        $this->assertGreaterThanOrEqual(
+            2,
+            count($categoryPositions),
+            'Precondition: at least two category shelves must reach the home payload.'
+        );
+
+        $gap = HomeSection::categoryGap();
+
+        for ($i = 1; $i < count($categoryPositions); $i++) {
+            $between = $categoryPositions[$i] - $categoryPositions[$i - 1] - 1;
+
+            // Either the full gap, or fewer because the page ran out of
+            // sections — never zero while sections remain, which is the
+            // stacking this replaced.
+            $this->assertLessThanOrEqual($gap, $between);
+        }
+
+        $this->assertGreaterThan(
+            0,
+            $categoryPositions[1] - $categoryPositions[0] - 1,
+            'A second category shelf must not sit directly against the first.'
+        );
+    }
+
+    /** Extra Visible Home categories, each with a published title. */
+    private function seedExtraHomeCategories(int $count): void
+    {
+        for ($i = 0; $i < $count; $i++) {
+            $category = Category::create([
+                'name' => 'Extra Shelf ' . $i,
+                'slug' => 'extra-shelf-' . $i,
+                'visible_home' => true,
+                'sort_order' => 10 + $i,
+            ]);
+
+            $movie = Movie::factory()->create([
+                'status' => Movie::STATUS_PUBLISHED,
+                'published_at' => now()->subDay(),
+                'video_url' => self::VIDEO,
+            ]);
+            $movie->categories()->attach($category->id);
+        }
+    }
+
     private function headingPositions(): array
     {
         $html = $this->get('/')->assertOk()->getContent();

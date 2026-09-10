@@ -6510,3 +6510,58 @@ files, so `view:clear` before `view:cache` matters again.
 seed it from **what the product renders**, not from what the code can produce.
 The two lists look identical right up until one of them contains something
 somebody deliberately removed.
+
+### 2026-09-11 — category shelves dealt through the page, and a switch that lied
+
+**Status:** complete, 1.8.40.
+
+**Two reports from Rio, and only one was a bug.**
+
+**1. Stacking.** Making the shelves one movable block in 1.8.38 was right for
+the admin screen and wrong for the page. `HomeSection::spreadCategories()` now
+deals them: the Categories row's position is where the first goes, the rest
+follow one per `frontend.home.category_gap` (default two) other sections. It
+runs at the end of `arrange()` and inside `webPlan()`, so both surfaces put the
+same shelves in the same gaps — verified by rendering both and comparing the
+sequences, not by reading the code.
+
+Two edges are deliberate and tested: categories outlasting the page fall
+consecutively at the end rather than being dropped, and sections outlasting the
+categories simply continue.
+
+**2. "More than 5 active, about 4 shown" was NOT a cap.** The cap of four went
+in 1.8.38 and is live — checked against the deployed commit rather than
+assumed. A Visible Home category is dropped for one reason now: no PUBLISHED
+titles. `shapeCategoryRails` filters on `railItems->isNotEmpty()` and railItems
+is built from published movies and shows only.
+
+**That filter is correct and was invisible, which is the actual defect.** The
+Categories screen showed the switch on and a Count column summing ALL titles
+including drafts, so a category with five drafts read as active with content
+and produced nothing. The row now says "Nothing published, so no shelf" when
+the switch is on and the published count is zero. Rendering an empty rail
+instead would have been the wrong fix.
+
+**Verified.**
+- Six categories activated locally: both surfaces returned the identical
+  interleaved sequence — shelf, two sections, shelf, one section (the page ran
+  out), then the remainder at the end.
+- The gap set to zero restacks them, and that mutation fails the new test and
+  nothing else. Restored; `grep MUTANT` is clean.
+- The admin warning was proved by creating a Visible Home category with no
+  published titles: the row showed the warning and `forWeb()` produced zero
+  shelves in the same breath. The probe category was force-deleted.
+- 103 Frontend tests pass.
+
+**Not verified.** Production. This box has six categories and a small
+catalogue; Rio's has more of both. The count that matters — how many of HIS
+Visible Home categories have no published titles — is answerable only on his
+server, and the screen now answers it for him.
+
+**Deploy note.** No migration. Deletes `category-rails.blade.php`, so
+`view:clear` before `view:cache` again.
+
+**For whoever is next.** The gap lives in `Modules/Frontend/config/config.php`
+under `home.category_gap`. If Rio ever wants the shelves somewhere other than
+"from the Categories row onward", that is a second position, not a bigger gap,
+and it wants a second row rather than a cleverer algorithm.
