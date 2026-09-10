@@ -5788,3 +5788,67 @@ not the same shape; the render confirms the left of every tile is darkened.
 **For whoever is next:** jambo-cf holds the two Top 10 banners and four of the
 files above. Read their entry before touching `HomeController::show`,
 `titleRail`, or the banner half of `theme.ts`.
+
+### 2026-09-10 — two days of finished work, committed (session jambo-5b)
+
+**Status:** complete
+**Owns:** `mobile/.gitignore` (one rule appended). Nothing else was edited.
+
+**What this was.** Rio asked what was left on the plan, and the answer turned
+out to be that 194 paths of finished, documented work had never been
+committed. Twenty-three `### Unreleased` entries in `CHANGELOG.md`, every one
+of them with a worklog entry marked complete, sitting in the working tree
+across two days and several sessions.
+
+**Two commits.**
+
+- `0f1cb35` — `CLAUDE.md`, `.graphifyignore`, and the graphify lines in
+  `.gitignore` and `.gitattributes`. **`CLAUDE.md` was untracked**, so every
+  session has been reading the project's standing instructions out of the
+  working tree and no clean checkout has ever had them.
+- `6f91859` — the other 241 paths, all twenty-three slices together.
+
+**Why one commit and not twenty-three, since the house style is small
+commits.** `docs/api/openapi.yaml` and `mobile/src/api/schema.d.ts` are
+generated one from the other and `npm run api:check` fails when they are split;
+`OpenApiSpecTest` fails when a route lands without its spec. So a
+backend/app split produces two commits that each fail their own suite. The
+slices also share `theme.ts`, `endpoints.ts` and `HomeScreen.tsx` far too
+heavily to cut by feature. **A commit that does not build is worse than a
+commit that is large**, and the changelog already narrates the slices
+individually, which is where that detail belongs.
+
+🔴 **The trap, and it is worth a rule.** `mobile/modules/` was untracked as a
+whole and `git add -A` would have committed **144 Gradle build artefacts** —
+`.dex`, `.jar`, `.bin`, merged manifests — alongside the ten real sources of
+`expo-jambo-media`. The cause is that `mobile/.gitignore` ignores `/android`,
+**anchored to `mobile/`**, so it never reached
+`modules/expo-jambo-media/android/build/`. The rule reads correctly and covers
+nothing. Appended `modules/*/android/build/`; staging went from 154 paths to
+10.
+
+**The general shape:** a leading-slash ignore is anchored, and a second copy of
+that directory name deeper in the tree is not covered. Any local native module
+reintroduces the directory the anchored rule was written for. Worth checking
+the first time a module is added, not the first time a `.dex` reaches history.
+
+**Verified before committing:** 372 app tests in 22 suites, `tsc --noEmit`
+clean, eslint clean, 693 PHP tests passing. Also confirmed `.env` is ignored on
+both sides and that nothing matching a keystore, credential or service account
+was staged.
+
+**Coordination.** jambo-78 was live and answered: nothing of theirs was
+mid-edit, and the `features/` restructure was not theirs. They named jambo-cf
+as live, but **jambo-cf does not appear in `ListAgents`** and their Top 10
+banner entry says complete, so nothing was in flight. Both were told the tree
+is now clean.
+
+**Deliberately not done:**
+- **Not pushed.** Rio asked for a commit.
+- **`tests/Feature/PricingPageCurrentPlanTest.php` still fails twice.** Red
+  since `e981b71`, 2026-07-18, reproduced by three sessions now. Named in the
+  commit message as not from this work. Still unowned, still half a product
+  question.
+- **No slice of the account-area audit was implemented.** Merging
+  `ProfileScreen` into the editor, folding notification settings in, turning
+  the invoice into a sheet and the billing summary are all still open.
