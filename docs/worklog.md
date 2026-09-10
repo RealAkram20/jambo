@@ -6651,3 +6651,52 @@ reason the Google button should never have shipped drawn.
 An email sign-in knows the address because the viewer typed it; a Google
 sign-in does not, because it lives inside a token only the server reads. The
 screen draws no "Signing in as" line rather than printing an empty one.
+
+### 2026-09-11 — the plan ladder, rendered and measured (jambo-6b)
+
+**Status:** complete
+**Owns:** `mobile/src/ui/planLadder.ts` and its test.
+**Shares:** `mobile/src/screens/PlansScreen.tsx` — the ladder and `PlanCard`'s
+width only; `mobile/src/config/env.ts` — the Google guard.
+
+**All four cases rendered on a device and read from the view tree**, against
+the local catalogue, which happens to hold one plan in two periods, two in
+another and three in the fourth:
+
+| Plans | Card width | Arrows |
+|---|---|---|
+| 1 (daily, weekly) | 1184 px = **394.7 dp**, the whole content box | none |
+| 2 (yearly) | 579 px = **193 dp** each, 8 dp between | none |
+| 3 (monthly) | 378 px = **126 dp** each | none |
+| 4 (forced) | **126 dp** each, unchanged | **both, and they work** |
+
+394.7 is exactly `426.7 - 32`, and `193 * 2 + 8` and `126 * 3 + 16` both come
+back to it. The card no longer gets narrower than three across, which is the
+point: "UGX 30,000" is 108 dp at this type scale and a quarter of the screen
+is 87.
+
+**The four-plan case was forced rather than skipped.** No period in either
+database has four sellable plans, so the arrows — the thing Rio actually asked
+for — would have shipped tested-but-never-seen. A temporary fourth monthly tier
+was inserted, the ladder rendered, both arrows pressed, and the row's leftmost
+card watched move from x=48 to x=0 and back to x=48, with a second press of
+Previous holding at 48 rather than over-scrolling. **The row was then deleted
+and the catalogue re-counted to prove it.**
+
+🔴 **My first check of the arrows said "no movement" and was wrong.** It
+compared the FIRST `content-desc` in the dump before and after, which is tree
+order, not screen position — that string cannot change no matter how far the
+row scrolls. The arrows had worked on the first press. Reading the bounds
+instead showed it immediately. **A check that cannot observe the thing it is
+checking reads exactly like a bug**, and I nearly went looking for one in
+working code.
+
+**Not verified:** nothing on a tablet or the TV build, where four across might
+fit and the rule would want revisiting.
+
+**Also in this pass:** `mobile/.env` is back on the local API. It spent the
+afternoon pointed at production so Rio could see the app against the live site;
+leaving it there means every dev run registers a real device row and reads live
+data while looking exactly like a local run. The production line is commented
+directly beneath it, and swapping them needs Metro RESTARTED — it is a
+bundle-time value.
