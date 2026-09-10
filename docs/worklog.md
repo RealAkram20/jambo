@@ -6434,3 +6434,26 @@ this work out of it; it popped cleanly and all eleven files were verified
 present by grepping for eight distinct markers before committing. Their
 `randomHomeCategories` removal was checked against my rail-key test and does
 not touch it.
+
+**Next action created by this work, named rather than left implicit.**
+
+**`HomeScreen`'s outer list must become a `FlatList`.** It renders its rails in
+a plain `ScrollView` with `rails.map(...)`, so **every rail mounts on first
+paint**. Each rail's items are a horizontal `FlatList`, so cards virtualise
+sideways, but the outer list does not virtualise at all.
+
+That was survivable while the home payload was bounded. It no longer is: this
+session removed a cap of four category shelves, deliberately, so the number of
+rails is now whatever an admin flags Visible Home. Measured by jambo-6b on the
+current payload — 37,321 bytes, 15 rails, 109 items, about 340 bytes an item —
+six extra shelves of ten is roughly another 20 KB of JSON and about fifteen
+more image requests before the viewer has scrolled anything. On MTN data that
+is real.
+
+**Neither of us measured the growth**, because this database has no category
+flagged Visible Home, so the cap removal changes nothing locally. The shape is
+sound; the number is not evidence.
+
+It is one line of structure and it belongs to whoever next opens
+`mobile/src/screens/HomeScreen.tsx`, not inside a backend slice. Doing it there
+is why this is written down instead of done.
