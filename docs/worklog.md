@@ -6166,3 +6166,69 @@ default would put an account avatar on a film's detail page — but it does mean
 a new account screen will not get it unless somebody remembers. There is no
 test that would catch that, and it would be worth one if a third account screen
 is ever added at once.
+
+### 2026-09-10 — the VJs and Personality rails, at the website's design (jambo-6b)
+
+**Status:** complete
+**Owns:**
+- `mobile/src/ui/rails/TaxonomyCards.tsx` — `VjCard` and `PersonCard`
+
+**Shares — minimal diffs, each named:**
+- `mobile/src/screens/HomeScreen.tsx` — the `vjs` and `people` arms only.
+- `mobile/src/ui/theme.ts` — one added `personTile` block; `genreTile`
+  untouched.
+
+**What this is:** Rio, over a screenshot of the two rails: *"fix these
+sections"*. Both are drawn at the app's own numbers rather than the site's, and
+both are missing the "View All" the site's heading carries. It is the same
+finding the Genres rail closed on 2026-09-10 and explicitly left open for these
+two — see that entry's "Found, not mine" list.
+
+**Measured before touching anything**, at 390x844 in headless Edge against
+`127.0.0.1:8090`:
+
+| | Site | App now |
+|---|---|---|
+| VJ card | **164.03 x 98.41, aspect 5:3**, radius 8, name centred OVER the art | 16:9 still, name and "N titles" below it |
+| VJ card partial | `card-genres-grid` — **the same partial the genres rail uses** | a hand-built card |
+| Personality image | **165 x 214.5, aspect 1/1.3**, radius 8, 16pt below it | a circle |
+| Personality caption | `.cast-title`, 14px/500, centred, below the image | 13px caption |
+| Per view, both | **2** (`data-mobile="2"`, a 179pt slide in a 358pt rail) | VJs from `stillWidth`; people 4 |
+| View All, both | present, 12px/500 `#1a98ff` | absent |
+
+**No PHP and no API change in this first commit.** Both rails already send
+everything the cards need.
+
+**Verified on the device, measured from the view tree and the pixels:**
+
+| | App | Site | Delta |
+|---|---|---|---|
+| VJ tile | 182.3 x 109 dp, **aspect 1.673** | 164.03 x 98.41, **1.667** | 0.36% |
+| VJ label | centred in BOTH axes over the art — tile centre 1408.5, label centre 1408.5 | `.blog-description`, absolute, inset 0, centred | matches |
+| Personality card | 183.3 x 238 dp, **aspect 0.7703** | 165 x 214.5, **0.7692** | 0.14% |
+| Per view, both | 2 whole cards, third peeking | 2 | matches |
+
+Both deltas are the rounding artefact of `Math.round(width / aspect)` on a
+426.7dp emulator against a 390dp probe, and they are the same size as the one
+the genres tile already carries.
+
+- **"View all" is on the VJs heading** and tapping it selects the Movies tab —
+  asserted from the tab bar's `selected` state, not assumed.
+- **The tile no longer draws "60 titles"**, and `VJ Test, 60 titles` is still
+  the accessibility label, so the count moved rather than being dropped.
+- **Two measurements were wrong before they were right**, and both times the
+  cause was the same: `uiautomator` clips bounds to the visible window and a
+  pixel scan sees only what is painted, so a rail sitting under the sticky
+  header measured 6dp short in one reading and 100dp short in another. The
+  fix is to scroll the thing fully clear before believing either.
+
+**Corrected a note from the Genres entry.** It recorded the VJs rail's
+"View All" going to `/movie` as an oddity on the website. It is not:
+`FrontendController::moreVjsForMoviesPage` pages a VJ-per-row carousel on that
+page, so `/movie` is the VJ index. The app now goes there too.
+
+**Deliberately not built:** the Personality rail's "View All". Its destination
+is `/all-personality`, which has no app screen and no endpoint, so `seeAllFor`
+answers undefined and no control is drawn — a control that leads nowhere is
+worse than a heading without one. It is the shape `GenresScreen` already has,
+plus one endpoint.

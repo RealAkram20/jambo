@@ -480,6 +480,31 @@ export const genreTile = {
 } as const;
 
 /**
+ * A personality card, measured off the rendered site at 390x844 on 2026-09-10.
+ *
+ * **It is a rounded rectangle, not a circle**, and that is the correction this
+ * block exists for. The app drew a round portrait — the shape a streaming app's
+ * cast row usually has — while `cards/personality-card.blade.php` renders
+ * `rounded-3` on a 1/1.3 portrait, and the site's own rail shows two of them per
+ * view where the app showed four. Rio saw the two side by side.
+ *
+ * The caption is BELOW the image here, unlike the genre tile whose label is
+ * centred over it. Same rail geometry, different card: `.cast-title` is
+ * `position: static`, 14px/500, centred.
+ */
+export const personTile = {
+  /** 165 / 214.5. The site declares `aspect-ratio: 1 / 1.3` outright. */
+  aspect: 1 / 1.3,
+  radius: 8,
+  /** `margin-bottom: 16px` on `.personality-img`. */
+  gapBelow: 16,
+  nameSize: 14,
+  nameWeight: '500' as const,
+  /** A 179pt slide holding a 165pt card. */
+  gap: (179 - 165) / 2,
+} as const;
+
+/**
  * The two daily Top 10 banners, measured off the rendered site at 390x844 and
  * again at 430x932 on 2026-09-10.
  *

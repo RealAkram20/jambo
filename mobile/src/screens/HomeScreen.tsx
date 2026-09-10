@@ -24,7 +24,7 @@ import {
 } from '../api/catalogue';
 import type { AppStackParams } from '../navigation/types';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { colors, genreTile, rail as railTheme, spacing } from '../ui/theme';
+import { colors, genreTile, personTile, rail as railTheme, spacing } from '../ui/theme';
 import { useRailMetrics, type RailMetrics } from '../ui/metrics';
 import { ErrorState, Loading } from '../ui/components';
 import { Hero } from '../ui/rails/Hero';
@@ -341,53 +341,81 @@ function RailFor({
       );
     }
 
-    case 'vjs':
+    case 'vjs': {
+      /*
+       * The genres rail's geometry, because it is the genres rail's card: the
+       * site includes `card-genres-grid` in both sections. Two per view, which
+       * is `data-mobile="2"` on both.
+       *
+       * It was `metrics.stillWidth`, derived from the poster rail's card
+       * count, drawing a 16:9 card with a name and a title count under it —
+       * the shape Rio asked to be fixed on 2026-09-10.
+       */
+      const slide = (metrics.width - inset * 2) / 2;
+      const tile = slide - genreTile.gap * 2;
+
       return (
         <Rail
           title={title}
           data={asVjCards(rail)}
-          itemWidth={metrics.stillWidth + railTheme.cardGap}
+          itemWidth={slide}
           inset={inset}
+          // The site's VJs heading carries "View All" and the app's did not,
+          // because only the `titles` arm forwarded this. See `seeAllFor` for
+          // where it goes, and why that destination is the website's rather
+          // than a choice made here.
+          onSeeAll={onSeeAll}
           keyExtractor={(item, index) => item.slug ?? String(index)}
           renderItem={({ item }) => (
-            <CardSlot metrics={metrics}>
+            <View style={{ paddingHorizontal: genreTile.gap }}>
               <VjCard
                 item={item}
-                width={metrics.stillWidth}
+                width={tile}
                 onPress={
                   item.slug === undefined
                     ? undefined
                     : () => onOpenTaxonomy('vj', item.slug as string, item.name ?? '')
                 }
               />
-            </CardSlot>
+            </View>
           )}
         />
       );
+    }
 
-    case 'people':
+    case 'people': {
+      /*
+       * Two per view, the same `data-mobile="2"`, and a 165pt card in a 179pt
+       * slide rather than the poster rail's width. The app was drawing four
+       * round portraits across where the site draws two portrait rectangles.
+       */
+      const slide = (metrics.width - inset * 2) / 2;
+      const portrait = slide - personTile.gap * 2;
+
       return (
         <Rail
           title={title}
           data={asPersonCards(rail)}
-          itemWidth={metrics.posterWidth + railTheme.cardGap}
+          itemWidth={slide}
           inset={inset}
+          onSeeAll={onSeeAll}
           keyExtractor={(item, index) => item.slug ?? String(index)}
           renderItem={({ item }) => (
-            <CardSlot metrics={metrics}>
+            <View style={{ paddingHorizontal: personTile.gap }}>
               <PersonCard
                 item={item}
-                width={metrics.posterWidth}
+                width={portrait}
                 onPress={
                   item.slug === undefined
                     ? undefined
                     : () => onOpenTaxonomy('cast', item.slug as string, item.name ?? '')
                 }
               />
-            </CardSlot>
+            </View>
           )}
         />
       );
+    }
 
     /*
      * The two daily Top 10 banners.
@@ -462,6 +490,28 @@ function seeAllFor(
   if (key === 'genres') {
     return () => navigation.navigate('Genres', { title });
   }
+
+  /*
+   * VJs, whose "View All" goes to the MOVIES listing on the website.
+   *
+   * That looks like a copy-paste miss and is not: `/movie` is built out of VJ
+   * carousels — one row per VJ, paged by `frontend.movie_more_vjs` — so the
+   * movies page IS where all the VJs are. An earlier worklog entry recorded
+   * this as an oddity on the site; reading the controller settles it.
+   *
+   * **There is no VJ index page on this product**, so the app does not invent
+   * one. The Movies tab is `/movie`.
+   */
+  if (key === 'vjs') {
+    return () => navigation.navigate('Tabs', { screen: 'Movies' });
+  }
+
+  /*
+   * Personalities have a real index on the site — `/all-personality` — and the
+   * app has no screen and no endpoint for it yet, so this deliberately answers
+   * undefined and the rail draws no "View All". A control that leads nowhere
+   * is worse than a heading without one; the screen is the next commit.
+   */
 
   const collection = collectionKeyFor(key);
   if (collection === null || !archives.has(collection)) return undefined;

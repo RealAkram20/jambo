@@ -8,6 +8,45 @@ would advertise a webapp update containing no webapp change.
 
 ## Jambo App
 
+### Unreleased — The VJs and Personality rails, at the website's design
+
+Rio, over a screenshot of the two: *"fix these sections"*. Both were drawn at
+the app's own numbers rather than the site's, and both were missing the
+"View All" the site's heading carries. It is the finding the Genres rail closed
+on 2026-09-10 and explicitly left open for these two.
+
+**A VJ card is a genre tile, and that is the website's doing rather than a
+choice made here.** `sections/vjs.blade.php` includes
+`cards/card-genres-grid` — the same partial the genres rail includes — so on the
+site a VJ is a 5:3 still with the name centred over it. The app had a third
+card of its own: a 16:9 crop, the name printed underneath, and **a "N titles"
+line the site does not draw at all**. `VjCard` is now the tile, so the two
+rails cannot drift apart again. The count is not lost — it is still announced
+to a screen reader, which has room a 164pt tile does not.
+
+**A personality card is a rounded rectangle, not a circle.**
+`cards/personality-card.blade.php` renders `rounded-3` on a portrait the
+stylesheet gives `aspect-ratio: 1 / 1.3`, measured at 165 x 214.5 with a 16pt
+gap under it and the name at 14px/500. The app drew a round portrait — which is
+what a streaming app's cast row usually looks like, and is not what this one
+looks like.
+
+**Both rails show two cards per view**, which is `data-mobile="2"` on both: a
+179pt slide in a 358pt rail. The app was taking the VJs width from the poster
+rail's card count and drawing four personalities across.
+
+**Both headings now carry "View All", because only the `titles` arm forwarded
+it.** The VJs one goes to the movie listing, and an earlier session recorded
+that as an oddity on the website. Reading the controller settles it: `/movie`
+is built out of VJ carousels, one row per VJ, paged by
+`frontend.movie_more_vjs` — so the movies page IS where all the VJs are, and
+there is no VJ index for the app to be missing.
+
+**The Personality rail's "View All" is deliberately not wired yet.** Its
+destination is `/all-personality`, a real page with no app screen and no
+endpoint behind it, so the rail draws no control rather than one that leads
+nowhere.
+
 ### Unreleased — The account area becomes a hub
 
 `docs/plans/account-area-audit.md` §2.2. **Every account screen was a dead end

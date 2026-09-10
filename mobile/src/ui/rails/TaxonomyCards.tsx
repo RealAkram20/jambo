@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { card, colors, fonts, genreTile, radius, spacing, typography } from '../theme';
+import { card, colors, fonts, genreTile, personTile, spacing, typography } from '../theme';
 import { imageUrl } from '../media';
 import type {
   GenreCard as GenreCardData,
@@ -12,18 +12,31 @@ import type {
 import { Focusable } from './Focusable';
 
 /**
- * The three rails that are not titles: genres, VJs and personalities.
+ * The rails that are not titles: genres, VJs and personalities.
  *
  * They share a file because they share a shape — a label, sometimes a picture,
  * one press target — and splitting them into three modules that differ by two
  * lines each is how a kit stops being a kit.
+ *
+ * **There are two cards here, not three, and that is the website's doing.**
+ * `sections/vjs.blade.php` includes `cards/card-genres-grid` — the same partial
+ * the genres rail includes — so a VJ on the site IS a genre tile: a 5:3 still
+ * with the name centred over it. The app had a third card of its own for VJs,
+ * a 16:9 still with the name and a title count underneath, and Rio saw the two
+ * side by side on 2026-09-10: *"fix these sections"*. `VjCard` is now the tile,
+ * so the two surfaces cannot drift.
  *
  * Counts are shown only when the server sends them. `movies_count` and
  * `shows_count` are nullable in the contract, and a card that renders "0
  * movies" for an unknown count states something false about the catalogue.
  */
 
-export type GenreItem = GenreCardData;
+/**
+ * The genre tile draws genres and VJs alike, because the site's two sections
+ * include one partial. Both carry a slug, a name, an image and nullable
+ * counts, so this is one shape rather than a cast at each call site.
+ */
+export type GenreItem = GenreCardData | VjCardData;
 /** VJs carry counts, personalities do not - the union is what the rails send. */
 export type PersonLikeItem = VjCardData | PersonCardData;
 
@@ -57,7 +70,7 @@ export function GenreCard({
   onPress?: (() => void) | undefined;
 }) {
   const name = item.name ?? 'Genre';
-  const total = countOf(item.movies_count, item.shows_count);
+  const total = countsOf(item);
   const height = Math.round(width / genreTile.aspect);
   const art = imageUrl(item.image_url, width);
 
@@ -112,48 +125,41 @@ export function GenreCard({
 }
 
 /**
- * A VJ. The image is a 16:9 still — `image_url` falls back through the VJ's
- * most recent published title server-side, so a VJ with no photo still has a
- * card rather than a hole.
+ * A VJ, which on this product is a genre tile.
+ *
+ * **It is `GenreCard` under another name, deliberately.** The site's VJs
+ * section includes `cards/card-genres-grid`, the genres card, so the two rails
+ * are one component there and are one component here. It is kept as a named
+ * export rather than the home screen calling `GenreCard` directly, because the
+ * two rails mean different things and a future divergence should be a change
+ * to this function rather than a search through call sites.
+ *
+ * What went when it stopped being its own card: a 16:9 crop where the site is
+ * 5:3, a name printed under the image where the site centres it over the art,
+ * and a **"N titles" line the site does not draw at all**. The count is not
+ * lost — `GenreCard` still announces it to a screen reader, which has room a
+ * 164pt tile does not.
  */
-export function VjCard({
-  item,
-  width,
-  onPress,
-}: {
+export function VjCard(props: {
   item: PersonLikeItem;
   width: number;
   onPress?: (() => void) | undefined;
 }) {
-  const name = item.name ?? 'VJ';
-  const total = countsOf(item);
-  const height = Math.round(width / (16 / 9));
-
-  return (
-    <Focusable
-      accessibilityLabel={total === null ? name : `${name}, ${total} titles`}
-      ringRadius={radius.card}
-      onPress={onPress}
-      style={{ width }}
-    >
-      <ExpoImage
-        source={imageUrl(item.image_url, width)}
-        style={[styles.vjImage, { width, height, borderRadius: radius.card }]}
-        contentFit="cover"
-        recyclingKey={item.slug ?? name}
-        transition={120}
-        cachePolicy="memory-disk"
-        accessible={false}
-      />
-      <Text numberOfLines={1} style={styles.name}>
-        {name}
-      </Text>
-      {total === null ? null : <Text style={styles.meta}>{total} titles</Text>}
-    </Focusable>
-  );
+  return <GenreCard {...props} item={props.item as GenreItem} />;
 }
 
-/** A cast member or personality: a round portrait and a name, as the site draws it. */
+/**
+ * A cast member or personality: a portrait and a name below it.
+ *
+ * **A rounded rectangle, not a circle**, which is the correction Rio asked for
+ * on 2026-09-10. `cards/personality-card.blade.php` renders `rounded-3` on an
+ * image the stylesheet gives `aspect-ratio: 1 / 1.3`; the app drew a round
+ * portrait, which is what a streaming app's cast row usually looks like and is
+ * not what this one looks like. Measured at 165 x 214.5 with a 16pt gap under
+ * it, and the name at 14px/500 rather than the app's caption size.
+ *
+ * Every number is in `theme.personTile` with the selector it came from.
+ */
 export function PersonCard({
   item,
   width,
@@ -164,24 +170,29 @@ export function PersonCard({
   onPress?: (() => void) | undefined;
 }) {
   const name = item.name ?? 'Unknown';
+  const height = Math.round(width / personTile.aspect);
 
   return (
     <Focusable
       accessibilityLabel={name}
-      ringRadius={width / 2}
+      ringRadius={personTile.radius}
       onPress={onPress}
       style={{ width }}
     >
       <ExpoImage
         source={imageUrl(item.image_url, width)}
-        style={[styles.portrait, { width, height: width, borderRadius: width / 2 }]}
+        style={[styles.portrait, { width, height, borderRadius: personTile.radius }]}
         contentFit="cover"
+        // `object-position: 50% 0%` on the site, and it matters more here than
+        // on a still: these are people, and a centre crop of a 1/1.3 portrait
+        // takes the top off a head.
+        contentPosition="top"
         recyclingKey={item.slug ?? name}
         transition={120}
         cachePolicy="memory-disk"
         accessible={false}
       />
-      <Text numberOfLines={2} style={styles.nameCentred}>
+      <Text numberOfLines={2} style={styles.personName}>
         {name}
       </Text>
     </Focusable>
@@ -201,13 +212,16 @@ function countOf(movies: number | null | undefined, shows: number | null | undef
 }
 
 /**
- * The same question for a card that may or may not carry counts. `PersonCard`
- * has no count fields at all, so reading them off the union needs the check
- * rather than an assertion.
+ * The same question for a card that may or may not carry counts.
+ *
+ * The parameter is the SHAPE rather than the union, because three card types
+ * flow through here and only two of them have the fields — a personality
+ * carries no counts at all. Typing it structurally lets each caller pass its
+ * own card without a cast, and a cast is what would let a renamed field
+ * through silently.
  */
-function countsOf(item: PersonLikeItem): number | null {
-  const counted = item as { movies_count?: number | null; shows_count?: number | null };
-  return countOf(counted.movies_count, counted.shows_count);
+function countsOf(item: { movies_count?: number | null; shows_count?: number | null }): number | null {
+  return countOf(item.movies_count, item.shows_count);
 }
 
 const styles = StyleSheet.create({
@@ -238,21 +252,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  vjImage: { backgroundColor: colors.surface },
   portrait: { backgroundColor: colors.surface },
 
-  name: {
+  /* `.cast-title`: 14px/500, centred, white, 16pt under the image. */
+  personName: {
     ...typography.caption,
     fontFamily: fonts.medium,
+    fontSize: personTile.nameSize,
+    fontWeight: personTile.nameWeight,
     color: card.titleColor,
-    marginTop: spacing.sm,
-  },
-  nameCentred: {
-    ...typography.caption,
-    fontFamily: fonts.medium,
-    color: card.titleColor,
-    marginTop: spacing.sm,
+    marginTop: personTile.gapBelow,
     textAlign: 'center',
   },
-  meta: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
 });
