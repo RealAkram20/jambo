@@ -1590,6 +1590,42 @@ build's PesaPal checkout, anything in Phase 3, and TV beyond installing
 
 ## Jambo
 
+### 1.8.39 — Seven shelves the product does not have any more
+
+Rio, over the arrangement screen with seven rows switched off: *"now we need to
+remove these completely, we don't need them we don't have them anymore."*
+
+**Three of them were retired months ago and 1.8.38 brought them back by
+accident.** `ott-page.blade.php` used to carry three "random category" shelves
+whose own comments said what they replaced: Top Picks for You, Popular Movies,
+and Fresh Picks Just For You. Rebuilding the home page from `home_sections`
+seeded that table from every rail the API could BUILD rather than every shelf
+the product actually HAS, so the retired three came back on the website. Latest
+Movies, Latest Series, International Series and Upcoming go with them.
+
+Gone completely, not hidden: the rows, both registry constants, the seven API
+rails, the five website partials that nothing else included, and the four
+shared collections that only fed them. Eleven sections remain.
+
+**`latest-movies` and `upcomming` survive as partials** because `/home` — the
+older index page — still renders them. Their home-page rails do not.
+
+**Three rail archives went with their only entrances.** `/collection/top-picks`,
+`/collection/fresh-picks` and `/collection/popular-movies` were reachable only
+from the "View all" on the shelves now deleted. Neither the sitemap nor the SEO
+module ever referenced them.
+
+🔴 **`TopPicksRecommender::forUser()` and `forGuest()` now have no caller.**
+They are the personalised Top Picks engine from
+`docs/plans/top-picks-personalization.md`, and the shelf they ranked is gone,
+so the `frontend.recommendations.enabled` flag is unreferenced too. Left in
+place deliberately — deleting a personalisation engine because a shelf was
+retired is a product decision, not a cleanup. It needs an answer either way.
+
+**Also fixed:** the home route was still running an Upcoming query for a
+section that no longer exists, and the category-pool comment still described
+the fixed-slot layout removed in 1.8.38.
+
 ### 1.8.38 — Home Sections governs the website, not only the app
 
 Rio: *"i feel it's off [...] it's not meant for the mobile app but for the

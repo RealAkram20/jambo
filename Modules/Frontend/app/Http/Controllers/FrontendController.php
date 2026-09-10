@@ -189,14 +189,14 @@ class FrontendController extends Controller
             ->take(12)
             ->get();
 
-        $upcomingItems = app(TopPicksRecommender::class)
-            ->upcomingListing(0, 12)['items'];
-
+        // No `$upcomingItems` here, unlike index(): the Upcoming shelf was
+        // removed from the home arrangement on 2026-09-11, so this page has
+        // nothing to render it with. /home still carries the section and still
+        // builds the list for it.
         return view('frontend::Pages.MainPages.ott-page', compact(
             'featuredMovies',
             'latestMovies',
             'popularShows',
-            'upcomingItems',
         ));
     }
 

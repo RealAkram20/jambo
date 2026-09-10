@@ -6,8 +6,10 @@
     order this page, the same switch takes a shelf off both, and the same label
     renames the heading on both.
 
-    Callers pass `sectionData` for anything the route action holds that
-    HomeRailsService does not — today that is `upcomingItems` only.
+    Callers may pass `sectionData` for anything a route action holds that
+    HomeRailsService does not. Nothing does today: the one section that needed
+    it was Upcoming, removed on 2026-09-11. The parameter stays because the
+    next section wired that way will need it, and it costs one `?? []`.
 
     Nothing about the order is written here. Adding a section is one row in
     HomeSection::DEFAULTS and one in HomeSection::WEB_VIEWS.

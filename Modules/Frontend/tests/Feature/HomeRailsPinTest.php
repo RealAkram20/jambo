@@ -36,12 +36,11 @@ class HomeRailsPinTest extends TestCase
      * decision, because a blade somewhere reads each one.
      */
     private const SHARED_KEYS = [
-        'latestMovies', 'popularMovies', 'topMovies', 'upcomingMovies',
+        'latestMovies', 'popularMovies', 'topMovies',
         'recommendedMovies', 'specialsMovies', 'freshMovies',
-        'latestShows', 'popularShows', 'topShows', 'recommendedShows',
-        'internationalShows',
-        'heroMovies', 'heroItems', 'verticalFeatured', 'tabSeries',
-        'exclusiveMovies', 'topPicks', 'homeGenres', 'homeVjs',
+        'popularShows', 'topShows', 'recommendedShows',
+                'heroMovies', 'heroItems', 'verticalFeatured', 'tabSeries',
+        'exclusiveMovies', 'homeGenres', 'homeVjs',
         'favoritePersonalities', 'continueWatching',
         'homeCategories',
         'userWatchlistIndex',
@@ -90,7 +89,7 @@ class HomeRailsPinTest extends TestCase
             $shared['latestMovies']->contains('id', $draft->id),
             'A draft movie must never reach a homepage rail.'
         );
-        $this->assertGreaterThan(0, $shared['latestShows']->count());
+        $this->assertGreaterThan(0, $shared['topShows']->count(), 'Published shows must reach a rail.');
     }
 
     public function test_exclusives_are_only_gated_titles(): void

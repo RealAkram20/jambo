@@ -347,12 +347,12 @@ class HomeSectionArrangementTest extends TestCase
     public function test_the_admin_screen_lists_every_section_including_disabled_ones(): void
     {
         $this->seedCatalogue();
-        HomeSection::where('key', 'latest_movies')->update(['enabled' => false]);
+        HomeSection::where('key', 'exclusives')->update(['enabled' => false]);
 
         $html = $this->actingAs($this->admin(), 'web')
             ->get(route('admin.home-sections.index'))
             ->assertOk()
-            ->assertSee('latest_movies')
+            ->assertSee('exclusives')
             ->assertSee('Hidden')
             ->content();
 
@@ -431,11 +431,11 @@ class HomeSectionArrangementTest extends TestCase
         $this->assertLessThan(
             $before['popular'],
             $before['latest'],
-            'Precondition: Latest Movies sits above Popular Movies in the seeded order.',
+            'Precondition: Top 10 Movies sits above Only on Jambo in the seeded order.',
         );
 
-        $latest = HomeSection::where('key', 'latest_movies')->firstOrFail();
-        $popular = HomeSection::where('key', 'popular_movies')->firstOrFail();
+        $latest = HomeSection::where('key', 'top_movies')->firstOrFail();
+        $popular = HomeSection::where('key', 'exclusives')->firstOrFail();
         [$latest->position, $popular->position] = [$popular->position, $latest->position];
         $latest->save();
         $popular->save();
@@ -444,7 +444,7 @@ class HomeSectionArrangementTest extends TestCase
         $this->assertLessThan(
             $after['latest'],
             $after['popular'],
-            'Dragging Popular Movies above Latest Movies must move it on the website.',
+            'Dragging Only on Jambo above Top 10 Movies must move it on the website.',
         );
     }
 
@@ -453,11 +453,11 @@ class HomeSectionArrangementTest extends TestCase
     {
         $this->seedCatalogue();
 
-        $this->get('/')->assertOk()->assertSee(__('sectionTitle.popular_movies'), false);
+        $this->get('/')->assertOk()->assertSee(__('sectionTitle.only_on_streamit'), false);
 
-        HomeSection::where('key', 'popular_movies')->update(['enabled' => false]);
+        HomeSection::where('key', 'exclusives')->update(['enabled' => false]);
 
-        $this->get('/')->assertOk()->assertDontSee(__('sectionTitle.popular_movies'), false);
+        $this->get('/')->assertOk()->assertDontSee(__('sectionTitle.only_on_streamit'), false);
     }
 
     /** An admin's label renames the heading on the website, not just in the app. */
@@ -465,12 +465,12 @@ class HomeSectionArrangementTest extends TestCase
     {
         $this->seedCatalogue();
 
-        HomeSection::where('key', 'popular_movies')->update(['label' => 'Uganda Loves These']);
+        HomeSection::where('key', 'exclusives')->update(['label' => 'Uganda Loves These']);
 
         $this->get('/')
             ->assertOk()
             ->assertSee('Uganda Loves These', false)
-            ->assertDontSee(__('sectionTitle.popular_movies'), false);
+            ->assertDontSee(__('sectionTitle.only_on_streamit'), false);
     }
 
     /**
@@ -482,11 +482,11 @@ class HomeSectionArrangementTest extends TestCase
     {
         $html = $this->get('/')->assertOk()->getContent();
 
-        $latest = strpos($html, __('sectionTitle.latest_movies'));
-        $popular = strpos($html, __('sectionTitle.popular_movies'));
+        $latest = strpos($html, __('sectionTitle.top_ten'));
+        $popular = strpos($html, __('sectionTitle.only_on_streamit'));
 
-        $this->assertIsInt($latest, 'Latest Movies did not render at all.');
-        $this->assertIsInt($popular, 'Popular Movies did not render at all.');
+        $this->assertIsInt($latest, 'Top 10 Movies did not render at all.');
+        $this->assertIsInt($popular, 'Only on Jambo did not render at all.');
 
         return ['latest' => $latest, 'popular' => $popular];
     }

@@ -30,7 +30,7 @@ use Modules\Streaming\app\Models\WatchHistoryItem;
  * watchlist index, because those are about rendering a page. What lives here
  * is the question "what is on the homepage right now", which both callers ask.
  *
- * Some rails are personal (`topPicks`, `upcomingMovies`, `recommendedMovies`,
+ * Some rails are personal (`recommendedMovies`,
  * `freshMovies`, `continueWatching` all read auth()->id()), so the result is
  * per-viewer and must never be put in a cross-request cache as a whole. The
  * expensive parts are already cached inside TopPicksRecommender on per-date
@@ -59,12 +59,11 @@ class HomeRailsService
         $recommender = app(TopPicksRecommender::class);
         $topMovies = $recommender->topMoviesOfTheWeek(10);
 
-        // Homepage category shelves — ONE pool: every category the admin
-        // marked "Visible Home" (with published content), in the exact
-        // sort_order set by drag-and-drop on the admin Categories table.
-        // First fills the fixed shelf slot, the next three fill the
-        // remaining slots — no shuffling, the admin order IS the page
-        // order. Nothing outside this pool ever reaches the homepage.
+        // Homepage category shelves — every category the admin marked
+        // "Visible Home" (with published content), in the exact sort_order set
+        // by drag-and-drop on the admin Categories table. The admin order IS
+        // the page order, and nothing outside this pool reaches the homepage.
+        // There is no cap: see the note on `homeCategories` below.
         $categoryShelves = $this->shapeCategoryRails(
             Category::visibleHome()
                 ->orderBy('sort_order')
@@ -76,20 +75,14 @@ class HomeRailsService
             'latestMovies'   => $movieBase()->orderByDesc('created_at')->take(10)->get(),
             'popularMovies'  => $movieBase()->orderByDesc('views_count')->take(10)->get(),
             'topMovies'      => $topMovies,
-            // Upcoming — driven by the STATUS_UPCOMING flag, not a future
-            // published_at (the old query was unsatisfiable because the
-            // published() scope already forces published_at <= now).
-            'upcomingMovies' => app(TopPicksRecommender::class)->upcoming(auth()->id(), 10),
             'recommendedMovies' => app(TopPicksRecommender::class)->smartShuffle(auth()->id(), 10),
             'specialsMovies' => $movieBase()->orderByDesc('created_at')->take(10)->get(),
             'freshMovies'    => app(TopPicksRecommender::class)->freshPicks(auth()->id(), 10),
 
             // Shows
-            'latestShows'    => $showBase()->orderByDesc('created_at')->take(10)->get(),
             'popularShows'   => $showBase()->orderByDesc('views_count')->take(10)->get(),
             'topShows'       => $recommender->topSeriesOfTheWeek(10),
             'recommendedShows' => $showBase()->inRandomOrder()->take(10)->get(),
-            'internationalShows' => $showBase()->inRandomOrder()->take(10)->get(),
 
             // Hero
             'heroMovies'     => $movieBase()->orderByDesc('created_at')->take(3)->get(),
@@ -121,11 +114,6 @@ class HomeRailsService
                 ->orderByDesc('created_at')
                 ->take(8)
                 ->get(),
-
-            // Top Picks — personalised per viewer. Warm users get a genre/cast
-            // affinity ranking; cold users and guests fall back to the global
-            // weighted blend. See docs/plans/top-picks-personalization.md.
-            'topPicks' => $this->resolveTopPicks(8),
 
             // Home Genres rail. Each tile is a piece of artwork borrowed from
             // the genre's most recent published title, and
@@ -421,25 +409,6 @@ class HomeRailsService
             'resumeId'        => $m->id,
             'positionSeconds' => (int) $h->position_seconds,
         ];
-    }
-
-    /**
-     * Route the Top Picks shelf through the personal recommender.
-     * Rollout flag lets us fall back to the old random draw live if
-     * the algorithm ships with a bug — flip without a redeploy.
-     */
-    private function resolveTopPicks(int $limit): Collection
-    {
-        if (!config('frontend.recommendations.enabled', true)) {
-            return Movie::published()->with('genres')->inRandomOrder()->take($limit)->get();
-        }
-
-        $recommender = app(TopPicksRecommender::class);
-        $uid = auth()->id();
-
-        return $uid
-            ? $recommender->forUser($uid, $limit)
-            : $recommender->forGuest($limit);
     }
 
     private function buildEpisodeCard(WatchHistoryItem $h, Episode $e): object

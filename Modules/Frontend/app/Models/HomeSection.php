@@ -91,15 +91,8 @@ class HomeSection extends Model
         'continue_watching' => 'sectionTitle.continue_watching',
         'top_movies' => 'sectionTitle.top_ten',
         'top_series' => 'sectionTitle.top_10_tvshow_to_watch',
-        'top_picks' => 'sectionTitle.top_picks',
         'smart_shuffle' => 'sectionTitle.smart_shuffle',
-        'latest_movies' => 'sectionTitle.latest_movies',
-        'latest_series' => 'sectionTitle.latest_series',
-        'fresh_picks' => 'sectionTitle.fresh_picks',
         'exclusives' => 'sectionTitle.only_on_streamit',
-        'popular_movies' => 'sectionTitle.popular_movies',
-        'international_series' => 'sectionTitle.international_shows',
-        'upcoming' => 'sectionTitle.upcoming_title',
         // The Top 10 Movies of the Day banner sits here, and the Top 10 Series
         // of the Day banner at the very end, because that is where `ott-page`
         // puts them: the movie slider between Upcoming and the personality
@@ -147,27 +140,16 @@ class HomeSection extends Model
         ],
         'top_movies' => ['view' => 'top-ten-block', 'data' => 'topMovies'],
         'top_series' => ['view' => 'top-ten-tvshow', 'data' => 'topShows'],
-        'top_picks' => ['view' => 'top-pict', 'data' => 'topPicks'],
         'smart_shuffle' => [
             'view' => 'recommended',
             'data' => 'recommendedMovies',
             'with' => ['viewAllBtn' => true],
             'routes' => ['viewAllRoute' => ['frontend.rail_archive', 'smart-shuffle']],
         ],
-        'latest_movies' => ['view' => 'latest-movies', 'data' => 'latestMovies', 'with' => ['viewAllBtn' => true]],
-        'latest_series' => ['view' => 'latest-series', 'data' => 'latestShows', 'with' => ['viewAllBtn' => true]],
-        'fresh_picks' => ['view' => 'fresh-picks-just-for-you', 'data' => 'freshMovies'],
         'exclusives' => ['view' => 'only-on-streamit', 'data' => 'exclusiveMovies'],
-        'popular_movies' => ['view' => 'Popular-movies', 'data' => 'popularMovies', 'with' => ['viewAllBtn' => true]],
-        'international_series' => [
-            'view' => 'best-of-international-shows',
-            'data' => 'internationalShows',
-            'with' => ['viewAllBtn' => true],
-        ],
         // `upcomingItems` is not in HomeRailsService::forWeb() — the route
         // action passes it, so the home page hands it to the renderer as
         // extra data. See ott-page.blade.php.
-        'upcoming' => ['view' => 'upcomming', 'data' => 'upcomingItems', 'with' => ['viewAllBtn' => true]],
         'top_movies_today' => ['view' => 'verticle-slider', 'data' => 'verticalFeatured', 'bleed' => true],
         // Every Visible Home category shelf, as one block. The website used to
         // scatter three of them at fixed slots standing in for rails that had

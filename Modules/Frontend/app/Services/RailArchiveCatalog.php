@@ -34,32 +34,9 @@ class RailArchiveCatalog
         $recommender = fn () => app(TopPicksRecommender::class);
 
         return [
-            'top-picks' => [
-                'title' => __('sectionTitle.top_picks'),
-                'pinned' => function () use ($recommender) {
-                    $uid = auth()->id();
-
-                    return $uid
-                        ? $recommender()->forUser($uid)
-                        : $recommender()->forGuest();
-                },
-                'query' => fn () => Movie::published()->with('genres'),
-                'order' => fn ($q) => $q->orderByDesc('views_count')->orderByDesc('created_at'),
-            ],
             'smart-shuffle' => [
                 'title' => __('sectionTitle.smart_shuffle'),
                 'pinned' => fn () => $recommender()->smartShuffle(auth()->id()),
-                'query' => fn () => Movie::published()->with('genres'),
-                'order' => fn ($q) => $q->orderByDesc('views_count')->orderByDesc('created_at'),
-            ],
-            'fresh-picks' => [
-                'title' => __('sectionTitle.fresh_picks'),
-                'pinned' => fn () => $recommender()->freshPicks(auth()->id()),
-                'query' => fn () => Movie::published()->with('genres'),
-                'order' => fn ($q) => $q->orderByDesc('created_at'),
-            ],
-            'popular-movies' => [
-                'title' => __('sectionTitle.popular_movies'),
                 'query' => fn () => Movie::published()->with('genres'),
                 'order' => fn ($q) => $q->orderByDesc('views_count')->orderByDesc('created_at'),
             ],

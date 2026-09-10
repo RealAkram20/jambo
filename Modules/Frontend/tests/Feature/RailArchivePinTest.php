@@ -24,20 +24,24 @@ class RailArchivePinTest extends TestCase
 
     /** Every rail key the website answers on. Losing one is a 404 for a viewer. */
     private const RAILS = [
-        'top-picks', 'smart-shuffle', 'fresh-picks', 'popular-movies',
-        'only-on-streamit', 'latest-movies', 'popular-series', 'latest-series',
+        'smart-shuffle', 'only-on-streamit', 'latest-movies',
+        'popular-series', 'latest-series',
     ];
 
     /**
-     * The three personalised rails pin their own items to the front with
-     * MySQL's FIELD(), which SQLite does not implement.
+     * The personalised rail pins its own items to the front with MySQL's
+     * FIELD(), which SQLite does not implement.
+     *
+     * There were three until 2026-09-11. `top-picks` and `fresh-picks` went
+     * with the home shelves that were their only way in — see the migration
+     * that retired them.
      *
      * Production is MariaDB so they work there, but it means these three have
      * never been coverable by this suite and never will be while tests run on
      * SQLite. Recorded rather than worked around: a rewrite to portable SQL is
      * a real change to a live ranking, not a test fix.
      */
-    private const MYSQL_ONLY = ['top-picks', 'smart-shuffle', 'fresh-picks'];
+    private const MYSQL_ONLY = ['smart-shuffle'];
 
     public function test_every_portable_rail_archive_renders(): void
     {

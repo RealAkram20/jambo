@@ -69,12 +69,8 @@
      rows order `GET /api/v1/home`. Editing this file to move a shelf would
      put the website back out of step with the app, which is the state this
      replaced. Move it on the screen instead.
-
-     `upcomingItems` is the one collection the route action holds rather than
-     HomeRailsService, so it is handed over explicitly. --}}
-@include('frontend::components.sections.arranged', [
-    'sectionData' => ['upcomingItems' => $upcomingItems ?? collect()],
-])
+ --}}
+@include('frontend::components.sections.arranged')
 
 {{-- Mobile Footer --}}
 @include('frontend::components.widgets.mobile-footer')

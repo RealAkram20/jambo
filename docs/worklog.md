@@ -6461,3 +6461,52 @@ sound; the number is not evidence.
 It is one line of structure and it belongs to whoever next opens
 `mobile/src/screens/HomeScreen.tsx`, not inside a backend slice. Doing it there
 is why this is written down instead of done.
+
+### 2026-09-11 — seven sections removed, because the product does not have them
+
+**Status:** complete, 1.8.39. Same session as the entry above.
+
+**What happened, and it is worth reading before the next arrangement change.**
+1.8.38 seeded `home_sections` from `HomeSection::DEFAULTS`, which listed every
+rail `GET /api/v1/home` could build. That is not the same list as the shelves
+the product actually has. Three of them — Top Picks, Popular Movies, Fresh
+Picks — had been **deliberately retired from the website months earlier** and
+replaced by category shelves. The evidence was in the file I deleted:
+`random-category-rail.blade.php` was included three times and each call site
+carried a comment naming the rail it replaced. I read those comments, quoted
+them in the ADR as proof the stand-ins could go, and did not draw the other
+conclusion — that the rails they stood in for were not wanted back.
+
+Rio switched all seven off and said to remove them.
+
+**Removed:** the rows (migration `2026_09_11_090000`), both registry constants,
+the seven `titleRail` calls, five orphaned partials, three orphaned rail
+archives, and four shared collections (`topPicks`, `latestShows`,
+`internationalShows`, `upcomingMovies`) plus `resolveTopPicks()`.
+
+**Kept, and each for a checked reason:** `latest-movies` and `upcomming`
+partials, because `/home` includes them; `freshMovies` and `popularMovies`
+collections, because `suggested` and `tranding-tab` on that same page read
+them; the `latest-movies`, `latest-series` and `popular-series` archives,
+which were already unlinked before today and are not dirt this change created.
+
+**Verified.** Eleven rows; both constants still agree by key set; the website
+renders seven headings and the API nine rails, consistent with each other and
+with the stored positions. 102 Frontend tests pass. Four tests drove off
+retired keys and now drive off `top_movies` and `exclusives`.
+
+🔴 **Left for Rio, not decided here.** `TopPicksRecommender::forUser()` and
+`forGuest()` have no caller now. They are the engine from
+`docs/plans/top-picks-personalization.md` — roughly two hundred tested lines
+plus the unreferenced `frontend.recommendations.enabled` flag — and the shelf
+they ranked is gone. Deleting a personalisation engine because a shelf was
+retired is a product decision. It should not sit unanswered for long.
+
+**Deploy note.** Production is on 1.8.38 as of tonight and already runs the
+arrangement. This adds one migration that deletes rows, and deletes Blade
+files, so `view:clear` before `view:cache` matters again.
+
+**For whoever is next.** When seeding a registry that an admin will manage,
+seed it from **what the product renders**, not from what the code can produce.
+The two lists look identical right up until one of them contains something
+somebody deliberately removed.

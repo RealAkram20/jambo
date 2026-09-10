@@ -220,8 +220,10 @@ class HomeBannerRailsTest extends TestCase
         $this->assertSame('numbered', $rails['top_series']['style']);
 
         // And an ordinary rail says nothing, which is what "draw it the
-        // ordinary way" looks like on the wire.
-        $this->assertArrayNotHasKey('style', $rails['latest_movies']);
+        // ordinary way" looks like on the wire. Only on Jambo stands in for
+        // Latest Movies here, which was retired from the home page on
+        // 2026-09-11.
+        $this->assertArrayNotHasKey('style', $rails['exclusives']);
     }
 
     // ── helpers ──────────────────────────────────────────────────────────
