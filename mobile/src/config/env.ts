@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 /**
  * Build-time configuration, read once.
  *
@@ -54,6 +56,19 @@ export const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN ?? '';
 export const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? '';
 export const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '';
 
-/** Whether this build has what it needs to start a Google sign-in at all. */
+/**
+ * Whether this build has what it needs to start a Google sign-in at all.
+ *
+ * 🔴 **Android needs the ANDROID client id specifically — the web one is not
+ * a substitute.** `expo-auth-session` throws
+ * `Client Id property 'androidClientId' must be defined to use Google auth on
+ * this platform` from inside the hook, which is during render, which takes the
+ * sign-in screen down with it. Found on 2026-09-11 by building a dev client
+ * with only the web id set: the button appeared and the screen died.
+ *
+ * So this asks the platform's own question rather than "is any id present".
+ * An Android build with only a web client id can no more sign in than one with
+ * no ids at all, and the honest thing is to hide the button in both cases.
+ */
 export const CAN_SIGN_IN_WITH_GOOGLE =
-  GOOGLE_ANDROID_CLIENT_ID !== '' || GOOGLE_WEB_CLIENT_ID !== '';
+  Platform.OS === 'android' ? GOOGLE_ANDROID_CLIENT_ID !== '' : GOOGLE_WEB_CLIENT_ID !== '';

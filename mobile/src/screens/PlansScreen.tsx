@@ -1,9 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Dimensions,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
+  CaretLeft,
   CaretRight,
   Check,
   Crown,
@@ -24,6 +33,11 @@ import { CheckoutSheet } from '../features/billing/CheckoutSheet';
 import type { Plan, Subscription, TitleCard } from '../api/catalogue';
 import { CAN_SUBSCRIBE_IN_APP } from '../config/env';
 import { renewalLine } from '../ui/format';
+import {
+  planCardWidth,
+  planLadderSlides,
+  planScrollTarget,
+} from '../ui/planLadder';
 import { imageUrl } from '../ui/media';
 import { badge, colors, fonts, plans as planTokens, spacing, typography } from '../ui/theme';
 import { Alert, Caption, ErrorState, Loading } from '../ui/components';
@@ -444,39 +458,12 @@ export function PlansScreen({ navigation }: AppScreenProps<'Plans'>) {
               </View>
             ) : null}
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={[
-                styles.ladder,
-                /*
-                 * A period with one or two plans centres, which is the
-                 * website's own `row justify-content-center` rather than a
-                 * decision taken here. Rendered left-aligned first: a single
-                 * Weekly card hard against the left margin with two thirds of
-                 * the screen empty beside it reads as a layout that failed to
-                 * load the rest.
-                 */
-                shown.length < 3 && styles.ladderCentred,
-              ]}
-              /* Snap so a card always lands square, the way a rail does. */
-              snapToInterval={CARD_WIDTH + spacing.sm}
-              decelerationRate="fast"
-            >
-              {shown.map((plan) => (
-                <PlanCard
-                  key={plan.slug ?? plan.name}
-                  plan={plan}
-                  current={plan.slug !== undefined && plan.slug === currentSlug}
-                  {...(plan.slug === undefined
-                    ? {}
-                    : {
-                        onSubscribe: () => void subscribe(plan.slug as string),
-                        subscribing: pending === plan.slug,
-                      })}
-                />
-              ))}
-            </ScrollView>
+            <PlanLadder
+              plans={shown}
+              currentSlug={currentSlug}
+              pending={pending}
+              onSubscribe={(slug) => void subscribe(slug)}
+            />
           </>
         )}
 
@@ -697,11 +684,19 @@ function PeriodTab({ label, on, onPress }: { label: string; on: boolean; onPress
  */
 function PlanCard({
   plan,
+  width,
   current,
   onSubscribe,
   subscribing,
 }: {
   plan: Plan;
+  /**
+   * Set by `PlanLadder` from how many plans this period holds, not by the
+   * card. A card alone takes the whole content width and reads as an offer;
+   * the same card at a fixed third of the screen read as the survivor of a
+   * row that failed to load, which is what Rio reported on 2026-09-11.
+   */
+  width: number;
   current: boolean;
   /** Undefined on a build that may not sell. See the footer below. */
   onSubscribe?: (() => void) | undefined;
@@ -713,7 +708,12 @@ function PlanCard({
 
   return (
     <View
-      style={[styles.card, popular && styles.cardPopular, current && styles.cardCurrent]}
+      style={[
+        styles.card,
+        { width },
+        popular && styles.cardPopular,
+        current && styles.cardCurrent,
+      ]}
       accessible
       accessibilityLabel={[
         plan.name,
@@ -909,21 +909,124 @@ function statusWord(status: string | null | undefined): string {
   return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
+/**
+ * The plan ladder: as many cards as fit, and arrows when they do not.
+ *
+ * **The width is a function of how many there are, not a constant.** It used
+ * to be a hardcoded third of the screen whatever the catalogue held, so the
+ * one-plan case — which is every period Jambo actually sells — drew a narrow
+ * card beside two thirds of nothing. Rio saw it on 2026-09-11 and the numbers
+ * now come from `planCardWidth`, where they can be tested without a device.
+ *
+ * **Arrows only when something is off screen.** Two controls over a row that
+ * already fits is the same fault as a button that navigates to its own
+ * screen, which this codebase shipped once already this week.
+ */
+function PlanLadder({
+  plans,
+  currentSlug,
+  pending,
+  onSubscribe,
+}: {
+  plans: Plan[];
+  currentSlug: string | undefined;
+  pending: string | null;
+  onSubscribe: (slug: string) => void;
+}) {
+  const { width } = useWindowDimensions();
+  const scroller = useRef<ScrollView>(null);
+  const offset = useRef(0);
+
+  const cardWidth = planCardWidth(plans.length, width);
+  const slides = planLadderSlides(plans.length);
+
+  const nudge = (direction: 'left' | 'right') => {
+    const to = planScrollTarget(offset.current, direction, plans.length, width);
+    scroller.current?.scrollTo({ x: to, animated: true });
+  };
+
+  return (
+    <View>
+      <ScrollView
+        ref={scroller}
+        horizontal
+        /* Nothing to scroll when everything fits, so the row does not rubber-
+           band under a finger that was trying to press a card. */
+        scrollEnabled={slides}
+        showsHorizontalScrollIndicator={false}
+        onScroll={(event) => {
+          offset.current = event.nativeEvent.contentOffset.x;
+        }}
+        scrollEventThrottle={16}
+        contentContainerStyle={styles.ladder}
+        /* Snap so a card always lands square, the way a rail does. */
+        snapToInterval={cardWidth + spacing.sm}
+        decelerationRate="fast"
+      >
+        {plans.map((plan) => (
+          <PlanCard
+            key={plan.slug ?? plan.name}
+            plan={plan}
+            width={cardWidth}
+            current={plan.slug !== undefined && plan.slug === currentSlug}
+            {...(plan.slug === undefined
+              ? {}
+              : {
+                  onSubscribe: () => onSubscribe(plan.slug as string),
+                  subscribing: pending === plan.slug,
+                })}
+          />
+        ))}
+      </ScrollView>
+
+      {slides ? (
+        <View style={styles.ladderNav}>
+          <LadderArrow direction="left" onPress={() => nudge('left')} />
+          <LadderArrow direction="right" onPress={() => nudge('right')} />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+/** One of the ladder's two arrows. */
+function LadderArrow({
+  direction,
+  onPress,
+}: {
+  direction: 'left' | 'right';
+  onPress: () => void;
+}) {
+  const Glyph = direction === 'left' ? CaretLeft : CaretRight;
+
+  return (
+    <Focusable
+      accessibilityRole="button"
+      accessibilityLabel={direction === 'left' ? 'Previous plans' : 'More plans'}
+      ringRadius={planTokens.tabRadius}
+      onPress={onPress}
+      style={styles.ladderArrow}
+    >
+      <Glyph size={18} color={colors.text} weight="bold" />
+    </Focusable>
+  );
+}
+
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-/**
- * A third of the width, which is the mockup's three-abreast ladder.
+/*
+ * `CARD_WIDTH` was here, and it is what this change removed.
  *
- * Measured before it was drawn, because the first cut assumed it would not
- * fit and gave each card three-quarters of the screen. On this emulator the
- * viewport is 426dp, so a card is 126dp — and "UGX 30,000" at the type scale
- * below is 108dp of it. It fits, and a viewer comparing three plans should
- * not have to swipe between them to do it.
- *
- * The ladder still scrolls, because a catalogue with four paid monthly tiers
- * is a catalogue the admin is allowed to have.
+ * It said a plan card is always a third of the screen, whatever the catalogue
+ * holds — so the one-plan case, which is every period Jambo actually sells,
+ * drew a narrow card beside two thirds of nothing. Rio reported it on
+ * 2026-09-11. The width is now `planCardWidth(count, screenWidth)`, computed
+ * per period in `ui/planLadder.ts` where it has tests, and the reasoning that
+ * lived in this comment moved there with it: a third of a phone is 118pt and
+ * "UGX 30,000" is 108pt of that, which is why three is the most that fit
+ * across and a fourth slides instead of shrinking.
  */
-const CARD_WIDTH = Math.floor((SCREEN_WIDTH - spacing.lg * 2 - spacing.sm * 2) / 3);
+
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
@@ -1042,10 +1145,27 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     alignItems: 'stretch',
   },
-  ladderCentred: { flexGrow: 1, justifyContent: 'center' },
+  /*
+   * The arrows sit under the row rather than over it. Floated on top they
+   * would cover the price on the first and last card, which is the one thing
+   * on this screen a viewer is there to read.
+   */
+  ladderNav: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingTop: spacing.md,
+  },
+  ladderArrow: {
+    width: 44,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: planTokens.tabRadius,
+    backgroundColor: planTokens.tabBg,
+  },
 
   card: {
-    width: CARD_WIDTH,
     borderRadius: planTokens.cardRadius,
     backgroundColor: planTokens.cardBg,
     borderWidth: planTokens.cardBorderWidth,
