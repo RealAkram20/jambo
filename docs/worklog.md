@@ -6423,10 +6423,14 @@ both surfaces.
 and the endpoint pages at 40, so `onEndReached` has never fired. Nothing on a
 tablet or the TV build.
 
-**Deliberately not changed:** the movie and TV detail pages' cast and crew
-rows. Rio said "on home", and a rounded rectangle there against a circle on the
-home rail is a real inconsistency — it is his call, not mine to widen, and it
-is one selector if he wants it.
+**Deliberately not changed, and then confirmed:** the movie and TV detail
+pages' cast and crew rows. Rio said "on home"; I took him literally and then
+put it back to him on 2026-09-11 as an open choice rather than leaving my own
+reading standing — shown that the mismatch reads as an oversight, and that it
+was one selector either way. **He chose to keep them as they are.** So the two
+surfaces differ on purpose: circles on the home rail, the rounded 1/1.3
+portrait on a detail page's cast row. It is written into the CSS comment too,
+because the next person to see it will assume it was missed.
 
 **Coordination.** jambo-9c held `Modules/Frontend` for the home-section
 arrangement throughout. They stashed the shared tree once, which briefly took
