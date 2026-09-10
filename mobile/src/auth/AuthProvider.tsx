@@ -45,6 +45,15 @@ type AuthValue = {
     password: string,
     options?: { remember?: boolean },
   ) => Promise<SignInOutcome>;
+  /**
+   * Sign in with a Google ID token obtained by `useGoogleSignIn`.
+   *
+   * Returns the same `SignInOutcome` as `signIn` because it has the same two
+   * endings: a session, or a two-factor challenge. An account with 2FA on does
+   * not stop having it because the viewer arrived through Google, and the
+   * server issues the same challenge either way.
+   */
+  signInWithGoogle: (idToken: string) => Promise<SignInOutcome>;
   completeTwoFactor: (
     challengeToken: string,
     answer: { code: string } | { recovery_code: string },
@@ -202,6 +211,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [adopt],
   );
 
+  /*
+   * The same two endings as `signIn`, and the same handling of them, so the
+   * duplication is the try/catch rather than the decision. Always remembered:
+   * somebody who has just proved themselves through Google has not asked to be
+   * signed out when the app closes.
+   */
+  const signInWithGoogle = useCallback(
+    async (idToken: string): Promise<SignInOutcome> => {
+      try {
+        const session = await api.googleSignIn(idToken);
+        await adopt(session, true);
+        return { kind: 'signedIn' };
+      } catch (error) {
+        if (error instanceof ApiError && error.code === 'TWO_FACTOR_REQUIRED') {
+          const challengeToken = error.detail('challenge_token');
+          if (challengeToken !== null) {
+            return { kind: 'two-factor', challengeToken };
+          }
+        }
+        throw error;
+      }
+    },
+    [adopt],
+  );
+
   const register = useCallback(
     async (input: {
       first_name: string;
@@ -263,6 +297,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       launchOffline,
       branding,
       signIn,
+      signInWithGoogle,
       register,
       completeTwoFactor,
       signOut,
@@ -275,6 +310,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       launchOffline,
       branding,
       signIn,
+      signInWithGoogle,
       register,
       completeTwoFactor,
       signOut,

@@ -65,7 +65,12 @@ export function TwoFactorScreen({ route, navigation }: AuthScreenProps<'TwoFacto
       <View style={styles.centre}>
         <Surface>
           <Title>Two-factor</Title>
-          <Caption>{`Signing in as ${email}.`}</Caption>
+          {/* Absent for a Google sign-in: the address is inside a token
+              only the server can read. A line reading "Signing in as
+              undefined" is worse than no line. */}
+          {email === undefined || email === '' ? null : (
+            <Caption>{`Signing in as ${email}.`}</Caption>
+          )}
 
           <View style={styles.form}>
             {banner !== null ? <Alert tone="error">{banner}</Alert> : null}

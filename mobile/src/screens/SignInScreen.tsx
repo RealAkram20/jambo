@@ -5,6 +5,7 @@ import { Envelope, Lock } from 'phosphor-react-native';
 
 import { ApiError, NetworkError } from '../api/errors';
 import { useAuth } from '../auth/AuthProvider';
+import { useGoogleSignIn } from '../auth/googleSignIn';
 import { AuthBackground, PlayWatermark } from '../ui/AuthBackground';
 import {
   AuthField,
@@ -58,7 +59,8 @@ function messageFor(error: unknown): string {
 }
 
 export function SignInScreen({ navigation }: AuthScreenProps<'SignIn'>) {
-  const { signIn, config } = useAuth();
+  const { signIn, signInWithGoogle, config } = useAuth();
+  const google = useGoogleSignIn();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -76,8 +78,62 @@ export function SignInScreen({ navigation }: AuthScreenProps<'SignIn'>) {
    * can only fail is worse than no button — the viewer cannot tell whether
    * they typed something wrong or the platform is broken. Undefined (config
    * not loaded yet, or an older server) is treated as off, the safe direction.
+   *
+   * 🔴 **Both halves are required now, and the second half is why this was
+   * broken.** The server saying yes was never enough: until 2026-09-11 the
+   * button's handler was `navigation.navigate('SignIn')` — it navigated to the
+   * screen it was already on, so it did nothing at all, and it was visible on
+   * production only because the live server has a client id set. `google.start`
+   * is null when this BUILD has no Google client configured, which is the
+   * other way the control can be unable to finish.
    */
-  const googleEnabled = config?.features?.google_sign_in === true;
+  const googleEnabled = config?.features?.google_sign_in === true && google.start !== null;
+
+  /**
+   * Google sign-in, end to end.
+   *
+   * Two failure modes are handled apart on purpose. A CANCEL is the viewer
+   * changing their mind and says nothing — an alert reading "sign-in failed"
+   * because somebody pressed back is the app blaming them for a decision. A
+   * FAILURE is Google answering with something unusable, and that gets a
+   * sentence, because the viewer cannot otherwise tell it from a tap that did
+   * not register, which is exactly the confusion this whole change exists to
+   * end.
+   */
+  const submitGoogle = async () => {
+    if (busy || google.start === null) return;
+
+    setBusy(true);
+    setBanner(null);
+    setFieldErrors({});
+
+    try {
+      const result = await google.start();
+
+      if (result.kind === 'cancelled') return;
+
+      if (result.kind === 'failed') {
+        setBanner('Google did not complete that sign-in. Try again, or use your email.');
+        return;
+      }
+
+      const outcome = await signInWithGoogle(result.idToken);
+
+      if (outcome.kind === 'two-factor') {
+        // A Google account with 2FA on still has 2FA on.
+        navigation.navigate('TwoFactor', { challengeToken: outcome.challengeToken });
+      }
+      // On `signedIn` the provider switches stacks; this screen unmounts.
+    } catch (error) {
+      setBanner(
+        error instanceof ApiError
+          ? error.message
+          : 'Could not reach Jambo. Check your connection and try again.',
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const submit = async () => {
     if (busy) return;
@@ -203,11 +259,16 @@ export function SignInScreen({ navigation }: AuthScreenProps<'SignIn'>) {
                 />
 
                 {/*
-                  The social block appears only when the server can actually
-                  complete it. Apple is deliberately absent: this API has no
+                  The social block appears only when BOTH ends can actually
+                  complete it — the server has a client configured and so does
+                  this build. Apple is deliberately absent: this API has no
                   Apple endpoint, no client configuration and nothing in the
                   spec, so the mockup's button would be one that can only fail.
                   Raised with Rio rather than shipped dark.
+
+                  The Google button was shipped exactly that way by accident
+                  and ran dead until 2026-09-11. That is the rule this comment
+                  states, broken in the code directly beneath it.
                 */}
                 {googleEnabled ? (
                   <>
@@ -216,7 +277,10 @@ export function SignInScreen({ navigation }: AuthScreenProps<'SignIn'>) {
                       <QuietButton
                         label="Google"
                         icon={<GoogleMark />}
-                        onPress={() => navigation.navigate('SignIn')}
+                        disabled={busy}
+                        onPress={() => {
+                          void submitGoogle();
+                        }}
                       />
                     </View>
                   </>

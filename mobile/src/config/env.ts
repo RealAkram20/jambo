@@ -35,3 +35,25 @@ export const CAN_SUBSCRIBE_IN_APP = VARIANT === 'direct';
  * path stays inert without one.
  */
 export const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN ?? '';
+
+/**
+ * The Google OAuth clients this build may sign in with.
+ *
+ * **Two ids, and they are not interchangeable.** Google keys an ANDROID client
+ * to the package name and the signing certificate, which is what proves the
+ * request came from this app; the WEB client is the one the website already
+ * uses. Which of them ends up in the token's `aud` depends on which the
+ * request was made with, and the server accepts either — see
+ * `config/services.php`.
+ *
+ * Empty means this build cannot sign in with Google, and the button is not
+ * drawn. That is deliberate: the whole reason this work exists is that a
+ * button was shipped which could only fail, so an unconfigured build must hide
+ * it rather than offer it.
+ */
+export const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? '';
+export const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '';
+
+/** Whether this build has what it needs to start a Google sign-in at all. */
+export const CAN_SIGN_IN_WITH_GOOGLE =
+  GOOGLE_ANDROID_CLIENT_ID !== '' || GOOGLE_WEB_CLIENT_ID !== '';

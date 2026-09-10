@@ -306,6 +306,122 @@ class AccountAuthTest extends TestCase
         $this->assertDatabaseMissing('users', ['email' => 'attacker@example.test']);
     }
 
+    /**
+     * The Android app signs in with its OWN OAuth client.
+     *
+     * Google keys an Android client to the package name and the signing
+     * certificate, and puts that client's id in the token's `aud` — so it is
+     * legitimately a different string from the Web client the website uses.
+     * One hardcoded audience cannot serve both surfaces, which is why the
+     * check reads a list.
+     */
+    public function test_a_token_issued_for_the_android_app_is_accepted(): void
+    {
+        config([
+            'services.google.client_id' => 'jambo-web-client-id',
+            'services.google.client_ids' => ['jambo-web-client-id', 'jambo-android-client-id'],
+        ]);
+        $this->googleReturns([
+            'aud' => 'jambo-android-client-id',
+            'email' => 'onthephone@example.test',
+            'email_verified' => 'true',
+            'name' => 'Ada Lovelace',
+        ]);
+
+        $this->postJson('/api/v1/auth/google', [
+            'id_token' => 'a-token-from-the-android-app',
+            'device' => $this->device(),
+        ])->assertOk();
+
+        $this->assertDatabaseHas('users', ['email' => 'onthephone@example.test']);
+    }
+
+    /**
+     * 🔴 Widening the audience check to a list must not widen it to
+     * everything.
+     *
+     * This is the same attack the single-audience test covers, re-run against
+     * the list, because "accepts more than one of ours" and "accepts anyone's"
+     * are one careless `in_array` apart — a loose comparison, an empty list
+     * treated as a wildcard, or a fallback that passes when nothing matches.
+     */
+    public function test_a_third_party_token_is_still_refused_when_several_clients_are_configured(): void
+    {
+        config([
+            'services.google.client_id' => 'jambo-web-client-id',
+            'services.google.client_ids' => ['jambo-web-client-id', 'jambo-android-client-id'],
+        ]);
+        $this->googleReturns([
+            'aud' => 'some-other-apps-client-id',
+            'email' => 'attacker@example.test',
+            'email_verified' => 'true',
+        ]);
+
+        $this->postJson('/api/v1/auth/google', [
+            'id_token' => 'a-token-for-another-app',
+            'device' => $this->device(),
+        ])->assertStatus(401)->assertJsonPath('code', 'INVALID_CREDENTIALS');
+
+        $this->assertDatabaseMissing('users', ['email' => 'attacker@example.test']);
+    }
+
+    /**
+     * 🔴 A non-string audience must not authenticate as every client at once.
+     *
+     * This test exists because deleting the `true` from `in_array(..., true)`
+     * changed nothing: every audience in the other tests is a plain
+     * non-numeric string, where loose and strict comparison agree, so the
+     * strict flag was correct and unobserved.
+     *
+     * The state it actually defends against is a boolean. In PHP,
+     * `true == 'jambo-web-client-id'` is TRUE, because any non-empty string is
+     * truthy — so under a loose comparison an `aud` of `true` matches the
+     * FIRST configured client and mints a session for whatever email came with
+     * it. Google will not send that over HTTPS today; the check costs one
+     * keyword and the failure it prevents is silent account takeover.
+     */
+    public function test_a_non_string_audience_is_refused_rather_than_matching_everything(): void
+    {
+        config([
+            'services.google.client_id' => 'jambo-web-client-id',
+            'services.google.client_ids' => ['jambo-web-client-id', 'jambo-android-client-id'],
+        ]);
+        $this->googleReturns([
+            // Not a string, and truthy. The state the strict comparison exists for.
+            'aud' => true,
+            'email' => 'juggled@example.test',
+            'email_verified' => 'true',
+        ]);
+
+        $this->postJson('/api/v1/auth/google', [
+            'id_token' => 'a-token-with-a-boolean-audience',
+            'device' => $this->device(),
+        ])->assertStatus(401)->assertJsonPath('code', 'INVALID_CREDENTIALS');
+
+        $this->assertDatabaseMissing('users', ['email' => 'juggled@example.test']);
+    }
+
+    /**
+     * A server with no Google client configured refuses rather than accepting
+     * whatever arrives. An empty allow-list is not a wildcard.
+     */
+    public function test_google_sign_in_is_refused_when_no_client_is_configured(): void
+    {
+        config(['services.google.client_id' => null, 'services.google.client_ids' => []]);
+        $this->googleReturns([
+            'aud' => 'anything-at-all',
+            'email' => 'nobody@example.test',
+            'email_verified' => 'true',
+        ]);
+
+        $this->postJson('/api/v1/auth/google', [
+            'id_token' => 'a-token',
+            'device' => $this->device(),
+        ])->assertStatus(500);
+
+        $this->assertDatabaseMissing('users', ['email' => 'nobody@example.test']);
+    }
+
     public function test_an_unverified_google_email_cannot_adopt_an_account(): void
     {
         config(['services.google.client_id' => 'jambo-app-client-id']);

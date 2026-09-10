@@ -12,7 +12,16 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
  */
 export type AuthStackParams = {
   SignIn: undefined;
-  TwoFactor: { challengeToken: string; email: string };
+  /**
+   * `email` is optional because a Google sign-in does not know it.
+   *
+   * The email challenge is reached from a form where the viewer typed
+   * their address, so the screen can say whose account it is asking
+   * about. A Google challenge is reached from a browser round trip, and
+   * the address lives inside a token only the server can read — so the
+   * screen says nothing rather than guessing or printing an empty name.
+   */
+  TwoFactor: { challengeToken: string; email?: string };
   ForgotPassword: undefined;
   Register: undefined;
 };

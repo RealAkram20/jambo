@@ -12,7 +12,9 @@
       },
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "http://10.0.2.2:8090/api/v1",
-        "EXPO_PUBLIC_JAMBO_VARIANT": "direct"
+        "EXPO_PUBLIC_JAMBO_VARIANT": "direct",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "$GOOGLE_ANDROID_CLIENT_ID",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "$GOOGLE_WEB_CLIENT_ID"
       }
     },
     "preview": {
@@ -23,7 +25,9 @@
       },
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://jambofilms.com/api/v1",
-        "EXPO_PUBLIC_JAMBO_VARIANT": "direct"
+        "EXPO_PUBLIC_JAMBO_VARIANT": "direct",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "$GOOGLE_ANDROID_CLIENT_ID",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "$GOOGLE_WEB_CLIENT_ID"
       }
     },
     "preview-play": {
@@ -34,7 +38,9 @@
       },
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://jambofilms.com/api/v1",
-        "EXPO_PUBLIC_JAMBO_VARIANT": "play"
+        "EXPO_PUBLIC_JAMBO_VARIANT": "play",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "$GOOGLE_ANDROID_CLIENT_ID",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "$GOOGLE_WEB_CLIENT_ID"
       }
     },
     "production-direct": {
@@ -44,7 +50,9 @@
       },
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://jambofilms.com/api/v1",
-        "EXPO_PUBLIC_JAMBO_VARIANT": "direct"
+        "EXPO_PUBLIC_JAMBO_VARIANT": "direct",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "$GOOGLE_ANDROID_CLIENT_ID",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "$GOOGLE_WEB_CLIENT_ID"
       }
     },
     "production-play": {
@@ -54,7 +62,9 @@
       },
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://jambofilms.com/api/v1",
-        "EXPO_PUBLIC_JAMBO_VARIANT": "play"
+        "EXPO_PUBLIC_JAMBO_VARIANT": "play",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "$GOOGLE_ANDROID_CLIENT_ID",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "$GOOGLE_WEB_CLIENT_ID"
       }
     }
   },

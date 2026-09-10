@@ -52,9 +52,20 @@ class SocialAuthController extends Controller
             ...DeviceTokenIssuer::deviceRules(),
         ]);
 
-        $clientId = config('services.google.client_id');
+        /*
+         * Both keys, deliberately. `client_ids` is the list `config/services`
+         * builds; `client_id` is the single Web client the website has always
+         * used and which a test, a tinker session or an older deployment may
+         * set on its own. Reading only the list would let a config path that
+         * sets one and not the other turn the audience check off entirely,
+         * which is the one failure this endpoint must not have.
+         */
+        $audiences = array_values(array_unique(array_filter(array_merge(
+            (array) config('services.google.client_ids', []),
+            [config('services.google.client_id')],
+        ))));
 
-        if (! $clientId) {
+        if ($audiences === []) {
             return ApiResponse::error(
                 ApiErrorCode::ServerError,
                 'Google sign-in is not configured on this server.',
@@ -73,7 +84,13 @@ class SocialAuthController extends Controller
         // The audience check is the whole point. A valid Google ID token
         // issued to SOMEBODY ELSE'S app is still a valid Google token; without
         // this, anyone with any Google client could mint sign-ins here.
-        if (($profile['aud'] ?? null) !== $clientId) {
+        //
+        // It is a LIST now rather than one string, and that is not a
+        // relaxation: the website asks Google with its Web client and the
+        // Android app asks with its own, so `aud` is legitimately one of two
+        // values. `in_array` with strict comparison, because a loose one would
+        // let PHP's type juggling decide what counts as our client.
+        if (! in_array($profile['aud'] ?? null, $audiences, true)) {
             return ApiResponse::error(
                 ApiErrorCode::InvalidCredentials,
                 'That sign-in was not issued for this app.',

@@ -6565,3 +6565,89 @@ server, and the screen now answers it for him.
 under `home.category_gap`. If Rio ever wants the shelves somewhere other than
 "from the Categories row onward", that is a second position, not a bigger gap,
 and it wants a second row rather than a cleverer algorithm.
+
+### 2026-09-11 — Google sign-in, wired for the first time (jambo-6b)
+
+**Status:** complete (server proven, app half unbuilt — see the close)
+**Owns:**
+- `mobile/src/auth/googleSignIn.ts` (new)
+- `mobile/src/screens/SignInScreen.tsx` — the social block
+
+**Shares — minimal diffs, each named:**
+- `app/Http/Controllers/Api/V1/SocialAuthController.php` — the audience check
+  only.
+- `config/services.php` — one added `client_ids` list.
+- `tests/Feature/Api/V1/` — the social auth test.
+- `mobile/package.json`, `mobile/src/config/env.ts`, `mobile/eas.json` — the
+  client IDs.
+- `docs/api/openapi.yaml` + `mobile/src/api/schema.d.ts` if the contract moves.
+
+**What this is:** Rio, on the live app: *"login with google is not working"*.
+It never could. `SignInScreen`'s Google button was
+`onPress={() => navigation.navigate('SignIn')}` — a no-op that navigates to the
+screen it is already on. The server half has been built and correct since
+1.8.23: `POST /api/v1/auth/google` verifies an ID token against Google, checks
+the audience, requires a verified email and issues a device-bound session. The
+app simply never asked Google for a token.
+
+The button was visible only against production, because it is drawn from
+`features.google_sign_in`, which is `(bool) config('services.google.client_id')`
+— set on the live server for the website's own Google login, unset locally. So
+the dead control could not be seen on a dev machine.
+
+**Rio chose "build the real thing now"** over hiding the button, asked on
+2026-09-11 with the cost stated: a new dependency, a new build, and an Android
+OAuth client in his Google Cloud console.
+
+**For whoever is next:** this cannot be tested without a build. `expo-web-browser`
+is not in the current dev client, so the Google flow is unreachable until one is
+made.
+
+---
+
+#### Closing the Google entry
+
+**Built.** `mobile/src/auth/googleSignIn.ts` (the browser round trip),
+`api.googleSignIn`, `AuthProvider.signInWithGoogle`, the button wired, and the
+server's audience check widened to a list with `GOOGLE_ANDROID_CLIENT_ID`
+plumbed through `config/services.php`, `.env`, `.env.example` and all five EAS
+build profiles as `$GOOGLE_ANDROID_CLIENT_ID` / `$GOOGLE_WEB_CLIENT_ID`.
+
+**Verified:** 26 PHP tests across `AccountAuthTest` and `SocialAuthPinTest`,
+including four new ones — the app's client accepted, a third party still
+refused when several clients are configured, an empty allow-list refusing
+rather than acting as a wildcard, and a non-string audience refused. 394 app
+tests, typecheck, lint, api:check and tokens:check green.
+
+**Four mutants, one survivor, now killed.** Dropping the audience check, an
+empty list read as open, and reading only `client_ids` all failed loudly.
+**Making the comparison loose did not** — the strict flag was correct and
+unobserved, because no fixture used an audience where loose and strict differ.
+The forcing case is a boolean `aud`, which under `==` matches any non-empty
+string. That test now fails when the `true` is removed.
+
+**NOT VERIFIED, and this is the important line: none of the app half has ever
+run.** `expo-web-browser` is a native module and is not in the dev client on
+this machine, so the browser round trip, the token hand-off and the two-factor
+branch are all unexercised. The server half is tested; the client half is
+written and unproven until somebody builds it.
+
+**What Rio has to do before it can work**, and none of it is code:
+
+1. In Google Cloud, in the SAME project as the website's OAuth client, create
+   an **Android** OAuth client with package `com.jambofilms.app` and the SHA-1
+   of the certificate the build is signed with. An EAS build uses a keystore
+   EAS holds — `eas credentials` prints its fingerprint.
+2. Put that id in the server's `.env` as `GOOGLE_ANDROID_CLIENT_ID`, and both
+   ids in the build environment as `GOOGLE_ANDROID_CLIENT_ID` and
+   `GOOGLE_WEB_CLIENT_ID`.
+3. Build. The flow cannot be reached from the current dev client.
+
+**Deliberately not built:** Apple sign-in, still. No endpoint, no client, and
+nothing in the spec — the same reason it was left out originally, and the
+reason the Google button should never have shipped drawn.
+
+**For whoever is next:** the two-factor screen's `email` param is optional now.
+An email sign-in knows the address because the viewer typed it; a Google
+sign-in does not, because it lives inside a token only the server reads. The
+screen draws no "Signing in as" line rather than printing an empty one.

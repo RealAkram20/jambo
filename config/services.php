@@ -49,6 +49,25 @@ return [
         'client_id'     => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
         'redirect'      => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
+
+        /*
+         * Every OAuth client of ours that may appear in a token's `aud`.
+         *
+         * The website signs in with the Web client above. The Android app
+         * signs in with its own client, keyed to the package name and the
+         * signing certificate, and Google puts THAT id in the token it
+         * returns. Two clients, two audiences, one account system.
+         *
+         * `POST /api/v1/auth/google` accepts a token whose audience is any
+         * entry here and refuses everything else. Leaving the Android id
+         * unset simply means the app cannot sign in yet; it never means
+         * "accept anything".
+         */
+        'client_ids' => array_values(array_filter([
+            env('GOOGLE_CLIENT_ID'),
+            env('GOOGLE_ANDROID_CLIENT_ID'),
+            env('GOOGLE_IOS_CLIENT_ID'),
+        ])),
     ],
 
     /*

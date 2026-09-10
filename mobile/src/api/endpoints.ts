@@ -79,6 +79,26 @@ export class JamboApi {
   }
 
   /**
+   * Sign in with a Google ID token.
+   *
+   * The token is proof of identity signed by Google; the server checks its
+   * signature, its expiry and — the part that matters — that it was issued
+   * for one of OUR OAuth clients rather than somebody else's app. Nothing
+   * about the account is taken from the client: the email, the name and
+   * whether the address is verified all come out of the token server-side.
+   *
+   * Same device block as `login`, so a Google sign-in registers against the
+   * concurrent-stream cap exactly as an email one does.
+   */
+  async googleSignIn(idToken: string): Promise<Session> {
+    const { data } = await this.client.request<Session>('/auth/google', {
+      method: 'POST',
+      body: { id_token: idToken, device: deviceRegistration() },
+    });
+    return data;
+  }
+
+  /**
    * Ask for a password reset link.
    *
    * The server answers identically whether or not the address has an account —

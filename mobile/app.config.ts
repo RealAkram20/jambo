@@ -68,6 +68,15 @@ export default (): ExpoConfig => ({
     'expo-font',
 
     /*
+     * The Chrome Custom Tab that Google sign-in opens in.
+     *
+     * Google refuses OAuth inside an embedded WebView — the app already has
+     * one for PesaPal and it cannot be reused here — so the flow has to run in
+     * the system browser. Added 2026-09-11 with `expo-auth-session`.
+     */
+    'expo-web-browser',
+
+    /*
      * Required for `userInterfaceStyle` and for the window background above to
      * take effect at all — without it, prebuild warns and both are ignored.
      */

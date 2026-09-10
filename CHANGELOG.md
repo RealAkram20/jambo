@@ -8,6 +8,57 @@ would advertise a webapp update containing no webapp change.
 
 ## Jambo App
 
+### Unreleased — Google sign-in, wired for the first time
+
+Rio, on the live build the hour it was deployed: *"login with google is not
+working"*.
+
+🔴 **It never could.** `SignInScreen`'s Google button was
+`onPress={() => navigation.navigate('SignIn')}` — it navigated to the screen it
+was already on, so tapping it did nothing whatsoever. Not a broken integration:
+an integration that was never written, behind a control that looked finished.
+
+**The server half has been correct since 1.8.23.** `POST /api/v1/auth/google`
+verifies the ID token with Google, checks the audience, refuses an address
+Google has not verified, honours two-factor and issues a device-bound session.
+The only missing piece was the app asking Google for a token.
+
+**Why nobody caught it.** The button is drawn from `features.google_sign_in`,
+which is `(bool) config('services.google.client_id')` — set on the live server
+for the website's own Google login, unset on every dev machine. So the dead
+control was invisible locally and appeared the moment the app first spoke to
+production.
+
+**The system browser, not the WebView the app already has.** Google refuses
+OAuth inside embedded WebViews, so the `react-native-webview` that PesaPal
+checkout uses cannot be reused. `expo-auth-session` opens a Chrome Custom Tab,
+which is what Google asks for and what lets a viewer use the Google session
+they are already signed into.
+
+**The audience check now reads a list, and that is a widening rather than a
+weakening.** Google keys an Android OAuth client to the package name and the
+signing certificate and puts THAT id in the token, so the app and the website
+legitimately present different audiences. The check is still an allow-list of
+clients we own; it just has more than one entry. It reads `client_ids` and
+`client_id` together, so a config path that sets only one cannot silently
+disarm it.
+
+🔴 **A guard no test was asking, found by mutation.** Removing the `true`
+from `in_array(..., true)` changed nothing: every audience in the suite is a
+plain non-numeric string, where loose and strict comparison agree. The state
+the strict flag defends against is a non-string — in PHP,
+`true == 'any-client-id'` is TRUE, so under a loose comparison an `aud` of
+`true` would match the first configured client and mint a session. Forced into
+its own test.
+
+**Both ends must be able to finish before the button is drawn.** The server
+saying yes was never sufficient, and that is exactly how this shipped dead. A
+build with no Google client configured now hides it.
+
+**This cannot be tested without a build.** `expo-web-browser` is not in the
+existing dev client, and the Android OAuth client has to be created against the
+app's signing certificate.
+
 ### Unreleased — One cast page, and round avatars on both surfaces
 
 Two instructions from Rio, an hour apart, and the second reverses part of what
