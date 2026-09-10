@@ -965,16 +965,16 @@
  * wrong.** `components/cards/personality-card.blade.php` is included five
  * times — this rail plus the cast and crew rows on the movie and TV detail
  * pages — and those are not "home". Editing the partial would have rounded all
- * five.
+ * five. So would scoping to `.favourite-person-block`, which was the first
+ * attempt: the detail pages wrap their rows in that same class, and a probe of
+ * a movie page caught it reading `border-radius: 50%` where nothing should
+ * have changed.
  *
  * **The detail pages keeping the rectangle is Rio's decision, not a leftover.**
  * He was asked directly on 2026-09-11, shown that a circle on the home rail
  * against a rounded rectangle on a film's cast row reads as an oversight, and
  * told it was one selector either way. He chose to keep them as they are. Do
- * not "fix" this into consistency without asking him again. So would scoping to `.favourite-person-block`, which was the first
- * attempt: the detail pages wrap their rows in that same class, and a probe of
- * a movie page caught it reading `border-radius: 50%` where nothing should
- * have changed.
+ * not "fix" this into consistency without asking him again.
  *
  * The template draws this image as a 1/1.3 portrait with an 8px corner. A
  * circle needs a square box, so the aspect goes to 1 and the radius to 50%;
