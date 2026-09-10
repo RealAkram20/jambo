@@ -100,6 +100,7 @@ export function DeliverySection() {
       <ListCard>
         <ListRow
           icon={GearSix}
+          iconTile
           label="Delivery"
           chevron={false}
           expanded={open}
@@ -130,6 +131,7 @@ export function DeliverySection() {
             <ListCard>
               <ListRow
                 icon={Bell}
+                iconTile
                 label="In-app"
                 accessory={
                   <Switch
@@ -145,6 +147,7 @@ export function DeliverySection() {
 
               <ListRow
                 icon={EnvelopeSimple}
+                iconTile
                 label="Email"
                 /*
                  * The one sentence in this section, and it earns its place: an

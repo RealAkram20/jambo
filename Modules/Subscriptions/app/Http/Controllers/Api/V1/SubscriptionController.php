@@ -300,7 +300,63 @@ class SubscriptionController extends Controller
         return ApiResponse::ok([
             'items' => $orders->getCollection()->map(fn (PaymentOrder $order) => $this->card($order))->values(),
             'next_cursor' => $orders->nextCursor()?->encode(),
+            'totals' => $this->spendTotals($request->user()->id),
         ]);
+    }
+
+    /**
+     * What this account has actually spent, across every page.
+     *
+     * **Summed in SQL over a decimal column, never in the client.** Two
+     * separate things would go wrong otherwise. The app holds only the pages
+     * it has fetched, so a total added up there is the first fifteen orders
+     * wearing the word "total"; and the app's own `format.ts` records why the
+     * digits are never recomputed — a float round-trip is how a figure stops
+     * matching a bank statement. `SUM` on `decimal(10,2)` returns a decimal.
+     *
+     * **Completed only.** A pending charge is not money that has left an
+     * account, and a failed one certainly is not. `payment_orders` is indexed
+     * on `['user_id', 'status']`, so this is one indexed aggregate rather
+     * than a scan.
+     *
+     * **Null when the account has paid in more than one currency**, rather
+     * than a number. The column is `string('currency', 8)` with no constraint
+     * tying an account to one, so mixed currencies are possible — and
+     * "UGX 1,500,000" formed by adding shillings to dollars is the worst
+     * answer available, because it looks exactly like a right one. The client
+     * draws no summary in that case.
+     *
+     * @return array{spent: string|null, currency: string|null, orders: int}
+     */
+    private function spendTotals(int $userId): array
+    {
+        $rows = PaymentOrder::query()
+            ->where('user_id', $userId)
+            ->where('status', 'completed')
+            ->groupBy('currency')
+            ->selectRaw('currency, SUM(amount) as spent, COUNT(*) as orders')
+            ->get();
+
+        if ($rows->count() !== 1) {
+            return [
+                'spent' => null,
+                'currency' => null,
+                // The count is still honest across currencies: it is a number
+                // of orders, not an amount of money.
+                'orders' => (int) $rows->sum('orders'),
+            ];
+        }
+
+        $row = $rows->first();
+
+        return [
+            // Cast to string rather than to float, and formatted to the
+            // column's own two places so the client is handed the same shape
+            // `amount` arrives in on every other row.
+            'spent' => number_format((float) $row->spent, 2, '.', ''),
+            'currency' => (string) $row->currency,
+            'orders' => (int) $row->orders,
+        ];
     }
 
     public function order(Request $request, string $reference): JsonResponse

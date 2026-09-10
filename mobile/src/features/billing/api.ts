@@ -16,6 +16,18 @@ import type { components } from '../../api/schema';
 export type PaymentOrder = components['schemas']['PaymentOrder'];
 
 /**
+ * What this account has spent, summed by the server across every page.
+ *
+ * **Not computed here, and that is the point.** This module holds only the
+ * pages it has fetched, so a total added up in the app is the first fifteen
+ * orders wearing the word "total" — and `format.ts` already records why the
+ * digits are never recomputed either. `spent` and `currency` come back null
+ * when the account has paid in more than one currency; the screen draws no
+ * figure in that case rather than adding shillings to dollars.
+ */
+export type SpendTotals = components['schemas']['SpendTotals'];
+
+/**
  * One page of payment history, newest first.
  *
  * Cursor-paginated rather than offset-paginated, and the server explains why:
@@ -24,7 +36,7 @@ export type PaymentOrder = components['schemas']['PaymentOrder'];
  */
 export async function fetchOrders(
   cursor?: string,
-): Promise<{ items: PaymentOrder[]; nextCursor: string | null }> {
+): Promise<{ items: PaymentOrder[]; nextCursor: string | null; totals: SpendTotals | null }> {
   /*
    * The query object is omitted rather than passed as undefined: the app
    * compiles with `exactOptionalPropertyTypes`, so an explicitly undefined
@@ -33,11 +45,13 @@ export async function fetchOrders(
   const { data } = await apiClient.request<{
     items?: PaymentOrder[];
     next_cursor?: string | null;
+    totals?: SpendTotals;
   }>('/subscription/orders', cursor === undefined ? {} : { query: { cursor } });
 
   return {
     items: data.items ?? [],
     nextCursor: data.next_cursor ?? null,
+    totals: data.totals ?? null,
   };
 }
 

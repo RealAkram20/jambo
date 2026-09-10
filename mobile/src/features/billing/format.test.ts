@@ -4,6 +4,7 @@ import {
   formatOrderDate,
   optionalDetail,
   planLabel,
+  spendSummary,
   statusLabel,
   statusTone,
 } from './format';
@@ -147,5 +148,85 @@ describe('optionalDetail', () => {
     expect(optionalDetail(undefined)).toBeNull();
     expect(optionalDetail('')).toBeNull();
     expect(optionalDetail('   ')).toBeNull();
+  });
+});
+
+describe('spendSummary', () => {
+  /*
+   * The Billing summary line. Every assertion here is about NOT stating a
+   * figure, because every wrong answer this can give looks like a right one.
+   */
+  it('reads the total and the count together', () => {
+    expect(spendSummary({ spent: '26500.50', currency: 'UGX', orders: 2 })).toBe(
+      'UGX 26,500.50 across 2 charges',
+    );
+  });
+
+  it('says charge, not charges, for one', () => {
+    expect(spendSummary({ spent: '1500.00', currency: 'UGX', orders: 1 })).toBe(
+      'UGX 1,500.00 across 1 charge',
+    );
+  });
+
+  /* Zero money reads as free rather than as absent, and the screen already has
+     an empty state for an account that has never paid. */
+  it('draws nothing when nothing has been paid', () => {
+    expect(spendSummary({ spent: null, currency: null, orders: 0 })).toBeNull();
+  });
+
+  /*
+   * 🔴 **This test exists because deleting the zero guard changed nothing.**
+   *
+   * The case above reaches the SAME `null` through the absent-amount guard
+   * below it, so the count check was correct and unobserved — a mutation that
+   * removed it left the suite green. The state it actually defends against is
+   * a figure arriving WITH a count of zero, which today's server cannot send
+   * and a later one could: `spendTotals` returns a row only when exactly one
+   * currency is present, and no rows means no amount.
+   *
+   * Forced here rather than left to a fixture, because the line it prevents is
+   * "UGX 0.00 across 0 charges" — and a zero on a money screen reads as free
+   * rather than as absent.
+   */
+  it('draws nothing for a count of zero even when an amount arrives with it', () => {
+    const totals = { spent: '0.00', currency: 'UGX', orders: 0 };
+
+    // The state the guard exists for really is the state under test: an
+    // amount IS present, so the absent-amount guard cannot be what answers.
+    expect(totals.spent).not.toBeNull();
+    expect(spendSummary(totals)).toBeNull();
+  });
+
+  /*
+   * The one that matters. The server sends both money fields null when an
+   * account has paid in more than one currency, because a single figure formed
+   * by adding shillings to dollars is the worst answer available. The count
+   * survives on the wire and must NOT be rendered on its own — "across 2
+   * charges" with no amount is a summary that summarises nothing.
+   */
+  it('draws nothing when the server refused to add two currencies', () => {
+    expect(spendSummary({ spent: null, currency: null, orders: 2 })).toBeNull();
+  });
+
+  it('draws nothing before the totals arrive', () => {
+    expect(spendSummary(null)).toBeNull();
+    expect(spendSummary(undefined)).toBeNull();
+  });
+
+  /* A blank string is not a figure. It would render as "UGX  across 2
+     charges", which reads as a rendering fault rather than as absence. */
+  it('treats a blank amount as absent', () => {
+    expect(spendSummary({ spent: '   ', currency: 'UGX', orders: 2 })).toBeNull();
+  });
+
+  /*
+   * The figure is grouped by `formatMoney` rather than by a second copy of
+   * that logic here, so the summary and the rows below it cannot disagree
+   * about how money is punctuated.
+   */
+  it('punctuates the figure exactly as the rows do', () => {
+    expect(spendSummary({ spent: '1000000.00', currency: 'UGX', orders: 9 })).toContain(
+      formatMoney('1000000.00', 'UGX'),
+    );
   });
 });

@@ -1,4 +1,4 @@
-import type { PaymentOrder } from './api';
+import type { PaymentOrder, SpendTotals } from './api';
 
 /**
  * How an order reads on screen. No React in here, so it can be tested without
@@ -10,6 +10,39 @@ import type { PaymentOrder } from './api';
  * a rounded total, a failed charge coloured as a success, a plan name that is
  * really the string "undefined".
  */
+
+/**
+ * The Billing summary line, or null for no summary at all.
+ *
+ * Three states, and the two that return null are the reason this is a function
+ * rather than a template string in the screen:
+ *
+ *  - **Nothing paid yet.** The screen already has an empty state for that; a
+ *    line reading "UGX 0.00 across 0 orders" is worse than no line, because
+ *    zero money reads as free rather than as absent.
+ *  - **More than one currency.** The server sends `spent` and `currency` as
+ *    null in that case rather than adding shillings to dollars, and the honest
+ *    thing to draw is nothing. The order list itself still shows every charge
+ *    in its own currency, so nothing is hidden — only the sum is withheld,
+ *    because the sum is the part that cannot be stated truthfully.
+ *
+ * The figure passes through `formatMoney`, so the summary and the rows below
+ * it group and punctuate identically and neither recomputes a digit.
+ */
+export function spendSummary(totals: SpendTotals | null | undefined): string | null {
+  if (totals === null || totals === undefined) return null;
+
+  const orders = totals.orders ?? 0;
+  if (orders === 0) return null;
+
+  const spent = totals.spent;
+  if (typeof spent !== 'string' || spent.trim() === '') return null;
+
+  const money = formatMoney(spent, totals.currency);
+  const charges = orders === 1 ? '1 charge' : `${orders} charges`;
+
+  return `${money} across ${charges}`;
+}
 
 /**
  * Money, exactly as the server states it, with the website's grouping.

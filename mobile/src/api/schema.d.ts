@@ -2997,6 +2997,7 @@ export interface paths {
                             data?: {
                                 items?: components["schemas"]["PaymentOrder"][];
                                 next_cursor?: string | null;
+                                totals?: components["schemas"]["SpendTotals"];
                             };
                         };
                     };
@@ -4784,6 +4785,29 @@ export interface components {
             tracking_id?: string | null;
             /** Format: date-time */
             created_at?: string | null;
+        };
+        /**
+         * @description What this account has actually spent, across every page of the order
+         *     list rather than the page in hand.
+         *
+         *     **Summed in SQL over a decimal column, and completed orders only.** A
+         *     client cannot compute this: it holds only the pages it has fetched, so
+         *     a total added up there is the first fifteen orders wearing the word
+         *     "total". A pending charge is not money that has left an account and a
+         *     failed one certainly is not.
+         *
+         *     **`spent` and `currency` are both null when the account has paid in
+         *     more than one currency**, because one figure formed by adding
+         *     shillings to dollars is the worst answer available - it looks exactly
+         *     like a right one. `orders` stays honest either way: it counts orders,
+         *     not money. A client that gets null draws no summary.
+         */
+        SpendTotals: {
+            /** @description A decimal string with two places, the same shape as an order amount. Never a number. */
+            spent?: string | null;
+            currency?: string | null;
+            /** @description How many completed orders, across every currency. */
+            orders?: number;
         };
         ReferralDashboard: {
             code?: string | null;

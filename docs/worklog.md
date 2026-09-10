@@ -5855,7 +5855,7 @@ is now clean.
 
 ### 2026-09-10 — the account area: grouping, the merged profile, the folded settings, the billing summary (jambo-6b)
 
-**Status:** in progress
+**Status:** complete
 **Owns:**
 - `mobile/src/ui/profileMenu.ts` and `mobile/src/ui/profileMenu.test.ts`
 - `mobile/src/screens/ProfileMenuScreen.tsx`
@@ -6040,3 +6040,94 @@ registers no FCM token, and `docs/api/coverage.md` records that the registry
 has no sender. A third switch would either silence the viewer's browser from
 their phone or toggle a flag for a channel that cannot deliver. The endpoint
 carries `push` either way, so it is a few lines on the day push works.
+
+---
+
+#### Step 4 of 4 — §3, the Billing summary and the tiles. Complete.
+
+**Server:** `GET /subscription/orders` gained `totals` — `SUM(amount)` over the
+decimal column, completed orders only, scoped to the viewer, null on mixed
+currencies. Spec and generated types landed in the same commit, as they must.
+
+**Verified against the real dev database, not a fixture.** The screen renders
+**UGX 164,000.00 across 4 charges**; the same query run directly against
+`payment_orders` returns `{"currency":"UGX","s":"164000.00","c":4}`. The
+accessibility label reads "You have paid UGX 164,000.00 across 4 charges".
+
+**Nine mutants killed across the two halves.**
+
+| Mutation | Result |
+|---|---|
+| count pending and failed as spent | 1 failed |
+| add two currencies together | 2 failed |
+| stop scoping the sum to the viewer | 1 failed |
+| return a bare float instead of a two-place string | 3 failed |
+| render a zero count | **survived — see below** |
+| accept a null amount | 2 failed |
+| always say "charges" | 1 failed |
+| print raw digits instead of `formatMoney` | 3 failed |
+| render a zero count, after the new test | 1 failed |
+
+🔴 **The survivor is the finding.** `spendSummary`'s `orders === 0` check
+could be deleted with the suite still green, because the case covering it
+passed a *null amount* — so the guard below it answered and the count check was
+correct and unobserved. Exactly the shape `screen` describes: the assertion was
+right about data that could never have shown the fault. Forced the real state
+(an amount present, a count of zero) into its own test, and asserted that the
+state actually happened so a later fixture edit cannot quietly disarm it.
+
+**§5 taken, and stated rather than slipped in.** The next charge sits on the
+Membership card from step 1, not on Billing. I agree with the audit: it is a
+membership question and it is one line on a card people already open. Rio has
+not seen that argued, so it is flagged here and in the changelog rather than
+left to be discovered in a diff.
+
+**Rendered and read from the view tree:** the summary line above the card, the
+receipt tile on every order row, and the gear/bell/envelope tiles on the
+Delivery rows. Row height is unchanged at 223 px — the accessory's two lines
+drive it, not the tile.
+
+**Checks:** `npm run check` green (23 suites, 394 tests, api:check, tokens:check,
+typecheck, lint). `php artisan test`: **698 passed, 2 failed** — the two
+`PricingPageCurrentPlanTest` failures that have been red since 2026-07-18 and
+nothing else. 693 before this work, so all five new PHP tests pass.
+
+**Not verified:** the mixed-currency path exists only in a test; no account on
+this box has paid in two currencies, so it has not been seen on a screen. The
+"more than one page" path is likewise tested and not rendered — this account
+has six orders.
+
+---
+
+### Closing this session's entry
+
+**Built:** the four numbered steps of `docs/plans/account-area-audit.md` that
+were still open, one commit each — §6 (grouping and the Membership card), §4.1
+(the profile merged), §4.2 and §4.3 (delivery folded, invoice sheeted), and §3
+(the spend summary and the tiles). **14 account screens are now 10**, against
+the audit's target of 9; the difference is Membership, which the audit counts
+as a destination and which is still its own screen behind the card.
+
+**Deliberately NOT built, each named so nobody rebuilds it badly:**
+
+- **§2.2, the account icon on account screens.** The fix is one prop on the
+  stack's `screenOptions` and it turns the area from a tree into a hub, which
+  is what the website already is. It changes navigation Rio has signed off, so
+  it is a question for him rather than a fifth commit. **This is the one thing
+  left in the plan.**
+- **The third delivery switch.** Push has no sender; see step 3.
+- **A Print button on the invoice.** Needs `expo-print`, a native module and
+  therefore a prebuild.
+- **`tests/Feature/PricingPageCurrentPlanTest.php`.** Still two failures, still
+  red since `e981b71`, still half a product question. Five sessions have now
+  declined it deliberately rather than by oversight.
+
+**Left for whoever is next, and each of these is cheap:**
+
+- **`ui/player/PlayerControls.tsx` still has its own reduced-motion effect.**
+  `ui/motion.ts` is the canonical one now and says so. Four lines, next time
+  somebody opens the player.
+- **The eslint allowlist is down to five and one of the five may be free.**
+  `ProfileMenuScreen` left it without being converted, because it never
+  imported `Modal` or `Alert` — it was added from a list of screens rather than
+  from its imports. Worth reading the other five the same way.

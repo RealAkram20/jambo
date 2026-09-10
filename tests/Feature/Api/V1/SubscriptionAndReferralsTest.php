@@ -243,6 +243,111 @@ class SubscriptionAndReferralsTest extends TestCase
             ->assertJsonPath('data.order.amount', '25000.00');
     }
 
+    /**
+     * The Billing screen's summary line, and every assertion here is about
+     * NOT telling somebody a falsehood about their own money.
+     *
+     * The total is summed on the server because the client cannot: it holds
+     * only the pages it has fetched, so a figure added up in the app is the
+     * first fifteen orders wearing the word "total".
+     */
+    public function test_spend_totals_count_only_completed_orders(): void
+    {
+        $user = $this->viewer();
+        $token = $this->signIn($user);
+
+        $this->order($user, 'REF-DONE-1', '25000.00', 'completed');
+        $this->order($user, 'REF-DONE-2', '1500.50', 'completed');
+        // Neither of these is money that has left an account.
+        $this->order($user, 'REF-PENDING', '99000.00', 'pending');
+        $this->order($user, 'REF-FAILED', '77000.00', 'failed');
+
+        $this->withFreshToken($token)->getJson('/api/v1/subscription/orders')
+            ->assertOk()
+            ->assertJsonPath('data.totals.spent', '26500.50')
+            ->assertJsonPath('data.totals.currency', 'UGX')
+            ->assertJsonPath('data.totals.orders', 2);
+    }
+
+    /**
+     * The sum reaches past the page in hand.
+     *
+     * The list is cursor-paginated at 15, so an account with more than that
+     * is exactly the account whose total a client would get wrong. Sixteen
+     * completed orders, one page returned, and the total covers all sixteen.
+     */
+    public function test_spend_totals_cover_orders_beyond_the_first_page(): void
+    {
+        $user = $this->viewer();
+        $token = $this->signIn($user);
+
+        for ($i = 1; $i <= 16; $i++) {
+            $this->order($user, sprintf('REF-PAGE-%02d', $i), '1000.00', 'completed');
+        }
+
+        $response = $this->withFreshToken($token)->getJson('/api/v1/subscription/orders')
+            ->assertOk()
+            ->assertJsonCount(15, 'data.items')
+            ->assertJsonPath('data.totals.orders', 16)
+            ->assertJsonPath('data.totals.spent', '16000.00');
+
+        // Prove the state this test exists for actually happened: if the
+        // fixture ever stopped exceeding one page, the assertions above would
+        // still pass and would be measuring nothing.
+        $this->assertNotNull($response->json('data.next_cursor'));
+    }
+
+    /**
+     * 🔴 The case that produces a plausible-looking lie.
+     *
+     * `currency` is a free string column with nothing tying an account to
+     * one, so mixed currencies are possible — and a single figure formed by
+     * adding shillings to dollars is the worst answer available, because it
+     * looks exactly like a right one. Both money fields go null; the count
+     * stays, because it counts orders rather than money.
+     */
+    public function test_spend_totals_refuse_to_add_two_currencies_together(): void
+    {
+        $user = $this->viewer();
+        $token = $this->signIn($user);
+
+        $this->order($user, 'REF-UGX', '25000.00', 'completed');
+        $this->orderIn($user, 'REF-USD', '10.00', 'completed', 'USD');
+
+        $this->withFreshToken($token)->getJson('/api/v1/subscription/orders')
+            ->assertOk()
+            ->assertJsonPath('data.totals.spent', null)
+            ->assertJsonPath('data.totals.currency', null)
+            ->assertJsonPath('data.totals.orders', 2);
+    }
+
+    /** An account that has never paid gets zero orders and no figure. */
+    public function test_spend_totals_are_empty_for_an_account_that_has_never_paid(): void
+    {
+        $token = $this->signIn($this->viewer());
+
+        $this->withFreshToken($token)->getJson('/api/v1/subscription/orders')
+            ->assertOk()
+            ->assertJsonPath('data.totals.spent', null)
+            ->assertJsonPath('data.totals.orders', 0);
+    }
+
+    /** One viewer's spend is not another's. */
+    public function test_spend_totals_are_scoped_to_the_viewer(): void
+    {
+        $mine = $this->viewer();
+        $theirs = $this->viewer();
+        $token = $this->signIn($mine, 'device-uuid-spend01');
+
+        $this->order($mine, 'REF-MINE', '5000.00', 'completed');
+        $this->order($theirs, 'REF-NOTMINE', '900000.00', 'completed');
+
+        $this->withFreshToken($token)->getJson('/api/v1/subscription/orders')
+            ->assertOk()
+            ->assertJsonPath('data.totals.spent', '5000.00')
+            ->assertJsonPath('data.totals.orders', 1);
+    }
+
     public function test_one_viewers_orders_are_not_anothers(): void
     {
         $mine = $this->viewer();
@@ -543,6 +648,23 @@ class SubscriptionAndReferralsTest extends TestCase
             'merchant_reference' => $ref,
             'amount' => $amount,
             'currency' => 'UGX',
+            'status' => $status,
+        ]);
+    }
+
+    /** An order in a currency other than the fixture's default. */
+    private function orderIn(
+        User $user,
+        string $ref,
+        string $amount,
+        string $status,
+        string $currency
+    ): PaymentOrder {
+        return PaymentOrder::create([
+            'user_id' => $user->id,
+            'merchant_reference' => $ref,
+            'amount' => $amount,
+            'currency' => $currency,
             'status' => $status,
         ]);
     }

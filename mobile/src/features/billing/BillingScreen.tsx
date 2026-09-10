@@ -4,8 +4,10 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 
 import { billingKeys, fetchOrders, type PaymentOrder } from './api';
 import { OrderStatusBadge } from './OrderStatusBadge';
-import { formatMoney, formatOrderDate, planLabel } from './format';
+import { formatMoney, formatOrderDate, planLabel, spendSummary } from './format';
 import { InvoiceSheet } from './InvoiceSheet';
+import { Receipt } from 'phosphor-react-native';
+
 import { ListCard, ListRow } from '../../ui/list';
 import { Button, EmptyState, ErrorState, Loading } from '../../ui/components';
 import { colors, fonts, spacing, typography } from '../../ui/theme';
@@ -78,6 +80,14 @@ export function BillingScreen({ navigation }: AppScreenProps<'Billing'>) {
 
   const orders: PaymentOrder[] = data.pages.flatMap((page) => page.items);
 
+  /*
+   * The summary reads from the FIRST page, because the server sends the same
+   * account-wide totals on every page and the first one is the one that is
+   * always there. Reading the last would make the line change as somebody
+   * pages backwards through their own history.
+   */
+  const summary = spendSummary(data.pages[0]?.totals);
+
   if (orders.length === 0) {
     return (
       <View style={[styles.screen, styles.emptyScreen]}>
@@ -99,6 +109,25 @@ export function BillingScreen({ navigation }: AppScreenProps<'Billing'>) {
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.heading}>Order history</Text>
+
+        {/*
+          What this account has spent, summed by the server.
+
+          **The next charge is deliberately NOT here.** §5 of the audit argues
+          it belongs on Membership — "when am I next charged" is a membership
+          question that people currently have to find in an order list, and it
+          is one line on a card they already open — and it went onto the profile
+          menu's Membership card in the same slice. This line answers the other
+          half: what has already gone.
+
+          Absent rather than zero when nothing has been paid, and absent when
+          the account has paid in two currencies. See `spendSummary`.
+        */}
+        {summary === null ? null : (
+          <Text style={styles.summary} accessibilityLabel={`You have paid ${summary}`}>
+            {summary}
+          </Text>
+        )}
 
         <ListCard>
           {orders.map((order, index) => (
@@ -149,6 +178,14 @@ function OrderRow({
 
   return (
     <ListRow
+      /*
+       * Tiled, which is the language the mockup screens introduced and the
+       * pre-mockup ones never got — the audit's §3. One glyph for every row,
+       * because every row on this screen is the same kind of thing: a charge.
+       * The state that differs between them is on the badge, where it belongs.
+       */
+      icon={Receipt}
+      iconTile
       label={planLabel(order)}
       {...(when === null ? {} : { detail: when })}
       last={last}
@@ -187,7 +224,10 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   content: { padding: spacing.lg },
 
-  heading: { ...typography.heading, color: colors.text, marginBottom: spacing.lg },
+  heading: { ...typography.heading, color: colors.text, marginBottom: spacing.sm },
+  /* Sits under the heading rather than in a card of its own: it is one fact
+     about the list below it, not a second thing to read. */
+  summary: { ...typography.body, color: colors.textMuted, marginBottom: spacing.lg },
 
   amounts: { alignItems: 'flex-end', gap: 4 },
   amount: { ...typography.body, fontFamily: fonts.medium, color: colors.text },

@@ -8,6 +8,53 @@ would advertise a webapp update containing no webapp change.
 
 ## Jambo App
 
+### Unreleased — Billing says what you have spent, and the pre-mockup rows get tiles
+
+`docs/plans/account-area-audit.md` §3, the last of the four open steps. Billing
+was never badly built — it uses the shared row, the shared card, the real badge
+and real tokens — it simply predates the language Rio's mockups introduced.
+
+**A summary line above the order list: what this account has spent.**
+
+🔴 **The figure is summed by the server, and that is the whole design.** Two
+things go wrong if the app adds it up. It holds only the pages it has fetched,
+so a total computed there is the first fifteen orders wearing the word
+"total"; and `format.ts` already records why the digits are never recomputed
+— a float round-trip is how a figure stops matching a bank statement. So
+`GET /subscription/orders` gained a `totals` block: `SUM(amount)` over a
+`decimal(10,2)` column, **completed orders only**, on the index
+`['user_id', 'status']` that already existed.
+
+**It refuses to add two currencies together.** `currency` is a free string
+column with nothing tying an account to one, and a single figure formed by
+adding shillings to dollars is the worst answer available because it looks
+exactly like a right one. Both money fields come back null in that case and the
+screen draws no summary; the order list still shows every charge in its own
+currency, so nothing is hidden — only the sum is withheld, because the sum is
+the part that cannot be stated truthfully. The count stays honest either way:
+it counts orders, not money.
+
+**The next charge is on Membership, not here**, which is §5's recommendation
+taken rather than assumed. "When am I next charged" is a membership question
+that people currently have to find in an order list, and it is one line on a
+card they already open — it went onto the profile menu's Membership card
+earlier in this slice. Billing answers the other half: what has already gone.
+
+**Tiled row icons on Billing and on the notification switches.** The inbox's
+own rows were already tiled; the two screens that were not are these. Every
+Billing row gets the same receipt glyph, because every row on that screen is
+the same kind of thing — a charge — and the state that differs between them is
+on the badge, where it belongs.
+
+🔴 **A guard that no test was asking, found by mutation.** Deleting
+`spendSummary`'s zero-count check left the suite green: the case that covered
+it passed a null amount, so the absent-amount guard below answered first and
+the count check could not be observed. The state it actually defends against is
+a figure arriving *with* a count of zero, which today's server cannot send and
+a later one could — and the line it prevents is "UGX 0.00 across 0 charges",
+where a zero on a money screen reads as free rather than as absent. Forced into
+its own test, which now fails when the guard goes.
+
 ### Unreleased — Delivery folds into the inbox, and the invoice becomes a sheet
 
 Two cuts from `docs/plans/account-area-audit.md`, both of the same kind: a
