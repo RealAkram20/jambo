@@ -507,11 +507,23 @@ function seeAllFor(
   }
 
   /*
-   * Personalities have a real index on the site — `/all-personality` — and the
-   * app has no screen and no endpoint for it yet, so this deliberately answers
-   * undefined and the rail draws no "View All". A control that leads nowhere
-   * is worse than a heading without one; the screen is the next commit.
+   * Personalities, whose archive is a list of PEOPLE rather than of titles.
+   *
+   * Named here for the same reason genres is: there is no such key in
+   * `RailArchiveCatalog` and the collection check below correctly refuses it.
+   * The website agrees — its rail links to `/all-personality`, not to a
+   * collection of titles.
+   *
+   * 🔴 **The key is `personalities`; the KIND is `people`.** They are not the
+   * same string and this function reads the key. Written as `people` first,
+   * which typechecks perfectly and would simply never have matched, so the
+   * rail would have shipped with no "View All" and nothing to show for it.
+   * `HomeTest` now pins all three keys the app switches on.
    */
+  if (key === 'personalities') {
+    return () => navigation.navigate('Personalities', { title });
+  }
+
 
   const collection = collectionKeyFor(key);
   if (collection === null || !archives.has(collection)) return undefined;

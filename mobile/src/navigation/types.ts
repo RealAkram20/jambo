@@ -120,6 +120,15 @@ export type AppStackParams = {
    */
   Genres: { title?: string } | undefined;
   /**
+   * Every personality, which is the Personality rail's "View all".
+   *
+   * A list of PEOPLE rather than of titles, so it is a screen of its own for
+   * the same reason `Genres` is: there is no `people` key in
+   * `RailArchiveCatalog` and there should not be. The website agrees, linking
+   * its rail to `/all-personality` rather than to a collection.
+   */
+  Personalities: { title?: string } | undefined;
+  /**
    * The viewer's own profile. Reading and editing are one screen.
    *
    * There was a read-only `Profile` route above this form until 2026-09-10,

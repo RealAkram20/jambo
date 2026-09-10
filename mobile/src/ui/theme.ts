@@ -502,6 +502,16 @@ export const personTile = {
   nameWeight: '500' as const,
   /** A 179pt slide holding a 165pt card. */
   gap: (179 - 165) / 2,
+
+  /**
+   * The all-personalities page, measured at 390 on 2026-09-10.
+   *
+   * Its card is the rail's at full width — 358 on a 1/1.3 portrait, the same
+   * 8pt corner — with two differences: `.cast-title` is an `h6` at 16px, and
+   * `.person-cats` prints the role line under it at 14px/400.
+   */
+  indexNameSize: 16,
+  roleSize: 14,
 } as const;
 
 /**

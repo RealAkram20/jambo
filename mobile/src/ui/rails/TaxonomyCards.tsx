@@ -164,13 +164,32 @@ export function PersonCard({
   item,
   width,
   onPress,
+  variant = 'rail',
 }: {
   item: PersonLikeItem;
   width: number;
   onPress?: (() => void) | undefined;
+  /**
+   * `rail` is the home row's card, `index` the all-personalities page's.
+   *
+   * The site draws these with two partials — `personality-card` in the rail
+   * and `cast` in the grid — and they differ by exactly two things: the name
+   * is 16px rather than 14px, and a role line appears under it. Same picture,
+   * same 1/1.3 crop, same 8pt corner. Two components for that is how a kit
+   * stops being a kit, so it is a variant.
+   */
+  variant?: 'rail' | 'index';
 }) {
   const name = item.name ?? 'Unknown';
   const height = Math.round(width / personTile.aspect);
+  const index = variant === 'index';
+  /*
+   * The role line, and only when the server sent one. `known_for` is nullable
+   * on the column and the rail does not request it at all, so absent is the
+   * normal case rather than an error — and an empty caption reads as a layout
+   * fault rather than as nothing to say.
+   */
+  const knownFor = index ? subtitleOf(item) : null;
 
   return (
     <Focusable
@@ -192,11 +211,35 @@ export function PersonCard({
         cachePolicy="memory-disk"
         accessible={false}
       />
-      <Text numberOfLines={2} style={styles.personName}>
+      <Text numberOfLines={2} style={[styles.personName, index && styles.personNameIndex]}>
         {name}
       </Text>
+
+      {knownFor === null ? null : (
+        <Text numberOfLines={1} style={styles.personRole}>
+          {knownFor}
+        </Text>
+      )}
     </Focusable>
   );
+}
+
+/**
+ * The role line under a name on the index, or null.
+ *
+ * Read off the shape rather than the union for the reason `countsOf` is: only
+ * some of the cards flowing through here carry it. Blank is absence — the
+ * column is nullable and the server leaves it null, but a client that trusted
+ * an empty string would draw a caption with no text in it.
+ */
+function subtitleOf(item: PersonLikeItem): string | null {
+  /* `in` rather than a cast: a VJ card genuinely has no such field, and the
+     narrowing is what would break if the schema ever renamed it. */
+  const value = 'known_for' in item ? item.known_for : null;
+  if (typeof value !== 'string') return null;
+
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
 }
 
 /**
@@ -254,7 +297,8 @@ const styles = StyleSheet.create({
 
   portrait: { backgroundColor: colors.surface },
 
-  /* `.cast-title`: 14px/500, centred, white, 16pt under the image. */
+  /* `.cast-title` in the rail: 14px/500, centred, white, 16pt under the
+     image. The index draws the same line at 16px — see `personNameIndex`. */
   personName: {
     ...typography.caption,
     fontFamily: fonts.medium,
@@ -263,5 +307,16 @@ const styles = StyleSheet.create({
     color: card.titleColor,
     marginTop: personTile.gapBelow,
     textAlign: 'center',
+  },
+  /* The index's `.cast-title`, which is `h6` rather than the rail's caption. */
+  personNameIndex: { fontSize: personTile.indexNameSize },
+  /* `.person-cats`: 14px/400, centred, white. */
+  personRole: {
+    ...typography.caption,
+    fontFamily: fonts.regular,
+    fontSize: personTile.roleSize,
+    color: colors.text,
+    textAlign: 'center',
+    marginTop: 2,
   },
 });

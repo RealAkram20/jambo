@@ -5001,11 +5001,25 @@ export interface components {
             movies_count?: number | null;
             shows_count?: number | null;
         };
-        /** @description kind = people. */
+        /**
+         * @description A cast member or personality.
+         *
+         *     `known_for` and the two counts are sent by the cast index and not by
+         *     the home rail, which needs neither — so both are optional here rather
+         *     than a second near-identical schema. A client draws what it is given.
+         *
+         *     The image field is `image_url`, as it is on every other card in this
+         *     contract. `GET /cast` sent `photo_url` until 2026-09-10 while declaring
+         *     this schema; nothing had called it, so nothing caught it.
+         */
         PersonCard: {
             slug?: string;
             name?: string;
             image_url?: string;
+            /** @description The role line the site prints under the name. Null when unset. */
+            known_for?: string | null;
+            movies_count?: number | null;
+            shows_count?: number | null;
         };
         /**
          * @description No video URL appears in any catalogue response. A playable URL comes

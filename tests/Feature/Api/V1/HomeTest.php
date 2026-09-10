@@ -15,6 +15,7 @@ use Modules\Content\app\Models\Person;
 use Modules\Content\app\Models\Season;
 use Modules\Content\app\Models\Show;
 use Modules\Content\app\Models\Tag;
+use Modules\Content\app\Models\Vj;
 use Modules\Streaming\app\Models\Device;
 use Modules\Streaming\app\Models\WatchHistoryItem;
 use Tests\TestCase;
@@ -87,6 +88,62 @@ class HomeTest extends TestCase
                 "Rail '{$rail['key']}' declares an unknown kind; the app has no card component for it."
             );
         }
+    }
+
+    /**
+     * 🔴 The three rails the app routes a "View all" from, by KEY.
+     *
+     * `HomeScreen.seeAllFor` switches on `rail.key`, not on `rail.kind`, and
+     * for these three the destination is a screen of its own rather than a
+     * collection of titles — Genres, the Movies tab, and Personalities. A
+     * renamed key does not break a build, does not fail a type check and does
+     * not throw: the switch simply stops matching and the control disappears.
+     *
+     * **Key and kind are different strings and that has already cost a bug.**
+     * The personalities rail is `key: personalities, kind: people`, and this
+     * work first wrote the destination against `people`. It would have shipped
+     * a rail whose "View all" never appeared.
+     *
+     * The kinds are asserted beside the keys because the app switches on those
+     * too, one layer down, to choose the card.
+     */
+    public function test_the_rails_the_app_routes_from_keep_their_keys(): void
+    {
+        $this->seedCatalogue();
+
+        /*
+         * These three rails are dropped when empty — correctly — and
+         * `seedCatalogue` seeds no genre, VJ or person, so without this the
+         * assertions below would have nothing to assert against. The first run
+         * of this test failed for exactly that reason, which is the fixture
+         * telling the truth rather than a fault.
+         */
+        $movie = Movie::query()->where('status', Movie::STATUS_PUBLISHED)->firstOrFail();
+        $movie->genres()->attach(Genre::create(['name' => 'Rail Genre', 'slug' => 'rail-genre'])->id);
+        $movie->vjs()->attach(Vj::create(['name' => 'Rail VJ', 'slug' => 'rail-vj'])->id);
+        $movie->cast()->attach(
+            Person::create(['first_name' => 'Rail', 'last_name' => 'Person', 'slug' => 'rail-person'])->id,
+            ['role' => 'actor'],
+        );
+
+        $rails = collect($this->getJson('/api/v1/home')->assertOk()->json('data.rails'))
+            ->keyBy('key');
+
+        foreach (['genres' => 'genres', 'vjs' => 'vjs', 'personalities' => 'people'] as $key => $kind) {
+            $this->assertTrue(
+                $rails->has($key),
+                "The app routes View all from the '{$key}' rail and the home payload has no such key."
+            );
+            $this->assertSame(
+                $kind,
+                $rails[$key]['kind'],
+                "Rail '{$key}' changed kind; the app picks its card component from that."
+            );
+        }
+
+        // Prove the fixture actually produced these rails rather than an empty
+        // set that would make the loop above assert nothing.
+        $this->assertGreaterThanOrEqual(3, $rails->count());
     }
 
     /**

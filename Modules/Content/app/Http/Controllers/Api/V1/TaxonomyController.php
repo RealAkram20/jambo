@@ -188,7 +188,21 @@ class TaxonomyController extends Controller
      * Everyone with something published — the "all personalities" grid.
      *
      * Ordered by how much of the catalogue they are in, which is what makes
-     * the grid useful rather than alphabetical.
+     * the grid useful rather than alphabetical. **The website's own
+     * `/all-personality` orders by surname and lists everybody**, including
+     * people with nothing published; this deliberately does neither, and the
+     * divergence is older than this change.
+     *
+     * 🔴 **The image field was `photo_url` and the contract said
+     * `image_url`.** This endpoint has declared `PersonCard` since it was
+     * written, and `PersonCard` is `{slug, name, image_url}` — the shape the
+     * home rail's people already use. Nothing had ever called this endpoint,
+     * so the drift was invisible: the first client would have read `image_url`,
+     * got undefined, and drawn every personality as a grey box. One name for
+     * one thing, and it is the name the schema already published.
+     *
+     * `known_for` comes with it, because the site's grid prints it under each
+     * name and a client that cannot show it is the grid minus a line.
      */
     public function people(Request $request): JsonResponse
     {
@@ -211,7 +225,11 @@ class TaxonomyController extends Controller
             'items' => $people->getCollection()->map(fn (Person $person) => [
                 'slug' => $person->slug,
                 'name' => $person->full_name,
-                'photo_url' => media_url($person->photo_url),
+                'image_url' => media_url($person->photo_url),
+                // Nullable on the column and left null rather than blanked:
+                // an empty string would render as a caption with no text,
+                // which reads as a layout fault rather than as absence.
+                'known_for' => $person->known_for,
                 'movies_count' => $person->movies_count,
                 'shows_count' => $person->shows_count,
             ])->values(),

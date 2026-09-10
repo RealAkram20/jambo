@@ -110,6 +110,64 @@ class CatalogueExtrasTest extends TestCase
 
     // ── rail archives ────────────────────────────────────────────────
 
+    /**
+     * 🔴 The field is `image_url`, which is what this endpoint's own schema
+     * has always said.
+     *
+     * It sent `photo_url` until 2026-09-10 while declaring `PersonCard`, and
+     * nothing caught it because nothing had ever called the endpoint. The
+     * first client would have read `image_url`, got undefined, and rendered
+     * every personality as a grey box — a screen that looks built and shows
+     * nothing.
+     *
+     * Both halves are asserted: the right key present AND the wrong key gone.
+     * Asserting only the first would pass on a payload carrying both, which is
+     * exactly what a careless "fix" produces.
+     */
+    public function test_the_cast_index_names_the_image_field_as_its_contract_does(): void
+    {
+        $movie = $this->movie('Cast Film');
+        $person = Person::create([
+            'first_name' => 'Ada',
+            'last_name' => 'Actor',
+            'slug' => 'ada-actor',
+            'photo_url' => 'gallery/ada.jpg',
+            'known_for' => 'director',
+        ]);
+        $movie->cast()->attach($person->id, ['role' => 'actor']);
+
+        $item = collect($this->getJson('/api/v1/cast')->assertOk()->json('data.items'))
+            ->firstWhere('slug', 'ada-actor');
+
+        $this->assertNotNull($item, 'the fixture person is missing from the index');
+        $this->assertArrayHasKey('image_url', $item);
+        $this->assertArrayNotHasKey('photo_url', $item);
+        $this->assertStringContainsString('gallery/ada.jpg', (string) $item['image_url']);
+    }
+
+    /** The role line the site prints under each name, and null when unset. */
+    public function test_the_cast_index_carries_known_for_and_leaves_it_null_when_unset(): void
+    {
+        $movie = $this->movie('Cast Film');
+
+        $named = Person::create([
+            'first_name' => 'Ada', 'last_name' => 'Actor', 'slug' => 'ada-actor',
+            'known_for' => 'producer,director',
+        ]);
+        $blank = Person::create([
+            'first_name' => 'Bee', 'last_name' => 'Blank', 'slug' => 'bee-blank',
+        ]);
+        $movie->cast()->attach([$named->id => ['role' => 'actor'], $blank->id => ['role' => 'actor']]);
+
+        $items = collect($this->getJson('/api/v1/cast')->assertOk()->json('data.items'));
+
+        $this->assertSame('producer,director', $items->firstWhere('slug', 'ada-actor')['known_for']);
+        // Null, not '' — an empty string renders as a caption with no text.
+        $this->assertNull($items->firstWhere('slug', 'bee-blank')['known_for']);
+    }
+
+    // ── rail archives ─────────────────────────────────────────────────
+
     public function test_the_collections_index_lists_every_rail(): void
     {
         $keys = collect($this->getJson('/api/v1/collections')->assertOk()->json('data.collections'))

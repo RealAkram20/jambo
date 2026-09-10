@@ -16,6 +16,7 @@ import { UpdateRequiredScreen } from '../screens/UpdateRequiredScreen';
 import { NotificationsScreen } from '../features/notifications/NotificationsScreen';
 import { CollectionScreen } from '../screens/CollectionScreen';
 import { GenresScreen } from '../screens/GenresScreen';
+import { PersonalitiesScreen } from '../screens/PersonalitiesScreen';
 import { PlansScreen } from '../screens/PlansScreen';
 import { ProfileEditScreen } from '../screens/ProfileEditScreen';
 import { ReferralsScreen } from '../features/referrals/ReferralsScreen';
@@ -224,6 +225,11 @@ export function RootNavigator() {
             // The rail's own heading, so "View all" lands on a screen titled
             // the same thing the viewer just tapped under.
             options={({ route }) => ({ title: route.params.title })}
+          />
+          <AppStack.Screen
+            name="Personalities"
+            component={PersonalitiesScreen}
+            options={({ route }) => ({ title: route.params?.title ?? 'Personalities' })}
           />
           <AppStack.Screen
             name="Genres"

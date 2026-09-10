@@ -8,6 +8,7 @@ import type {
   MovieDetail,
   MovieList,
   Notification,
+  PersonCard,
   Plan,
   SecurityState,
   SeriesCard,
@@ -380,6 +381,28 @@ export class JamboApi {
     const { data } = await this.client.request<{ genres?: GenreCard[] }>('/genres');
 
     return data.genres ?? [];
+  }
+
+  /**
+   * Everyone with published work — the "all personalities" page.
+   *
+   * Paged by OFFSET rather than a cursor, and the server says why: the primary
+   * order is `(movies_count + shows_count) DESC`, a raw expression a cursor
+   * cannot be built from. 40 a page.
+   *
+   * **The order is not the website's and that is older than this call.** The
+   * site's `/all-personality` lists everybody by surname, including people with
+   * nothing published; this lists only those with published work, most-present
+   * first. The endpoint's own docblock defends that, and a client is not the
+   * place to re-litigate it.
+   */
+  async people(page = 1): Promise<{ items: PersonCard[]; nextPage: number | null }> {
+    const { data } = await this.client.request<{
+      items?: PersonCard[];
+      next_page?: number | null;
+    }>('/cast', { query: { page: String(page) } });
+
+    return { items: data.items ?? [], nextPage: data.next_page ?? null };
   }
 
   async taxonomy(
