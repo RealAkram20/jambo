@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Focusable } from './rails/Focusable';
@@ -74,6 +74,7 @@ export function Sheet({
   dismissOnScrim?: boolean;
 }) {
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
 
   return (
     <Modal
@@ -105,6 +106,20 @@ export function Sheet({
         style={[
           styles.sheet,
           fullHeight && styles.sheetFull,
+          /*
+           * A content sheet stops growing before it reaches the top.
+           *
+           * Without this a sheet simply hugs whatever it is given, so content
+           * taller than the display grows off the top and carries its own last
+           * rows with it — which is what the invoice did the first time it was
+           * converted, putting its footnote at y=2835 on a 2856-tall screen.
+           * The child scrolls inside the cap instead.
+           *
+           * Read from the window rather than fixed, so a tablet and a rotated
+           * handset both get a panel rather than a screen. `fullHeight` is
+           * exempt: a payment page IS the screen.
+           */
+          fullHeight ? null : { maxHeight: height * s.maxHeightRatio },
           { paddingBottom: Math.max(spacing.xl, insets.bottom) },
         ]}
       >

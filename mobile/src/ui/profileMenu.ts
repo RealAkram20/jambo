@@ -70,10 +70,11 @@ export function activeRowFor(routeName: string | undefined): string | null {
     Devices: 'devices',
     Notifications: 'notifications',
     Plans: 'membership',
-    /* Both billing routes light the Billing row: an invoice is a page inside
-       order history, and the website's own invoice view keeps the same tab. */
+    /* There is one billing route. The invoice was a second one until
+       2026-09-10, when it became a sheet over the order history rather
+       than a page you travel to — audit section 4.3 — so there is no longer
+       a route underneath the menu that needs mapping back to this row. */
     Billing: 'billing',
-    Invoice: 'billing',
     Wallet: 'wallet',
     Referrals: 'refer',
   };

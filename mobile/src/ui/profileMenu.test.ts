@@ -169,7 +169,7 @@ describe('the rows that stopped being pending', () => {
 
 
   /*
-   * Five routes that no longer exist. Any of them lighting a row would mean a
+   * Six routes that no longer exist. Any of them lighting a row would mean a
    * screen had been quietly reinstated. Four were removed by Rio on
    * 2026-09-09:
    *
@@ -188,18 +188,22 @@ describe('the rows that stopped being pending', () => {
    * collecting history" — or "we dropped the preference" — are one careless
    * sentence apart, and this is the note that keeps them apart.
    *
-   * The fifth is `Profile` itself, deleted 2026-09-10 by the audit's section
-   * 4.1 — the read-only profile showed a subset of the fields the editor
-   * already displayed, so the menu opens the editor now. Unlike the four
-   * above, **nothing was lost with it**: every value it rendered is a field on
-   * `ProfileEdit`, and Member since came across as a caption.
+   * The other two went on 2026-09-10 and **neither lost anything**, which is
+   * what separates them from the four above:
+   *
+   *  - `Profile`, the read-only profile, which showed a subset of the fields
+   *    the editor already displayed. The menu opens the editor now and Member
+   *    since crossed over as a caption. Audit section 4.1.
+   *  - `Invoice`, which became a sheet over the order history rather than a
+   *    page you travel to. Same document, no route. Audit section 4.3.
    */
-  it('knows nothing about the five removed routes', () => {
+  it('knows nothing about the six removed routes', () => {
     expect(activeRowFor('Account')).toBeNull();
     expect(activeRowFor('ContinueWatching')).toBeNull();
     expect(activeRowFor('History')).toBeNull();
     expect(activeRowFor('StreamingPreferences')).toBeNull();
     expect(activeRowFor('Profile')).toBeNull();
+    expect(activeRowFor('Invoice')).toBeNull();
   });
 });
 

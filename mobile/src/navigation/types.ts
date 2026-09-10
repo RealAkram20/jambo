@@ -54,9 +54,15 @@ export type AppStackParams = {
   Taxonomy: { kind: 'genre' | 'category' | 'vj' | 'cast'; slug: string; name: string };
   Search: undefined;
   Devices: undefined;
+  /**
+   * The inbox, with the delivery switches folded into its head.
+   *
+   * There was a `NotificationSettings` route behind an overflow gear until
+   * 2026-09-10. It was 174 lines for two switches on a subject this screen is
+   * already about, and the website keeps them on the notifications page
+   * itself. Audit section 4.2.
+   */
   Notifications: undefined;
-  /** The inbox's gear: which channels may reach this viewer. */
-  NotificationSettings: undefined;
   Security: undefined;
   /**
    * Changing the account password.
@@ -93,7 +99,6 @@ export type AppStackParams = {
    * the rest of the payment flow already treats as canonical. The website's
    * own invoice route takes a numeric id instead.
    */
-  Invoice: { reference: string };
   /**
    * A whole home rail, the website's "View all".
    *

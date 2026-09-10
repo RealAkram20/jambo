@@ -63,6 +63,7 @@ export function ListRow({
   iconTile = false,
   onPress,
   chevron = true,
+  expanded,
   muted = false,
   tone = 'normal',
   last = false,
@@ -104,6 +105,19 @@ export function ListRow({
   /** Overrides the announcement. Give one whenever the visible text alone
    *  would leave a screen reader user guessing. */
   accessibilityLabel?: string;
+  /**
+   * Turns the row into a disclosure: a button that opens a section in place
+   * rather than a link that goes somewhere.
+   *
+   * Passing it changes the announced role from `link` to `button` and states
+   * whether the section is open, which is the whole of what a screen reader
+   * needs to use one. Undefined leaves every existing row exactly as it was.
+   *
+   * Added for the notification inbox's Delivery section rather than a second
+   * row component being written beside this one, which is what section 4 of
+   * the `screen` skill exists to stop.
+   */
+  expanded?: boolean;
 }) {
   const tint = tone === 'danger' ? colors.errorText : list.iconColor;
 
@@ -158,7 +172,8 @@ export function ListRow({
   return (
     <Focusable
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityRole="link"
+      accessibilityRole={expanded === undefined ? 'link' : 'button'}
+      {...(expanded === undefined ? {} : { accessibilityState: { expanded } })}
       ringRadius={list.cardRadius}
       onPress={onPress}
     >

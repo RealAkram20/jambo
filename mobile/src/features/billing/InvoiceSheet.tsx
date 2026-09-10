@@ -14,17 +14,28 @@ import { api } from '../../api/jambo';
 import { displayName } from '../../ui/profileFields';
 import { ListCard, ListRow } from '../../ui/list';
 import { Caption, ErrorState, Loading } from '../../ui/components';
+import { Sheet } from '../../ui/overlay';
 import { colors, fonts, hub, spacing, typography } from '../../ui/theme';
-import type { AppScreenProps } from '../../navigation/types';
 
 /**
- * One invoice.
+ * One invoice, as a sheet.
  *
  * `resources/views/profile-hub/invoice.blade.php`, in order: the heading
  * *Invoice #reference*, a "Billed to" block with the account's name and
  * email, an "Order details" block with the date, the status badge, the
  * payment method and the tracking id, then a two-column table of one line
  * item and a Total row.
+ *
+ * **It was a route until 2026-09-10.** 258 lines of screen, opened from
+ * exactly one row and leading nowhere — so the only thing a viewer could do
+ * from it was leave. `docs/plans/account-area-audit.md` §4.3: *"A receipt is
+ * a thing you glance at and dismiss, not a place you go."* Nothing about the
+ * document changed; it stopped being somewhere you travel to.
+ *
+ * **`Sheet` from `ui/overlay.tsx`, which is the only place a `Modal` may come
+ * from.** This is a new conversion rather than an exemption, so it does not
+ * touch the shrinking allowlist in `eslint.config.js` — it never needed to be
+ * on it.
  *
  * **Keyed on the merchant reference, not the row id.** That is what
  * `GET /subscription/orders/{reference}` takes, and it is the identifier the
@@ -33,21 +44,37 @@ import type { AppScreenProps } from '../../navigation/types';
  * clients rather than a fault in either.
  *
  * **Billed to comes from `/profile`, which the app already fetches**, because
- * the order payload carries no customer block. The query key is the one
- * `ProfileScreen` and `ProfileEditScreen` already write, and it is shared
- * deliberately: two places on one key MUST have one shape, and the way to
- * guarantee that is to share the call rather than to write a second one that
- * happens to look the same today.
+ * the order payload carries no customer block. The query key is the one the
+ * profile editor already writes, and it is shared deliberately: two places on
+ * one key MUST have one shape, and the way to guarantee that is to share the
+ * call rather than to write a second one that happens to look the same today.
  *
  * **There is no Print button.** The website's is `window.print()`, which has
  * no native equivalent without `expo-print` — a native module, and therefore a
  * prebuild. Rather than draw a control that cannot complete, it is absent and
- * named in the worklog. Slice 2b removed a Continue Watching tap for the same
- * reason.
+ * named in the worklog.
  */
-export function InvoiceScreen({ route }: AppScreenProps<'Invoice'>) {
-  const { reference } = route.params;
+export function InvoiceSheet({
+  reference,
+  onClose,
+}: {
+  /** The order to show, or null for no sheet at all. */
+  reference: string | null;
+  onClose: () => void;
+}) {
+  return (
+    <Sheet visible={reference !== null} onClose={onClose}>
+      {/*
+        Mounted only while there is something to show, so closing the sheet
+        drops the two queries with it rather than leaving a stale invoice
+        behind the scrim for the next row that is opened.
+      */}
+      {reference === null ? null : <InvoiceBody reference={reference} />}
+    </Sheet>
+  );
+}
 
+function InvoiceBody({ reference }: { reference: string }) {
   const order = useQuery({
     queryKey: billingKeys.order(reference),
     queryFn: () => fetchOrder(reference),
@@ -63,11 +90,21 @@ export function InvoiceScreen({ route }: AppScreenProps<'Invoice'>) {
     queryFn: () => api.profile(),
   });
 
-  if (order.isPending) return <Loading label="Loading your invoice" />;
+  /*
+   * A sheet hugs its content, so both of these need a height of their own or
+   * the panel collapses to a strip while it loads.
+   */
+  if (order.isPending) {
+    return (
+      <View style={styles.state}>
+        <Loading label="Loading your invoice" />
+      </View>
+    );
+  }
 
   if (order.isError) {
     return (
-      <View style={styles.screen}>
+      <View style={styles.state}>
         <ErrorState
           message={
             order.error instanceof Error && order.error.message !== ''
@@ -101,86 +138,88 @@ export function InvoiceScreen({ route }: AppScreenProps<'Invoice'>) {
   const billedToEmail = optionalDetail(profile.data?.email);
 
   return (
-    <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Invoice #{invoice.reference ?? '—'}</Text>
+    /* A long invoice scrolls inside the sheet's own cap — see `Sheet` — and a
+       short one leaves the sheet at its natural height. */
+    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <Text style={styles.title} accessibilityRole="header">
+        Invoice #{invoice.reference ?? '\u2014'}
+      </Text>
 
-        {/*
-          "Billed to". Drawn only once the account is actually known — a block
-          headed "Billed to" above an empty line is worse than no block, and
-          this is a document somebody may show to somebody else.
-        */}
-        {billedToName === null && billedToEmail === null ? null : (
-          <View style={styles.block}>
-            <Caption>Billed to</Caption>
-            {billedToName === null ? null : <Text style={styles.billedName}>{billedToName}</Text>}
-            {billedToEmail === null ? null : <Text style={styles.billedMeta}>{billedToEmail}</Text>}
-          </View>
-        )}
-
+      {/*
+        "Billed to". Drawn only once the account is actually known — a block
+        headed "Billed to" above an empty line is worse than no block, and
+        this is a document somebody may show to somebody else.
+      */}
+      {billedToName === null && billedToEmail === null ? null : (
         <View style={styles.block}>
-          <Caption>Order details</Caption>
+          <Caption>Billed to</Caption>
+          {billedToName === null ? null : <Text style={styles.billedName}>{billedToName}</Text>}
+          {billedToEmail === null ? null : <Text style={styles.billedMeta}>{billedToEmail}</Text>}
+        </View>
+      )}
+
+      <View style={styles.block}>
+        <Caption>Order details</Caption>
+      </View>
+
+      <ListCard>
+        <ListRow label="Date" value={when ?? '\u2014'} muted={when === null} />
+        <ListRow
+          label="Status"
+          accessory={<OrderStatusBadge status={invoice.status} />}
+          accessibilityLabel={`Status, ${invoice.status ?? 'unknown'}`}
+        />
+        {/*
+          Method and tracking are genuinely absent until the gateway reports,
+          and the website drops each row rather than printing an empty label.
+          So does this: an invoice for a pending charge simply has two fewer
+          rows.
+        */}
+        {method === null ? null : <ListRow label="Method" value={method} />}
+        {tracking === null ? null : <ListRow label="Tracking" value={tracking} last />}
+      </ListCard>
+
+      {/*
+        The line-item table. Two columns on the website, two here: what was
+        bought on the left, what it cost on the right, then the Total.
+      */}
+      <View style={styles.table}>
+        <View style={styles.tableHead}>
+          <Text style={styles.tableHeadCell}>Description</Text>
+          <Text style={[styles.tableHeadCell, styles.right]}>Amount</Text>
         </View>
 
-        <ListCard>
-          <ListRow label="Date" value={when ?? '—'} muted={when === null} />
-          <ListRow
-            label="Status"
-            accessory={<OrderStatusBadge status={invoice.status} />}
-            accessibilityLabel={`Status, ${invoice.status ?? 'unknown'}`}
-          />
-          {/*
-            Method and tracking are genuinely absent until the gateway reports,
-            and the website drops each row rather than printing an empty label.
-            So does this: an invoice for a pending charge simply has two fewer
-            rows.
-          */}
-          {method === null ? null : <ListRow label="Method" value={method} />}
-          {tracking === null ? null : <ListRow label="Tracking" value={tracking} last />}
-        </ListCard>
+        <View style={styles.lineItem}>
+          <View style={styles.lineItemText}>
+            <Text style={styles.lineItemTitle}>{planLabel(invoice)}</Text>
+            {period === null ? null : <Text style={styles.lineItemMeta}>{period}</Text>}
+          </View>
+          <Text style={styles.lineItemAmount}>{money}</Text>
+        </View>
 
         {/*
-          The line-item table. Two columns on the website, two here: what was
-          bought on the left, what it cost on the right, then the Total.
+          The total is the same figure the line item shows, and it is
+          RE-RENDERED from the same server string rather than summed. There
+          is one line item, so a sum would be arithmetic performed on money
+          for no reason, and arithmetic on money is how a total stops
+          matching a bank statement.
         */}
-        <View style={styles.table}>
-          <View style={styles.tableHead}>
-            <Text style={styles.tableHeadCell}>Description</Text>
-            <Text style={[styles.tableHeadCell, styles.right]}>Amount</Text>
-          </View>
-
-          <View style={styles.lineItem}>
-            <View style={styles.lineItemText}>
-              <Text style={styles.lineItemTitle}>{planLabel(invoice)}</Text>
-              {period === null ? null : <Text style={styles.lineItemMeta}>{period}</Text>}
-            </View>
-            <Text style={styles.lineItemAmount}>{money}</Text>
-          </View>
-
-          {/*
-            The total is the same figure the line item shows, and it is
-            RE-RENDERED from the same server string rather than summed. There
-            is one line item, so a sum would be arithmetic performed on money
-            for no reason, and arithmetic on money is how a total stops
-            matching a bank statement.
-          */}
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalAmount}>{money}</Text>
-          </View>
+        <View style={styles.totalRow}>
+          <Text style={styles.totalLabel}>Total</Text>
+          <Text style={styles.totalAmount}>{money}</Text>
         </View>
+      </View>
 
-        <Text style={styles.note}>
-          Need a printed copy? Open this invoice on the Jambo website.
-        </Text>
-      </ScrollView>
-    </View>
+      <Text style={styles.note}>Need a printed copy? Open this invoice on the Jambo website.</Text>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg },
+  /* Loading and error both need a height, or the sheet is a strip. */
+  state: { minHeight: 220, justifyContent: 'center' },
+
+  content: { paddingBottom: spacing.lg },
 
   title: { ...typography.title, color: colors.text, marginBottom: spacing.xl },
 

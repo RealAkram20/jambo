@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useInfiniteQuery } from '@tanstack/react-query';
 
 import { billingKeys, fetchOrders, type PaymentOrder } from './api';
 import { OrderStatusBadge } from './OrderStatusBadge';
 import { formatMoney, formatOrderDate, planLabel } from './format';
+import { InvoiceSheet } from './InvoiceSheet';
 import { ListCard, ListRow } from '../../ui/list';
 import { Button, EmptyState, ErrorState, Loading } from '../../ui/components';
 import { colors, fonts, spacing, typography } from '../../ui/theme';
@@ -37,6 +39,16 @@ import type { AppScreenProps } from '../../navigation/types';
  * Billing row in the profile menu and an Order history row on Membership.
  */
 export function BillingScreen({ navigation }: AppScreenProps<'Billing'>) {
+  /*
+   * The invoice on screen, by reference, or null for none.
+   *
+   * It was a pushed route until 2026-09-10. A receipt is glanced at and
+   * dismissed rather than travelled to, so it is a sheet over this list —
+   * the audit's §4.3 — and the state that decides it lives here rather
+   * than in the navigator.
+   */
+  const [invoice, setInvoice] = useState<string | null>(null);
+
   const { data, isPending, isError, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery({
       queryKey: billingKeys.orders,
@@ -99,10 +111,7 @@ export function BillingScreen({ navigation }: AppScreenProps<'Billing'>) {
               last={index === orders.length - 1}
               {...(order.reference === undefined
                 ? {}
-                : {
-                    onOpen: () =>
-                      navigation.navigate('Invoice', { reference: order.reference as string }),
-                  })}
+                : { onOpen: () => setInvoice(order.reference as string) })}
             />
           ))}
         </ListCard>
@@ -120,6 +129,8 @@ export function BillingScreen({ navigation }: AppScreenProps<'Billing'>) {
           </View>
         ) : null}
       </ScrollView>
+
+      <InvoiceSheet reference={invoice} onClose={() => setInvoice(null)} />
     </View>
   );
 }

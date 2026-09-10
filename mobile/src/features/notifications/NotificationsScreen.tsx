@@ -3,7 +3,7 @@ import { SectionList, StyleSheet, Text, View } from 'react-native';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Checks, DotsThreeVertical, GearSix, Trash } from 'phosphor-react-native';
+import { Checks, DotsThreeVertical, Trash } from 'phosphor-react-native';
 
 import { api } from '../../api/jambo';
 import type { Notification } from '../../api/catalogue';
@@ -14,6 +14,7 @@ import { Focusable } from '../../ui/rails/Focusable';
 import { SelectionBar } from '../../ui/SelectionBar';
 import { colors, fonts, notifications as t, spacing, touchPadding } from '../../ui/theme';
 import type { AppScreenProps } from '../../navigation/types';
+import { DeliverySection } from './DeliverySection';
 import { NotificationRow } from './NotificationRow';
 import {
   categoryForChip,
@@ -230,7 +231,7 @@ export function NotificationsScreen({ navigation }: AppScreenProps<'Notification
         <Focusable
           accessibilityRole="button"
           accessibilityLabel="More"
-          accessibilityHint="Mark all read, delete all, and settings"
+          accessibilityHint="Mark all read, or delete all"
           ringRadius={HEADER_ICON}
           onPress={() => setMenuOpen(true)}
           style={styles.headerAction}
@@ -260,6 +261,7 @@ export function NotificationsScreen({ navigation }: AppScreenProps<'Notification
   if (isError) {
     return (
       <View style={styles.screen}>
+        <DeliverySection />
         <Chips chip={chip} onChange={setChip} />
         <ErrorState
           message={
@@ -285,7 +287,20 @@ export function NotificationsScreen({ navigation }: AppScreenProps<'Notification
         showsVerticalScrollIndicator={false}
         refreshing={isFetching && !isFetchingNextPage}
         onRefresh={() => void refetch()}
-        ListHeaderComponent={<Chips chip={chip} onChange={setChip} />}
+        ListHeaderComponent={
+          /*
+            Delivery first, then the filter.
+
+            The section is one closed row until somebody opens it, and it is
+            above the chips because it belongs to the inbox as a whole rather
+            than to whichever filter is showing. It replaced a screen behind
+            the overflow's gear — the audit's §4.2.
+          */
+          <>
+            <DeliverySection />
+            <Chips chip={chip} onChange={setChip} />
+          </>
+        }
         ListEmptyComponent={<EmptyState title={emptyTitleFor(chip)} />}
         ListFooterComponent={
           isFetchingNextPage ? (
@@ -359,7 +374,6 @@ export function NotificationsScreen({ navigation }: AppScreenProps<'Notification
         onClose={() => setMenuOpen(false)}
         onMarkAll={() => markAll.mutate()}
         onClearAll={() => void onClearAll()}
-        onSettings={() => navigation.navigate('NotificationSettings')}
       />
 
       {confirmDialog}
@@ -373,8 +387,14 @@ export function NotificationsScreen({ navigation }: AppScreenProps<'Notification
  * **Each row appears only when it has something to do**, which is what
  * `Modules/Notifications/resources/views/index.blade.php` does with the same
  * two buttons: "Mark all as read" behind `$unreadCount > 0`, "Delete all"
- * behind `$notifications->total() > 0`. Settings is always there, because it
- * is a destination rather than an action.
+ * behind `$notifications->total() > 0`.
+ *
+ * **Settings used to be a third row here and is not any more.** It was a
+ * destination rather than an action, which is precisely why it did not belong
+ * in a menu of actions — and the destination has come onto this screen as the
+ * Delivery section at its head. The audit's §4.2, and the website's own
+ * arrangement. Both rows left are things that HAPPEN when pressed, which is
+ * why neither draws a chevron.
  *
  * **"Delete all" means the whole inbox, not the chip.** The endpoint is
  * `DELETE /notifications` and the website has no filter to disagree with it.
@@ -389,7 +409,6 @@ function InboxMenu({
   onClose,
   onMarkAll,
   onClearAll,
-  onSettings,
 }: {
   open: boolean;
   unread: number;
@@ -397,7 +416,6 @@ function InboxMenu({
   onClose: () => void;
   onMarkAll: () => void;
   onClearAll: () => void;
-  onSettings: () => void;
 }) {
   /* Close first, act second. A sheet still on screen while a confirmation
      opens over it stacks two overlays for one decision. */
@@ -418,8 +436,6 @@ function InboxMenu({
             onPress={run(onMarkAll)}
           />
         )}
-
-        <ListRow icon={GearSix} label="Notification settings" onPress={run(onSettings)} />
 
         {total === 0 ? null : (
           <ListRow

@@ -13,7 +13,6 @@ import { SignInScreen } from '../screens/SignInScreen';
 import { TwoFactorScreen } from '../screens/TwoFactorScreen';
 import { UpdateRequiredScreen } from '../screens/UpdateRequiredScreen';
 import { NotificationsScreen } from '../features/notifications/NotificationsScreen';
-import { NotificationSettingsScreen } from '../features/notifications/NotificationSettingsScreen';
 import { CollectionScreen } from '../screens/CollectionScreen';
 import { GenresScreen } from '../screens/GenresScreen';
 import { PlansScreen } from '../screens/PlansScreen';
@@ -26,7 +25,6 @@ import { TaxonomyScreen } from '../screens/TaxonomyScreen';
 import { TitleDetailScreen } from '../screens/TitleDetailScreen';
 import { WatchScreen } from '../screens/WatchScreen';
 import { BillingScreen } from '../features/billing/BillingScreen';
-import { InvoiceScreen } from '../features/billing/InvoiceScreen';
 import { ChangePasswordScreen } from '../features/security/ChangePasswordScreen';
 import { TwoFactorSetupScreen } from '../features/security/TwoFactorSetupScreen';
 import { TabNavigator } from './TabNavigator';
@@ -151,11 +149,6 @@ export function RootNavigator() {
             options={{ title: 'Notifications' }}
           />
           <AppStack.Screen
-            name="NotificationSettings"
-            component={NotificationSettingsScreen}
-            options={{ title: 'Notification settings' }}
-          />
-          <AppStack.Screen
             name="Security"
             component={SecurityScreen}
             options={{ title: 'Security' }}
@@ -196,11 +189,6 @@ export function RootNavigator() {
             name="Billing"
             component={BillingScreen}
             options={{ title: 'Billing' }}
-          />
-          <AppStack.Screen
-            name="Invoice"
-            component={InvoiceScreen}
-            options={{ title: 'Invoice' }}
           />
           <AppStack.Screen
             name="Collection"

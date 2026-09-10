@@ -5985,3 +5985,58 @@ moved into `useAvatarUpload` yesterday and both callers became one. No PHP was
 touched.
 
 **Deliberately not done:** the editor did not get a hero, per §8.
+
+---
+
+#### Step 3 of 4 — §4.2 and §4.3, folded and sheeted. Complete.
+
+**Deleted:** `NotificationSettingsScreen.tsx` (174 lines), `InvoiceScreen.tsx`
+(258), and both routes with their types. **Added:** `DeliverySection.tsx`,
+`InvoiceSheet.tsx`, and `ui/motion.ts`.
+
+**Verified on the device, read from the view tree:**
+
+- **Closed**, the inbox header is one row — `Delivery settings`, 168 px = 56 dp,
+  the shared row height — and **neither switch appears in the tree at all**,
+  which is the accessibility half of "collapsed" working.
+- **Open**, the tree carries In-app and Email with the unverified-address note,
+  and the caret has turned.
+- **The switch round-trips against the real server**: In-app toggled to
+  `checked="false"`, then back to `checked="true"`.
+- **Collapsing removes both from the tree again.**
+- The invoice opens as a sheet over the order list, dismisses on the scrim, and
+  the whole document — heading, Billed to, four detail rows, the line-item
+  table, Total, footnote — fits above the fold at 0.72 of the display.
+
+**Nothing was re-measured against the website, and nothing needed to be.** The
+invoice's table numbers were probed off the rendered billing page when it was
+built and were copied across unchanged; the delivery rows are `ListRow` at the
+app's shared metrics. No component's colour, weight, radius or size was
+re-decided.
+
+**🔴 Two faults found only by rendering.**
+
+1. **The section opened to nothing.** The caret turned and the state flipped,
+   but the body stayed shut — which on a device is indistinguishable from a
+   press that did not register, and cost twenty minutes of tapping. A child
+   laid out normally inside a parent whose height is animated to 0 reports **0**
+   from `onLayout`, so the animation had nothing to travel to. The measuring
+   child is absolutely positioned now: it takes its width from left/right and
+   its height from its own content, so it measures at full size however short
+   the clipped parent currently is.
+2. **`Sheet` had no height cap.** Found by the same habit that found the first
+   one — reading bounds rather than looking. Fixed in the shared component,
+   with the ratio as a token.
+
+**Not verified:** the error state inside the section (the query has not been
+made to fail on the device), and the empty-inbox error branch, which renders
+the same section above `ErrorState` but was not exercised. Nothing on a tablet
+or the TV build. No PHP was touched.
+
+**Deliberately not built:** the third delivery switch. The plan's §4.2 says
+"three switches" from the website; the app has two, and **push is absent on
+purpose** — the website's third drives a browser Web Push subscription, the app
+registers no FCM token, and `docs/api/coverage.md` records that the registry
+has no sender. A third switch would either silence the viewer's browser from
+their phone or toggle a flag for a channel that cannot deliver. The endpoint
+carries `push` either way, so it is a few lines on the day push works.

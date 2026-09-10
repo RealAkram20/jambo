@@ -8,6 +8,50 @@ would advertise a webapp update containing no webapp change.
 
 ## Jambo App
 
+### Unreleased — Delivery folds into the inbox, and the invoice becomes a sheet
+
+Two cuts from `docs/plans/account-area-audit.md`, both of the same kind: a
+screen that existed only because something had to live somewhere.
+
+**§4.2 — Notification settings was two switches behind a gear.** 174 lines,
+reached from an overflow menu, on a subject the inbox is already about. They
+are now a **Delivery** section at the head of the notifications screen, closed
+until somebody opens it. The website keeps these on the notifications page
+itself, so this is also the app coming back into line with the surface it was
+ported from, and the overflow menu is left holding only things that HAPPEN when
+pressed — which is why neither of its rows draws a chevron.
+
+**Closed costs nothing, and that is the difference between folding it in and
+pasting it in.** The preferences query does not run until the section is
+opened, so a viewer who never touches it makes exactly the requests the inbox
+made before. Closed also means closed for a screen reader: the switches are
+clipped visually *and* removed from the accessibility tree, so nobody swiping
+through the inbox meets two controls that are not on screen.
+
+**§4.3 — The invoice was a route.** 258 lines of screen, opened from exactly one
+row and leading nowhere, so the only thing a viewer could do from it was leave.
+It is a `Sheet` now. Nothing about the document changed — the same measured
+table, the same three states, the same absent Print button — it stopped being
+somewhere you travel to. **This is a new conversion, not an exemption**, so it
+does not touch the shrinking allowlist in `eslint.config.js`; the sheet comes
+from `ui/overlay.tsx` like every other overlay in the app.
+
+🔴 **`Sheet` now caps its own height, and that is a fix for every sheet, not
+just this one.** A sheet hugs its content and had no upper bound, so content
+taller than the display grew off the top and took its own last rows with it —
+the invoice's footnote landed at y=2835 on a screen 2856 tall, which the view
+tree reports as an inverted rectangle rather than as an error. The cap is read
+from the window rather than fixed, so a tablet and a rotated handset both get a
+panel; `fullHeight` sheets are exempt, because a payment page IS the screen.
+
+**Two small shared additions rather than local copies.** `ListRow` learned an
+`expanded` prop, which turns a row into a disclosure — announced as a button
+with its open state instead of as a link — rather than a second row component
+being written beside it. And the reduced-motion read that `PlayerControls` has
+inline is now a `useReducedMotion` hook in `ui/motion.ts`; the player is left
+alone deliberately and the hook says so, so whoever next opens it can retire
+the fork in four lines.
+
 ### Unreleased — The profile is one screen, not two
 
 `docs/plans/account-area-audit.md` §4.1. **`ProfileScreen` showed a subset of

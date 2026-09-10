@@ -780,6 +780,21 @@ export const sheet = {
   bg: '#0B0F17',
   radius: 20,
   handle: 'rgba(255, 255, 255, 0.22)',
+
+  /**
+   * How much of the display a content sheet may fill before it scrolls.
+   *
+   * A sheet hugs its content, and a sheet whose content is taller than the
+   * screen does not hug it — it grows off the top and takes its own last rows
+   * with it. Found when the invoice became a sheet: its footnote landed at
+   * y=2835 on a display 2856 tall, which the view tree reports as an inverted
+   * rectangle rather than as an error.
+   *
+   * The remaining fifth is what makes it read as a panel over the page rather
+   * than as a screen, which is the whole distinction between the two.
+   * `fullHeight` sheets ignore this: a payment page IS the screen.
+   */
+  maxHeightRatio: 0.72,
 } as const;
 
 /**
