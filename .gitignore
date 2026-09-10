@@ -30,3 +30,6 @@ yarn-error.log
 /.vscode
 /.claude
 /Forever
+
+# graphify code graph - regenerable in seconds, do not commit (added 2026-08-29)
+graphify-out/
