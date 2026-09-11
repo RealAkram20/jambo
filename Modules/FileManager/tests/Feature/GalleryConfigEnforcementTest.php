@@ -166,6 +166,62 @@ class GalleryConfigEnforcementTest extends TestCase
     }
 
 
+    /**
+     * The media picker keeps the gallery's toolbox.
+     *
+     * Picker mode suppresses the PREVIEW, so clicking a file selects it
+     * instead of starting a film. For a long time it also suppressed the
+     * context menu, which meant the three-dot button on every tile rendered
+     * and did nothing, and right-click did nothing — Rename, Move, Copy,
+     * Duplicate, New Folder, Upload and Download were all unreachable from
+     * the movie and series edit screens.
+     *
+     * Rio, 2026-09-12: *"bring every feature as we have it in the
+     * file-manager"*.
+     *
+     * Two things have to hold together, which is why they are one test: the
+     * menu must not be hidden, and the capture-phase click interceptor must
+     * let the three-dot button through. The button is rendered INSIDE the file
+     * anchor, so an interceptor that swallows `.files-a` swallows it too and
+     * the menu never opens however visible it is.
+     */
+    public function test_the_picker_keeps_the_context_menu(): void
+    {
+        $script = File::get(module_path('FileManager', 'resources/files-gallery/custom.js'));
+
+        $this->assertDoesNotMatchRegularExpression(
+            '/#contextmenu\s*\{[^}]*display:\s*none/i',
+            $script,
+            'Hiding #contextmenu leaves the three-dot button rendering and doing nothing.'
+        );
+
+        $this->assertStringContainsString(
+            'context-button',
+            $script,
+            'The interceptor must recognise the three-dot button, which sits inside the file anchor.'
+        );
+
+        // A right- or middle-click must reach the gallery. `mousedown` fires
+        // for every button, so without this guard the menu was cancelled
+        // before it could open.
+        $this->assertMatchesRegularExpression(
+            '/e\.button\s*!==\s*0/',
+            $script,
+            'Only a primary click means "select"; other buttons open the menu.'
+        );
+
+        // And the fix has to actually ship: custom.js is skipped on install
+        // unless it is force-overwritten, so a server with an older copy would
+        // keep it and the change would look deployed while doing nothing.
+        $installer = File::get(module_path('FileManager', 'app/Console/Commands/InstallFilesGalleryCommand.php'));
+
+        $this->assertStringContainsString(
+            "\$name === 'custom.js'",
+            $installer,
+            'custom.js must be force-overwritten or fixes to it never reach a server that has it.'
+        );
+    }
+
     public function test_every_asset_the_gallery_asks_for_is_vendored(): void
     {
         $index = module_path('FileManager', 'resources/files-gallery/index.php');

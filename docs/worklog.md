@@ -6880,3 +6880,46 @@ broke production — fails the completeness test and nothing else.
 **For whoever upgrades the drop-in next.** Run `filemanager:vendor`, commit
 what it fetches, and make sure `--check` passes. If you are tempted to add a
 path by hand, read the two derivation bugs above first.
+
+### 2026-09-12 — the media picker gets the gallery's toolbox back
+
+**Status:** complete, 1.8.44. **Needs a human check in a browser** — see below.
+
+Rio: *"the three dots should be more options that comes even when right click
+[...] bring every feature as we have it in the file-manager"*, on the picker
+used by the movie and series edit screens.
+
+**Why it was dead.** The picker is the same Files Gallery in an iframe with
+`?picker=1`. Our own `custom.js` recognises that and strips the UI so a click
+selects a file rather than opening a video player. Three things then blocked
+the menu:
+
+1. CSS hid `#contextmenu` outright.
+2. The three-dot button is rendered **inside** the file anchor, so the
+   capture-phase interceptor that swallows `.files-a` clicks swallowed it too.
+   The button rendered and did nothing.
+3. `mousedown` fires for every mouse button, so a right-click was cancelled
+   before the menu could open.
+
+All three fixed. Rename, Move, Copy, Duplicate, New Folder, New File, Upload,
+Download, Copy Link, Show Info and Open In New Tab are now reachable from the
+picker, by three-dot button or right-click, keyboard included.
+
+**Still suppressed, deliberately: the preview.** A plain click selects; it does
+not open the lightbox or start playing a film. That is the picker's job and the
+suppression was fought for — the comments in `custom.js` record that the real
+preview layer is PhotoSwipe, not the modal it looks like. **So the menu's
+"Open" does nothing in the picker.** Restoring it means removing the PhotoSwipe
+suppression and the media-killer, which is a real risk of videos autoplaying in
+a form, and I would not ship that unverified. Rio to decide.
+
+🔴 **`custom.js` was NOT force-overwritten on install**, so this fix would have
+been skipped on every server that already had a copy — it would have looked
+deployed and done nothing. Now force-overwritten, like the .htaccess files and
+the admin gate. `config.php` deliberately stays out of that list because it is
+genuinely edited; it is repaired key-by-key instead.
+
+**Verified:** 24 tests pass; re-hiding the menu fails exactly one. **Not
+verified:** the menu actually opening, and its actions working, in a browser.
+Everything here is source-level. Somebody should open a movie edit screen,
+click the three dots and right-click a tile.

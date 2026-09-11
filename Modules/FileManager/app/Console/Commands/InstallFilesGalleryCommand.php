@@ -119,12 +119,23 @@ class InstallFilesGalleryCommand extends Command
                 continue;
             }
 
-            // Always refresh .htaccess rules and the admin gate — they're
-            // security policy and must not drift from the repo. Everything
-            // else honours the --force flag so admins don't lose custom edits.
+            // Always refresh the .htaccess rules, the admin gate and our own
+            // behaviour script — they are code, they are not edited in place,
+            // and a stale copy is a bug that ships silently.
+            //
+            // `custom.js` joined that list on 2026-09-12: it carries the
+            // picker's behaviour, and because it was NOT force-overwritten a
+            // fix to it would have been skipped on every server that already
+            // had a copy. The change would have looked deployed and done
+            // nothing.
+            //
+            // `config.php` stays out of this deliberately: that one IS edited,
+            // by admins and by the gallery's own settings panel, so it is
+            // repaired key-by-key in enforceConfig() instead of replaced.
             $forceOverwrite = $this->option('force')
                 || str_ends_with($name, '.htaccess')
-                || $name === 'fm-guard.php';
+                || $name === 'fm-guard.php'
+                || $name === 'custom.js';
 
             if (File::exists($dest) && ! $forceOverwrite) {
                 $this->line("  · {$name} already present (use --force to overwrite)");

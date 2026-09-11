@@ -1641,6 +1641,39 @@ build's PesaPal checkout, anything in Phase 3, and TV beyond installing
 
 ## Jambo
 
+### 1.8.44 — The media picker gets the file manager's toolbox
+
+Rio, 2026-09-12, on the picker used by the movie and series edit screens:
+*"the three dots should be more options that comes even when right click [...]
+bring every feature as we have it in the file-manager"*.
+
+The picker is the same gallery in an iframe with `?picker=1`, and our own
+`custom.js` strips the UI so a click selects a file rather than opening a
+player. Three things then killed the menu: the CSS hid it; the three-dot button
+is rendered **inside** the file anchor, so the capture-phase interceptor that
+swallows `.files-a` clicks swallowed the button too; and `mousedown` fires for
+every button, so a right-click was cancelled before the menu could open.
+
+Rename, Move, Copy, Duplicate, New Folder, New File, Upload, Download, Copy
+Link, Show Info and Open In New Tab are reachable again, by button or
+right-click, keyboard included.
+
+**The preview stays suppressed on purpose.** A plain click selects; it does not
+open the lightbox or start a film in the middle of a form. So the menu's
+"Open" does nothing here. Undoing that means removing the PhotoSwipe
+suppression and the media-killer, which risks video autoplaying in an edit
+screen — not something to ship unverified.
+
+🔴 **`custom.js` is now force-overwritten on install.** It was not, so this fix
+would have been skipped on every server that already had a copy: deployed in
+appearance, absent in fact. `config.php` stays out of that list because it is
+genuinely edited by admins and by the gallery itself, and is repaired
+key-by-key instead.
+
+**Not verified:** the menu opening in a browser. The change is source-level and
+the tests are source-level. Open a movie edit screen and try the three dots and
+a right-click.
+
 ### 1.8.43 — Self-hosting, finished properly this time
 
 1.8.41 self-hosted the fourteen assets the gallery's page declares and broke

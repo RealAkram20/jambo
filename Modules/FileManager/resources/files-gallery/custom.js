@@ -162,8 +162,18 @@
     // 7. Top-right chrome — fullscreen toggle, theme, language, user settings.
     '#topbar-fullscreen, #change-theme, #change-lang, #user-settings { display: none !important; }',
 
-    // 8. Right-click context menu.
-    '#contextmenu { display: none !important; }',
+    // 8. The context menu is NOT hidden.
+    //
+    // It used to be. Rio, 2026-09-12: *"the three dots should be more options
+    // that comes even when right click [...] bring every feature as we have
+    // it in the file-manager"*. Rename, Move, Copy, Duplicate, New Folder,
+    // Upload and Download are the reason anyone opens a file manager, and the
+    // picker had none of them — the three-dot button rendered and did
+    // nothing, which reads as broken rather than restricted.
+    //
+    // Suppressing the PREVIEW is still right: a click in the picker must
+    // select, not start playing a film. Suppressing the whole toolbox was
+    // not.
 
     // 9. Per-tile play overlay that signals "click plays this".
     '.play { display: none !important; }',
@@ -231,7 +241,30 @@
     return false;
   }
 
+  /**
+   * Is this event heading for the context menu rather than the file itself?
+   *
+   * The three-dot button is rendered INSIDE the file anchor
+   * (`button.context-button[data-action=context]`), so a capture-phase
+   * listener that swallows every click on `.files-a` swallows the button too
+   * — which is exactly why the picker's three dots did nothing for months.
+   * The menu itself (`#contextmenu`) sits outside the anchor, but guard it
+   * anyway so a future layout change cannot break its items.
+   */
+  function isContextUi(target) {
+    if (!target || !target.closest) return false;
+
+    return !!target.closest('.context-button, [data-action="context"], #contextmenu');
+  }
+
   function handleFileClick(e) {
+    // Right- and middle-clicks open the context menu; only a primary click
+    // means "select this". `mousedown` fires for every button, so without
+    // this a right-click was cancelled before the menu could open.
+    if (typeof e.button === 'number' && e.button !== 0) return;
+
+    if (isContextUi(e.target)) return;
+
     var a = e.target && e.target.closest ? e.target.closest('.files-a, .menu-a') : null;
     if (!a) return;
 
@@ -267,6 +300,12 @@
   window.addEventListener('keydown', function (e) {
     if (e.key !== 'Enter' && e.key !== ' ') return;
     var target = e.target;
+
+    // Keyboard users reach the three-dot button and the menu items the same
+    // way they reach anything else. Swallowing Enter there would leave the
+    // menu operable by mouse only.
+    if (isContextUi(target)) return;
+
     if (target && target.closest && target.closest('.files-a')) {
       var a = target.closest('.files-a');
       if (!isFolderAnchor(a)) {
