@@ -44,25 +44,20 @@ class InstallFilesGalleryCommand extends Command
      * `menu_max_depth` were lost on production before 2026-09-12.
      */
     private const ENFORCED_CONFIG = [
-        // 🔴 `assets` is deliberately NOT here yet, and the vendored files in
-        // resources/files-gallery/vendor are staged rather than in use.
+        // Self-host everything. See the note above, and mind the history:
         //
-        // Setting it in 1.8.41 broke production. The page declares fourteen
-        // assets, which is what was vendored and what the test checks — but
-        // the 320 KB bundle lazy-loads TWELVE more packages the first time a
-        // feature is used: uppy (drag-and-drop upload), plyr and hls.js
-        // (playback), codemirror (editing, plus a syntax file per language
-        // fetched on demand), pannellum, jsmediatags, headroom, marked,
-        // intersection-observer, dayjs locales, flag icons, uppy locales.
-        // Repointing the asset path without those means every one of them
-        // 404s, and the feature dies with no visible error. Rio lost
-        // drag-and-drop and the right-click menu on the live site.
+        // 1.8.41 set this after vendoring only the fourteen assets the PAGE
+        // declares, and broke production. The bundle lazy-loads twelve more
+        // packages on first use — uppy (drag-and-drop), plyr and hls.js
+        // (playback), codemirror (editing) among them — and a 404 on a
+        // lazily-injected script is silent, so those features simply stopped
+        // existing.
         //
-        // Finishing this needs the remaining packages vendored — roughly five
-        // megabytes, much of it enumerated only inside the minified bundle —
-        // and a check that FAILS when the gallery asks for something we do not
-        // ship. Hand-listing is what failed: see the worklog for 2026-09-12.
-        // Until that exists the gallery keeps using its CDN, which works.
+        // It is back on because the list is no longer hand-written:
+        // `filemanager:vendor` derives all 280 assets from the bundle itself,
+        // and `filemanager:vendor --check` fails if any are absent. Never set
+        // this again without that check passing.
+        'assets' => '_files/vendor/',
 
         // Performance on large folders. Jambo's `movies` directory holds 1,761
         // title folders; with these at their defaults the gallery opens every

@@ -1641,6 +1641,41 @@ build's PesaPal checkout, anything in Phase 3, and TV beyond installing
 
 ## Jambo
 
+### 1.8.43 — Self-hosting, finished properly this time
+
+1.8.41 self-hosted the fourteen assets the gallery's page declares and broke
+drag-and-drop, because the bundle lazy-loads twelve more packages on first use.
+1.8.42 withdrew it. This finishes it, with the list **derived rather than
+written down** — hand-listing is what failed, twice.
+
+**`php artisan filemanager:vendor`** reads the gallery and works out everything
+it can ask for: the declared tags, the plugin registry inside the bundle and
+the files each plugin needs, CodeMirror's 121 syntax modes, and the three
+per-language families. 280 assets, 4.6 MB. Re-run it after upgrading the
+drop-in; `--check` reports gaps without downloading and needs no network.
+
+**Two derivation bugs it caught that a hand list never would.** The uploader's
+translations are keyed by full locale (`ar_SA`, not `ar`), so the obvious
+derivation 404s all 41 of them. And the language picker maps some languages to
+a different country's flag — `ar` is drawn with Saudi Arabia's, `en` with the
+United Kingdom's — so deriving flags from the language code downloads files
+that **exist and are wrong**, which is worse than a 404 because nothing reports
+it.
+
+**One asset genuinely is not published:** the gallery offers Norwegian as `no`,
+dayjs ships `nb` and `nn`. That 404s on the CDN exactly as it would here, so it
+is recorded in `UPSTREAM-MISSING.txt` and the check ignores it. "Missing" had
+two meanings and only one of them is a bug.
+
+**Verified by serving, not by reasoning.** All 279 vendored files fetched over
+HTTP, every one a 200. The rendered page references 14 local assets and zero
+external ones. Removing `uppy` — the exact package whose absence broke
+production — fails the completeness test and nothing else.
+
+🔴 **Never set `assets` again without `filemanager:vendor --check` passing.**
+That check is the only thing standing between a config key and a silently
+broken admin tool, and it is wired into the test suite so it cannot be skipped.
+
 ### 1.8.42 — Self-hosting is withdrawn, because 1.8.41 broke the file manager
 
 Rio, on the live site after deploying 1.8.41: *"some features are lost like the

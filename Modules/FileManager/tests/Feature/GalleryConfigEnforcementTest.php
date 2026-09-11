@@ -157,28 +157,12 @@ class GalleryConfigEnforcementTest extends TestCase
             return;
         }
 
-        $bundle = "{$this->vendorSource}/files.photo.gallery@0.15.3/js/files.js";
-        $this->assertFileExists($bundle, 'Self-hosting is on, so the bundle must be vendored.');
-
-        // The registry inside the bundle names every lazily-loaded package as
-        // "name@version". Read it from there rather than keeping a hand list,
-        // because a hand list is what failed.
-        preg_match_all('/"([a-z0-9._-]+@[0-9][0-9a-z.-]*)"/i', File::get($bundle), $found);
-
-        $missing = [];
-
-        foreach (array_unique($found[1]) as $package) {
-            if (! File::isDirectory("{$this->vendorSource}/{$package}")) {
-                $missing[] = $package;
-            }
-        }
-
-        $this->assertSame(
-            [],
-            $missing,
-            "Self-hosting is enforced but these packages are not vendored, so every feature that "
-            . 'needs one will fail silently: ' . implode(', ', $missing)
-        );
+        // Self-hosting is on, so every asset the gallery can ask for must be
+        // present. `filemanager:vendor --check` derives that list from the
+        // bundle — the same code that downloads them — so this cannot drift
+        // from reality the way a hand-written list did.
+        $this->artisan('filemanager:vendor', ['--check' => true])
+            ->assertSuccessful();
     }
 
 

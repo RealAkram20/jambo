@@ -6840,3 +6840,43 @@ list. The test above already refuses anything less.
 - I corrupted PHP namespaces twice in one hour by writing them through Python
   heredocs, where `\a` becomes a bell character. There is a memory about this
   exact trap. Use the Write or Edit tool for anything containing a namespace.
+
+### 2026-09-12 — self-hosting finished, list derived not written
+
+**Status:** complete, 1.8.43. Third attempt at the same thing, and the first
+that is safe.
+
+**Why it took three.** 1.8.41 vendored what the page declares (14 files) and
+broke drag-and-drop, because the bundle lazy-loads twelve more packages on
+first use. 1.8.42 withdrew it and made the half-state unexpressible. 1.8.43
+finishes it by deriving the list from the gallery instead of writing it down.
+
+**`filemanager:vendor`** reads: the declared script/link tags; the plugin
+registry inside `files.js` plus the `src:`/`css:` arrays that say which files
+each plugin needs; CodeMirror's 121 syntax modes; and the three per-language
+families. 280 assets, 4.6 MB, 281 files in the repo.
+
+**Two bugs the derivation caught that a hand list would have shipped.**
+
+1. **Uppy's locales are full codes** (`ar_SA`), not the gallery's two-letter
+   ones. The obvious derivation 404s all 41.
+2. **Flags go through a mapping.** `ar` is drawn with Saudi Arabia's flag, `en`
+   with the UK's. Deriving from the language code downloads files that exist
+   and are WRONG — no error, just wrong flags. That one would have shipped
+   silently and nobody would have traced it.
+
+**One real upstream gap.** The gallery offers Norwegian as `no`; dayjs ships
+`nb` and `nn`. It 404s on the CDN too. Recorded in `UPSTREAM-MISSING.txt` so
+"missing" stops having two meanings — one upstream's and harmless, one ours and
+the bug that broke production.
+
+**The mode list is cached on disk** so `--check` needs no network. A check that
+fails when someone's connection drops is a check people learn to ignore.
+
+**Verified by serving.** 279 files fetched over HTTP, all 200. Page references
+14 local assets, zero external. Hiding `uppy` — the exact package whose absence
+broke production — fails the completeness test and nothing else.
+
+**For whoever upgrades the drop-in next.** Run `filemanager:vendor`, commit
+what it fetches, and make sure `--check` passes. If you are tempted to add a
+path by hand, read the two derivation bugs above first.

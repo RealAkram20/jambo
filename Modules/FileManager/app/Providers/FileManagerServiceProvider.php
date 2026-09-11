@@ -39,6 +39,7 @@ class FileManagerServiceProvider extends ServiceProvider
     {
         $this->commands([
             \Modules\FileManager\app\Console\Commands\InstallFilesGalleryCommand::class,
+            \Modules\FileManager\app\Console\Commands\VendorGalleryAssetsCommand::class,
         ]);
     }
 

@@ -10,9 +10,11 @@ return [
     // Dedicated gallery folder at storage/app/public/gallery/ — a clean
     // admin-curated asset space, separate from spatie/medialibrary uploads,
     // source videos and HLS streams. Served publicly at /storage/gallery/<path>.
-    // NOTE: `assets` (self-hosting) is intentionally absent. Setting it without
-    // the twelve lazy-loaded packages breaks drag-and-drop, playback and the
-    // right-click actions — see ENFORCED_CONFIG in InstallFilesGalleryCommand.
+    // Self-hosted assets — no CDN. Regenerate with `filemanager:vendor` after
+    // upgrading the drop-in, and never set this without `--check` passing:
+    // 1.8.41 set it with only a third of the files and silently killed
+    // drag-and-drop on production.
+    'assets' => '_files/vendor/',
 
     // Large-folder performance. See ENFORCED_CONFIG in the install command.
     'folder_preview_image' => false,
