@@ -183,6 +183,54 @@ class UpdateManagerTest extends TestCase
         $this->assertSame('Backup not found.', $result['error']);
     }
 
+    /**
+     * An in-app update must re-install the Files Gallery drop-in.
+     *
+     * An SSH deploy gets this free: `composer install` fires
+     * `filemanager:install` from post-autoload-dump. Nothing runs Composer on
+     * the /admin/updates path, so without an explicit call the gallery's
+     * security `.htaccess` files, its admin gate and its self-hosted assets
+     * stay at whatever the PREVIOUS release installed. The asset URLs carry
+     * the gallery version, so a release that upgrades the drop-in would leave
+     * every script tag pointing at a version directory that is not there — a
+     * blank file manager with no error to explain it.
+     *
+     * **This is a structural assertion, and it is worth being clear about what
+     * it does not do.** It reads the source rather than running an update,
+     * because `applyUpdate()` needs a signed release archive and there is no
+     * fixture for one. So it proves the call is still in the release path and
+     * ordered before the caches are cleared; it does not prove the update
+     * works. Replace it with a real run the day this suite grows a release
+     * fixture.
+     */
+    public function test_an_in_app_update_reinstalls_the_file_manager(): void
+    {
+        $source = File::get(module_path('SystemUpdate', 'app/Services/UpdateManager.php'));
+
+        $install = strpos($source, "Artisan::call('filemanager:install')");
+        $this->assertNotFalse(
+            $install,
+            'An in-app update must run filemanager:install; nothing else on this path does.'
+        );
+
+        $migrate = strpos($source, "Artisan::call('migrate'");
+        $caches = strpos($source, '$this->clearCaches()');
+
+        $this->assertNotFalse($migrate);
+        $this->assertNotFalse($caches);
+
+        $this->assertGreaterThan(
+            $migrate,
+            $install,
+            'Re-install after migrating, so a failed migration aborts before touching the gallery.'
+        );
+        $this->assertLessThan(
+            $caches,
+            $install,
+            'Re-install before the caches are cleared, so nothing serves a half-updated gallery.'
+        );
+    }
+
     /* ------------------------------------------------------------------ */
     /* Helpers                                                            */
     /* ------------------------------------------------------------------ */

@@ -1641,6 +1641,57 @@ build's PesaPal checkout, anything in Phase 3, and TV beyond installing
 
 ## Jambo
 
+### 1.8.41 — The file manager is actually self-hosted now, and survives its own settings panel
+
+Rio, 2026-09-12, on the file manager lagging: *"i thought we fully host the
+filemanager? so that we don't get these request issues"*.
+
+**We did not.** Files Gallery loaded its stylesheet, its 320 KB application
+bundle and eleven libraries from `cdn.jsdelivr.net` on every cold open, **with
+no integrity hashes on any of them**. That is 680 KB of unverified third-party
+JavaScript executing inside an authenticated admin session that can upload to
+and delete from the entire media tree. The latency was the symptom; the
+supply-chain exposure was the finding.
+
+All 44 files — 14 scripts and stylesheets plus 29 translations — are now
+vendored in the repo and served from our own domain. Nothing upstream is
+patched: `assets` is the gallery's own documented switch for this, so a gallery
+upgrade stays a straight file replacement.
+
+**Why the settings kept vanishing.** The gallery REWRITES
+`_files/config/config.php` whenever anyone saves its settings panel, keeping
+only what that panel knows about. That is how `menu_max_depth` was lost on
+production, which is why a folder of 1,761 title directories stopped loading at
+all. `filemanager:install` now re-asserts three keys on every run and leaves
+every other line, including the admin's own comments, untouched.
+
+**Measured, on a local copy of the live folder.** Listing 1,761 directories
+costs 4 ms. Opening each one hunting for a poster costs 873 ms, and opening
+each one again checking for subfolders costs 706 ms. So `folder_preview_image`
+and `menu_max_depth` remove over half the work before a byte is sent, and lazy
+loading in the browser could not have helped — the gallery already fetches its
+listing separately and caches it.
+
+🔴 **It refuses to claim self-hosting it cannot deliver.** If the vendored files
+are missing or only partly copied, the `assets` key is withdrawn and the
+gallery falls back to the CDN. A wrong local path would 404 every script tag
+and leave an admin staring at a blank screen, which is strictly worse than the
+thing being replaced. Six tests cover this, including the fallback and its
+recovery; disabling the guard fails exactly one of them and nothing else.
+
+**Three more guards came out of reviewing it before deploying.** The install
+now **mirrors** the vendor directory rather than copying over the top, so an
+upgrade cannot leave two gallery versions side by side. It **checks the
+version**, because forty-four files of the wrong version still count as
+forty-four and would 404 every one of them — the file count alone was not proof
+of anything. And the config is written with `var_export` through
+`preg_replace_callback`, so a value containing a quote, a dollar or a backslash
+cannot corrupt the one config file an admin has.
+
+**Not fixed, and not ours:** `php -l` segmentation faults on that server for
+any file, which is the ionCube loader rather than anything in this codebase. It
+made several diagnoses look like syntax errors that were not.
+
 ### 1.8.40 — Category shelves are dealt through the page, and the switch says when it does nothing
 
 Rio, 2026-09-11: *"i have noticed the categories are packed into one block

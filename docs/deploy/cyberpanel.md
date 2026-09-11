@@ -337,6 +337,13 @@ git pull origin main
 composer install --no-dev --optimize-autoloader
 npm ci && npm run build
 
+#    `composer install` fires filemanager:install from post-autoload-dump,
+#    which re-installs the Files Gallery drop-in: its security .htaccess
+#    files, its admin gate, and its self-hosted assets. If you ever skip
+#    Composer, run `php artisan filemanager:install` by hand — the asset
+#    URLs carry the gallery version, and a stale set means a blank file
+#    manager rather than a visible error.
+
 # 4. Migrate. If this errors, STOP — do not bring the site back up.
 #    Restore from the backup in step 1, git reset, redeploy fixed code.
 php artisan migrate --force
@@ -347,8 +354,15 @@ php artisan config:clear && php artisan route:clear \
 php artisan config:cache && php artisan route:cache \
     && php artisan view:cache && php artisan event:cache
 
-# 6. Restart workers (if Supervisor is configured)
-supervisorctl restart jambo-worker:*
+# 6. Restart the queue worker.
+#    Check which you actually have — `command -v supervisorctl` and
+#    `systemctl list-units --type=service | grep -i queue`. On
+#    jambofilms.com (verified 2026-09-11) there is NO supervisorctl;
+#    the worker is a systemd unit named jambo-queue, so the line below
+#    is the one that works there. Section 5.3's Supervisor setup is
+#    optional and was not used.
+systemctl restart jambo-queue        # systemd (jambofilms.com)
+# supervisorctl restart jambo-worker:*   # if you set up Supervisor instead
 
 # 7. Out of maintenance mode
 php artisan up

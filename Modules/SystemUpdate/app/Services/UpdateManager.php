@@ -227,6 +227,32 @@ class UpdateManager
             set_time_limit(300);
             Artisan::call('migrate', ['--force' => true]);
 
+            // 5b. Re-install the Files Gallery drop-in.
+            //
+            // On an SSH deploy this rides in on `composer install`, which
+            // fires `filemanager:install` from post-autoload-dump. Nothing
+            // runs Composer on this path, so without it an update through
+            // /admin/updates leaves the gallery's security .htaccess files,
+            // its admin gate and its self-hosted assets at whatever the
+            // previous release installed.
+            //
+            // That last one is not cosmetic: the asset URLs carry the gallery
+            // version, so a release that upgrades the drop-in would leave the
+            // config pointing at a version directory that is not there and
+            // every script tag would 404 — a blank file manager, on an admin
+            // screen, with no error to explain it. The command is idempotent
+            // and self-correcting, so running it here is free.
+            // Not fatal. A gallery that fails to re-install leaves an admin
+            // tool degraded; aborting the whole release and rolling back the
+            // database over it would be the worse trade. Say so in the log
+            // instead, where the admin running the update will read it.
+            $note('Re-installing the file manager drop-in…');
+
+            if (Artisan::call('filemanager:install') !== 0) {
+                $note('  · WARNING: filemanager:install failed. The file manager may be stale — '
+                    . 'run `php artisan filemanager:install` on the server.');
+            }
+
             // 6. Write new version.
             $versionFile = base_path(config('systemupdate.version_file', 'version.txt'));
             File::put($versionFile, $status['latest'] . "\n");

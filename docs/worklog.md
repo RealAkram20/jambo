@@ -6700,3 +6700,103 @@ leaving it there means every dev run registers a real device row and reads live
 data while looking exactly like a local run. The production line is commented
 directly beneath it, and swapping them needs Metro RESTARTED — it is a
 bundle-time value.
+
+### 2026-09-12 — the file manager was never self-hosted
+
+**Status:** complete, 1.8.41. Not deployed.
+
+**What Rio reported:** the `movies` folder in the file manager would not open,
+while a file inside it opened fine; later, that it lagged before loading.
+
+**What it actually was, in order of how much time each cost.**
+
+1. **Not a website bug.** Nothing on the public site lists a directory; every
+   poster and video is rendered from a URL on the record. Established early and
+   it held.
+2. **Scale.** 1,761 title directories, 6,192 entries. Measured on a local copy:
+   listing them is 4 ms, opening each one for a poster is 873 ms, opening each
+   again for subfolders is 706 ms. `folder_preview_image` and `menu_max_depth`
+   remove over half the work.
+3. **The settings would not stick** because the gallery rewrites its own config
+   file whenever its settings panel is saved, dropping every key that panel
+   does not know about. `filemanager:install` now re-asserts them.
+4. **The real finding, which nobody was looking for:** 680 KB of gallery
+   JavaScript came from jsdelivr with **no integrity hashes**, inside an admin
+   session with full write access to the media tree. Now vendored, all 44
+   files, via the gallery's own `assets` switch so nothing upstream is patched.
+
+**Four wrong diagnoses on the way, each worth remembering.**
+
+- I said twelve files ruled out scale. I had counted files and missed 1,761
+  directories. `find -type f` is not `find`.
+- I chased a filename-encoding theory that Rio's own check disproved in one
+  command.
+- I sent a config path that did not exist. The gallery keeps it at
+  `_files/config/config.php`, not beside `index.php`.
+- Repeated `php -l` segmentation faults on the server looked like our syntax
+  errors. **It is ionCube: `php -l` crashes on a four-word file there while
+  `php -v` is fine.** Never trust `php -l` on that box.
+
+**And one local trap that invalidated an hour of verification.** On this
+Windows machine `public/storage` is a **real directory holding a stale copy**,
+not a symlink, so every HTTP test was serving July's files while I edited
+September's. Production is a proper symlink — confirmed in Rio's own `ls`
+output — so this is local only. If a change does not show up locally, check
+that first.
+
+**Verified.** Six tests, all passing, covering the wipe-and-restore, three
+consecutive runs producing no duplicate keys, the admin's own lines surviving,
+the refusal to claim self-hosting when assets are missing, and its recovery.
+Disabling the safety guard fails exactly one test. Every asset and every
+language file is asserted present, which is what caught
+`js-file-downloader` — loaded only on a download, so it would have 404'd in
+production and nowhere else.
+
+**Not done.** The CyberPanel PHP limits from the runbook are still unset on the
+server: the gallery reports a 12 MB upload cap rather than the 4 GB we
+configure. Unrelated to this work, real, and one settings screen.
+
+**For whoever is next.** The gallery's config file is not ours. Treat
+`_files/config/config.php` as a cache of the admin's choices, and put anything
+that must hold into `ENFORCED_CONFIG` in the install command.
+
+**Revision pass before deploying, at Rio's request, and it found three things.**
+
+1. **The vendor directory was copied over, not mirrored.** An upgrade would
+   have left the old gallery version's assets beside the new ones — growing
+   without bound and, worse, making the version check pass on files index.php
+   no longer asks for. It deletes and re-copies now.
+2. **The file count was not proof.** Forty-four files of the WRONG version
+   still count as forty-four, so the guard now checks that the versioned
+   bundle index.php actually asks for is present. Without it, upgrading the
+   drop-in without re-vendoring would 404 every asset and blank the screen.
+3. **The config writer could have corrupted the file.** `preg_replace` reads
+   `$` and `\` in a replacement as back-references, and the value quoting was
+   hand-rolled. Both are `var_export` through `preg_replace_callback` now.
+
+Seven tests, all passing. Each guard was mutated and killed exactly one test.
+
+**Second review pass, and it found the one that mattered.**
+
+**The in-app updater at `/admin/updates` never ran `filemanager:install`.** An
+SSH deploy gets it free from Composer's post-autoload-dump hook; that path runs
+no Composer at all. So an update applied from the admin screen would have left
+the gallery's security `.htaccess` files, its admin gate and its self-hosted
+assets at whatever the *previous* release installed — and because the asset
+URLs carry the gallery version, a release that upgraded the drop-in would have
+pointed every script tag at a version directory that is not there. A blank file
+manager, on an admin screen, with no error. Fixed, non-fatally: a failure warns
+in the update log rather than aborting the release and rolling back a database
+over an admin tool.
+
+**Two documentation corrections, both things this session established on the
+real server rather than from the runbook.** The CyberPanel deploy told you to
+`supervisorctl restart jambo-worker:*`; jambofilms.com has no `supervisorctl`
+and runs a systemd unit called `jambo-queue`. And the pull step now says what
+`composer install` is quietly doing for the file manager, and what to run by
+hand if it is ever skipped.
+
+The updater test is **structural** — it reads the source rather than applying a
+release, because there is no release-archive fixture — and it says so in its own
+docblock. It pins that the call exists and sits after the migration and before
+the cache clear. Mutating the call out fails it and nothing else.

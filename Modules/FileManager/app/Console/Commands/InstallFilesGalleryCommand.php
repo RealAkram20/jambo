@@ -20,6 +20,42 @@ class InstallFilesGalleryCommand extends Command
 
     protected $description = 'Install the vendored Files Gallery drop-in into storage/app/public/media';
 
+    /**
+     * Where the gallery loads its own JS and CSS from.
+     *
+     * Files Gallery fetches its stylesheet, its 320 KB application bundle and
+     * eleven libraries from `cdn.jsdelivr.net`, with **no integrity hashes**.
+     * That is 680 KB of unverified third-party code executing inside an
+     * authenticated admin session that can upload to and delete from the whole
+     * media tree — a supply-chain exposure before you even count the latency
+     * of thirteen requests to another continent.
+     *
+     * Rio, 2026-09-12: *"i thought we fully host the filemanager? so that we
+     * don't get these request issues"*. He was right that we should be.
+     *
+     * `assets` is the gallery's own documented switch for this
+     * (files.gallery/docs/self-hosted-assets), so nothing upstream is patched
+     * and an upgrade stays a straight file replacement. Every asset URL in the
+     * drop-in is built through one `U::assetspath()` call that reads this key.
+     *
+     * Enforced on every install rather than merely seeded, because the gallery
+     * REWRITES its own config file whenever an admin saves its settings panel,
+     * and doing so silently drops keys. That is how this and
+     * `menu_max_depth` were lost on production before 2026-09-12.
+     */
+    private const ENFORCED_CONFIG = [
+        // Self-host. See above.
+        'assets' => '_files/vendor/',
+
+        // Performance on large folders. Jambo's `movies` directory holds 1,761
+        // title folders; with these at their defaults the gallery opens every
+        // one of them twice before rendering — once hunting for a poster, once
+        // checking for subfolders — which measured 1,583ms locally and timed
+        // the request out entirely on the VPS.
+        'folder_preview_image' => false,
+        'menu_max_depth' => 1,
+    ];
+
     public function handle(): int
     {
         $source = module_path('FileManager', 'resources/files-gallery');
@@ -54,6 +90,7 @@ class InstallFilesGalleryCommand extends Command
             'gallery.htaccess'  => "{$galleryDir}/.htaccess",
         ];
 
+        File::ensureDirectoryExists("{$target}/_files/vendor");
         File::ensureDirectoryExists("{$target}/_files/config");
         File::ensureDirectoryExists("{$target}/_files/js");
         File::ensureDirectoryExists($galleryDir);
@@ -101,6 +138,9 @@ class InstallFilesGalleryCommand extends Command
             return self::SUCCESS;
         }
 
+        $selfHosted = $this->installVendorAssets($source, $target);
+        $this->enforceConfig("{$target}/_files/config/config.php", $selfHosted);
+
         // Guarantee the admin gate is wired in, even on an upgrade where a
         // pre-existing index.php was left untouched (no --force). A guard
         // file that isn't require()d protects nothing, so if the line is
@@ -117,5 +157,188 @@ class InstallFilesGalleryCommand extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Copy the vendored JS and CSS that index.php would otherwise fetch from
+     * jsdelivr.
+     *
+     * Always refreshed, never honouring --force: these are ours, they are not
+     * edited in place, and a stale copy against a rewritten index.php is a
+     * blank admin screen. The npm-style layout (`pkg@version/dist/file.js`) is
+     * preserved so the rewritten URLs are a pure prefix swap — which is what
+     * keeps this a one-line change rather than a patch set.
+     */
+    private function installVendorAssets(string $source, string $target): bool
+    {
+        $vendorSource = "{$source}/vendor";
+
+        if (! File::isDirectory($vendorSource)) {
+            $this->warn('  · vendor/ assets missing — leaving the gallery on the CDN.');
+
+            return false;
+        }
+
+        // Mirror, don't merge. Copying over the top leaves the previous
+        // gallery version's assets sitting beside the new ones, which grows
+        // without bound and — worse — makes the version check below pass on
+        // files that are no longer the ones index.php asks for.
+        //
+        // Safe to delete outright: nothing but this method writes here, and if
+        // the copy that follows fails, the version check withdraws `assets`
+        // and the gallery falls back to the CDN rather than breaking.
+        $vendorTarget = "{$target}/_files/vendor";
+        File::deleteDirectory($vendorTarget);
+        File::ensureDirectoryExists($vendorTarget);
+
+        $expected = count(File::allFiles($vendorSource));
+        $copied = 0;
+
+        foreach (File::allFiles($vendorSource) as $file) {
+            $relative = str_replace('\\', '/', $file->getRelativePathname());
+            $dest = "{$target}/_files/vendor/{$relative}";
+
+            File::ensureDirectoryExists(dirname($dest));
+
+            // A copy that silently fails would leave index.php pointing at a
+            // 404 and the file manager blank. Count what actually landed.
+            if (File::copy($file->getPathname(), $dest) && File::size($dest) > 0) {
+                $copied++;
+            }
+        }
+
+        if ($copied !== $expected) {
+            $this->warn("  · only {$copied}/{$expected} assets copied — leaving the gallery on the CDN.");
+
+            return false;
+        }
+
+        // Every asset URL carries the gallery's own version number, so a
+        // drop-in upgraded without re-vendoring would ask for a directory that
+        // is not there and 404 all of it. Check the one file that must match
+        // rather than trust the count above: forty-four files of the WRONG
+        // version still count as forty-four.
+        $version = $this->galleryVersion("{$target}/index.php");
+
+        if ($version === null) {
+            $this->warn('  · could not read the gallery version — leaving it on the CDN.');
+
+            return false;
+        }
+
+        $bundle = "{$target}/_files/vendor/files.photo.gallery@{$version}/js/files.js";
+
+        if (! File::exists($bundle)) {
+            $this->warn("  · vendored assets are not for gallery {$version} — leaving it on the CDN.");
+            $this->warn('    Re-vendor resources/files-gallery/vendor after upgrading the drop-in.');
+
+            return false;
+        }
+
+        $this->info("  ✓ {$copied} self-hosted assets → _files/vendor (gallery {$version})");
+
+        return true;
+    }
+
+    /** The Files Gallery version the installed drop-in reports, or null. */
+    private function galleryVersion(string $indexPath): ?string
+    {
+        if (! File::exists($indexPath)) {
+            return null;
+        }
+
+        return preg_match('/\$version = \'([0-9.]+)\'/', File::get($indexPath), $m)
+            ? $m[1]
+            : null;
+    }
+
+    /**
+     * Put the keys in ENFORCED_CONFIG back into the live config file.
+     *
+     * The gallery regenerates `_files/config/config.php` from its settings
+     * panel, keeping only what that panel knows about, so anything we ship
+     * outside that set disappears the first time somebody saves a setting.
+     * Seeding the file once is therefore not enough; this re-asserts the keys
+     * on every install and leaves everything else exactly as the admin left
+     * it.
+     *
+     * Edits the file as text rather than re-serialising it, so an admin's own
+     * commented-out lines and ordering survive untouched — a rewritten config
+     * that loses their notes would be the same failure in the other direction.
+     */
+    private function enforceConfig(string $path, bool $selfHosted): void
+    {
+        if (! File::exists($path)) {
+            // Nothing to enforce yet; the copy above will have seeded it, or
+            // the gallery will generate it on first run and the next install
+            // will fix it up.
+            return;
+        }
+
+        $config = File::get($path);
+        $added = [];
+
+        // Only claim the assets are local once they demonstrably are. Setting
+        // this when the copy failed would point every script tag at a 404 and
+        // leave an admin staring at a blank file manager — strictly worse than
+        // the CDN this replaces.
+        $enforced = self::ENFORCED_CONFIG;
+
+        if (! $selfHosted) {
+            unset($enforced['assets']);
+
+            // And actively withdraw it. A key left over from an install that
+            // DID work, on a box where the files have since gone, points every
+            // script tag at a 404 — the blank-screen failure this guard
+            // exists to prevent. Falling back to the CDN is the safe state.
+            $config = preg_replace('/^[ \t]*\'assets\'[ \t]*=>.*\R?/m', '', $config, 1);
+        }
+
+        foreach ($enforced as $key => $value) {
+            // var_export rather than hand-rolled quoting: it is correct for
+            // every type we might add later, and it escapes a quote inside a
+            // value instead of writing a config file that will not parse.
+            $line = '  ' . var_export((string) $key, true) . ' => ' . var_export($value, true) . ',';
+
+            // Matches the key only when it is live — a leading `//` puts the
+            // quote somewhere this pattern will not find it, so the gallery's
+            // own commented sample lines are left alone.
+            $quoted = preg_quote($key, '/');
+            $pattern = "/^\\s*'{$quoted}'\\s*=>.*$/m";
+
+            // Callbacks, not replacement strings: `preg_replace` reads `$` and
+            // `\` in a replacement as back-references, so a value containing
+            // either would be silently mangled into the config file.
+            if (preg_match($pattern, $config)) {
+                $config = preg_replace_callback($pattern, fn () => $line, $config, 1);
+
+                continue;
+            }
+
+            $opened = preg_replace_callback(
+                '/^return \[$/m',
+                fn () => "return [\n" . $line,
+                $config,
+                1,
+                $inserted
+            );
+
+            if ($inserted !== 1) {
+                // The gallery wrote a shape we do not recognise. Leaving the
+                // file alone and saying so beats corrupting the only config an
+                // admin has.
+                $this->warn("  · could not place '{$key}' — the config file has an unexpected shape.");
+
+                continue;
+            }
+
+            $config = $opened;
+            $added[] = $key;
+        }
+
+        File::put($path, $config);
+
+        $this->info('  ✓ enforced ' . count($enforced) . ' gallery config keys'
+            . ($added ? ' (added: ' . implode(', ', $added) . ')' : ''));
     }
 }
