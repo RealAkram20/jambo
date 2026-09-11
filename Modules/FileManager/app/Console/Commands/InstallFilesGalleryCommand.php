@@ -44,8 +44,25 @@ class InstallFilesGalleryCommand extends Command
      * `menu_max_depth` were lost on production before 2026-09-12.
      */
     private const ENFORCED_CONFIG = [
-        // Self-host. See above.
-        'assets' => '_files/vendor/',
+        // 🔴 `assets` is deliberately NOT here yet, and the vendored files in
+        // resources/files-gallery/vendor are staged rather than in use.
+        //
+        // Setting it in 1.8.41 broke production. The page declares fourteen
+        // assets, which is what was vendored and what the test checks — but
+        // the 320 KB bundle lazy-loads TWELVE more packages the first time a
+        // feature is used: uppy (drag-and-drop upload), plyr and hls.js
+        // (playback), codemirror (editing, plus a syntax file per language
+        // fetched on demand), pannellum, jsmediatags, headroom, marked,
+        // intersection-observer, dayjs locales, flag icons, uppy locales.
+        // Repointing the asset path without those means every one of them
+        // 404s, and the feature dies with no visible error. Rio lost
+        // drag-and-drop and the right-click menu on the live site.
+        //
+        // Finishing this needs the remaining packages vendored — roughly five
+        // megabytes, much of it enumerated only inside the minified bundle —
+        // and a check that FAILS when the gallery asks for something we do not
+        // ship. Hand-listing is what failed: see the worklog for 2026-09-12.
+        // Until that exists the gallery keeps using its CDN, which works.
 
         // Performance on large folders. Jambo's `movies` directory holds 1,761
         // title folders; with these at their defaults the gallery opens every
@@ -286,11 +303,19 @@ class InstallFilesGalleryCommand extends Command
 
         if (! $selfHosted) {
             unset($enforced['assets']);
+        }
 
-            // And actively withdraw it. A key left over from an install that
-            // DID work, on a box where the files have since gone, points every
-            // script tag at a 404 — the blank-screen failure this guard
-            // exists to prevent. Falling back to the CDN is the safe state.
+        // Withdraw any live `assets` line we are not actively enforcing.
+        //
+        // Two ways a config ends up holding one we do not want. The files went
+        // missing on a box where an earlier install worked; or, as in 1.8.42,
+        // we deliberately stopped enforcing it and every machine that took
+        // 1.8.41 still has it written down. Both point the gallery at paths
+        // that may not resolve, and both fail silently.
+        //
+        // Deleting a key nobody is asserting is the safe direction: worst
+        // case the gallery falls back to its CDN, which works.
+        if (! array_key_exists('assets', $enforced)) {
             $config = preg_replace('/^[ \t]*\'assets\'[ \t]*=>.*\R?/m', '', $config, 1);
         }
 

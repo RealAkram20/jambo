@@ -1641,6 +1641,43 @@ build's PesaPal checkout, anything in Phase 3, and TV beyond installing
 
 ## Jambo
 
+### 1.8.42 — Self-hosting is withdrawn, because 1.8.41 broke the file manager
+
+Rio, on the live site after deploying 1.8.41: *"some features are lost like the
+drag and drop feature along side another feature like the right click"*.
+
+**My regression, and the cause is worth writing down.** The gallery's page
+declares fourteen assets. Those were vendored, and the test checked them. But
+the 320 KB application bundle **lazy-loads twelve more packages** the first time
+a feature is used — `uppy` for drag-and-drop uploads, `plyr` and `hls.js` for
+playback, `codemirror` for editing (with a syntax file fetched per language),
+`pannellum`, `jsmediatags`, `headroom`, `marked`, `intersection-observer`, plus
+date locales and flag icons. Repointing the asset path without those meant
+every one of them 404'd, and a 404 on a lazily-injected `<script>` raises
+nothing anybody can see. The features simply stopped existing.
+
+**A test that reads what the page declares can never catch what the bundle
+fetches at runtime.** That is the gap, not bad luck.
+
+So `assets` is no longer enforced and the gallery is back on its CDN, which
+works. `filemanager:install` now **actively deletes** a live `assets` line
+rather than merely not writing one — every machine that took 1.8.41 has it
+written down, and leaving it there would leave them broken.
+
+The vendored files stay in the repo, staged rather than in use, because
+finishing the job is still the right thing.
+
+🔴 **Finishing it needs the remaining packages vendored** — roughly five
+megabytes, much of it enumerated only inside a minified bundle — **and a check
+derived from that bundle rather than hand-written.** A hand list is exactly
+what failed. A new test now permits only two states: `assets` unset, or
+`assets` set with every package the bundle names present. The half-state that
+broke production is no longer expressible.
+
+**Kept from 1.8.41 and unaffected:** the large-folder settings, the config
+enforcement that survives the gallery's settings panel, and the in-app
+updater running `filemanager:install`.
+
 ### 1.8.41 — The file manager is actually self-hosted now, and survives its own settings panel
 
 Rio, 2026-09-12, on the file manager lagging: *"i thought we fully host the

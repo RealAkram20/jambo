@@ -99,7 +99,9 @@ class GalleryConfigEnforcementTest extends TestCase
 
         $contents = File::get($this->configPath);
 
-        foreach (['assets', 'menu_max_depth', 'folder_preview_image'] as $key) {
+        // The keys we actually enforce. `assets` is not among them while
+        // self-hosting is staged — see test_self_hosting_is_all_or_nothing.
+        foreach (['menu_max_depth', 'folder_preview_image'] as $key) {
             $this->assertSame(
                 1,
                 preg_match_all('/^[ \t]*\'' . preg_quote($key, '/') . '\'[ \t]*=>/m', $contents),
@@ -125,67 +127,60 @@ class GalleryConfigEnforcementTest extends TestCase
         $this->assertSame(71, $this->readConfig()['image_resize_quality'] ?? null);
     }
 
-    public function test_it_refuses_to_claim_self_hosting_when_the_assets_are_missing(): void
+    /**
+     * Self-hosting must be all-or-nothing.
+     *
+     * 1.8.41 pointed the gallery's asset path at our own server after
+     * vendoring the fourteen files the PAGE declares. The 320 KB bundle then
+     * lazy-loads twelve more packages the first time a feature is used, and
+     * none of those were vendored, so uppy never arrived and drag-and-drop
+     * died on production — silently, because a 404 on a lazily-injected
+     * <script> raises nothing a user can see.
+     *
+     * So this permits exactly two states and forbids the one in between:
+     * either `assets` is not enforced and the gallery uses its CDN, or it is
+     * enforced and EVERY package the bundle can ask for is vendored.
+     *
+     * Delete nothing here when self-hosting is finished — this is the test
+     * that will tell you it really is.
+     */
+    public function test_self_hosting_is_all_or_nothing(): void
     {
+        // Ask the installed config rather than the class: this is about what
+        // the gallery will actually run with, and it needs no class reference.
         $this->artisan('filemanager:install')->assertSuccessful();
-        $this->assertSame('_files/vendor/', $this->readConfig()['assets'] ?? null);
 
-        $hidden = $this->vendorSource . '-hidden-by-test';
-        File::moveDirectory($this->vendorSource, $hidden);
+        if (! array_key_exists('assets', $this->readConfig())) {
+            // Staged, not live. Nothing to prove beyond the files being kept.
+            $this->assertDirectoryExists($this->vendorSource);
 
-        try {
-            $this->artisan('filemanager:install')->assertSuccessful();
-
-            $config = $this->readConfig();
-
-            // Falling back to the CDN is correct here. Pointing at a directory
-            // that is not there would render every script tag as a 404.
-            $this->assertArrayNotHasKey(
-                'assets',
-                $config,
-                'With no vendored assets the key must be withdrawn, not left pointing at nothing.'
-            );
-
-            // The performance keys are unrelated to self-hosting and must stay.
-            $this->assertSame(1, $config['menu_max_depth'] ?? null);
-        } finally {
-            File::moveDirectory($hidden, $this->vendorSource);
+            return;
         }
 
-        $this->artisan('filemanager:install')->assertSuccessful();
-        $this->assertSame('_files/vendor/', $this->readConfig()['assets'] ?? null, 'It must recover once the assets are back.');
-    }
+        $bundle = "{$this->vendorSource}/files.photo.gallery@0.15.3/js/files.js";
+        $this->assertFileExists($bundle, 'Self-hosting is on, so the bundle must be vendored.');
 
-    public function test_it_refuses_to_self_host_assets_from_a_different_gallery_version(): void
-    {
-        $this->artisan('filemanager:install')->assertSuccessful();
-        $this->assertSame('_files/vendor/', $this->readConfig()['assets'] ?? null);
+        // The registry inside the bundle names every lazily-loaded package as
+        // "name@version". Read it from there rather than keeping a hand list,
+        // because a hand list is what failed.
+        preg_match_all('/"([a-z0-9._-]+@[0-9][0-9a-z.-]*)"/i', File::get($bundle), $found);
 
-        $source = File::get(module_path('FileManager', 'resources/files-gallery/index.php'));
-        preg_match('/\$version = \'([0-9.]+)\'/', $source, $version);
-        $this->assertNotEmpty($version[1] ?? null);
+        $missing = [];
 
-        // Exactly what upgrading the drop-in without re-vendoring looks like:
-        // the right NUMBER of files, under the wrong version directory.
-        $current = "{$this->vendorSource}/files.photo.gallery@{$version[1]}";
-        $stale = "{$this->vendorSource}/files.photo.gallery@0.0.1-stale";
-        File::moveDirectory($current, $stale);
-
-        try {
-            $this->artisan('filemanager:install')->assertSuccessful();
-
-            $this->assertArrayNotHasKey(
-                'assets',
-                $this->readConfig(),
-                'Assets for another version must not be claimed as self-hosted — every URL would 404.'
-            );
-        } finally {
-            File::moveDirectory($stale, $current);
+        foreach (array_unique($found[1]) as $package) {
+            if (! File::isDirectory("{$this->vendorSource}/{$package}")) {
+                $missing[] = $package;
+            }
         }
 
-        $this->artisan('filemanager:install')->assertSuccessful();
-        $this->assertSame('_files/vendor/', $this->readConfig()['assets'] ?? null);
+        $this->assertSame(
+            [],
+            $missing,
+            "Self-hosting is enforced but these packages are not vendored, so every feature that "
+            . 'needs one will fail silently: ' . implode(', ', $missing)
+        );
     }
+
 
     public function test_every_asset_the_gallery_asks_for_is_vendored(): void
     {
